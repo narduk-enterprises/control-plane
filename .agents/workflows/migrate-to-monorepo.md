@@ -32,8 +32,12 @@ description: Migrate a flat Nuxt 4 app from ~/code into the nuxt-v4-template mon
    pnpm install
    npx jiti tools/init.ts --name="<project-name>" --display="<Display Name>" --url="https://<domain>"
    ```
-   _(This rewrites `wrangler.json`, Doppler references, `package.json` names, and site metadata)._
-3. Verify the scaffold compiles cleanly:
+   _Note: The init script will output some "Next steps" (like Doppler setup)._
+3. **Automate Doppler Setup**: Initialize Doppler for the project using the new generic name:
+   ```bash
+   doppler setup --project <project-name> --config dev
+   ```
+4. Verify the scaffold compiles cleanly:
    ```bash
    pnpm install && pnpm run dev
    ```
@@ -102,15 +106,17 @@ Execute commands to selectively copy code from the old repo to the new `apps/web
    if [ -d ~/code/<source>/content ]; then cp -R ~/code/<source>/content apps/web/content; fi
    ```
 
-2. **Merge App-Specific CSS & Vue roots:**
-   - Manually review `~/code/<source>/app/assets/css/main.css` and merge ONLY the app-specific `@theme` tokens or custom utilities into `apps/web/app/assets/css/main.css`.
-   - Review `~/code/<source>/app/app.vue` and copy any app-specific global providers or schema setup into `apps/web/app/app.vue`.
+2. **Automate App-Specific CSS & Vue merges:**
+   You should use your file editing tools to automatically implement these updates:
+   - Read `~/code/<source>/app/assets/css/main.css` and merge ONLY the app-specific `@theme` tokens or custom utilities into `apps/web/app/assets/css/main.css`.
+   - Read `~/code/<source>/app/app.vue` and copy any app-specific global providers or schema setup into `apps/web/app/app.vue`.
 3. **Copy app-specific server code & migrations:**
    ```bash
    cp -R ~/code/<source>/server/api/* apps/web/server/api/ || true
    cp ~/code/<source>/drizzle/*.sql apps/web/drizzle/ || true
-   # Review and merge custom tables into apps/web/server/database/schema.ts
    ```
+
+   - **Automate Schema Merge**: Read `~/code/<source>/server/database/schema.ts` and merge any custom tables into `apps/web/server/database/schema.ts` using your code editing tools.
 
 ---
 
