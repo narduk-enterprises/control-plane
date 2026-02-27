@@ -14,32 +14,26 @@
 
 This is a **minimal Nuxt 4 + Nuxt UI 4** boilerplate deployed to **Cloudflare Workers** with **D1 SQLite** (Drizzle ORM).
 
+> **⚠️ ARCHITECTURE UPDATE:** This repository is now a **thin skeleton**. The entire core business logic, components, composables, and utils are hosted centrally in **[`loganrenz/narduk-nuxt-layer`](https://github.com/loganrenz/narduk-nuxt-layer)**. This skeleton simply inherits from the layer in `nuxt.config.ts`.
+> When building an app using this template, DO NOT recreate standard Nuxt UI components. Rely on the inherited layer.
+
 For full-featured example implementations (auth, analytics, blog, dashboard, forms, etc.), see the companion repo: **[`loganrenz/nuxt-v4-template-examples`](https://github.com/loganrenz/nuxt-v4-template-examples)**.
 
-## Project Structure
+## Project Structure (Skeleton)
+
+Because this is a thin wrapper over a Nuxt Layer, this repository starts fundamentally empty:
 
 ```
-app/                  # All frontend code (Nuxt 4 convention)
-  components/         # Vue components (thin — delegate logic to composables)
-    OgImage/          # Dynamic OG image templates (Satori)
-  composables/        # Business logic + SEO helpers (useSeo, useSchemaOrg)
-  pages/              # File-based routing
-  layouts/            # Page layouts (default: landing)
-  middleware/         # Route guards (empty — add as needed)
-  plugins/            # Client plugins (PostHog, GA4, CSRF fetch interceptor)
-  types/              # Shared TypeScript interfaces
-  assets/css/main.css # Tailwind CSS 4 @theme tokens
-  app.config.ts       # Nuxt UI color tokens (primary/neutral)
-server/
-  api/                # Nitro endpoints (health check, IndexNow)
-  database/           # Drizzle schema definitions
-  middleware/         # CSRF protection, D1 injection
-  routes/             # Dynamic routes (IndexNow key verification)
-  utils/              # Cloudflare bindings (database, KV, R2, rate limiting)
-drizzle/              # SQL migration files
-scripts/              # Utility scripts (favicon generation)
-.agents/workflows/    # Antigravity audit workflows (run via /slash-commands)
+app/
+  app.vue             # Main application shell (minimal)
+  app.config.ts       # Override Nuxt UI color tokens (primary/neutral)
+  pages/              # Add app-specific pages here
+  assets/css/main.css # Tailwind CSS 4 @theme overrides
+nuxt.config.ts        # Includes: extends: ['github:loganrenz/narduk-nuxt-layer#main']
+wrangler.json         # Cloudflare worker production deploy config
 ```
+
+_Note: You can still create `app/components/`, `server/api/`, etc., in the downstream app, but ensure you aren't duplicating something that already exists in the Layer._
 
 ## Hard Constraints (Cloudflare Workers)
 
@@ -107,6 +101,7 @@ Run these during development (Antigravity slash-commands):
 | `/check-plugin-lifecycle` | Audits plugin naming, lifecycle safety, and analytics      |
 | `/check-types-services`   | Audits Thin Store decomposition (types/services/sizes)     |
 | `/check-hydration-safety` | Deep hydration audit (isHydrated, ClientOnly, DOM nesting) |
+| `/migrate-to-layer`       | Migration workflow to convert legacy apps to this layer    |
 
 ## ESLint Plugins (Automated Enforcement)
 

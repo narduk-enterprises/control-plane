@@ -1,13 +1,13 @@
 <div align="center">
   <h1>✨ Nuxt 4 + Nuxt UI 4 Edge Template ✨</h1>
-  <p><strong>A minimal, production-ready starter template designed for maximum performance on Cloudflare Workers.</strong></p>
+  <p><strong>A minimal, production-ready thin skeleton designed to inherit from the Narduk Nuxt Layer.</strong></p>
 </div>
 
 <br />
 
 Built exclusively for the edge. This template combines the power of **Nuxt 4**, the aesthetics of **Nuxt UI 4 (Tailwind CSS 4)**, and the global low-latency of **Cloudflare Workers** with **D1 SQLite databases**.
 
-Skip the configuration boilerplate. Clone, deploy, and focus on building your product.
+> **⚠️ ARCHITECTURE UPDATE:** This repository is now a **thin skeleton**. All core business logic, UI components, utilities, and integrations have been abstracted into **[`loganrenz/narduk-nuxt-layer`](https://github.com/loganrenz/narduk-nuxt-layer)**.
 
 > **Looking for examples?** Check out the companion repo **[`nuxt-v4-template-examples`](https://github.com/loganrenz/nuxt-v4-template-examples)** for full-featured implementations of auth, analytics, blog, dashboard layouts, and more.
 

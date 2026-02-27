@@ -1,29 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: [
-    '@nuxt/ui',
-    '@nuxt/fonts',
-    '@nuxt/image',
-    '@nuxtjs/seo',
-    '@nuxt/eslint',
-  ],
-  css: ['~/assets/css/main.css'],
-
-  compatibilityDate: '2025-07-15',
-
-  devtools: { enabled: true },
-
-  future: {
-    compatibilityVersion: 4
-  },
-
-  ui: {
-    colorMode: true
-  },
-
-  colorMode: {
-    preference: 'dark'
-  },
+  // Point to the new local Layer until GitHub is pushed
+  extends: ['../narduk-nuxt-layer'],
 
   runtimeConfig: {
     // Server-only (admin API routes)
@@ -44,22 +22,11 @@ export default defineNuxtConfig({
     }
   },
 
-  // ─── SEO Configuration (@nuxtjs/seo) ──────────────────────────
-  // This single config block powers sitemap, robots, schema.org,
-  // OG images, and site-wide SEO defaults. Individual pages override
-  // these via the `useSeo()` composable.
-
   site: {
     url: process.env.SITE_URL || 'https://nuxt-v4-template.workers.dev',
     name: 'Nuxt 4 Demo',
     description: 'A production-ready demo template showcasing Nuxt 4, Nuxt UI 4, Tailwind CSS 4, and Cloudflare Workers with D1 database.',
     defaultLocale: 'en',
-  },
-
-  ogImage: {
-    defaults: {
-      component: 'OgImageDefault',
-    },
   },
 
   schemaOrg: {
@@ -78,21 +45,6 @@ export default defineNuxtConfig({
     },
   },
 
-
-
-  sitemap: {},
-
-  robots: {
-    groups: [
-      {
-        userAgent: '*',
-        allow: '/',
-      },
-    ],
-  },
-
-  // ─── Nitro (Cloudflare Workers) ────────────────────────────────
-
   nitro: {
     preset: 'cloudflare-module',
     esbuild: {
@@ -109,28 +61,16 @@ export default defineNuxtConfig({
           name: 'fix-og-image-mock',
           resolveId(id: string) {
             if (id.includes('nuxt-og-image') && id.includes('proxy-cjs')) {
-              return { id: './node_modules/nuxt-og-image/dist/runtime/mock/proxy-cjs.js', external: false }
+              // Now provided by the layer, fallback to require.resolve
+              try {
+                return { id: require.resolve('nuxt-og-image/dist/runtime/mock/proxy-cjs.js'), external: false }
+              } catch {
+                return { id: '../narduk-nuxt-layer/node_modules/nuxt-og-image/dist/runtime/mock/proxy-cjs.js', external: false }
+              }
             }
           },
         },
       ],
     },
   },
-
-  app: {
-    head: {
-      htmlAttrs: { lang: 'en' },
-      meta: [
-        { name: 'theme-color', content: '#0a0f1a' },
-      ],
-      link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
-        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
-        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
-        { rel: 'manifest', href: '/site.webmanifest' },
-      ],
-    },
-    pageTransition: { name: 'page', mode: 'out-in' }
-  }
 })

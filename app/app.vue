@@ -1,118 +1,15 @@
-<script setup lang="ts">
-const route = useRoute()
-const colorMode = useColorMode()
-
-const isDark = computed({
-  get: () => colorMode.value === 'dark',
-  set: (val: boolean) => { colorMode.preference = val ? 'dark' : 'light' }
-})
-
-const navItems = [
-  { label: 'Home', to: '/', icon: 'i-lucide-home' },
-]
-
-const mobileMenuOpen = ref(false)
-
-watch(route, () => {
-  mobileMenuOpen.value = false
-})
-
-/**
- * Site-wide SEO defaults are now handled by @nuxtjs/seo via nuxt.config.ts `site` block.
- * The titleTemplate is automatically set to `%s %separator %siteName`.
- * Individual pages use the `useSeo()` composable to set their own title/description/OG.
- */
-</script>
-
 <template>
   <UApp>
-    <div class="app-shell min-h-screen flex flex-col">
-      <!-- Header -->
-      <div class="sticky top-0 z-50 border-b border-default bg-default/80 backdrop-blur-xl">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <NuxtLink to="/" class="flex items-center gap-2.5 group">
-            <div class="size-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-sm">
-              N4
-            </div>
-            <span class="font-display font-semibold text-lg hidden sm:block">Nuxt 4 Demo</span>
-          </NuxtLink>
-
-          <!-- Desktop nav -->
-          <div class="hidden md:flex items-center gap-1">
-            <NuxtLink
-              v-for="item in navItems"
-              :key="item.to"
-              :to="item.to"
-              class="px-3 py-2 text-sm font-medium rounded-lg transition-colors"
-              :class="route.path === item.to
-                ? 'text-primary bg-primary/10'
-                : 'text-muted hover:text-default hover:bg-elevated'"
-            >
-              {{ item.label }}
-            </NuxtLink>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <USwitch
-              v-model="isDark"
-              checked-icon="i-lucide-moon"
-              unchecked-icon="i-lucide-sun"
-              size="lg"
-            />
-
-            <!-- Mobile hamburger -->
-            <UButton color="neutral" variant="ghost" class="md:hidden p-2 rounded-lg hover:bg-elevated" @click="mobileMenuOpen = !mobileMenuOpen">
-              <UIcon :name="mobileMenuOpen ? 'i-lucide-x' : 'i-lucide-menu'" class="size-5" />
-            </UButton>
-          </div>
-        </div>
-
-        <!-- Mobile nav -->
-        <Transition name="slide-down">
-          <div v-if="mobileMenuOpen" class="md:hidden border-t border-default px-4 py-3 space-y-1">
-            <NuxtLink
-              v-for="item in navItems"
-              :key="item.to"
-              :to="item.to"
-              class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors"
-              :class="route.path === item.to
-                ? 'text-primary bg-primary/10'
-                : 'text-muted hover:text-default hover:bg-elevated'"
-            >
-              <UIcon :name="item.icon" class="size-4" />
-              {{ item.label }}
-            </NuxtLink>
-          </div>
-        </Transition>
-      </div>
-
-      <!-- Main -->
-      <div class="flex-1">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <NuxtPage />
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div class="border-t border-default py-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p class="text-center text-sm text-muted">
-            Nuxt 4 Demo Template &middot; Nuxt UI 4 &middot; Cloudflare Workers &middot; {{ new Date().getFullYear() }}
-          </p>
-        </div>
-      </div>
+    <div class="min-h-screen bg-slate-900 text-white flex flex-col pt-32 p-6 justify-start items-center">
+      <h1 class="text-4xl font-bold mb-4">Nuxt v4 Template (Thin Skeleton)</h1>
+      <p class="text-slate-400 mb-8 max-w-lg text-center">
+        This app inherits from the narduk-nuxt-layer. It contains no core UI components, linters, or plugins natively to prevent merge conflicts when pulling updates.
+      </p>
+      
+      <!-- Test a globally registered Nuxt UI component -->
+      <UButton to="https://github.com/loganrenz/narduk-nuxt-layer" target="_blank" icon="i-lucide-github" color="primary">
+        View Layer Nuxt Setup
+      </UButton>
     </div>
   </UApp>
 </template>
-
-<style>
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: all 0.2s ease;
-}
-.slide-down-enter-from,
-.slide-down-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-</style>
