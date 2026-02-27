@@ -37,3 +37,9 @@ eslint-plugin-nuxt-guardrails/dist/
 tools/eslint-plugin-vue-official-best-practices/dist/
 # ESLint caches
 .eslint-results.json
+
+# Secrets & credential artifacts (use Doppler, never commit these)
+*-secrets.json
+*.jsonl
+doppler.json
+lint-results.txt

@@ -5,7 +5,7 @@
 > This is a **read-only template repository**. Before writing ANY code, you MUST create your own repo:
 >
 > ```bash
-> gh repo create <project-name> --template loganrenz/nuxt-v4-template --private --clone
+> git clone https://github.com/loganrenz/nuxt-v4-template-monorepo.git <project-name>
 > cd <project-name>
 > pnpm install
 > ```
@@ -14,26 +14,34 @@
 
 This is a **minimal Nuxt 4 + Nuxt UI 4** boilerplate deployed to **Cloudflare Workers** with **D1 SQLite** (Drizzle ORM).
 
-> **⚠️ ARCHITECTURE UPDATE:** This repository is now a **thin skeleton**. The entire core business logic, components, composables, and utils are hosted centrally in **[`loganrenz/narduk-nuxt-layer`](https://github.com/loganrenz/narduk-nuxt-layer)**. This skeleton simply inherits from the layer in `nuxt.config.ts`.
+> **⚠️ ARCHITECTURE UPDATE:** This repository is now a **PNPM Workspace Monorepo**. The application lives in `apps/web/` and extends the local layer inside `layers/narduk-nuxt-layer/`. This allows you to rapidly iterate on both the app and the shared library simultaneously.
 > When building an app using this template, DO NOT recreate standard Nuxt UI components. Rely on the inherited layer.
 
-For full-featured example implementations (auth, analytics, blog, dashboard, forms, etc.), see the companion repo: **[`loganrenz/nuxt-v4-template-examples`](https://github.com/loganrenz/nuxt-v4-template-examples)**.
+For full-featured example implementations (auth, analytics, blog, dashboard, forms, etc.), see the companion app in **`apps/examples/`**.
 
-## Project Structure (Skeleton)
+## Project Structure (PNPM Workspace)
 
-Because this is a thin wrapper over a Nuxt Layer, this repository starts fundamentally empty:
+This repository functions as a single **PNPM Workspace** managing both the web application and the shared layer.
 
 ```
-app/
-  app.vue             # Main application shell (minimal)
-  app.config.ts       # Override Nuxt UI color tokens (primary/neutral)
-  pages/              # Add app-specific pages here
-  assets/css/main.css # Tailwind CSS 4 @theme overrides
-nuxt.config.ts        # Includes: extends: ['github:loganrenz/narduk-nuxt-layer#main']
-wrangler.json         # Cloudflare worker production deploy config
+pnpm-workspace.yaml    # Workspace root config
+package.json           # Global scripts (pnpm run dev, pnpm run quality)
+AGENTS.md              # Global AI coding guidelines
+.agents/               # Saved AI workflows
+apps/
+  web/                 # The main Nuxt 4 application
+    app/               # App UI (pages, components, layouts)
+    server/            # Edge API endpoints and D1 database handling
+    nuxt.config.ts     # Extends the local layer
+    package.json
+layers/
+  narduk-nuxt-layer/   # The centralized business logic and UI layer
+    app/               # Shared components, composables, plugins, types
+    server/            # Centralized API logic and database schemas
+    nuxt.config.ts
 ```
 
-_Note: You can still create `app/components/`, `server/api/`, etc., in the downstream app, but ensure you aren't duplicating something that already exists in the Layer._
+_Note: You can still create `app/components/`, `server/api/`, etc., in `apps/web/`, but ensure you aren't duplicating something that already exists in the Layer._
 
 ## Hard Constraints (Cloudflare Workers)
 
@@ -67,6 +75,7 @@ Sitemap and robots.txt are automatic. OG image templates live in `app/components
 
 ## Architecture Patterns
 
+- **Commit often** — make small, focused commits after each meaningful change (new feature, bug fix, refactor). Do not accumulate large uncommitted changesets. Each commit message should follow Conventional Commits (`feat:`, `fix:`, `refactor:`, `chore:`, etc.).
 - **Thin Components, Thick Composables** — components subscribe to composables, pass props down, emit events up. No inline fetch or complex logic in templates.
 - **SSR-safe state** — use `useState()` or Pinia stores. Never use bare `ref()` at module scope (causes cross-request leaks).
 - **Data fetching** — always use `useAsyncData` or `useFetch`, never raw `$fetch` in `<script setup>`.
@@ -74,10 +83,10 @@ Sitemap and robots.txt are automatic. OG image templates live in `app/components
 
 ## Starting a New Project from This Template
 
-1. Install dependencies: `pnpm install`
-2. **Change `name` in `package.json`** away from `"nuxt-v4-template"`.
+1. Clone the repository: `git clone https://github.com/loganrenz/nuxt-v4-template-monorepo.git my-app`
+2. Install dependencies: `pnpm install`
 3. Remove the git origin: `git remote remove origin`
-4. Update `nuxt.config.ts` `site` block with your domain and site name.
+4. Update `nuxt.config.ts` in `apps/web/` with your domain and site name.
 5. Set up secrets in **Doppler** (see Secrets recipe below).
 6. Run `pnpm run dev` to start building.
 
@@ -120,7 +129,7 @@ These workspace-local ESLint plugins enforce patterns at lint time. Run `pnpm ru
 
 # 📖 Recipes
 
-These are opt-in feature recipes. Follow them when the project needs a specific capability. For working reference implementations of each, clone **[`loganrenz/nuxt-v4-template-examples`](https://github.com/loganrenz/nuxt-v4-template-examples)**.
+These are opt-in feature recipes. Follow them when the project needs a specific capability. For working reference implementations of each, refer to the **`apps/examples/`** application.
 
 ---
 
@@ -180,7 +189,7 @@ All template derivatives should utilize **Doppler Cross-Project Secret Referenci
    - `CLOUDFLARE_API_TOKEN` = `${narduk-enterprise-apps.prd.CLOUDFLARE_API_TOKEN}`
    - `CLOUDFLARE_ACCOUNT_ID` = `${narduk-enterprise-apps.prd.CLOUDFLARE_ACCOUNT_ID}`
 
-**Reference:** See `nuxt-v4-template-examples/nuxt.config.ts` for the full runtimeConfig block and `nuxt-v4-template-examples/AGENT_ANALYTICS.md` for automation script details.
+**Reference:** See `apps/examples/nuxt.config.ts` for the full runtimeConfig block.
 
 ---
 
@@ -234,7 +243,7 @@ All template derivatives should utilize **Doppler Cross-Project Secret Referenci
 
 5. Place unit tests in `tests/composables/`, E2E tests in `tests/e2e/`.
 
-**Reference:** See `nuxt-v4-template-examples/tests/` for example test files.
+**Reference:** See `apps/examples/tests/` for example test files.
 
 ---
 
@@ -252,7 +261,7 @@ All template derivatives should utilize **Doppler Cross-Project Secret Referenci
 
 **Key constraint:** All crypto MUST use Web Crypto API (`crypto.subtle.deriveKey` with PBKDF2). Node.js `crypto` and `bcrypt` are forbidden on Cloudflare Workers.
 
-**Reference:** See `nuxt-v4-template-examples/server/utils/auth.ts` and `nuxt-v4-template-examples/app/composables/useAuth.ts`.
+**Reference:** See `apps/examples/server/utils/` and `apps/examples/app/composables/useAuth.ts` (Note: some utils like auth are inherited from the layer).
 
 ---
 
@@ -262,14 +271,14 @@ All template derivatives should utilize **Doppler Cross-Project Secret Referenci
 
 **Steps:**
 
-1. **PostHog:** Already wired — `app/plugins/posthog.client.ts` reads `POSTHOG_PUBLIC_KEY` from runtimeConfig. Set the key via Doppler reference from `narduk-analytics` (no new project is created; apps differentiate via the `app` event property automatically injected by the plugin).
-2. **GA4:** Already wired — `app/plugins/gtag.client.ts` reads `GA_MEASUREMENT_ID`. Set in Doppler.
-3. **IndexNow:** Already wired — `server/routes/[key].txt.ts` + `server/api/indexnow/submit.post.ts`. Set `INDEXNOW_KEY` in Doppler.
-4. **Google Search Console:** Use the setup automation in the examples repo.
+1. **PostHog:** Already wired.
+2. **GA4:** Already wired.
+3. **IndexNow:** Already wired.
+4. **Google Search Console:** Use the setup automation in the examples app.
 
 All plugins **no-op gracefully** when their keys are empty — safe for dev without any Doppler config.
 
-**Automated setup:** The examples repo includes `tools/setup-analytics.ts` which bootstraps GA4 and GSC via API.
+**Automated setup:** The examples app includes `tools/setup-analytics.ts` which bootstraps GA4 and GSC via API.
 
 **Doppler architecture:** Universal management keys live in the `narduk-analytics` Doppler project. Per-app keys go in the app's own Doppler project. You must reference the exact `POSTHOG_PUBLIC_KEY` and `POSTHOG_PROJECT_ID` from the analytics hub.
 
@@ -293,7 +302,7 @@ All plugins **no-op gracefully** when their keys are empty — safe for dev with
 
 **Key gotcha:** On Cloudflare Workers, Nuxt Content auto-switches to D1 database storage. Make sure the `DB` binding is configured in `wrangler.json`.
 
-**Reference:** See `nuxt-v4-template-examples/content/templates/blog/` and `nuxt-v4-template-examples/app/pages/templates/blog/`.
+**Reference:** See `apps/examples/content/templates/blog/` and `apps/examples/app/pages/templates/blog/`.
 
 ---
 
@@ -322,12 +331,12 @@ All plugins **no-op gracefully** when their keys are empty — safe for dev with
 
 **Steps:**
 
-1. Browse the components in `nuxt-v4-template-examples/app/components/ui/` — includes `HeroSection`, `FeatureGrid`, `PricingTable`, `TestimonialCarousel`, `ContactForm`, `CTABanner`.
-2. Browse layouts in `nuxt-v4-template-examples/app/layouts/` — includes `blog.vue`, `dashboard.vue`, `landing.vue`.
+1. Browse the components in `apps/examples/app/components/ui/` — includes `HeroSection`, `FeatureGrid`, `PricingTable`, `TestimonialCarousel`, `ContactForm`, `CTABanner`.
+2. Browse layouts in `apps/examples/app/layouts/` — includes `blog.vue`, `dashboard.vue`, `landing.vue`.
 3. Copy what you need into your project's `app/components/` or `app/layouts/`.
 4. Customize colors via `app/app.config.ts` and fonts via `app/assets/css/main.css`.
 
-**Reference:** See `nuxt-v4-template-examples/app/components/ui/` for the full set.
+**Reference:** See `apps/examples/app/components/ui/` for the full set.
 
 ---
 
@@ -339,7 +348,7 @@ All plugins **no-op gracefully** when their keys are empty — safe for dev with
 
 1. Use Nuxt UI's native `<UForm :schema :state>` with Zod validation.
 2. Connect fields via `<UFormField name="...">`.
-3. For consistent card chrome, create an `AppFormCard` wrapper component (see examples repo).
+3. For consistent card chrome, create an `AppFormCard` wrapper component.
 4. Use layout utility classes in `main.css`: `.form-section` (vertical gap), `.form-row` (2-col grid), `.form-actions` (button alignment).
 
-**Reference:** See `nuxt-v4-template-examples/app/components/AppFormCard.vue` and `nuxt-v4-template-examples/app/composables/useFormHandler.ts`.
+**Reference:** See `apps/examples/app/components/AppFormCard.vue` and `apps/examples/app/composables/useFormHandler.ts`.

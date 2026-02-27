@@ -7,7 +7,7 @@
 
 Built exclusively for the edge. This template combines the power of **Nuxt 4**, the aesthetics of **Nuxt UI 4 (Tailwind CSS 4)**, and the global low-latency of **Cloudflare Workers** with **D1 SQLite databases**.
 
-> **⚠️ ARCHITECTURE UPDATE:** This repository is now a **thin skeleton**. All core business logic, UI components, utilities, and integrations have been abstracted into **[`loganrenz/narduk-nuxt-layer`](https://github.com/loganrenz/narduk-nuxt-layer)**.
+> **⚠️ ARCHITECTURE UPDATE:** This repository is now a **PNPM Workspace Monorepo**. The application lives in `apps/web/` and extends the local layer inside `layers/narduk-nuxt-layer/`. This allows you to rapidly iterate on both the app and the shared library simultaneously.
 
 > **Looking for examples?** Check out the companion repo **[`nuxt-v4-template-examples`](https://github.com/loganrenz/nuxt-v4-template-examples)** for full-featured implementations of auth, analytics, blog, dashboard layouts, and more.
 
@@ -35,26 +35,15 @@ Built exclusively for the edge. This template combines the power of **Nuxt 4**, 
 
 ## 💻 Quick Start
 
-### Option A: Use as GitHub Template (Recommended)
+### 1. Initial Setup
 
 ```bash
-gh repo create my-new-project --template loganrenz/nuxt-v4-template --private --clone
+git clone https://github.com/loganrenz/nuxt-v4-template-monorepo.git my-new-project
 cd my-new-project
 pnpm install
 ```
 
-### Option B: Clone and Re-point
-
-```bash
-git clone https://github.com/loganrenz/nuxt-v4-template.git my-new-project
-cd my-new-project
-gh repo create my-new-project --private --source=. --remote=origin --push
-pnpm install
-```
-
-> **Verify:** `git remote -v` must NOT point to `loganrenz/nuxt-v4-template`.
-
-### Local Development
+### 2. Local Development
 
 ```bash
 # Option 1: With Doppler (recommended — injects secrets)
@@ -104,30 +93,26 @@ pnpm run deploy
 
 ---
 
-## 🧩 Project Structure
+## 🧩 Project Structure (PNPM Workspace)
+
+This repository functions as a single **PNPM Workspace** managing both the web application and the shared layer.
 
 ```text
-app/
-  app.vue              # Main application shell
-  app.config.ts        # Nuxt UI color tokens
-  error.vue            # Full-page error handler
-  components/
-    OgImage/           # OG image templates (Satori)
-  composables/         # useSeo, useSchemaOrg
-  layouts/             # Page layouts (landing)
-  middleware/          # Route guards (add as needed)
-  plugins/             # PostHog, GA4, CSRF fetch interceptor
-  pages/               # File-based routing
-  types/               # Shared TypeScript interfaces
-  assets/css/main.css  # Tailwind CSS 4 @theme tokens
-server/
-  api/                 # health check, IndexNow
-  database/            # Drizzle schema definitions
-  middleware/          # CSRF, D1 injection
-  routes/              # IndexNow key verification
-  utils/               # database, KV, R2, rate limiting
-drizzle/               # SQL migration files
-scripts/               # Utility scripts
+pnpm-workspace.yaml    # Workspace root config
+package.json           # Global scripts (pnpm run dev, pnpm run quality)
+AGENTS.md              # Global AI coding guidelines
+.agents/               # Saved AI workflows
+apps/
+  web/                 # The main Nuxt 4 application
+    app/               # App UI (pages, components, layouts)
+    server/            # Edge API endpoints and D1 database handling
+    nuxt.config.ts     # Extends the local layer
+    package.json
+layers/
+  narduk-nuxt-layer/   # The centralized business logic and UI layer
+    app/               # Shared components, composables, plugins, types
+    server/            # Centralized API logic and database schemas
+    nuxt.config.ts
 ```
 
 ---
@@ -159,9 +144,9 @@ See **[AGENTS.md](./AGENTS.md)** for complete agent instructions, including:
 
 ---
 
-## 📖 Examples Repository
+## 📖 Examples Application
 
-For full-featured reference implementations, see **[`loganrenz/nuxt-v4-template-examples`](https://github.com/loganrenz/nuxt-v4-template-examples)**:
+For full-featured reference implementations, explore the **`apps/examples/`** directory in this workspace:
 
 - 🔒 Authentication (Web Crypto PBKDF2 + D1 sessions)
 - 📊 Analytics (PostHog + GA4 + GSC + IndexNow setup automation)
