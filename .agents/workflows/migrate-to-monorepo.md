@@ -22,7 +22,7 @@ description: Migrate a flat Nuxt 4 app from ~/code into the nuxt-v4-template mon
 
 1. Clone the template into a **new directory** with the project name:
    ```bash
-   cp -R ~/code/nuxt-v4-template ~/code/<project-name>-v2
+   git clone https://github.com/loganrenz/nuxt-v4-template.git ~/code/<project-name>-v2
    cd ~/code/<project-name>-v2
    rm -rf .git
    git init && git add . && git commit -m "chore: scaffold from nuxt-v4-template"
@@ -250,6 +250,16 @@ Run the quality agent slash commands to validate the final state:
 | `/check-seo-compliance`       | useSeo, Schema.org, OG images on every page     |
 | `/check-ssr-hydration-safety` | SSR safety, window access, ClientOnly           |
 | `/audit-repo-hygiene`         | Secrets, junk files, duplicated code            |
+
+---
+
+## Phase 7: Retire Old Directory
+
+Once the migration is fully verified, audits have passed, and the new monorepo app is working as expected, delete the old source directory to clean up your workspace:
+
+```bash
+rm -rf ~/code/<source>
+```
 
 ---
 
