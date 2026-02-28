@@ -18,12 +18,16 @@
     "quality": "pnpm run lint && pnpm run typecheck"
   },
   "dependencies": {
-    "@narduk/eslint-config": "workspace:*"
+    "@narduk/eslint-config": "workspace:*",
+    "nuxt": "^4.3.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "tailwindcss": "^4.0.0",
     "eslint": "^10.0.2",
-    "vue-tsc": "^3.2.5"
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.2.5",
+    "wrangler": "^4.20.0"
   },
   "overrides": {
     "@cloudflare/unenv-preset": "2.12.1",
