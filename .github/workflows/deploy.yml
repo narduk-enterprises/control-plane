@@ -47,16 +47,27 @@ jobs:
             nuxt-build-${{ hashFiles('pnpm-lock.yaml') }}-
             nuxt-build-
 
-      - name: Install Doppler CLI
-        uses: dopplerhq/cli-action@v3
-
       # All secrets from the app's Doppler spoke project (prd config) are resolved —
       # including cross-project hub references — and injected into $GITHUB_ENV.
       # This makes CLOUDFLARE_API_TOKEN, NUXT_* keys, etc. available to Build & Deploy.
-      - name: Fetch Doppler Secrets
-        run: doppler secrets download --no-file --format docker >> $GITHUB_ENV
+      # Using secrets-fetch-action automatically masks retrieved secrets in logs.
+      - name: Check Doppler Token
+        id: check_doppler
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+        run: |
+          if [ -n "$DOPPLER_TOKEN" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch Doppler Secrets
+        if: steps.check_doppler.outputs.has_token == 'true'
+        uses: dopplerhq/secrets-fetch-action@v1.3.1
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+          inject-env-vars: true
 
       - name: Build and Deploy
         run: |
