@@ -247,6 +247,10 @@ Follow these steps **in order** — the init script handles renaming, D1 provisi
 
 If you are an agent building a new project inside a clone of this repository, **DO NOT COMMIT OR PUSH** directly back to `loganrenz/narduk-nuxt-template`. Verify the user has set up a new remote origin first.
 
+## 🚨 ZERO ERRORS & WARNINGS POLICY 🚨
+
+Any project derived from this template, and any code you write, MUST have **zero errors and zero warnings** (TypeScript, ESLint, Vue, Nuxt, and Build). If you encounter any pre-existing errors or warnings from the template during bootstrapping, you must **fix them properly**. Do not use hacky monkey fixes, `@ts-expect-error`, `eslint-disable`, or other suppression techniques to hide problems. Find the architectural root cause and solve it correctly.
+
 ## Quality Audit Workflows
 
 Run these during development (Antigravity slash-commands). Each corresponds to a file in `.agents/workflows/`:

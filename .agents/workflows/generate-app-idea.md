@@ -152,6 +152,8 @@ Create `audit_report.md` answering:
 6. Any HMR port collisions, Tailwind issues, or Doppler errors?
 
 ### Final Deliverable:
-- Working code for [App Name].
+- Working code for [App Name] with **ZERO errors and ZERO warnings** (TypeScript, ESLint, Build).
 - `audit_report.md` with brutally honest feedback.
+
+**CRITICAL RULE:** If you encounter errors or warnings, you must fix them properly. Do NOT use hacky monkey fixes, `@ts-expect-error`, or suppressions. Solve the actual root cause.
 ```
