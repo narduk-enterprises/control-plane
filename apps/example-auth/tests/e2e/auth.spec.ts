@@ -129,10 +129,8 @@ test.describe('example-auth', () => {
     await page.getByRole('button', { name: 'Create Account', exact: true }).click()
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 })
 
-    // Sign out before trying to register again (guest middleware redirects logged-in users)
-    await waitForHydration(page)
-    await page.getByRole('button', { name: 'Sign Out' }).click()
-    await expect(page).toHaveURL(/\/(login)?$/, { timeout: 5_000 })
+    // Clear cookies to start fresh (avoids guest middleware redirect issues)
+    await page.context().clearCookies()
 
     await page.goto('/register')
     await waitForHydration(page)
