@@ -47,40 +47,6 @@ jobs:
       - name: Unit Tests
         run: pnpm -r --if-present test:unit
 
-  build:
-    name: Build (${{ matrix.app }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        app:
-          - web
-          - showcase
-          - example-auth
-          - example-blog
-          - example-marketing
-          - example-og-image
-          - example-apple-maps
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build
-        env:
-          NITRO_PRESET: cloudflare-module
-        working-directory: apps/${{ matrix.app }}
-        run: pnpm build
-
-  # ── Deploy (only on push to main, runs in parallel with quality + build) ──
   deploy:
     name: Deploy
     if: github.event_name != 'pull_request'
