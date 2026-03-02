@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "doppler run -- pnpm -r build",
+    "deploy": "doppler run -- pnpm --filter web run deploy",
     "build:plugins": "pnpm --filter @narduk/eslint-config build",
     "prelint": "pnpm run build:plugins",
     "lint": "pnpm run prelint && turbo run lint",
