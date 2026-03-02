@@ -2,7 +2,7 @@
   "name": "example-blog",
   "type": "module",
   "private": true,
-  "version": "1.5.4",
+  "version": "1.6.0",
   "scripts": {
     "build": "nuxt build",
     "db:ready": "pnpm run db:migrate && pnpm run db:seed",
