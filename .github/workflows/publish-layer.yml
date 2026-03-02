@@ -14,8 +14,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # needed for git push (version bump commit)
-      packages: write # needed for GitHub Packages publish
+      contents: write
+      packages: write
 
     steps:
       - uses: actions/checkout@v4

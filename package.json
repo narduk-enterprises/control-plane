@@ -1,5 +1,6 @@
 {
   "name": "nuxt-v4-template-monorepo",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "pnpm --filter web dev",
