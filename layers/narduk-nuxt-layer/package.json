@@ -1,6 +1,6 @@
 {
   "name": "@loganrenz/nuxt-v4-template-layer",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "type": "module",
   "description": "Narduk Nuxt 4 Layer — shared components, composables, server routes, and Drizzle schema for Cloudflare Workers apps",
   "repository": {
