@@ -128,13 +128,17 @@ The layer provides three security layers out of the box:
 
 ### Rate Limiting (Two-Tier)
 
-**Tier 1 — Per-Isolate (built-in):** The layer includes `server/utils/rateLimit.ts`, a sliding-window rate limiter that runs in each Cloudflare Worker isolate's memory. Use it in API routes:
+**Tier 1 — Per-Isolate (built-in):** The layer includes `server/utils/rateLimit.ts`, a sliding-window rate limiter that runs in each Cloudflare Worker isolate's memory. Use it in API routes. **CRITICAL:** You MUST call `enforceRateLimit(event)` on ALL mutation endpoints (POST/PUT/PATCH/DELETE) to prevent systemic abuse:
 
 ```ts
 await enforceRateLimit(event, 'auth', 10, 60_000); // 10 requests/minute per IP
 ```
 
 > **⚠️ Important:** This is per-isolate only — state is NOT shared across Workers. It protects against brute-force from a single client hitting the same isolate, but cannot enforce global limits.
+
+### Request Validation (Zod)
+
+The template strongly recommends using `readBody(event)` combined with Zod's `.safeParse()` instead of `readValidatedBody` to ensure proper validation and robust error handling on all mutations. Never consume unvalidated data from `readBody()`.
 
 **Tier 2 — Global (Cloudflare dashboard):** For production, complement the per-isolate limiter with [Cloudflare Rate Limiting Rules](https://developers.cloudflare.com/waf/rate-limiting-rules/) configured in the Cloudflare dashboard or via Terraform. These enforce limits at the edge before your Worker is invoked.
 
@@ -241,7 +245,10 @@ Follow these steps **in order** — the init script handles renaming, D1 provisi
 7. Start dev: `doppler run -- pnpm run dev`
 8. Verify infrastructure: `pnpm run validate`
 
-> See the **🚀 Initialization Routine** recipe below for the full details and edge cases.
+> **❌ GitHub Actions CI Preflight Failures:**
+> The `ci.yml` deploy job requires a `DOPPLER_TOKEN` (recommended) or `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in your GitHub repository secrets. If they are missing, the deploy will fail at the "preflight" step.
+> The `pnpm run setup` script tries to create the `DOPPLER_TOKEN` in GitHub automatically (Step 6), but it **will skip this step if you have not set up your git remote** (Step 2).
+> **Fix:** Check your GitHub repository secrets. If `DOPPLER_TOKEN` is missing, ensure your git remote is set up (`git remote add origin ...`), then run `pnpm run setup -- --name="your-app-name" --display="Your Display Name" --url="https://yoururl.com" --repair` to inject the secret.
 
 ## 🚨 CRITICAL RULE: NEVER COMMIT TO THIS REPOSITORY 🚨
 
@@ -454,15 +461,21 @@ doppler secrets set CLOUDFLARE_API_TOKEN='${narduk-nuxt-template.prd.CLOUDFLARE_
 #### Dev vs. Prd Configs
 
 - **`dev` config:** Select this when running `doppler setup` locally. Hub references resolve automatically. You can override any key for local testing without affecting production.
-- **`prd` config:** Used by CI/CD (`deploy.yml`). The `init.ts` script provisions hub references in `prd` only. The `DOPPLER_TOKEN` GitHub secret is scoped to `prd`.
+- **`prd` config:** Used by CI/CD (`deploy.yml`). The `init.ts` script provisions hub references in `prd` only. The `DOPPLER_TOKEN` GitHub secret is scoped to `prd`. **CRITICAL:** Deployments will fail with "Cloudflare credentials missing" if your `prd` config does not contain `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (either directly or via hub reference).
 - **`stg` config:** Available if needed; not provisioned by default.
 
 #### CI/CD Flow
 
-1. `init.ts` creates a Doppler service token (`ci-deploy`) scoped to `<app-name>/prd`
-2. The token is stored as `DOPPLER_TOKEN` GitHub Actions secret
-3. On push to `main`, `deploy.yml` uses the `dopplerhq/secrets-fetch-action` to securely fetch **all resolved secrets** (hub refs are resolved server-side) and inject them into `$GITHUB_ENV`
-4. `pnpm build` and `wrangler deploy` run with full access to all secrets
+**Deploy will fail until:**
+
+1. GitHub must have either the `DOPPLER_TOKEN` secret (recommended) or both `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+2. If setup was run without a git remote, add the remote and re-run with `--repair` to set `DOPPLER_TOKEN`.
+3. The app's Doppler `prd` config must expose `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (via hub sync or direct) so the deploy job can run `wrangler deploy`.
+
+4. `init.ts` creates a Doppler service token (`ci-deploy`) scoped to `<app-name>/prd`
+5. The token is stored as `DOPPLER_TOKEN` GitHub Actions secret
+6. On push to `main`, `deploy.yml` uses the `dopplerhq/secrets-fetch-action` to securely fetch **all resolved secrets** (hub refs are resolved server-side) and inject them into `$GITHUB_ENV`
+7. `pnpm build` and `wrangler deploy` run with full access to all secrets
 
 **Reference:** See `apps/example-auth/nuxt.config.ts` for the full runtimeConfig block.
 
@@ -537,6 +550,12 @@ E2E tests use a **single root config** (`playwright.config.ts` at repo root) wit
 3. Create API routes: `server/api/auth/login.post.ts`, `register.post.ts`, `logout.post.ts`, `me.get.ts`.
 4. Create `app/composables/useAuth.ts` — reactive auth state backed by `useState()`.
 5. Create `app/middleware/auth.ts` — route guard that redirects unauthenticated users.
+
+### Schema Ownership & Extensions
+
+The layer provides base `users` and `sessions` tables via its own `server/database/schema.ts` and auto-imports its own `useDatabase` helper.
+If your app defines its own schema (e.g., adding `clients` and `invoices` tables, or modifying the base tables), you **must** provide your own database helper in your app (e.g., `apps/web/server/utils/database.ts` -> `useAppDatabase(event)`).
+Using the auto-imported `useDatabase` from the layer will resolve to the layer's schema, causing your app's tables to be missing from the Drizzle instance. Ensure all your app's API routes call `useAppDatabase(event)` to avoid Nitro auto-import conflicts.
 
 **Key constraint:** All crypto MUST use Web Crypto API (`crypto.subtle.deriveKey` with PBKDF2). Node.js `crypto` and `bcrypt` are forbidden on Cloudflare Workers.
 

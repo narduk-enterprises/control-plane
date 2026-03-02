@@ -163,6 +163,14 @@ async function main() {
     // Ignore
   }
 
+  // Determine if there is a target (non-template) git remote available
+  let hasGitRemote = false
+  try {
+    const remotesCheck = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+    hasGitRemote = remotesCheck.split('\n').some(line => !line.includes('narduk-nuxt-template') && line.includes('(push)'))
+  } catch { /* no git or no remotes */ }
+
+
   // Pre-flight check: Ensure git is initialized and remote is set properly
   if (!REPAIR_MODE) {
     let remotesCheck = ''
@@ -321,7 +329,11 @@ async function main() {
   let appDirs: string[] = []
   try {
     const entries = await fs.readdir(appsDir, { withFileTypes: true })
-    appDirs = entries.filter(e => e.isDirectory()).map(e => e.name)
+    // Only provision databases for actual production apps, not examples.
+    appDirs = entries
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .filter(name => name !== 'showcase' && !name.startsWith('example-'))
   } catch {
     appDirs = []
   }
@@ -463,16 +475,10 @@ Pushes to \`main\` are automatically built and deployed via the GitHub Actions C
     console.log('  ⏭ Doppler CLI not configured; skipping GitHub secret setup.')
     console.log('     Run `doppler setup` and re-run with --repair to complete this step.')
   } else {
-    // Pre-check: a non-template git remote must exist for gh secret set to work
-    let hasGitRemote = false
-    try {
-      const remotesCheck = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' }).trim()
-      hasGitRemote = remotesCheck.split('\n').some(line => !line.includes('narduk-nuxt-template') && line.includes('(push)'))
-    } catch { /* no git or no remotes */ }
-
     if (!hasGitRemote) {
       console.log('  ⏭ No git remote found (expected for fresh scaffolds).')
       console.log('    After adding a remote, re-run with --repair to set the GitHub secret.')
+      console.log('    ⚠️  Deploy will fail on push to main until DOPPLER_TOKEN is set; run setup with --repair after adding your remote.')
     } else {
       try {
         // Check if ci-deploy token already exists
@@ -649,6 +655,18 @@ Pushes to \`main\` are automatically built and deployed via the GitHub Actions C
         await fs.writeFile(rootPkgPath, JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8')
       }
 
+      // Strip deploy-examples and deploy-showcase jobs from ci.yml so CI does not fail after example apps are removed
+      const ciYamlPath = path.join(ROOT_DIR, '.github', 'workflows', 'ci.yml')
+      try {
+        let ciYamlContent = await fs.readFile(ciYamlPath, 'utf-8')
+        if (ciYamlContent.includes('deploy-examples:')) {
+          ciYamlContent = ciYamlContent.replace(/\n  deploy-examples:[\s\S]*/m, '')
+          await fs.writeFile(ciYamlPath, ciYamlContent, 'utf-8')
+        }
+      } catch (ciErr: any) {
+        console.warn(`  ⚠️ Could not update ci.yml: ${ciErr.message}`)
+      }
+
       // Rewrite playwright.config.ts to simple web configuration
       const playwrightConfigPath = path.join(ROOT_DIR, 'playwright.config.ts')
       const playwrightContent = `import { defineConfig, devices } from '@playwright/test'
@@ -712,6 +730,11 @@ export default defineConfig({
     console.log(`  4. Start dev server: doppler run -- pnpm run dev`)
     console.log(`  5. Verify infrastructure: pnpm run validate`)
     console.log(`  6. git add . && git commit -m "chore: initialize project"`)
+    if (!hasGitRemote) {
+      console.log(`\n  ⚠️  DEPLOYMENT BLOCKED: No git remote was found during setup.`)
+      console.log(`     GitHub CI deploy will fail on push to main until DOPPLER_TOKEN is set.`)
+      console.log(`     Add a remote and re-run: pnpm run setup -- --name="${APP_NAME}" --display="${DISPLAY_NAME}" --url="${SITE_URL}" --repair`)
+    }
     console.log()
     console.log('  💡 If analytics setup was deferred (missing Doppler secrets), run it later:')
     console.log(`     doppler run --project ${APP_NAME} --config prd -- npx jiti tools/setup-analytics.ts all`)
