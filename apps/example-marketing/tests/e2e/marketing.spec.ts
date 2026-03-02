@@ -39,10 +39,10 @@ test.describe('example-marketing', () => {
     await page.goto('/')
     await waitForHydration(page)
     await expect(page.getByText('Build at the speed of thought.')).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByText('5 products')).toBeVisible()
+    await expect(page.getByText('5 products', { exact: true })).toBeVisible()
     await expect(page.getByText('25 products')).toBeVisible()
     await expect(page.getByText('Advanced analytics')).toBeVisible()
-    await expect(page.getByText('24-hour support response time', { exact: false })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('24-hour support response time')).toBeVisible()
   })
 
   test('pro tier has most popular badge', async ({ page }) => {
@@ -99,8 +99,8 @@ test.describe('example-marketing', () => {
     await page.goto('/')
     await waitForHydration(page)
     await expect(page.getByText('Build at the speed of thought.')).toBeVisible({ timeout: 15_000 })
-    const themeSwitch = page.getByRole('switch').first()
-    await expect(themeSwitch).toBeVisible()
+    const themeButton = page.locator('button').filter({ has: page.locator('span[class*="i-lucide-monitor"], span[class*="i-lucide-sun"], span[class*="i-lucide-moon"]') }).first()
+    await expect(themeButton).toBeVisible()
   })
 
   test('page has correct title', async ({ page }) => {

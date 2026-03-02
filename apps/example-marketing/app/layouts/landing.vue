@@ -27,6 +27,7 @@ function cycleColorMode() {
               :icon="colorModeIcon"
               variant="ghost"
               color="neutral"
+              aria-label="Toggle theme"
               @click="cycleColorMode"
             />
           </div>
