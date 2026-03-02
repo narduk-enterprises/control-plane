@@ -67,4 +67,4 @@ ruleTester.run('no-ssr-dom-access', rule, {
       ],
     },
   ],
-}) satisfies Rule.RuleTester
+})

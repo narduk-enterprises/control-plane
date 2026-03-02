@@ -8,7 +8,6 @@ import rule from '../src/rules/valid-useAsyncData'
 import { describe, it, afterAll } from 'vitest'
 RuleTester.describe = describe
 RuleTester.it = it
-// @ts-expect-error — RuleTester.afterAll exists at runtime but is missing from the type definitions
 RuleTester.afterAll = afterAll
 
 const ruleTester = new RuleTester({
