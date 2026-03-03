@@ -40,6 +40,7 @@ jobs:
       matrix:
         repo:
           - neon-sewer-raid
+          - austin-texas-net
           # Add derived repos here as the fleet grows
       fail-fast: false
 
