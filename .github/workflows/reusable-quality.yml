@@ -36,6 +36,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Build ESLint plugins
+        run: pnpm run build:plugins
+
       - name: Prepare Nuxt types
         run: |
           for cfg in apps/*/nuxt.config.ts layers/*/nuxt.config.ts; do
@@ -72,4 +75,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Check for template drift
-        run: npx tsx tools/check-drift-ci.ts
+        run: pnpm exec tsx tools/check-drift-ci.ts
