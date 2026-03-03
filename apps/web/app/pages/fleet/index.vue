@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
+import FleetAppStatus from '~/components/fleet/FleetAppStatus.vue'
 import type { TableColumn } from '~/types/table'
 
 useSeo({
@@ -49,6 +50,15 @@ const fleetColumns: TableColumn<FleetApp>[] = [
     header: 'URL',
     meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate text-muted hidden md:table-cell' } },
     cell: ({ row }) => row.original.url,
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } },
+    cell: ({ row }) => {
+      return h(FleetAppStatus, { url: row.original.url })
+    },
+    enableSorting: false,
   },
   {
     id: 'actions',

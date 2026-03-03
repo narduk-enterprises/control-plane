@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { h, resolveComponent } from 'vue'
+import FleetAppStatus from '~/components/fleet/FleetAppStatus.vue'
+import type { TableColumn } from '~/types/table'
+import type { FleetApp } from '~/composables/useFleetDashboard'
+
 useSeo({
   title: 'Dashboard',
   description: 'Narduk Control Plane — fleet overview and quick actions.',
@@ -11,10 +16,73 @@ useWebPageSchema({
 
 const { apps, refreshApps } = useFleetDashboard()
 const fleetApps = computed(() => apps.value ?? [])
-const recentFleetApps = computed(() => fleetApps.value.slice(0, 6))
 const fleetCount = computed(() => fleetApps.value.length)
 const hasFleetApps = computed(() => fleetCount.value > 0)
 const lastRefresh = ref<Date | null>(null)
+
+// Pagination logic
+const page = ref(1)
+const itemsPerPage = 5
+const paginatedApps = computed(() => {
+  const start = (page.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return fleetApps.value.slice(start, end)
+})
+
+const NuxtLink = resolveComponent('NuxtLink')
+const UButton = resolveComponent('UButton')
+
+const dashboardColumns: TableColumn<FleetApp>[] = [
+  {
+    accessorKey: 'name',
+    header: 'App',
+    cell: ({ row }) => {
+      const app = row.original
+      return h(NuxtLink, {
+        to: `/fleet/${app.name}`,
+        class: 'font-medium text-primary hover:underline cursor-pointer',
+      }, () => app.name)
+    },
+  },
+  {
+    accessorKey: 'url',
+    header: 'URL',
+    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[150px] truncate text-muted hidden md:table-cell' } },
+    cell: ({ row }) => row.original.url,
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } },
+    cell: ({ row }) => h(FleetAppStatus, { url: row.original.url }),
+    enableSorting: false,
+  },
+  {
+    id: 'actions',
+    header: '',
+    meta: { class: { th: 'text-right', td: 'text-right' } },
+    cell: ({ row }) => {
+      const app = row.original
+      return h('div', { class: 'flex items-center justify-end gap-1' }, [
+        h(UButton, {
+          to: app.url,
+          target: '_blank',
+          rel: 'noopener',
+          size: 'xs',
+          variant: 'ghost',
+          color: 'neutral',
+          icon: 'i-lucide-external-link',
+          'aria-label': 'Open app',
+          class: 'cursor-pointer',
+        }),
+      ])
+    },
+    enableSorting: false,
+  },
+]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const columnsForTable = dashboardColumns as any
 
 async function onRefresh() {
   await refreshApps()
@@ -112,19 +180,21 @@ async function onRefresh() {
               </UButton>
             </div>
           </template>
-          <div v-if="hasFleetApps" class="space-y-2">
-            <NuxtLink
-              v-for="app in recentFleetApps"
-              :key="app.name"
-              :to="`/fleet/${app.name}`"
-              class="flex items-center justify-between rounded-lg border border-default p-3 transition-colors hover:bg-elevated cursor-pointer"
-            >
-              <div class="min-w-0 flex-1">
-                <p class="font-medium text-default truncate">{{ app.name }}</p>
-                <p class="truncate text-sm text-muted">{{ app.url }}</p>
-              </div>
-              <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
-            </NuxtLink>
+          <div v-if="hasFleetApps" class="flex flex-col gap-4">
+            <div class="overflow-x-auto rounded-lg border border-default">
+              <UTable
+                :data="paginatedApps"
+                :columns="columnsForTable"
+                class="min-w-full"
+              />
+            </div>
+            <div v-if="fleetCount > itemsPerPage" class="flex justify-end">
+              <UPagination
+                v-model:page="page"
+                :total="fleetCount"
+                :items-per-page="itemsPerPage"
+              />
+            </div>
           </div>
           <div v-else class="rounded-lg border border-dashed border-default p-8 text-center">
             <UIcon name="i-lucide-inbox" class="mx-auto size-10 text-muted" />
