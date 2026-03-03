@@ -1,6 +1,6 @@
 {
   "name": "narduk-nuxt-template",
-  "version": "1.10.2",
+  "version": "1.10.3",
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "scripts": {
