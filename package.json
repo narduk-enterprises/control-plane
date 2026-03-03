@@ -1,6 +1,6 @@
 {
   "name": "sailing-passage-map",
-  "version": "1.12.4",
+  "version": "1.12.5",
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "scripts": {
