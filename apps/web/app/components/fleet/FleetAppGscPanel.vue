@@ -167,7 +167,7 @@ const gscColumnsForTable = computed(() => gscColumns.value as any)
 
     <div v-if="error" class="rounded-lg border border-error/30 bg-error/5 p-4">
       <p class="text-sm font-medium text-error">GSC error</p>
-      <p class="mt-1 text-sm text-muted">{{ error?.message }}</p>
+      <p class="mt-1 text-sm text-muted">{{ error.data?.message || error?.message }}</p>
     </div>
 
     <div v-else-if="data && data.rows?.length" class="space-y-2">

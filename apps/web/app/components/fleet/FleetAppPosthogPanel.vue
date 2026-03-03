@@ -30,7 +30,7 @@ async function onLoad() {
 
     <div v-if="error" class="rounded-lg border border-error/30 bg-error/5 p-4">
       <p class="text-sm font-medium text-error">PostHog error</p>
-      <p class="mt-1 text-sm text-muted">{{ error?.message }}</p>
+      <p class="mt-1 text-sm text-muted">{{ error.data?.message || error?.message }}</p>
     </div>
 
     <div v-else-if="summary" class="grid gap-4 sm:grid-cols-2">

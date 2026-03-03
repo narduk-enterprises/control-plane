@@ -44,7 +44,7 @@ export default defineEventHandler(async (_event): Promise<GithubRepo[]> => {
     if (!token) {
         throw createError({
             statusCode: 401,
-            statusMessage: 'GitHub token is missing in configuration.',
+            message: 'GitHub token is missing in configuration.',
         })
     }
 
@@ -108,7 +108,7 @@ export default defineEventHandler(async (_event): Promise<GithubRepo[]> => {
         const status = (error as { response?: { status?: number } })?.response?.status || 500
         throw createError({
             statusCode: status,
-            statusMessage: 'Failed to fetch GitHub data',
+            message: 'Failed to fetch GitHub data',
         })
     }
 })

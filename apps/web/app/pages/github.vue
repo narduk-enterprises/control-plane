@@ -53,7 +53,7 @@ function getStatusIcon(repo: GithubRepo) {
     <UAlert
       v-if="error"
       title="Error loading repositories"
-      :description="error.message || 'Failed to fetch GitHub data. Ensure GITHUB_TOKEN is configured.'"
+      :description="error.data?.message || error.message || 'Failed to fetch GitHub data. Ensure GITHUB_TOKEN is configured.'"
       color="error"
       variant="soft"
       icon="i-lucide-alert-circle"
