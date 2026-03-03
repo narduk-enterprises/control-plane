@@ -232,6 +232,9 @@ jobs:
   deploy:
     if: github.event_name != 'pull_request'
     needs: [quality]
+    permissions:
+      contents: read
+      deployments: write
     uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-deploy.yml@main
     secrets:
       DOPPLER_TOKEN: \${{ secrets.DOPPLER_TOKEN }}
