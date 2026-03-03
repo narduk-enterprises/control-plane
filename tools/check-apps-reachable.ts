@@ -33,6 +33,8 @@ const FLEET_PROJECTS = [
   'circuit-breaker-online',
   'nagolnagemluapleira',
   'austin-texas-net',
+  'sailing-passage-map',
+  'video-grab',
 ]
 
 function isDopplerAvailable(): boolean {

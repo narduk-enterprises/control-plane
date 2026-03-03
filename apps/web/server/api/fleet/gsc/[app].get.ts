@@ -52,6 +52,20 @@ export default defineEventHandler(async (event) => {
     return { app: app.name, rows, startDate, endDate, dimension: query.dimension }
   } catch (err: unknown) {
     const e = err as { message?: string }
-    throw createError({ statusCode: 500, message: `GSC error: ${e.message ?? 'Unknown'}` })
+    const msg = e.message ?? 'Unknown'
+    // Map common GSC failures to clearer messages
+    if (msg.includes('403')) {
+      throw createError({
+        statusCode: 403,
+        message: `GSC: Site not verified or service account not added. Add sc-domain:${hostname} in Search Console and grant analytics-admin@narduk-analytics.iam.gserviceaccount.com owner access.`,
+      })
+    }
+    if (msg.includes('404')) {
+      throw createError({
+        statusCode: 404,
+        message: `GSC: Site sc-domain:${hostname} not found. Add and verify the property in Google Search Console.`,
+      })
+    }
+    throw createError({ statusCode: 500, message: `GSC error: ${msg}` })
   }
 })

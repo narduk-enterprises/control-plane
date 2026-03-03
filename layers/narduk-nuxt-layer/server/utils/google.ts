@@ -89,7 +89,9 @@ export async function googleApiFetch(url: string, scopes: string[], options: Req
   const response = await fetch(url, { ...options, headers })
 
   if (!response.ok) {
-    throw new Error(`Google API error: ${response.status} ${response.statusText}`)
+    const body = await response.text()
+    const detail = body ? ` — ${body.slice(0, 300)}` : ''
+    throw new Error(`Google API error: ${response.status} ${response.statusText}${detail}`)
   }
 
   return response.json()

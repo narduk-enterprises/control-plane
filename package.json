@@ -23,6 +23,7 @@
     "validate": "doppler run -- npx tsx tools/validate.ts",
     "check:reach": "npx tsx tools/check-apps-reachable.ts",
     "check:fleet-doppler": "doppler run -- npx tsx tools/validate-fleet-doppler.ts",
+    "set-fleet-doppler-urls": "npx tsx tools/set-fleet-doppler-urls.ts",
     "clean": "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
     "clean:install": "pnpm run clean && pnpm install && pnpm run db:ready:all",
     "db:migrate": "pnpm --filter web run db:migrate",

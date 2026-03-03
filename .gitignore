@@ -13,6 +13,11 @@ node_modules
 logs
 *.log
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
 # Misc
 .DS_Store
 .fleet

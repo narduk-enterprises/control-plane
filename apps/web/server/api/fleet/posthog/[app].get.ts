@@ -18,7 +18,11 @@ export default defineEventHandler(async (event) => {
   const host = (config.posthogHost as string) || 'https://us.i.posthog.com'
 
   if (!apiKey || !projectId) {
-    throw createError({ statusCode: 503, message: 'PostHog not configured' })
+    throw createError({
+      statusCode: 503,
+      message:
+        'PostHog not configured: set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID in the control plane\'s Doppler (prd), e.g. from narduk-analytics hub.',
+    })
   }
 
   const end = new Date()

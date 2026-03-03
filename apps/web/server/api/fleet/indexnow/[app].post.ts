@@ -28,5 +28,9 @@ export default defineEventHandler(async (event) => {
   })
 
   const data = await res.json().catch(() => ({}))
-  return { app: app.name, status: res.status, targetUrl, response: data }
+  const message =
+    res.status === 404
+      ? 'Fleet app does not expose /api/indexnow/submit. Ensure the app uses the Narduk template layer or implements this endpoint.'
+      : undefined
+  return { app: app.name, status: res.status, targetUrl, response: data, message }
 })

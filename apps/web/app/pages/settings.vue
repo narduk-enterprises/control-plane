@@ -58,7 +58,16 @@ const integrations = computed(() => [
       </template>
       <p class="text-sm text-muted">
         Fleet apps are defined in <code class="rounded bg-muted px-1 py-0.5">server/data/fleet-registry.ts</code>.
-        Add or update apps there and set production URLs in <code class="rounded bg-muted px-1 py-0.5">KNOWN_URLS</code>.
+        URLs are taken from <code class="rounded bg-muted px-1 py-0.5">KNOWN_URLS</code> (keep in sync with
+        <code class="rounded bg-muted px-1 py-0.5">.agents/app-standardization/analytics-architecture.md</code>
+        and each app’s Doppler <code class="rounded bg-muted px-1 py-0.5">SITE_URL</code> prd). Apps not in KNOWN_URLS use
+        <code class="rounded bg-muted px-1 py-0.5">https://&lt;dopplerProject&gt;.nard.uk</code>.
+      </p>
+      <p class="mt-3 text-sm text-muted">
+        For fleet GSC/PostHog to work, set in this app’s Doppler (prd):
+        <code class="rounded bg-muted px-1 py-0.5">GSC_SERVICE_ACCOUNT_JSON</code>,
+        <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PERSONAL_API_KEY</code>,
+        <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PROJECT_ID</code> (e.g. from narduk-analytics hub).
       </p>
     </UCard>
   </div>

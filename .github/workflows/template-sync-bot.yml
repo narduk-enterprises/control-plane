@@ -53,6 +53,8 @@ jobs:
           - circuit-breaker-online
           - nagolnagemluapleira
           - austin-texas-net
+          - sailing-passage-map
+          - video-grab
           # Add derived repos here as the fleet grows
       fail-fast: false
 
