@@ -26,6 +26,13 @@ export default defineNuxtConfig({
     }
   },
 
+  runtimeConfig: {
+    public: {
+      buildVersion: process.env.GITHUB_SHA || process.env.CF_PAGES_COMMIT_SHA || '',
+      buildTime: new Date().toISOString(),
+    },
+  },
+
   site: {
     url: process.env.SITE_URL || 'http://127.0.0.1:3000',
     name: process.env.APP_NAME || 'Nuxt 4 App',

@@ -99,6 +99,8 @@ jobs:
 
       - name: Build & Deploy
         working-directory: ${{ inputs.app-directory }}
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           pnpm build
           pnpm exec wrangler deploy

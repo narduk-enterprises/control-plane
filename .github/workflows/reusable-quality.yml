@@ -40,7 +40,6 @@ jobs:
 
       - name: Prepare Nuxt types
         run: |
-          # Monorepo: apps/*/nuxt.config.ts and layers/*/nuxt.config.ts
           for cfg in apps/*/nuxt.config.ts layers/*/nuxt.config.ts; do
             [ -f "$cfg" ] || continue
             dir="$(dirname "$cfg")"
@@ -48,18 +47,11 @@ jobs:
             (cd "$dir" && pnpm exec nuxt prepare)
             echo "::endgroup::"
           done
-          # Flat app: root nuxt.config.ts (no apps/ directory)
-          if [ ! -d "apps" ] && [ -f "nuxt.config.ts" ]; then
-            echo "::group::nuxt prepare — ."
-            pnpm exec nuxt prepare
-            echo "::endgroup::"
-          fi
 
       - name: Cache prepared workspace
         uses: actions/cache/save@v4
         with:
           path: |
-            .nuxt
             apps/*/.nuxt
             layers/*/.nuxt
             packages/eslint-config/*/dist
@@ -91,7 +83,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .nuxt
             apps/*/.nuxt
             layers/*/.nuxt
             packages/eslint-config/*/dist
@@ -124,7 +115,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .nuxt
             apps/*/.nuxt
             layers/*/.nuxt
             packages/eslint-config/*/dist
@@ -157,7 +147,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .nuxt
             apps/*/.nuxt
             layers/*/.nuxt
             packages/eslint-config/*/dist

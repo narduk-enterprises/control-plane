@@ -214,13 +214,9 @@ function main() {
   console.log(`  ${added} workflows added.`)
   console.log()
 
-  // Phase 3: Replace CI with reusable-workflow version
+  // Phase 3: Replace CI with reusable-workflow version (monorepo layout only; app-directory defaults to apps/web)
   console.log('Phase 3: Switching CI to reusable workflows...')
   const ciPath = join(appDir, '.github/workflows/ci.yml')
-  const isMonorepo = existsSync(join(appDir, 'apps/web'))
-  const deployWithBlock = isMonorepo
-    ? ''
-    : `\n    with:\n      app-directory: '.'`
   const slimCi = `name: CI
 
 on:
@@ -244,7 +240,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
-    uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-deploy.yml@main${deployWithBlock}
+    uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-deploy.yml@main
     secrets:
       DOPPLER_TOKEN: \${{ secrets.DOPPLER_TOKEN }}
       CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -253,13 +249,11 @@ jobs:
 
   if (existsSync(ciPath)) {
     const current = readFileSync(ciPath, 'utf-8')
-    const needsAppDir = !isMonorepo && !current.includes('app-directory')
-    if (current.includes('reusable-quality.yml') && !needsAppDir) {
-      console.log('  Already using reusable workflows.')
+    if (current.includes('reusable-quality.yml') && !current.includes('app-directory')) {
+      console.log('  Already using reusable workflows (monorepo).')
     }
     else {
-      const reason = needsAppDir ? 'add app-directory for flat app' : 'reusable workflow caller'
-      console.log(`  REPLACE: .github/workflows/ci.yml -> ${reason}`)
+      console.log('  REPLACE: .github/workflows/ci.yml')
       if (!dryRun) {
         writeFileSync(ciPath, slimCi, 'utf-8')
       }
