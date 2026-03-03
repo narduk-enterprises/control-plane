@@ -18,6 +18,7 @@ const navItems = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
   { label: 'Fleet', to: '/fleet', icon: 'i-lucide-grid-3x3' },
   { label: 'Indexing', to: '/indexing', icon: 'i-lucide-search' },
+  { label: 'GitHub', to: '/github', icon: 'i-lucide-github' },
   { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
 ]
 

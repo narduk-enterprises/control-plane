@@ -160,6 +160,16 @@ async function onRefresh() {
               Submit URL to Google
             </UButton>
             <UButton
+              to="/github"
+              variant="outline"
+              color="neutral"
+              block
+              class="cursor-pointer justify-start"
+              icon="i-lucide-github"
+            >
+              View GitHub Repos
+            </UButton>
+            <UButton
               to="/settings"
               variant="outline"
               color="neutral"

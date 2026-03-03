@@ -60,6 +60,12 @@ export default defineEventHandler(async (event) => {
         message: `GSC: Site not verified or service account not added. Add sc-domain:${hostname} in Search Console and grant analytics-admin@narduk-analytics.iam.gserviceaccount.com owner access.`,
       })
     }
+    if (msg.includes('GSC_SERVICE_ACCOUNT_JSON not configured')) {
+      throw createError({
+        statusCode: 503,
+        message: 'GSC not configured: set GSC_SERVICE_ACCOUNT_JSON in Doppler',
+      })
+    }
     if (msg.includes('404')) {
       throw createError({
         statusCode: 404,

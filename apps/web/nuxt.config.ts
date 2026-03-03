@@ -22,6 +22,7 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    githubToken: process.env.GITHUB_TOKEN || '',
     googleServiceAccountKey: process.env.GSC_SERVICE_ACCOUNT_JSON || '',
     posthogApiKey: process.env.POSTHOG_PERSONAL_API_KEY || '',
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',

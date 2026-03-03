@@ -37,8 +37,8 @@ async function onSubmit() {
     <div v-else-if="data" class="rounded-lg border border-default bg-elevated/30 p-4">
       <p class="text-sm font-medium text-default">Status {{ data.status }}</p>
       <p class="mt-1 text-xs text-muted">{{ data.targetUrl }}</p>
-      <p v-if="data.status === 404 && data.message" class="mt-2 text-sm text-warning">
-        {{ data.message }}
+      <p v-if="data.status === 404 && (data as any).message" class="mt-2 text-sm text-warning">
+        {{ (data as any).message }}
       </p>
       <pre v-if="showResponsePre" class="mt-2 overflow-auto rounded bg-default p-2 text-xs">{{ responseJson }}</pre>
     </div>
