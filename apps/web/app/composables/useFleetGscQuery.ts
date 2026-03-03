@@ -11,6 +11,23 @@ export interface GscRow {
   position?: number
 }
 
+export interface GscTotals {
+  clicks?: number
+  impressions?: number
+  ctr?: number
+  position?: number
+}
+
+export interface GscInspection {
+  inspectionResultLink?: string
+  indexStatusResult?: {
+    verdict?: string
+    coverageState?: string
+    crawledAs?: string
+    lastCrawlTime?: string
+  }
+}
+
 export interface GscQueryParams {
   startDate: string
   endDate: string
@@ -34,6 +51,8 @@ export function useFleetGscQuery(
   const { data, error, pending, refresh } = useFetch<{
     app: string
     rows: GscRow[]
+    totals: GscTotals | null
+    inspection: GscInspection | null
     startDate: string
     endDate: string
     dimension: string

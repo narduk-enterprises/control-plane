@@ -22,7 +22,7 @@ const lastRefresh = ref<Date | null>(null)
 
 // Pagination logic
 const page = ref(1)
-const itemsPerPage = 5
+const itemsPerPage = 20
 const paginatedApps = computed(() => {
   const start = (page.value - 1) * itemsPerPage
   const end = start + itemsPerPage

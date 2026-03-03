@@ -7,6 +7,9 @@ export interface GithubRepo {
     private: boolean
     updatedAt: string
     language: string | null
+    stars: number
+    forks: number
+    openIssues: number
     latestRun: {
         status: string
         conclusion: string | null
@@ -25,6 +28,9 @@ interface GithubRawRepo {
     private: boolean
     updated_at: string
     language: string | null
+    stargazers_count: number
+    forks_count: number
+    open_issues_count: number
 }
 
 interface GithubRawRuns {
@@ -97,6 +103,9 @@ export default defineEventHandler(async (_event): Promise<GithubRepo[]> => {
                     private: repo.private,
                     updatedAt: repo.updated_at,
                     language: repo.language,
+                    stars: repo.stargazers_count,
+                    forks: repo.forks_count,
+                    openIssues: repo.open_issues_count,
                     latestRun,
                 }
             })

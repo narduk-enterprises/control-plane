@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "predev": "node tools/check-setup.cjs",
-    "dev": "pnpm --filter web dev",
+    "dev": "doppler run -p control-plane -c dev -- pnpm --filter web dev",
     "prebuild": "node tools/check-setup.cjs",
     "build": "doppler run -- pnpm -r build",
     "predeploy": "node tools/check-setup.cjs",
@@ -59,5 +59,9 @@
     "sharp": "^0.34.5",
     "tsx": "^4.21.0",
     "turbo": "^2.8.12"
+  },
+  "dependencies": {
+    "google-auth-library": "^10.6.1",
+    "googleapis": "^171.4.0"
   }
 }

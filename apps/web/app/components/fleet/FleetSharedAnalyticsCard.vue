@@ -12,7 +12,9 @@ defineProps<{
     eventCount?: number
   } | null
   dateRange: string | null
+  timeSeries?: { date: string; value: number }[]
   iconName: string
+  hideButton?: boolean
 }>()
 
 defineEmits<{
@@ -23,6 +25,7 @@ defineEmits<{
 <template>
   <div class="space-y-4">
     <UButton
+      v-if="!hideButton"
       :loading="loading"
       class="cursor-pointer"
       @click="$emit('load')"
@@ -94,7 +97,12 @@ defineEmits<{
       </p>
     </div>
 
-    <div v-else class="rounded-lg border border-dashed border-default p-6 text-center">
+    <!-- Chart -->
+    <div v-if="timeSeries && timeSeries.length > 0" class="mt-4">
+      <FleetAnalyticsChart :data="timeSeries" />
+    </div>
+
+    <div v-else-if="!summary" class="rounded-lg border border-dashed border-default p-6 text-center">
       <UIcon :name="iconName" class="mx-auto size-10 text-muted" />
       <p class="mt-2 text-sm font-medium text-default">Load {{ providerName }} data</p>
       <p class="mt-1 text-sm text-muted">Click Load to fetch key metrics for the last 30 days.</p>

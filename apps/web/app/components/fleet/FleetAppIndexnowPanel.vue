@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const props = defineProps<{ appName: string }>()
+const props = defineProps<{ appName: string; active?: boolean }>()
 
 const { data, error, loading, submit } = useFleetIndexnow(() => props.appName)
 

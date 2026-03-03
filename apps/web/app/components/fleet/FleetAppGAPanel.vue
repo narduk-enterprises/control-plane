@@ -1,7 +1,15 @@
 <script setup lang="ts">
-const props = defineProps<{ appName: string }>()
+import { watch } from 'vue'
+
+const props = defineProps<{ appName: string; active?: boolean }>()
 
 const { data, error, loading, load } = useFleetGA(() => props.appName)
+
+watch(() => props.active, (isActive) => {
+  if (isActive && !data.value && !loading.value && !error.value) {
+    load()
+  }
+}, { immediate: true })
 
 const summary = computed(() => {
   const d = data.value as { summary: Record<string, number> } | null
@@ -34,6 +42,7 @@ async function onLoad() {
     :loading="loading"
     :error="error || null"
     :summary="summary"
+    :time-series="data?.timeSeries"
     :date-range="dateRange"
     @load="onLoad"
   />

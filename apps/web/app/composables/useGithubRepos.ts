@@ -7,6 +7,9 @@ export interface GithubRepo {
     private: boolean
     updatedAt: string
     language: string | null
+    stars: number
+    forks: number
+    openIssues: number
     latestRun: {
         status: string
         conclusion: string | null

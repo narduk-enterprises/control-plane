@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { h, resolveComponent } from 'vue'
+import type { TableColumn } from '~/types/table'
+import type { GithubRepo } from '~/composables/useGithubRepos'
 
 useSeo({
   title: 'GitHub Repositories',
@@ -22,13 +25,157 @@ function getStatusIcon(repo: GithubRepo) {
   if (conclusion === 'failure') return { name: 'i-lucide-x-circle', class: 'text-error' }
   return { name: 'i-lucide-help-circle', class: 'text-muted' }
 }
+
+const UIcon = resolveComponent('UIcon')
+const NuxtLink = resolveComponent('NuxtLink')
+const UBadge = resolveComponent('UBadge')
+const NuxtTime = resolveComponent('NuxtTime')
+const UButton = resolveComponent('UButton')
+
+const githubColumns: TableColumn<GithubRepo>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Repository',
+    cell: ({ row }) => {
+      const repo = row.original
+      const privateIcon = h(UIcon, {
+        name: repo.private ? 'i-lucide-lock' : 'i-lucide-book-open',
+        class: 'size-4 shrink-0 text-muted'
+      })
+      const titleLink = h(NuxtLink, {
+        to: repo.url,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+        class: 'font-semibold text-default hover:text-primary transition-colors flex items-center gap-2 truncate'
+      }, () => [privateIcon, h('span', { class: 'truncate' }, repo.name)])
+      
+      const desc = h('p', { class: 'text-xs text-muted mt-1 line-clamp-1 max-w-sm' }, repo.description || 'No description provided.')
+      
+      return h('div', { class: 'flex flex-col gap-1 min-w-0' }, [titleLink, desc])
+    }
+  },
+  {
+    accessorKey: 'language',
+    header: 'Language',
+    meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell w-32' } },
+    cell: ({ row }) => {
+      const lang = row.original.language
+      if (!lang) return h('span', { class: 'text-muted text-xs' }, '-')
+      return h(UBadge, { color: 'neutral', variant: 'soft', size: 'sm' }, () => lang)
+    }
+  },
+  {
+    accessorKey: 'stars',
+    header: 'Stars',
+    meta: { class: { th: 'hidden md:table-cell', td: 'hidden md:table-cell tabular-nums w-24' } },
+    cell: ({ row }) => {
+      const stars = row.original.stars
+      return h('div', { class: 'flex items-center gap-1.5' }, [
+        h(UIcon, { name: 'i-lucide-star', class: 'size-4 text-muted shrink-0' }),
+        h('span', { class: 'text-sm text-muted' }, stars?.toString() || '0')
+      ])
+    }
+  },
+  {
+    accessorKey: 'forks',
+    header: 'Forks',
+    meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell tabular-nums w-24' } },
+    cell: ({ row }) => {
+      const forks = row.original.forks
+      return h('div', { class: 'flex items-center gap-1.5' }, [
+        h(UIcon, { name: 'i-lucide-git-fork', class: 'size-4 text-muted shrink-0' }),
+        h('span', { class: 'text-sm text-muted' }, forks?.toString() || '0')
+      ])
+    }
+  },
+  {
+    id: 'status',
+    header: 'Latest Run',
+    enableSorting: false,
+    cell: ({ row }) => {
+      const repo = row.original
+      if (!repo.latestRun) {
+        return h('div', { class: 'flex items-center gap-2' }, [
+          h(UIcon, { name: 'i-lucide-minus', class: 'size-4 text-muted shrink-0' }),
+          h('span', { class: 'text-xs text-muted' }, 'No recent runs')
+        ])
+      }
+      
+      const iconAttrs = getStatusIcon(repo)
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h(UIcon, { ...iconAttrs, class: [iconAttrs.class, 'size-4 shrink-0'] }),
+        h(NuxtLink, {
+          to: repo.latestRun.url,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          class: 'text-xs font-medium text-default hover:text-primary transition-colors truncate max-w-[140px]'
+        }, () => repo.latestRun!.name)
+      ])
+    }
+  },
+  {
+    accessorKey: 'updatedAt',
+    header: 'Updated',
+    meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell tabular-nums text-xs w-32' } },
+    cell: ({ row }) => h(NuxtTime, { datetime: row.original.updatedAt, relative: true })
+  },
+  {
+    id: 'actions',
+    header: '',
+    meta: { class: { th: 'text-right', td: 'text-right' } },
+    enableSorting: false,
+    cell: ({ row }) => {
+      const repo = row.original
+      return h('div', { class: 'flex items-center justify-end gap-1' }, [
+        h(UButton, {
+          to: `${repo.url}/actions`,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          size: 'xs',
+          variant: 'ghost',
+          color: 'neutral',
+          icon: 'i-lucide-play-circle',
+          'aria-label': 'Actions',
+          class: 'cursor-pointer'
+        }),
+        h(UButton, {
+          to: repo.url,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          size: 'xs',
+          variant: 'ghost',
+          color: 'neutral',
+          icon: 'i-lucide-external-link',
+          'aria-label': 'Open repo',
+          class: 'cursor-pointer'
+        })
+      ])
+    }
+  }
+]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const githubColumnsForTable = githubColumns as any
+
+const searchQuery = ref('')
+const filteredRepos = computed(() => {
+  if (!repos.value) return []
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return repos.value
+  
+  return repos.value.filter(repo => 
+    repo.name.toLowerCase().includes(q) || 
+    (repo.description && repo.description.toLowerCase().includes(q)) ||
+    (repo.language && repo.language.toLowerCase().includes(q))
+  )
+})
 </script>
 
 <template>
   <div>
     <AppBreadcrumbs :items="[{ label: 'Dashboard', to: '/' }, { label: 'GitHub Repositories' }]" />
     
-    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">
           GitHub Repositories
@@ -82,67 +229,30 @@ function getStatusIcon(repo: GithubRepo) {
       </p>
     </div>
 
-    <!-- Repo Grid -->
-    <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <UCard
-        v-for="repo in repos"
-        :key="repo.id"
-        class="flex flex-col h-full transition-base hover:shadow-elevated"
-      >
-        <template #header>
-          <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0 flex-1">
-              <NuxtLink
-                :to="repo.url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="font-semibold text-default hover:text-primary transition-colors flex items-center gap-2 truncate"
-              >
-                <UIcon
-                  :name="repo.private ? 'i-lucide-lock' : 'i-lucide-book-open'"
-                  class="size-4 shrink-0 text-muted"
-                />
-                <span class="truncate">{{ repo.name }}</span>
-              </NuxtLink>
-              <p class="text-xs text-muted mt-1 truncate">{{ repo.fullName }}</p>
-            </div>
-            <UBadge v-if="repo.language" color="neutral" variant="soft" size="sm">
-              {{ repo.language }}
-            </UBadge>
-          </div>
-        </template>
-
-        <p class="text-sm text-muted line-clamp-2 mb-4 flex-1">
-          {{ repo.description || 'No description provided.' }}
-        </p>
-
-        <template #footer>
-          <div class="flex items-center justify-between pt-2">
-            <div v-if="repo.latestRun" class="flex items-center gap-2">
-              <UIcon
-                v-bind="getStatusIcon(repo)"
-                class="size-4 shrink-0"
-              />
-              <NuxtLink
-                :to="repo.latestRun.url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-xs font-medium text-default hover:text-primary transition-colors truncate max-w-[140px]"
-              >
-                {{ repo.latestRun.name }}
-              </NuxtLink>
-            </div>
-            <div v-else class="flex items-center gap-2">
-              <UIcon name="i-lucide-minus" class="size-4 text-muted shrink-0" />
-              <span class="text-xs text-muted">No recent runs</span>
-            </div>
-
-            <span class="text-xs text-muted tabular-nums shrink-0">
-              <NuxtTime :datetime="repo.updatedAt" relative />
-            </span>
-          </div>
-        </template>
-      </UCard>
-    </div>
+    <!-- Repos Table -->
+    <UCard v-else>
+      <template #header>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 class="font-semibold text-default">Repositories</h2>
+          <UInput
+            v-model="searchQuery"
+            placeholder="Search repositories..."
+            class="max-w-xs"
+            icon="i-lucide-search"
+          />
+        </div>
+      </template>
+      <div v-if="filteredRepos.length" class="overflow-x-auto">
+        <UTable
+          :data="filteredRepos"
+          :columns="githubColumnsForTable"
+        />
+      </div>
+      <div v-else class="rounded-lg border border-dashed border-default p-8 text-center my-4 mx-4">
+        <UIcon name="i-lucide-search-x" class="mx-auto size-10 text-muted" />
+        <p class="mt-2 text-sm font-medium text-default">No matches</p>
+        <p class="mt-1 text-sm text-muted">Try a different search.</p>
+      </div>
+    </UCard>
   </div>
 </template>

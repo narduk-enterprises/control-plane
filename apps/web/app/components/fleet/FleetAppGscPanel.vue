@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
+import { h, resolveComponent, watch } from 'vue'
 import type { TableColumn } from '~/types/table'
 import type { GscDimension } from '~/composables/useFleetGscQuery'
 
 type GscRow = { keys?: string[]; clicks?: number; impressions?: number; ctr?: number; position?: number }
 
-const props = defineProps<{ appName: string }>()
+const props = defineProps<{ appName: string; active?: boolean }>()
 
 const today = new Date().toISOString().split('T')[0]!
 const start = new Date()
@@ -23,6 +23,12 @@ const params = computed(() => ({
 }))
 
 const { data, error, loading, load } = useFleetGscQuery(() => props.appName, params)
+
+watch(() => props.active, (isActive) => {
+  if (isActive && !data.value && !loading.value && !error.value) {
+    load()
+  }
+}, { immediate: true })
 
 const dimensions: { value: GscDimension; label: string }[] = [
   { value: 'query', label: 'Query' },
@@ -134,9 +140,20 @@ function setSort(key: 'clicks' | 'impressions' | 'ctr' | 'position') {
   sortDir.value = 'desc'
 }
 
+const formattedCrawledAs = computed(() => {
+  const crawledAs = data.value?.inspection?.indexStatusResult?.crawledAs
+  return crawledAs ? crawledAs.replace('CRAWLED_AS_', '') : ''
+})
+
 // Cast for UTable columns prop (expects TanStack type from layer; we use local TableColumn)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
 const gscColumnsForTable = computed(() => gscColumns.value as any)
+
+const formattedLastCrawlTime = computed(() => {
+  const time = data.value?.inspection?.indexStatusResult?.lastCrawlTime
+  return time ? new Date(time).toLocaleString() : ''
+})
+
 </script>
 
 <template>
@@ -170,27 +187,85 @@ const gscColumnsForTable = computed(() => gscColumns.value as any)
       <p class="mt-1 text-sm text-muted">{{ error.data?.message || error?.message }}</p>
     </div>
 
-    <div v-else-if="data && data.rows?.length" class="space-y-2">
-      <div class="flex items-center justify-between">
-        <p class="text-sm text-muted">
-          {{ data.startDate }} → {{ data.endDate }} ({{ data.dimension }}) · {{ data.rows.length }} rows
-        </p>
-        <UButton
-          variant="outline"
-          size="xs"
-          class="cursor-pointer"
-          icon="i-lucide-copy"
-          @click="copyCsv"
-        >
-          Copy CSV
-        </UButton>
+    <div v-else-if="data && data.rows?.length" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <UCard class="shadow-sm">
+          <p class="text-sm font-medium text-muted">Total Clicks</p>
+          <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.clicks ?? 0).toLocaleString() }}</p>
+        </UCard>
+        <UCard class="shadow-sm">
+          <p class="text-sm font-medium text-muted">Total Impressions</p>
+          <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.impressions ?? 0).toLocaleString() }}</p>
+        </UCard>
+        <UCard class="shadow-sm">
+          <p class="text-sm font-medium text-muted">Average CTR</p>
+          <p class="mt-1 text-2xl font-semibold text-default">{{ ((data.totals?.ctr ?? 0) * 100).toFixed(2) }}%</p>
+        </UCard>
+        <UCard class="shadow-sm">
+          <p class="text-sm font-medium text-muted">Average Position</p>
+          <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.position ?? 0).toFixed(1) }}</p>
+        </UCard>
       </div>
-      <div class="overflow-x-auto rounded-lg border border-default">
-        <UTable
-          :data="tableRows"
-          :columns="gscColumnsForTable"
-          class="text-sm"
-        />
+
+      <div v-if="data.inspection?.indexStatusResult" class="rounded-lg border border-default p-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="flex items-center gap-2">
+              <UIcon 
+                :name="data.inspection.indexStatusResult.verdict === 'PASS' ? 'i-lucide-check-circle' : 'i-lucide-alert-circle'" 
+                :class="data.inspection.indexStatusResult.verdict === 'PASS' ? 'text-success' : 'text-warning'"
+                class="size-5"
+              />
+              <p class="font-medium text-default">Index Status</p>
+            </div>
+            <p class="mt-1 text-sm text-muted">
+              {{ data.inspection.indexStatusResult.coverageState || 'Unknown coverage state' }}
+            </p>
+            <div class="mt-2 flex flex-col gap-1 text-xs text-muted sm:flex-row sm:items-center sm:gap-4">
+              <span v-if="formattedLastCrawlTime">
+                Last crawled: {{ formattedLastCrawlTime }}
+              </span>
+              <span v-if="formattedCrawledAs">
+                Agent: {{ formattedCrawledAs }}
+              </span>
+            </div>
+          </div>
+          <UButton 
+            v-if="data.inspection.inspectionResultLink"
+            :to="data.inspection.inspectionResultLink"
+            target="_blank"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-external-link"
+            size="sm"
+          >
+            View in GSC
+          </UButton>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-muted">
+            {{ data.startDate }} → {{ data.endDate }} ({{ data.dimension }}) · {{ data.rows.length }} rows
+          </p>
+          <UButton
+            variant="outline"
+            size="xs"
+            class="cursor-pointer"
+            icon="i-lucide-copy"
+            @click="copyCsv"
+          >
+            Copy CSV
+          </UButton>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-default">
+          <UTable
+            :data="tableRows"
+            :columns="gscColumnsForTable"
+            class="text-sm"
+          />
+        </div>
       </div>
     </div>
 

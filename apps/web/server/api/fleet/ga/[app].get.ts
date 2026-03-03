@@ -40,6 +40,9 @@ export default defineEventHandler(async (event) => {
                 method: 'POST',
                 body: JSON.stringify({
                     dateRanges: [{ startDate, endDate }],
+                    dimensions: [
+                        { name: 'date' }
+                    ],
                     metrics: [
                         { name: 'activeUsers' },
                         { name: 'sessions' },
@@ -60,6 +63,22 @@ export default defineEventHandler(async (event) => {
         )) as Record<string, unknown>
 
         const totals = data.totals as Array<{ metricValues?: Array<{ value: string }> }> | undefined
+        const rows = data.rows as Array<{ dimensionValues?: Array<{ value: string }>, metricValues?: Array<{ value: string }> }> | undefined
+
+        // Parse time series data
+        const timeSeries = rows ? rows.map(row => {
+            const dateStr = row.dimensionValues?.[0]?.value ?? ''
+            // Format YYYYMMDD to YYYY-MM-DD
+            const formattedDate = dateStr.length === 8
+                ? `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`
+                : dateStr
+
+            return {
+                date: formattedDate,
+                // Using pageviews generically as the charted metric
+                value: Number(row.metricValues?.[2]?.value ?? 0)
+            }
+        }).sort((a, b) => a.date.localeCompare(b.date)) : []
 
         // Default correctly if empty
         const summary = totals?.[0]?.metricValues ? {
@@ -79,11 +98,19 @@ export default defineEventHandler(async (event) => {
         return {
             app: app.name,
             summary,
+            timeSeries,
             startDate,
             endDate
         }
     } catch (err: unknown) {
         const e = err as { message?: string }
-        throw createError({ statusCode: 500, message: `GA4 error: ${e.message ?? 'Unknown'}` })
+        const msg = e.message ?? 'Unknown'
+        if (msg.includes('403') || msg.includes('PERMISSION_DENIED')) {
+            throw createError({
+                statusCode: 403,
+                message: `GA4: Service account does not have access to property ${propertyId}. Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com Viewer role in GA4 Admin → Property Access Management.`,
+            })
+        }
+        throw createError({ statusCode: 500, message: `GA4 error: ${msg}` })
     }
 })

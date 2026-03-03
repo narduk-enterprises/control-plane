@@ -31,17 +31,15 @@ graph TD
 ```mermaid
 graph LR
     subgraph "Hub Projects (shared, DO NOT modify)"
-        H1["narduk-nuxt-template<br/>CLOUDFLARE_API_TOKEN<br/>CLOUDFLARE_ACCOUNT_ID"]
-        H2["narduk-analytics<br/>GA_ACCOUNT_ID<br/>GSC_SERVICE_ACCOUNT_JSON<br/>GSC_USER_EMAIL<br/>POSTHOG_PUBLIC_KEY<br/>POSTHOG_PROJECT_ID<br/>POSTHOG_HOST"]
+        H1["narduk-nuxt-template<br/>CLOUDFLARE_API_TOKEN<br/>CLOUDFLARE_ACCOUNT_ID<br/>GA_ACCOUNT_ID<br/>GSC_SERVICE_ACCOUNT_JSON<br/>GSC_USER_EMAIL<br/>POSTHOG_PUBLIC_KEY<br/>POSTHOG_PROJECT_ID<br/>POSTHOG_HOST"]
     end
     subgraph "Per-App Spoke Projects"
         S1["my-app<br/>SITE_URL (per-app)<br/>APP_NAME (per-app)<br/>GA_MEASUREMENT_ID (auto)<br/>INDEXNOW_KEY (auto)"]
     end
     H1 -->|"cross-ref"| S1
-    H2 -->|"cross-ref"| S1
 ```
 
-## Shared Identifiers (narduk-analytics project)
+## Shared Identifiers
 
 | Entity | Value |
 |--------|-------|
@@ -109,7 +107,7 @@ sequenceDiagram
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | GA4 not tracking | `GA_MEASUREMENT_ID` empty or wrong | Check Doppler: `doppler secrets get GA_MEASUREMENT_ID --project APP --config prd` |
-| PostHog not tracking | `POSTHOG_PUBLIC_KEY` empty | Wire hub ref: `doppler secrets set 'POSTHOG_PUBLIC_KEY=${narduk-analytics.prd.POSTHOG_PUBLIC_KEY}'` |
+| PostHog not tracking | `POSTHOG_PUBLIC_KEY` empty | Wire hub ref: `doppler secrets set 'POSTHOG_PUBLIC_KEY=${narduk-nuxt-template.prd.POSTHOG_PUBLIC_KEY}'` |
 | GSC API 403 | Service account not authorized | Add `analytics-admin@narduk-analytics.iam.gserviceaccount.com` as owner in GSC |
 | IndexNow 400 | Key file not served | Check `INDEXNOW_KEY` is set and `/api/indexnow/submit` exists |
-| `setup-analytics.ts` fails | Missing `GA_ACCOUNT_ID` | Wire hub ref from `narduk-analytics` |
+| `setup-analytics.ts` fails | Missing `GA_ACCOUNT_ID` | Wire hub ref from `narduk-nuxt-template` |

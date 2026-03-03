@@ -282,11 +282,11 @@ async function runPosthogSetupOrSkip(): Promise<boolean> {
     console.log('  ⏭  PostHog: POSTHOG_PUBLIC_KEY already set, skipping.')
     return true
   }
-  
+
   console.log()
   console.log('  ⚠️  PostHog: POSTHOG_PUBLIC_KEY not set.')
   console.log('      To use the shared Narduk Analytics project, bind the key from the Hub:')
-  console.log('      doppler secrets set POSTHOG_PUBLIC_KEY="\\\\${narduk-analytics.prd.POSTHOG_PUBLIC_KEY}" --project YOUR_PROJECT --config prd')
+  console.log('      doppler secrets set POSTHOG_PUBLIC_KEY="\\\\${narduk-nuxt-template.prd.POSTHOG_PUBLIC_KEY}" --project YOUR_PROJECT --config prd')
   console.log()
   return false
 }
@@ -346,7 +346,7 @@ async function runGaSetup() {
     }).catch((e: any) => {
       throw new Error(e.message || 'Failed to create property')
     })
-  
+
     const property = propertyRes.data
     propertyName = property?.name || ''
     if (!propertyName) throw new Error('Property created but no name in response')
@@ -382,7 +382,7 @@ async function runGaSetup() {
     }).catch((e: any) => {
       throw new Error(e.message || 'Failed to create data stream')
     })
-  
+
     const stream = streamRes.data
     measurementId = (stream as any)?.webStreamData?.measurementId || ''
     if (!measurementId) {
@@ -483,7 +483,7 @@ async function runGscPipeline() {
   // Step 2: Get verification token and create file
   console.log()
   console.log('Step 2/4: Creating verification file...')
-  
+
   const existingVerificationFiles = findVerificationFiles()
   if (existingVerificationFiles.length > 0) {
     console.log(`  ✅  Found existing verification file(s): ${existingVerificationFiles.join(', ')}. Skipping creation.`)
@@ -692,7 +692,7 @@ async function main() {
         break
 
       case 'posthog':
-        console.log('PostHog projects are shared globally now. Link POSTHOG_PUBLIC_KEY from narduk-analytics.')
+        console.log('PostHog projects are shared globally now. Link POSTHOG_PUBLIC_KEY from narduk-nuxt-template.')
         break
 
       case 'ga':

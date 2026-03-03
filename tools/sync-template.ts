@@ -529,9 +529,9 @@ jobs:
       const hubRefs: Record<string, string> = {
         CLOUDFLARE_API_TOKEN: '${sailing-passage-map.prd.CLOUDFLARE_API_TOKEN}',
         CLOUDFLARE_ACCOUNT_ID: '${sailing-passage-map.prd.CLOUDFLARE_ACCOUNT_ID}',
-        POSTHOG_PUBLIC_KEY: '${narduk-analytics.prd.POSTHOG_PUBLIC_KEY}',
-        POSTHOG_PROJECT_ID: '${narduk-analytics.prd.POSTHOG_PROJECT_ID}',
-        POSTHOG_HOST: '${narduk-analytics.prd.POSTHOG_HOST}',
+        POSTHOG_PUBLIC_KEY: '${narduk-nuxt-template.prd.POSTHOG_PUBLIC_KEY}',
+        POSTHOG_PROJECT_ID: '${narduk-nuxt-template.prd.POSTHOG_PROJECT_ID}',
+        POSTHOG_HOST: '${narduk-nuxt-template.prd.POSTHOG_HOST}',
       }
 
       let hubTokenValue = ''

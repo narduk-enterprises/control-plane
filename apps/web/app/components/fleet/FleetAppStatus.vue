@@ -8,7 +8,10 @@ const { data, status, error } = useFleetAppStatus(() => props.url)
 type BadgeColor = 'neutral' | 'error' | 'success'
 
 const badgeConfig = computed(() => {
-  if (status.value === 'pending') {
+  if (!props.url || props.url === 'undefined') {
+    return { color: 'neutral' as BadgeColor, icon: 'i-lucide-slash', label: 'N/A', class: '' }
+  }
+  if (status.value === 'pending' || status.value === 'idle') {
     return { color: 'neutral' as BadgeColor, icon: 'i-lucide-loader-2', label: 'Checking...', class: 'animate-pulse' }
   }
   if (error.value || data.value?.status === 'down') {
@@ -25,7 +28,7 @@ const badgeConfig = computed(() => {
     size="sm"
     :class="badgeConfig.class"
   >
-    <UIcon :name="badgeConfig.icon" class="mr-1 size-3.5" :class="{ 'animate-spin': status === 'pending' }" />
+    <UIcon :name="badgeConfig.icon" class="mr-1 size-3.5" :class="{ 'animate-spin': badgeConfig.icon === 'i-lucide-loader-2' }" />
     {{ badgeConfig.label }}
   </UBadge>
 </template>

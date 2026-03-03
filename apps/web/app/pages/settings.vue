@@ -68,7 +68,7 @@ const integrations = computed(() => [
         <code class="rounded bg-muted px-1 py-0.5">GA_PROPERTY_ID</code>,
         <code class="rounded bg-muted px-1 py-0.5">GSC_SERVICE_ACCOUNT_JSON</code>,
         <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PERSONAL_API_KEY</code>,
-        <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PROJECT_ID</code> (e.g. from narduk-analytics hub).
+        <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PROJECT_ID</code> (from the narduk-nuxt-template Doppler project).
         <br>
         For this dashboard's own endpoints, set
         <code class="rounded bg-muted px-1 py-0.5">GA_MEASUREMENT_ID</code>

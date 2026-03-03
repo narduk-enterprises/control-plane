@@ -17,7 +17,11 @@ const tabs = [
   { label: 'PostHog', value: 'posthog', icon: 'i-lucide-users' },
   { label: 'IndexNow', value: 'indexnow', icon: 'i-lucide-send' },
 ]
-const activeTab = ref('ga4')
+const router = useRouter()
+const activeTab = computed({
+  get: () => (route.query.tab as string) || 'ga4',
+  set: (val) => router.replace({ query: { ...route.query, tab: val } })
+})
 
 const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
@@ -53,16 +57,16 @@ const breadcrumbItems = computed(() => [
     </div>
 
     <UCard v-show="activeTab === 'ga4'" class="mt-4">
-      <FleetAppGAPanel :app-name="appName" />
+      <FleetAppGAPanel :app-name="appName" :active="activeTab === 'ga4'" />
     </UCard>
     <UCard v-show="activeTab === 'gsc'" class="mt-4">
-      <FleetAppGscPanel :app-name="appName" />
+      <FleetAppGscPanel :app-name="appName" :active="activeTab === 'gsc'" />
     </UCard>
     <UCard v-show="activeTab === 'posthog'" class="mt-4">
-      <FleetAppPosthogPanel :app-name="appName" />
+      <FleetAppPosthogPanel :app-name="appName" :active="activeTab === 'posthog'" />
     </UCard>
     <UCard v-show="activeTab === 'indexnow'" class="mt-4">
-      <FleetAppIndexnowPanel :app-name="appName" />
+      <FleetAppIndexnowPanel :app-name="appName" :active="activeTab === 'indexnow'" />
     </UCard>
   </div>
 </template>
