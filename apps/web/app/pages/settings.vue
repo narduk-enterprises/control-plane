@@ -1,0 +1,65 @@
+<script setup lang="ts">
+useSeo({
+  title: 'Settings',
+  description: 'Control Plane configuration and integrations.',
+})
+useWebPageSchema({
+  name: 'Narduk Control Plane — Settings',
+  description: 'Settings and configuration.',
+})
+
+const config = useRuntimeConfig().public
+const breadcrumbItems = [{ label: 'Dashboard', to: '/' }, { label: 'Settings' }]
+
+const integrations = computed(() => [
+  { name: 'PostHog', configured: !!(config.posthogPublicKey && config.posthogProjectId), hint: 'Analytics' },
+  { name: 'GA4', configured: !!config.gaMeasurementId, hint: 'Google Analytics' },
+  { name: 'IndexNow', configured: !!config.indexNowKey, hint: 'Search engines' },
+])
+</script>
+
+<template>
+  <div>
+    <AppBreadcrumbs :items="breadcrumbItems" />
+    <h1 class="font-display text-2xl font-semibold text-default">
+      Settings
+    </h1>
+    <p class="mt-1 mb-6 text-sm text-muted">
+      Configuration and integration status
+    </p>
+
+    <UCard>
+      <template #header>
+        <h2 class="font-semibold text-default">Integrations</h2>
+      </template>
+      <ul class="space-y-3">
+        <li
+          v-for="int in integrations"
+          :key="int.name"
+          class="flex items-center justify-between rounded-lg border border-default px-4 py-3"
+        >
+          <div>
+            <p class="font-medium text-default">{{ int.name }}</p>
+            <p class="text-sm text-muted">{{ int.hint }}</p>
+          </div>
+          <UBadge
+            :color="int.configured ? 'success' : 'neutral'"
+            variant="soft"
+          >
+            {{ int.configured ? 'Configured' : 'Not set' }}
+          </UBadge>
+        </li>
+      </ul>
+    </UCard>
+
+    <UCard class="mt-6">
+      <template #header>
+        <h2 class="font-semibold text-default">Fleet registry</h2>
+      </template>
+      <p class="text-sm text-muted">
+        Fleet apps are defined in <code class="rounded bg-muted px-1 py-0.5">server/data/fleet-registry.ts</code>.
+        Add or update apps there and set production URLs in <code class="rounded bg-muted px-1 py-0.5">KNOWN_URLS</code>.
+      </p>
+    </UCard>
+  </div>
+</template>
