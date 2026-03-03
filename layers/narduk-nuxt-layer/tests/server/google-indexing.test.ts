@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildBatchBody, parseBatchResponse } from '../../server/api/admin/indexing/batch.post'
+import { buildBatchBody, parseBatchResponse } from '../../server/utils/google'
 
 /**
  * Unit tests for the Google Indexing API batch request builder.

@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { INDEXING_SCOPES } from '#imports'
 
 const querySchema = z.object({
     url: z.string().url(),

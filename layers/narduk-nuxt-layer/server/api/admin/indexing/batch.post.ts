@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { INDEXING_SCOPES } from '#imports'
 
 const bodySchema = z.object({
     urls: z.array(z.string().url()).min(1).max(100),
@@ -9,75 +8,6 @@ const bodySchema = z.object({
         .default('URL_UPDATED'),
 })
 
-/**
- * Build a multipart/mixed batch request body for the Google Indexing API.
- *
- * Each part is a complete HTTP request as per Google's batch API spec:
- * https://developers.google.com/search/apis/indexing-api/v3/using-api#batching
- */
-export function buildBatchBody(
-    urls: string[],
-    type: string,
-    boundary: string,
-): string {
-    const parts = urls.map((url, index) => {
-        const payload = JSON.stringify({ url, type })
-        return [
-            `--${boundary}`,
-            'Content-Type: application/http',
-            'Content-Transfer-Encoding: binary',
-            `Content-ID: <item${index + 1}>`,
-            '',
-            'POST /v3/urlNotifications:publish',
-            'Content-Type: application/json',
-            'accept: application/json',
-            `content-length: ${new TextEncoder().encode(payload).byteLength}`,
-            '',
-            payload,
-        ].join('\r\n')
-    })
-
-    return parts.join('\r\n') + `\r\n--${boundary}--`
-}
-
-/**
- * Parse a multipart/mixed batch response from the Google Indexing API.
- *
- * Returns individual response status codes and bodies for each part.
- */
-export function parseBatchResponse(
-    responseText: string,
-    boundary: string,
-): { index: number; status: number; body: unknown }[] {
-    const results: { index: number; status: number; body: unknown }[] = []
-
-    // Split by boundary marker
-    const parts = responseText.split(`--${boundary}`)
-
-    for (let i = 0; i < parts.length; i++) {
-        const part = parts[i]
-        if (!part || part.trim() === '' || part.trim() === '--') continue
-
-        // Find the HTTP status line (e.g. "HTTP/1.1 200 OK")
-        const statusMatch = part.match(/HTTP\/[\d.]+\s+(\d+)/)
-        const status = statusMatch?.[1] ? Number.parseInt(statusMatch[1], 10) : 0
-
-        // Find the JSON body (last block after blank lines)
-        const jsonMatch = part.match(/\{[\s\S]*\}/)
-        let body: unknown = null
-        if (jsonMatch) {
-            try {
-                body = JSON.parse(jsonMatch[0])
-            } catch {
-                body = jsonMatch[0]
-            }
-        }
-
-        results.push({ index: results.length, status, body })
-    }
-
-    return results
-}
 
 /**
  * Google Indexing API — batch publish URL notifications.
