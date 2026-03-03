@@ -3,12 +3,12 @@ const route = useRoute()
 const appName = computed(() => (route.params.app as string) ?? '')
 
 useSeo({
-  title: () => `${appName.value} — Fleet`,
-  description: () => `GSC, PostHog, IndexNow for ${appName.value}.`,
+  title: `${appName.value} — Fleet`,
+  description: `GSC, PostHog, IndexNow for ${appName.value}.`,
 })
 useWebPageSchema({
-  name: () => `Fleet — ${appName.value}`,
-  description: () => `App analytics for ${appName.value}.`,
+  name: `Fleet — ${appName.value}`,
+  description: `App analytics for ${appName.value}.`,
 })
 
 const tabs = [

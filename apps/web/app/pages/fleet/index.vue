@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '~/types/table'
 
 useSeo({
   title: 'Fleet',
@@ -92,6 +92,10 @@ const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
   { label: 'Fleet' },
 ])
+
+// Cast for UTable columns prop (expects TanStack type from layer; we use local TableColumn)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
+const fleetColumnsForTable = fleetColumns as any
 </script>
 
 <template>
@@ -132,7 +136,7 @@ const breadcrumbItems = computed(() => [
       <div v-if="hasResults" class="overflow-x-auto">
         <UTable
           :data="filteredApps"
-          :columns="fleetColumns"
+          :columns="fleetColumnsForTable"
         />
       </div>
       <div v-else class="rounded-lg border border-dashed border-default p-8 text-center">

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '~/types/table'
 import type { GscDimension } from '~/composables/useFleetGscQuery'
 
 type GscRow = { keys?: string[]; clicks?: number; impressions?: number; ctr?: number; position?: number }
@@ -133,6 +133,10 @@ function setSort(key: 'clicks' | 'impressions' | 'ctr' | 'position') {
   else sortKey.value = key
   sortDir.value = 'desc'
 }
+
+// Cast for UTable columns prop (expects TanStack type from layer; we use local TableColumn)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
+const gscColumnsForTable = computed(() => gscColumns.value as any)
 </script>
 
 <template>
@@ -184,7 +188,7 @@ function setSort(key: 'clicks' | 'impressions' | 'ctr' | 'position') {
       <div class="overflow-x-auto rounded-lg border border-default">
         <UTable
           :data="tableRows"
-          :columns="gscColumns"
+          :columns="gscColumnsForTable"
           class="text-sm"
         />
       </div>
