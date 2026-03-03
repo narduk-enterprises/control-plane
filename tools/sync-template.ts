@@ -227,12 +227,12 @@ concurrency:
 
 jobs:
   quality:
-    uses: loganrenz/narduk-nuxt-template/.github/workflows/reusable-quality.yml@main
+    uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-quality.yml@main
 
   deploy:
     if: github.event_name != 'pull_request'
     needs: [quality]
-    uses: loganrenz/narduk-nuxt-template/.github/workflows/reusable-deploy.yml@main
+    uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-deploy.yml@main
     secrets:
       DOPPLER_TOKEN: \${{ secrets.DOPPLER_TOKEN }}
       CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}

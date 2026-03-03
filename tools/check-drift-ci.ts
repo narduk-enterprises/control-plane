@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
-const TEMPLATE_URL = 'https://github.com/loganrenz/narduk-nuxt-template.git'
+const TEMPLATE_URL = 'https://github.com/narduk-enterprises/narduk-nuxt-template.git'
 
 const args = process.argv.slice(2)
 const strict = args.includes('--strict')
