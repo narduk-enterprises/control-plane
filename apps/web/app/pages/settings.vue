@@ -13,7 +13,7 @@ const breadcrumbItems = [{ label: 'Dashboard', to: '/' }, { label: 'Settings' }]
 
 const integrations = computed(() => [
   { name: 'PostHog', configured: !!(config.posthogPublicKey && config.posthogProjectId), hint: 'Analytics' },
-  { name: 'GA4', configured: !!config.gaMeasurementId, hint: 'Google Analytics' },
+  { name: 'GA4', configured: !!(config.gaMeasurementId || config.gaPropertyId), hint: 'Google Analytics' },
   { name: 'IndexNow', configured: !!config.indexNowKey, hint: 'Search engines' },
 ])
 </script>
@@ -64,10 +64,15 @@ const integrations = computed(() => [
         <code class="rounded bg-muted px-1 py-0.5">https://&lt;dopplerProject&gt;.nard.uk</code>.
       </p>
       <p class="mt-3 text-sm text-muted">
-        For fleet GSC/PostHog to work, set in this app’s Doppler (prd):
+        For fleet GA4/GSC/PostHog to work, set in this app’s Doppler (prd):
+        <code class="rounded bg-muted px-1 py-0.5">GA_PROPERTY_ID</code>,
         <code class="rounded bg-muted px-1 py-0.5">GSC_SERVICE_ACCOUNT_JSON</code>,
         <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PERSONAL_API_KEY</code>,
         <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PROJECT_ID</code> (e.g. from narduk-analytics hub).
+        <br>
+        For this dashboard's own endpoints, set
+        <code class="rounded bg-muted px-1 py-0.5">GA_MEASUREMENT_ID</code>
+        and <code class="rounded bg-muted px-1 py-0.5">INDEXNOW_KEY</code>.
       </p>
     </UCard>
   </div>
