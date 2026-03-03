@@ -4,7 +4,7 @@ import type { TableColumn } from '~/types/table'
 
 useSeo({
   title: 'Fleet',
-  description: 'Fleet apps — GSC, PostHog, IndexNow per app.',
+  description: 'Fleet apps — GA4, GSC, PostHog, IndexNow per app.',
 })
 useWebPageSchema({
   name: 'Narduk Control Plane — Fleet',
@@ -107,7 +107,7 @@ const fleetColumnsForTable = fleetColumns as any
           Fleet
         </h1>
         <p class="mt-1 text-sm text-muted">
-          {{ fleetCountLabel }} — open GSC, PostHog, or IndexNow per app
+          {{ fleetCountLabel }} — open GA4, GSC, PostHog, or IndexNow per app
         </p>
       </div>
       <UButton

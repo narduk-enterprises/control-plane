@@ -4,7 +4,7 @@ const appName = computed(() => (route.params.app as string) ?? '')
 
 useSeo({
   title: `${appName.value} — Fleet`,
-  description: `GSC, PostHog, IndexNow for ${appName.value}.`,
+  description: `GA4, GSC, PostHog, IndexNow for ${appName.value}.`,
 })
 useWebPageSchema({
   name: `Fleet — ${appName.value}`,
@@ -12,11 +12,12 @@ useWebPageSchema({
 })
 
 const tabs = [
+  { label: 'Google Analytics', value: 'ga4', icon: 'i-lucide-bar-chart-2' },
   { label: 'GSC', value: 'gsc', icon: 'i-lucide-bar-chart-3' },
   { label: 'PostHog', value: 'posthog', icon: 'i-lucide-users' },
   { label: 'IndexNow', value: 'indexnow', icon: 'i-lucide-send' },
 ]
-const activeTab = ref('gsc')
+const activeTab = ref('ga4')
 
 const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
@@ -33,11 +34,11 @@ const breadcrumbItems = computed(() => [
         {{ appName }}
       </h1>
       <p class="mt-1 text-sm text-muted">
-        Search Console, PostHog, and IndexNow for this app
+        Google Analytics, Search Console, PostHog, and IndexNow for this app
       </p>
     </div>
 
-    <div class="flex gap-1 rounded-lg border border-default p-1">
+    <div class="flex gap-1 rounded-lg border border-default p-1 shadow-xs">
       <UButton
         v-for="tab in tabs"
         :key="tab.value"
@@ -51,6 +52,9 @@ const breadcrumbItems = computed(() => [
       </UButton>
     </div>
 
+    <UCard v-show="activeTab === 'ga4'" class="mt-4">
+      <FleetAppGAPanel :app-name="appName" />
+    </UCard>
     <UCard v-show="activeTab === 'gsc'" class="mt-4">
       <FleetAppGscPanel :app-name="appName" />
     </UCard>

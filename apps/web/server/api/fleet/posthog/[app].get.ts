@@ -30,7 +30,9 @@ export default defineEventHandler(async (event) => {
   start.setDate(start.getDate() - 30)
   const query = `
     SELECT count() AS event_count,
-           count(DISTINCT distinct_id) AS unique_users
+           count(DISTINCT distinct_id) AS unique_users,
+           countIf(event = '$pageview') AS pageviews,
+           count(DISTINCT properties.$session_id) AS sessions
     FROM events
     WHERE timestamp >= '${start.toISOString().slice(0, 19)}'
       AND timestamp <= '${end.toISOString().slice(0, 19)}'

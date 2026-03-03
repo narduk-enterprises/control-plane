@@ -1,17 +1,18 @@
 <script setup lang="ts">
 const props = defineProps<{ appName: string }>()
 
-const { data, error, loading, load } = useFleetPosthog(() => props.appName)
+const { data, error, loading, load } = useFleetGA(() => props.appName)
 
 const summary = computed(() => {
-  const d = data.value as { summary: Record<string, unknown> } | null
+  const d = data.value as { summary: Record<string, number> } | null
   if (!d || typeof d.summary !== 'object') return null
   const s = d.summary
   return {
-    eventCount: Number(s.event_count ?? 0),
-    users: Number(s.unique_users ?? 0),
-    pageviews: Number(s.pageviews ?? 0),
-    sessions: Number(s.sessions ?? 0),
+    users: s.activeUsers,
+    sessions: s.sessions,
+    pageviews: s.screenPageViews,
+    bounceRate: s.bounceRate,
+    avgSessionDuration: s.averageSessionDuration,
   }
 })
 
@@ -28,8 +29,8 @@ async function onLoad() {
 
 <template>
   <FleetSharedAnalyticsCard
-    provider-name="PostHog"
-    icon-name="i-lucide-users"
+    provider-name="Google Analytics"
+    icon-name="i-lucide-bar-chart-2"
     :loading="loading"
     :error="error || null"
     :summary="summary"
