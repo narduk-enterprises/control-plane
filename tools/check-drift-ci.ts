@@ -1,7 +1,7 @@
 /**
  * CI-Friendly Template Drift Detection
  *
- * Compares critical infrastructure files against the canonical narduk-nuxt-template.
+ * Compares critical infrastructure files against the canonical sailing-passage-map.
  * Works in CI by fetching the template via git (no local template directory needed).
  *
  * Usage:
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
-const TEMPLATE_URL = 'https://github.com/narduk-enterprises/narduk-nuxt-template.git'
+const TEMPLATE_URL = 'https://github.com/narduk-enterprises/sailing-passage-map.git'
 
 const args = process.argv.slice(2)
 const strict = args.includes('--strict')
@@ -60,7 +60,7 @@ function run(cmd: string): string {
 function isTemplateRepo(): boolean {
   try {
     const pkg = JSON.parse(readFileSync(join(ROOT_DIR, 'package.json'), 'utf-8'))
-    return pkg.name === 'narduk-nuxt-template'
+    return pkg.name === 'sailing-passage-map'
   }
   catch {
     return false

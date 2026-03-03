@@ -25,7 +25,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 const LAYER_PKG_PATH = path.join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'package.json')
 
-const TEMPLATE_URL = 'https://github.com/narduk-enterprises/narduk-nuxt-template.git'
+const TEMPLATE_URL = 'https://github.com/narduk-enterprises/sailing-passage-map.git'
 
 function run(cmd: string) {
   console.log(`> ${cmd}`)
@@ -126,7 +126,7 @@ async function main() {
     if (templateSha) {
       const versionContent = [
         `sha=${templateSha}`,
-        `template=narduk-nuxt-template`,
+        `template=sailing-passage-map`,
         `updated=${new Date().toISOString()}`,
         '',
       ].join('\n')

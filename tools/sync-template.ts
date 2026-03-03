@@ -232,7 +232,7 @@ concurrency:
 
 jobs:
   quality:
-    uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-quality.yml@main
+    uses: narduk-enterprises/sailing-passage-map/.github/workflows/reusable-quality.yml@main
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -240,7 +240,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
-    uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-deploy.yml@main
+    uses: narduk-enterprises/sailing-passage-map/.github/workflows/reusable-deploy.yml@main
     secrets:
       DOPPLER_TOKEN: \${{ secrets.DOPPLER_TOKEN }}
       CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -282,7 +282,7 @@ jobs:
 
   const versionContent = [
     `sha=${templateSha || 'unknown'}`,
-    `template=narduk-nuxt-template`,
+    `template=sailing-passage-map`,
     `synced=${new Date().toISOString()}`,
     '',
   ].join('\n')
@@ -527,8 +527,8 @@ jobs:
       console.log(`  ⏭ Doppler project "${projectName}" not found; skipping.`)
     } else {
       const hubRefs: Record<string, string> = {
-        CLOUDFLARE_API_TOKEN: '${narduk-nuxt-template.prd.CLOUDFLARE_API_TOKEN}',
-        CLOUDFLARE_ACCOUNT_ID: '${narduk-nuxt-template.prd.CLOUDFLARE_ACCOUNT_ID}',
+        CLOUDFLARE_API_TOKEN: '${sailing-passage-map.prd.CLOUDFLARE_API_TOKEN}',
+        CLOUDFLARE_ACCOUNT_ID: '${sailing-passage-map.prd.CLOUDFLARE_ACCOUNT_ID}',
         POSTHOG_PUBLIC_KEY: '${narduk-analytics.prd.POSTHOG_PUBLIC_KEY}',
         POSTHOG_PROJECT_ID: '${narduk-analytics.prd.POSTHOG_PROJECT_ID}',
         POSTHOG_HOST: '${narduk-analytics.prd.POSTHOG_HOST}',
@@ -537,7 +537,7 @@ jobs:
       let hubTokenValue = ''
       try {
         const hubJson = execSync(
-          'doppler secrets get CLOUDFLARE_API_TOKEN --project narduk-nuxt-template --config prd --json',
+          'doppler secrets get CLOUDFLARE_API_TOKEN --project sailing-passage-map --config prd --json',
           { encoding: 'utf-8', stdio: 'pipe' },
         )
         hubTokenValue = JSON.parse(hubJson).CLOUDFLARE_API_TOKEN?.computed || ''

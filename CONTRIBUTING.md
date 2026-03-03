@@ -11,7 +11,7 @@ Welcome! This guide helps you get up and running with the **Nuxt 4 + Nuxt UI 4 E
 ## Quick Start
 
 ```bash
-git clone https://github.com/narduk-enterprises/narduk-nuxt-template.git my-project
+git clone https://github.com/narduk-enterprises/sailing-passage-map.git my-project
 cd my-project
 pnpm install
 pnpm run dev          # Starts apps/web with hot reload
@@ -53,14 +53,14 @@ This project uses **Doppler** — never create `.env` files. All example apps sh
 
 | Doppler Project        | Config     | Used By        |
 | ---------------------- | ---------- | -------------- |
-| `narduk-nuxt-template` | `dev`      | Shared secrets |
-| `narduk-nuxt-template` | `dev_auth` | `example-auth` |
+| `sailing-passage-map` | `dev`      | Shared secrets |
+| `sailing-passage-map` | `dev_auth` | `example-auth` |
 
 **First-time setup for example-auth:**
 
 ```bash
 cd apps/example-auth
-doppler setup --project narduk-nuxt-template --config dev_auth --no-interactive
+doppler setup --project sailing-passage-map --config dev_auth --no-interactive
 ```
 
 See the [Secrets recipe in AGENTS.md](./AGENTS.md#-recipe-secrets--environment-doppler) for full details.

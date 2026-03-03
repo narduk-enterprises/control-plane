@@ -10,12 +10,7 @@
     "build": "pnpm run build:nuxt-ui && pnpm run build:guardrails && pnpm run build:vue-official",
     "build:nuxt-ui": "cd eslint-plugin-nuxt-ui && pnpm run build",
     "build:guardrails": "cd eslint-plugin-nuxt-guardrails && pnpm run build",
-    "build:vue-official": "cd eslint-plugin-vue-official-best-practices && pnpm run build",
-    "lint": "echo 'eslint-config: lint pass (config-only package)'",
-    "typecheck": "pnpm run build",
-    "quality": "pnpm run lint && pnpm run typecheck && pnpm run test",
-    "test": "vitest run",
-    "test:plugins": "vitest run eslint-plugins/tests"
+    "build:vue-official": "cd eslint-plugin-vue-official-best-practices && pnpm run build"
   },
   "dependencies": {
     "eslint-config-prettier": "^10.1.8",

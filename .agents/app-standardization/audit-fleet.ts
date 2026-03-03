@@ -16,7 +16,7 @@ import { readdirSync, statSync } from 'node:fs'
 
 // ─── Configuration ──────────────────────────────────────────
 const APPS_DIR = join(process.env.HOME || '~', 'new-code')
-const TEMPLATE_DIR = 'narduk-nuxt-template'
+const TEMPLATE_DIR = 'sailing-passage-map'
 const SKIP_DIRS = ['.vscode', '.DS_Store', TEMPLATE_DIR]
 
 const REQUIRED_KEYS = [
@@ -74,8 +74,8 @@ function checkLayerRef(appDir: string): 'published' | 'relative' | 'none' {
 // ─── Hub-Spoke Verification ────────────────────────────────
 
 const HUB_KEYS: Record<string, string> = {
-    CLOUDFLARE_API_TOKEN: 'narduk-nuxt-template',
-    CLOUDFLARE_ACCOUNT_ID: 'narduk-nuxt-template',
+    CLOUDFLARE_API_TOKEN: 'sailing-passage-map',
+    CLOUDFLARE_ACCOUNT_ID: 'sailing-passage-map',
     POSTHOG_PUBLIC_KEY: 'narduk-analytics',
     POSTHOG_PROJECT_ID: 'narduk-analytics',
     POSTHOG_HOST: 'narduk-analytics',
@@ -185,7 +185,7 @@ function main() {
 
     console.log(' Legend: struct=monorepo  layer=published pkg  GA=GA_MEASUREMENT_ID')
     console.log('         GSC=SITE_URL+SERVICE_ACCOUNT  INow=INDEXNOW_KEY  PH=POSTHOG_PUBLIC_KEY')
-    console.log('         hub=all hub keys are cross-refs to narduk-nuxt-template / narduk-analytics')
+    console.log('         hub=all hub keys are cross-refs to sailing-passage-map / narduk-analytics')
     console.log()
 }
 

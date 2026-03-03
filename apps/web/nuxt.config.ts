@@ -22,43 +22,40 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    // Server-only (admin API routes)
     googleServiceAccountKey: process.env.GSC_SERVICE_ACCOUNT_JSON || '',
     posthogApiKey: process.env.POSTHOG_PERSONAL_API_KEY || '',
-    gaPropertyId: process.env.GA_PROPERTY_ID || '',
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
+    posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
     public: {
-      appUrl: process.env.SITE_URL || 'https://narduk.workers.dev',
-      appName: process.env.APP_NAME || 'Nuxt 4 Demo',
-      // Analytics
+      appUrl: process.env.SITE_URL || 'https://control-plane.nard.uk',
+      appName: process.env.APP_NAME || 'Narduk Control Plane',
       posthogPublicKey: process.env.POSTHOG_PUBLIC_KEY || '',
       posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
       gaMeasurementId: process.env.GA_MEASUREMENT_ID || '',
       posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
-      // IndexNow
       indexNowKey: process.env.INDEXNOW_KEY || '',
-    }
+    },
   },
 
   site: {
-    url: process.env.SITE_URL || 'https://narduk.workers.dev',
-    name: 'Nuxt 4 Demo',
-    description: 'A production-ready demo template showcasing Nuxt 4, Nuxt UI 4, Tailwind CSS 4, and Cloudflare Workers with D1 database.',
+    url: process.env.SITE_URL || 'https://control-plane.nard.uk',
+    name: 'Narduk Control Plane',
+    description: 'Fleet dashboard for narduk-enterprises apps — GSC, PostHog, IndexNow, Google Indexing.',
     defaultLocale: 'en',
   },
 
   schemaOrg: {
     identity: {
       type: 'Organization',
-      name: 'Nuxt 4 Demo',
-      url: process.env.SITE_URL || 'https://narduk.workers.dev',
+      name: 'Narduk Control Plane',
+      url: process.env.SITE_URL || 'https://control-plane.nard.uk',
       logo: '/favicon.svg',
     },
   },
 
   image: {
     cloudflare: {
-      baseURL: process.env.SITE_URL || 'https://narduk.workers.dev',
+      baseURL: process.env.SITE_URL || 'https://control-plane.nard.uk',
     },
   },
 })

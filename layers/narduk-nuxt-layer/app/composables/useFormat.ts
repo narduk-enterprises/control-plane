@@ -5,7 +5,7 @@
 
 const DEFAULT_LOCALE = 'en-US';
 
-export function formatCents(
+export function useFormatCents(
   cents: number,
   options?: { locale?: string; currency?: string }
 ): string {
@@ -17,7 +17,7 @@ export function formatCents(
   }).format(cents / 100);
 }
 
-export function formatCurrency(
+export function useFormatCurrency(
   amount: number,
   options?: { locale?: string; currency?: string }
 ): string {
@@ -29,7 +29,7 @@ export function formatCurrency(
   }).format(amount);
 }
 
-export function formatDate(
+export function useFormatDate(
   date: Date | number | string,
   options?: { locale?: string; dateStyle?: 'short' | 'medium' | 'long' | 'full' }
 ): string {
@@ -40,7 +40,7 @@ export function formatDate(
   }).format(new Date(date));
 }
 
-export function formatDateTime(
+export function useFormatDateTime(
   date: Date | number | string,
   options?: { locale?: string }
 ): string {
@@ -51,7 +51,7 @@ export function formatDateTime(
   }).format(new Date(date));
 }
 
-export function formatRelative(
+export function useFormatRelative(
   date: Date | number | string,
   base?: Date
 ): string {
@@ -76,7 +76,7 @@ export function formatRelative(
   return rtf.format(diffYear, 'year');
 }
 
-export function formatNumber(
+export function useFormatNumber(
   value: number,
   options?: { locale?: string; minimumFractionDigits?: number; maximumFractionDigits?: number }
 ): string {
@@ -87,7 +87,7 @@ export function formatNumber(
   }).format(value);
 }
 
-export function formatInteger(
+export function useFormatInteger(
   value: number,
   options?: { locale?: string }
 ): string {
@@ -97,7 +97,7 @@ export function formatInteger(
   }).format(value);
 }
 
-export function formatPercent(
+export function useFormatPercent(
   value: number,
   options?: { locale?: string; decimals?: number }
 ): string {
@@ -110,7 +110,7 @@ export function formatPercent(
   }).format(value);
 }
 
-export function formatCompact(
+export function useFormatCompact(
   value: number,
   options?: { locale?: string }
 ): string {
@@ -123,14 +123,14 @@ export function formatCompact(
 
 export default function useFormat() {
   return {
-    formatCents,
-    formatCurrency,
-    formatDate,
-    formatDateTime,
-    formatRelative,
-    formatNumber,
-    formatInteger,
-    formatPercent,
-    formatCompact,
+    formatCents: useFormatCents,
+    formatCurrency: useFormatCurrency,
+    formatDate: useFormatDate,
+    formatDateTime: useFormatDateTime,
+    formatRelative: useFormatRelative,
+    formatNumber: useFormatNumber,
+    formatInteger: useFormatInteger,
+    formatPercent: useFormatPercent,
+    formatCompact: useFormatCompact,
   };
 }

@@ -6,15 +6,15 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
-    "db:migrate": "wrangler d1 execute narduk-nuxt-template-db --local --file=drizzle/0000_initial_schema.sql",
-    "db:seed": "wrangler d1 execute narduk-nuxt-template-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql",
+    "db:migrate": "wrangler d1 execute control-plane-db --local --file=drizzle/0000_initial_schema.sql",
+    "db:seed": "wrangler d1 execute control-plane-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql",
     "db:studio": "drizzle-kit studio",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
     "deploy": "nuxt build && wrangler deploy",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "quality": "pnpm run lint && pnpm run typecheck"
   },
   "dependencies": {
@@ -32,7 +32,8 @@
     "typescript": "^5.9.3",
     "vitest": "^4.0.18",
     "vue-tsc": "^3.2.5",
-    "wrangler": "^4.20.0"
+    "wrangler": "^4.20.0",
+    "@cloudflare/workers-types": "^4.20260226.0"
   },
   "overrides": {
     "@cloudflare/unenv-preset": "2.12.1",

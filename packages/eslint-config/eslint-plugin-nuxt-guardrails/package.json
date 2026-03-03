@@ -17,9 +17,7 @@
   ],
   "scripts": {
     "gen:spec": "tsx scripts/gen-nuxt-spec.ts",
-    "build": "tsup",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "build": "tsup"
   },
   "keywords": [
     "eslint",

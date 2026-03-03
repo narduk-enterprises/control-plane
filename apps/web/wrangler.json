@@ -1,20 +1,28 @@
 {
   "$schema": "https://unpkg.com/wrangler@latest/config-schema.json",
-  "name": "narduk-nuxt-template",
+  "name": "control-plane",
   "main": ".output/server/index.mjs",
   "assets": {
     "directory": ".output/public"
   },
   "compatibility_date": "2026-03-03",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true
   },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "narduk-nuxt-template-db",
-      "database_id": "2176c867-da11-4328-a79a-852fa713ca9e"
+      "database_name": "control-plane-db",
+      "database_id": "780d8b62-72d5-4311-8559-31b3e360d070"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "control-plane.nard.uk",
+      "custom_domain": true
     }
   ]
 }
