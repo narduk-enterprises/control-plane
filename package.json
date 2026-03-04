@@ -15,7 +15,7 @@
     "prelint": "pnpm run build:plugins",
     "lint": "pnpm run prelint && turbo run lint",
     "typecheck": "turbo run typecheck",
-    "quality": "turbo run quality",
+    "quality": "turbo run quality --filter='./apps/*'",
     "setup": "npx tsx tools/init.ts",
     "update-layer": "npx tsx tools/update-layer.ts",
     "sync-template": "npx tsx tools/sync-template.ts",
