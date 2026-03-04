@@ -104,6 +104,11 @@ export default defineEventHandler(async (event) => {
         }
     } catch (err: unknown) {
         if (err instanceof GoogleApiError) {
+            console.error(`[GA4 API Error] ${err.status} ${err.statusText}: ${err.message}`, {
+                propertyId,
+                app: app.name,
+                body: err.body
+            })
             if (err.status === 403) {
                 throw createError({
                     statusCode: 403,
