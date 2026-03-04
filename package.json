@@ -33,7 +33,6 @@
   },
   "pnpm": {
     "overrides": {
-      "nuxt-og-image": "6.0.0-beta.42",
       "esbuild": ">=0.25.0",
       "serialize-javascript": ">=7.0.3",
       "@cloudflare/unenv-preset": "2.12.1"
