@@ -1,8 +1,18 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { toValue, computed } from 'vue'
 
-export function useFleetPosthog(appName: MaybeRefOrGetter<string>) {
-  const key = computed(() => `/api/fleet/posthog/${encodeURIComponent(toValue(appName))}`)
+export function useFleetPosthog(
+  appName: MaybeRefOrGetter<string>,
+  startDate: MaybeRefOrGetter<string>,
+  endDate: MaybeRefOrGetter<string>,
+  force: MaybeRefOrGetter<boolean> = false,
+) {
+  const key = computed(() => {
+    const app = encodeURIComponent(toValue(appName))
+    const sd = toValue(startDate)
+    const ed = toValue(endDate)
+    return `/api/fleet/posthog/${app}?startDate=${sd}&endDate=${ed}&force=${toValue(force)}`
+  })
   const { data, error, status, refresh } = useFetch<{
     app: string
     summary: unknown
@@ -14,7 +24,7 @@ export function useFleetPosthog(appName: MaybeRefOrGetter<string>) {
     replaysUrl: string
     startDate: string
     endDate: string
-  }>(key, { immediate: false, lazy: true, server: false })
+  }>(key, { lazy: true, server: false })
 
   return {
     data,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{ appName: string }>()
-const { data, error, loading, load } = useFleetPosthog(() => props.appName)
+const today = new Date().toISOString().split('T')[0]!
+const { data, error, loading, load } = useFleetPosthog(() => props.appName, today, today)
 const open = ref(false)
 
 async function onOpen() {

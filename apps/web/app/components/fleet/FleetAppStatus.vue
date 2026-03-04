@@ -1,34 +1,73 @@
 <script setup lang="ts">
-const props = defineProps<{
-  url: string
-}>()
+import type { FleetAppStatusRecord } from '~/types/fleet'
 
-const { data, status, error } = useFleetAppStatus(() => props.url)
+const props = defineProps<{
+  appStatus?: FleetAppStatusRecord
+}>()
 
 type BadgeColor = 'neutral' | 'error' | 'success'
 
 const badgeConfig = computed(() => {
-  if (!props.url || props.url === 'undefined') {
-    return { color: 'neutral' as BadgeColor, icon: 'i-lucide-slash', label: 'N/A', class: '' }
+  if (!props.appStatus) {
+    return { color: 'neutral' as BadgeColor, icon: 'i-lucide-clock', label: 'Pending', class: '' }
   }
-  if (status.value === 'pending' || status.value === 'idle') {
-    return { color: 'neutral' as BadgeColor, icon: 'i-lucide-loader-2', label: 'Checking...', class: 'animate-pulse' }
-  }
-  if (error.value || data.value?.status === 'down') {
+  if (props.appStatus.status === 'down') {
     return { color: 'error' as BadgeColor, icon: 'i-lucide-x-circle', label: 'Down', class: '' }
   }
   return { color: 'success' as BadgeColor, icon: 'i-lucide-check-circle-2', label: 'Up', class: '' }
 })
+
+const checkedAgo = computed(() => {
+  if (!props.appStatus?.checkedAt) return ''
+  const diff = Date.now() - new Date(props.appStatus.checkedAt).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  return `${hours}h ago`
+})
+
+const { refreshAppStatus, isAppRefreshing } = useFleetStatuses()
+const isRefreshing = computed(() => props.appStatus?.app ? isAppRefreshing(props.appStatus.app) : false)
+
+async function handleRefresh() {
+  if (!props.appStatus?.app) return
+  await refreshAppStatus(props.appStatus.app)
+}
+
+const isMounted = ref(false)
+onMounted(() => {
+  isMounted.value = true
+})
 </script>
 
 <template>
-  <UBadge
-    :color="badgeConfig.color"
-    variant="subtle"
-    size="sm"
-    :class="badgeConfig.class"
-  >
-    <UIcon :name="badgeConfig.icon" class="mr-1 size-3.5" :class="{ 'animate-spin': badgeConfig.icon === 'i-lucide-loader-2' }" />
-    {{ badgeConfig.label }}
-  </UBadge>
+  <div class="flex items-center gap-1.5">
+    <UTooltip :text="checkedAgo || 'Not checked yet'">
+      <UBadge
+        :color="badgeConfig.color"
+        variant="subtle"
+        size="sm"
+        :class="badgeConfig.class"
+      >
+        <UIcon :name="badgeConfig.icon" class="mr-1 size-3.5" />
+        {{ badgeConfig.label }}
+      </UBadge>
+    </UTooltip>
+    
+    <UButton
+      v-if="props.appStatus?.app"
+      variant="ghost"
+      color="neutral"
+      size="xs"
+      :icon="(isMounted && isRefreshing) ? 'i-lucide-loader-2' : 'i-lucide-refresh-cw'"
+      :class="[
+        'size-6 p-0 transition-base cursor-pointer hover:bg-elevated text-muted hover:text-default rounded-full flex items-center justify-center shrink-0',
+        (isMounted && isRefreshing) && 'animate-spin'
+      ]"
+      :aria-label="`Refresh ${props.appStatus.app} status`"
+      :disabled="isRefreshing"
+      @click="handleRefresh"
+    />
+  </div>
 </template>

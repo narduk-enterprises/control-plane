@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { watch } from 'vue'
-
 const props = defineProps<{ appName: string; active?: boolean }>()
 
-const { data, error, loading, load } = useFleetPosthog(() => props.appName)
+const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } = useAnalyticsDateRange('today')
+const force = ref(false)
+const { data, error, loading, load } = useFleetPosthog(() => props.appName, startDate, endDate, force)
 
-watch(() => props.active, (isActive) => {
-  if (isActive && !data.value && !loading.value && !error.value) {
-    load()
-  }
-}, { immediate: true })
+async function onForceRefresh() {
+  force.value = true
+  await load()
+  force.value = false
+}
+
+// Data is loaded natively by Nuxt useFetch reactivity on the URL hook
 
 const summary = computed(() => {
   const d = data.value as { summary: Record<string, unknown> } | null
@@ -29,28 +31,15 @@ const dateRange = computed(() => {
   return `${d.startDate} → ${d.endDate}`
 })
 
-async function onLoad() {
-  await load()
+function onPresetChange(p: string) {
+  setPreset(p as Parameters<typeof setPreset>[0])
 }
-
-// Columns for the mini-tables
-const miniColumns = [
-  { accessorKey: 'name', header: 'Item' },
-  { accessorKey: 'count', header: 'Count', class: 'w-20 text-right' }
-]
 </script>
 
 <template>
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div class="flex gap-2">
-        <UButton
-          :loading="loading"
-          class="cursor-pointer"
-          @click="onLoad"
-        >
-          Load PostHog (last 30 days)
-        </UButton>
         <UButton
           v-if="data?.replaysUrl"
           :to="data.replaysUrl"
@@ -73,54 +62,38 @@ const miniColumns = [
       :summary="summary"
       :time-series="data?.timeSeries"
       :date-range="dateRange"
+      :preset-options="presetOptions"
+      :active-preset="preset"
+      :preset-label="presetLabel"
+      v-model:start-date="startDate"
+      v-model:end-date="endDate"
       hide-button
-      @load="onLoad"
+      @load="load"
+      @preset="onPresetChange"
+      @refresh="onForceRefresh"
     />
 
     <div v-if="data && !loading" class="grid gap-4 md:grid-cols-2">
-      <!-- Top Pages -->
-      <UCard v-if="data.topPages?.length" class="overflow-hidden">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-file-text" class="text-primary-500" />
-            <h3 class="text-sm font-medium">Top Pages</h3>
-          </div>
-        </template>
-        <UTable :data="data.topPages" :columns="miniColumns" class="text-xs" />
-      </UCard>
-
-      <!-- Top Referrers -->
-      <UCard v-if="data.topReferrers?.length" class="overflow-hidden">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-external-link" class="text-primary-500" />
-            <h3 class="text-sm font-medium">Top Referrers</h3>
-          </div>
-        </template>
-        <UTable :data="data.topReferrers" :columns="miniColumns" class="text-xs" />
-      </UCard>
-
-      <!-- Top Countries -->
-      <UCard v-if="data.topCountries?.length" class="overflow-hidden">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-globe" class="text-primary-500" />
-            <h3 class="text-sm font-medium">Top Countries</h3>
-          </div>
-        </template>
-        <UTable :data="data.topCountries" :columns="miniColumns" class="text-xs" />
-      </UCard>
-
-      <!-- Top Browsers -->
-      <UCard v-if="data.topBrowsers?.length" class="overflow-hidden">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-laptop" class="text-primary-500" />
-            <h3 class="text-sm font-medium">Top Browsers</h3>
-          </div>
-        </template>
-        <UTable :data="data.topBrowsers" :columns="miniColumns" class="text-xs" />
-      </UCard>
+      <FleetTopDimensionCard
+        title="Top Pages"
+        icon="i-lucide-file-text"
+        :items="data.topPages ?? []"
+      />
+      <FleetTopDimensionCard
+        title="Top Referrers"
+        icon="i-lucide-external-link"
+        :items="data.topReferrers ?? []"
+      />
+      <FleetTopDimensionCard
+        title="Top Countries"
+        icon="i-lucide-globe"
+        :items="data.topCountries ?? []"
+      />
+      <FleetTopDimensionCard
+        title="Top Browsers"
+        icon="i-lucide-laptop"
+        :items="data.topBrowsers ?? []"
+      />
     </div>
   </div>
 </template>

@@ -6,7 +6,7 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
-    "db:migrate": "wrangler d1 execute control-plane-db --local --file=drizzle/0000_initial_schema.sql",
+    "db:migrate": "wrangler d1 execute control-plane-db --local --file=drizzle/0000_initial_schema.sql && wrangler d1 execute control-plane-db --local --file=drizzle/0001_add_app_status.sql && wrangler d1 execute control-plane-db --local --file=drizzle/0002_add_kv_cache.sql",
     "db:seed": "wrangler d1 execute control-plane-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql",
     "db:studio": "drizzle-kit studio",
     "generate": "nuxt generate",

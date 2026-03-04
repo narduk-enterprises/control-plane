@@ -19,6 +19,11 @@
       "database_id": "780d8b62-72d5-4311-8559-31b3e360d070"
     }
   ],
+  "triggers": {
+    "crons": [
+      "0 * * * *"
+    ]
+  },
   "routes": [
     {
       "pattern": "control-plane.nard.uk",

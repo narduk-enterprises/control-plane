@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, resolveComponent, watch } from 'vue'
+import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '~/types/table'
 import type { GscDimension } from '~/composables/useFleetGscQuery'
 
@@ -7,28 +7,26 @@ type GscRow = { keys?: string[]; clicks?: number; impressions?: number; ctr?: nu
 
 const props = defineProps<{ appName: string; active?: boolean }>()
 
-const today = new Date().toISOString().split('T')[0]!
-const start = new Date()
-start.setDate(start.getDate() - 30)
-const defaultStart = start.toISOString().split('T')[0]!
-
-const startDate = ref(defaultStart)
-const endDate = ref(today)
+const { preset, startDate, endDate, presetOptions, setPreset } = useAnalyticsDateRange('7d')
 const dimension = ref<GscDimension>('query')
+const force = ref(false)
 
 const params = computed(() => ({
   startDate: startDate.value,
   endDate: endDate.value,
   dimension: dimension.value,
+  force: force.value,
 }))
 
 const { data, error, loading, load } = useFleetGscQuery(() => props.appName, params)
 
-watch(() => props.active, (isActive) => {
-  if (isActive && !data.value && !loading.value && !error.value) {
-    load()
-  }
-}, { immediate: true })
+async function onForceRefresh() {
+  force.value = true
+  await load()
+  force.value = false
+}
+
+// Data is loaded natively by Nuxt useFetch reactivity on the URL hook
 
 const dimensions: { value: GscDimension; label: string }[] = [
   { value: 'query', label: 'Query' },
@@ -130,14 +128,14 @@ function copyCsv() {
   navigator.clipboard.writeText(csvContent.value)
 }
 
-async function onLoad() {
-  await load()
-}
-
 function setSort(key: 'clicks' | 'impressions' | 'ctr' | 'position') {
   if (sortKey.value === key) sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
   else sortKey.value = key
   sortDir.value = 'desc'
+}
+
+function onPresetChange(p: string) {
+  setPreset(p as Parameters<typeof setPreset>[0])
 }
 
 const formattedCrawledAs = computed(() => {
@@ -145,7 +143,6 @@ const formattedCrawledAs = computed(() => {
   return crawledAs ? crawledAs.replace('CRAWLED_AS_', '') : ''
 })
 
-// Cast for UTable columns prop (expects TanStack type from layer; we use local TableColumn)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
 const gscColumnsForTable = computed(() => gscColumns.value as any)
 
@@ -153,18 +150,45 @@ const formattedLastCrawlTime = computed(() => {
   const time = data.value?.inspection?.indexStatusResult?.lastCrawlTime
   return time ? new Date(time).toLocaleString() : ''
 })
-
 </script>
 
 <template>
   <div class="space-y-4">
+    <!-- Date Range Presets -->
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          v-for="opt in presetOptions"
+          :key="opt.value"
+          size="xs"
+          :color="preset === opt.value ? 'primary' : 'neutral'"
+          :variant="preset === opt.value ? 'solid' : 'outline'"
+          class="cursor-pointer rounded-full"
+          @click="onPresetChange(opt.value)"
+        >
+          {{ opt.label }}
+        </UButton>
+      </div>
+
+      <div v-if="preset === 'custom'" class="flex flex-wrap items-center gap-2 border-t border-default pt-3">
+        <UInput 
+          type="date" 
+          v-model="startDate" 
+          size="xs" 
+          class="w-auto"
+        />
+        <span class="text-xs text-muted">to</span>
+        <UInput 
+          type="date" 
+          v-model="endDate" 
+          size="xs" 
+          class="w-auto"
+        />
+      </div>
+    </div>
+
+    <!-- Controls Row -->
     <div class="flex flex-wrap items-end gap-3">
-      <UFormField label="Start date">
-        <UInput v-model="startDate" type="date" class="min-w-40" />
-      </UFormField>
-      <UFormField label="End date">
-        <UInput v-model="endDate" type="date" class="min-w-40" />
-      </UFormField>
       <UFormField label="Dimension">
         <USelect
           v-model="dimension"
@@ -176,9 +200,13 @@ const formattedLastCrawlTime = computed(() => {
       <UButton
         :loading="loading"
         class="cursor-pointer"
-        @click="onLoad"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-refresh-cw"
+        size="xs"
+        @click="onForceRefresh"
       >
-        Load
+        Force Refresh
       </UButton>
     </div>
 
@@ -189,22 +217,22 @@ const formattedLastCrawlTime = computed(() => {
 
     <div v-else-if="data && data.rows?.length" class="space-y-4">
       <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <UCard class="shadow-sm">
+        <div class="rounded-xl border border-default bg-elevated/30 p-4">
           <p class="text-sm font-medium text-muted">Total Clicks</p>
           <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.clicks ?? 0).toLocaleString() }}</p>
-        </UCard>
-        <UCard class="shadow-sm">
+        </div>
+        <div class="rounded-xl border border-default bg-elevated/30 p-4">
           <p class="text-sm font-medium text-muted">Total Impressions</p>
           <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.impressions ?? 0).toLocaleString() }}</p>
-        </UCard>
-        <UCard class="shadow-sm">
+        </div>
+        <div class="rounded-xl border border-default bg-elevated/30 p-4">
           <p class="text-sm font-medium text-muted">Average CTR</p>
           <p class="mt-1 text-2xl font-semibold text-default">{{ ((data.totals?.ctr ?? 0) * 100).toFixed(2) }}%</p>
-        </UCard>
-        <UCard class="shadow-sm">
+        </div>
+        <div class="rounded-xl border border-default bg-elevated/30 p-4">
           <p class="text-sm font-medium text-muted">Average Position</p>
           <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.position ?? 0).toFixed(1) }}</p>
-        </UCard>
+        </div>
       </div>
 
       <div v-if="data.inspection?.indexStatusResult" class="rounded-lg border border-default p-4">
@@ -277,8 +305,8 @@ const formattedLastCrawlTime = computed(() => {
 
     <div v-else class="rounded-lg border border-dashed border-default p-6 text-center">
       <UIcon name="i-lucide-bar-chart-3" class="mx-auto size-10 text-muted" />
-      <p class="mt-2 text-sm font-medium text-default">Load GSC data</p>
-      <p class="mt-1 text-sm text-muted">Choose dates and dimension, then click Load.</p>
+      <p class="mt-2 text-sm font-medium text-default">GSC Analytics</p>
+      <p class="mt-1 text-sm text-muted">Select a date range to load Search Console metrics.</p>
     </div>
   </div>
 </template>

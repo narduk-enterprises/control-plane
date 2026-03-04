@@ -1,27 +1,37 @@
 <script setup lang="ts">
-import { watch } from 'vue'
-
 const props = defineProps<{ appName: string; active?: boolean }>()
 
-const { data, error, loading, load } = useFleetGA(() => props.appName)
+const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } = useAnalyticsDateRange('today')
+const force = ref(false)
+const { data, error, loading, load } = useFleetGA(() => props.appName, startDate, endDate, force)
 
-watch(() => props.active, (isActive) => {
-  if (isActive && !data.value && !loading.value && !error.value) {
-    load()
-  }
-}, { immediate: true })
+async function onForceRefresh() {
+  force.value = true
+  await load()
+  force.value = false
+}
+
+// Data is loaded natively by Nuxt useFetch reactivity on the URL hook
 
 const summary = computed(() => {
-  const d = data.value as { summary: Record<string, number> } | null
-  if (!d || typeof d.summary !== 'object') return null
+  const d = data.value as { summary: Record<string, number> | null } | null
+  if (!d?.summary || typeof d.summary !== 'object') return null
   const s = d.summary
   return {
     users: s.activeUsers,
+    newUsers: s.newUsers,
     sessions: s.sessions,
     pageviews: s.screenPageViews,
     bounceRate: s.bounceRate,
     avgSessionDuration: s.averageSessionDuration,
+    engagementRate: s.engagementRate,
+    eventCount: s.eventCount,
   }
+})
+
+const deltas = computed(() => {
+  const d = data.value as { deltas: Record<string, number> | null } | null
+  return d?.deltas ?? null
 })
 
 const dateRange = computed(() => {
@@ -30,8 +40,8 @@ const dateRange = computed(() => {
   return `${d.startDate} → ${d.endDate}`
 })
 
-async function onLoad() {
-  await load()
+function onPresetChange(p: string) {
+  setPreset(p as Parameters<typeof setPreset>[0])
 }
 </script>
 
@@ -42,8 +52,16 @@ async function onLoad() {
     :loading="loading"
     :error="error || null"
     :summary="summary"
+    :deltas="deltas"
     :time-series="data?.timeSeries"
     :date-range="dateRange"
-    @load="onLoad"
+    :preset-options="presetOptions"
+    :active-preset="preset"
+    :preset-label="presetLabel"
+    v-model:start-date="startDate"
+    v-model:end-date="endDate"
+    @load="load"
+    @preset="onPresetChange"
+    @refresh="onForceRefresh"
   />
 </template>

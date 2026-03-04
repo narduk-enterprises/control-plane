@@ -1,29 +1,18 @@
-import { defineEventHandler } from 'h3'
-import { z } from 'zod'
+import { appStatus } from '#server/database/schema'
 
-const querySchema = z.object({
-    url: z.string().url()
-})
-
+/**
+ * GET /api/fleet/status
+ *
+ * Returns all cached fleet app statuses from the D1 database.
+ * If no statuses exist yet, automatically triggers a full status check
+ * to populate the table (first-run / fresh migration scenario).
+ */
 export default defineEventHandler(async (event) => {
-    const query = await getValidatedQuery(event, querySchema.parse)
-    const url = query.url
+    const db = useDatabase(event)
+    const rows = await db.select().from(appStatus).all()
 
-    try {
-        // Try a fast HEAD request first
-        let response = await fetch(url, { method: 'HEAD', redirect: 'follow' })
+    if (rows.length > 0) return rows
 
-        // Some servers reject HEAD requests, fallback to GET
-        if (response.status === 405 || response.status >= 500) {
-            response = await fetch(url, { method: 'GET', redirect: 'follow' })
-        }
-
-        if (response.ok) {
-            return { status: 'up', code: response.status }
-        } else {
-            return { status: 'down', code: response.status }
-        }
-    } catch (_error) {
-        return { status: 'down', code: 0 }
-    }
+    // No cached data — run the checks now and return fresh results
+    return checkAllFleetStatuses(event)
 })

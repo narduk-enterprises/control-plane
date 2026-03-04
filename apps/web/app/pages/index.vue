@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
-import FleetAppStatus from '~/components/fleet/FleetAppStatus.vue'
-import FleetAppPosthogStats from '~/components/fleet/FleetAppPosthogStats.vue'
+import { h } from 'vue'
+import { NuxtLink, UButton, FleetAppStatus, FleetAppPosthogStats } from '#components'
 import type { TableColumn } from '~/types/table'
 import type { FleetApp } from '~/composables/useFleetDashboard'
 
@@ -16,6 +15,7 @@ useWebPageSchema({
 })
 
 const { apps, refreshApps } = useFleetDashboard()
+const { getStatus, refreshStatuses, isRefreshing: statusesRefreshing } = useFleetStatuses()
 const fleetApps = computed(() => apps.value ?? [])
 const fleetCount = computed(() => fleetApps.value.length)
 const hasFleetApps = computed(() => fleetCount.value > 0)
@@ -33,9 +33,6 @@ const paginatedApps = computed(() => {
   return fleetApps.value.slice(start, end)
 })
 
-const NuxtLink = resolveComponent('NuxtLink')
-const UButton = resolveComponent('UButton')
-
 const dashboardColumns: TableColumn<FleetApp>[] = [
   {
     accessorKey: 'name',
@@ -51,20 +48,21 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
   {
     accessorKey: 'url',
     header: 'URL',
-    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[150px] truncate text-muted hidden md:table-cell' } },
+    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate text-muted hidden md:table-cell' } },
     cell: ({ row }) => row.original.url,
   },
   {
     id: 'status',
     header: 'Status',
     meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } },
-    cell: ({ row }) => h(FleetAppStatus, { url: row.original.url }),
+    cell: ({ row }) => {
+      return h(FleetAppStatus, { appStatus: getStatus(row.original.name) })
+    },
     enableSorting: false,
   },
   {
     id: 'posthog',
     header: 'PostHog (30d)',
-    meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell' } },
     cell: ({ row }) => h(FleetAppPosthogStats, {
       appName: row.original.name,
       stats: posthogSummary.value?.[row.original.name] ?? null,
@@ -75,11 +73,20 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
   },
   {
     id: 'actions',
-    header: '',
+    header: 'Actions',
     meta: { class: { th: 'text-right', td: 'text-right' } },
     cell: ({ row }) => {
       const app = row.original
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
+        h(UButton, {
+          to: `/fleet/${app.name}`,
+          size: 'xs',
+          variant: 'ghost',
+          color: 'neutral',
+          icon: 'i-lucide-bar-chart-3',
+          'aria-label': 'GSC',
+          class: 'cursor-pointer',
+        }),
         h(UButton, {
           to: app.url,
           target: '_blank',
@@ -130,63 +137,119 @@ async function onRefresh() {
     </div>
 
     <!-- KPI cards -->
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-      <UCard class="cursor-default transition-base hover:shadow-elevated">
-        <div class="flex items-center gap-4">
-          <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <UIcon name="i-lucide-grid-3x3" class="size-6" />
+    <ClientOnly>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+        <UCard class="cursor-default transition-base hover:shadow-elevated">
+          <div class="flex items-center gap-4">
+            <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UIcon name="i-lucide-grid-3x3" class="size-6" />
+            </div>
+            <div>
+              <p class="text-sm font-medium text-muted">Fleet apps</p>
+              <p class="text-2xl font-semibold text-default">
+                {{ fleetCount }}
+              </p>
+            </div>
           </div>
-          <div>
-            <p class="text-sm font-medium text-muted">Fleet apps</p>
-            <p class="text-2xl font-semibold text-default">
-              {{ fleetCount }}
-            </p>
+        </UCard>
+        <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/fleet')">
+          <div class="flex items-center gap-4">
+            <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UIcon name="i-lucide-bar-chart-3" class="size-6" />
+            </div>
+            <div>
+              <p class="text-sm font-medium text-muted">GSC</p>
+              <p class="text-sm text-default">View per app</p>
+            </div>
           </div>
+        </UCard>
+        <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/fleet')">
+          <div class="flex items-center gap-4">
+            <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UIcon name="i-lucide-users" class="size-6" />
+            </div>
+            <div>
+              <p class="text-sm font-medium text-muted">PostHog</p>
+              <p class="text-sm text-default">Events &amp; users</p>
+            </div>
+          </div>
+        </UCard>
+        <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/indexing')">
+          <div class="flex items-center gap-4">
+            <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UIcon name="i-lucide-search" class="size-6" />
+            </div>
+            <div>
+              <p class="text-sm font-medium text-muted">Indexing</p>
+              <p class="text-sm text-default">Submit URLs</p>
+            </div>
+          </div>
+        </UCard>
+      </div>
+      <template #fallback>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+          <USkeleton v-for="i in 4" :key="i" class="h-28 w-full rounded-xl" />
         </div>
-      </UCard>
-      <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/fleet')">
-        <div class="flex items-center gap-4">
-          <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <UIcon name="i-lucide-bar-chart-3" class="size-6" />
-          </div>
-          <div>
-            <p class="text-sm font-medium text-muted">GSC</p>
-            <p class="text-sm text-default">View per app</p>
-          </div>
-        </div>
-      </UCard>
-      <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/fleet')">
-        <div class="flex items-center gap-4">
-          <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <UIcon name="i-lucide-users" class="size-6" />
-          </div>
-          <div>
-            <p class="text-sm font-medium text-muted">PostHog</p>
-            <p class="text-sm text-default">Events & users</p>
-          </div>
-        </div>
-      </UCard>
-      <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/indexing')">
-        <div class="flex items-center gap-4">
-          <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <UIcon name="i-lucide-search" class="size-6" />
-          </div>
-          <div>
-            <p class="text-sm font-medium text-muted">Indexing</p>
-            <p class="text-sm text-default">Submit URLs</p>
-          </div>
-        </div>
-      </UCard>
+      </template>
+    </ClientOnly>
+
+    <!-- Quick actions -->
+    <div class="flex flex-wrap items-center gap-3 mb-8">
+      <UButton
+        to="/fleet"
+        variant="outline"
+        color="neutral"
+        class="cursor-pointer"
+        icon="i-lucide-grid-3x3"
+      >
+        Browse fleet
+      </UButton>
+      <UButton
+        to="/indexing"
+        variant="outline"
+        color="neutral"
+        class="cursor-pointer"
+        icon="i-lucide-send"
+      >
+        Submit URL to Google
+      </UButton>
+      <UButton
+        to="/github"
+        variant="outline"
+        color="neutral"
+        class="cursor-pointer"
+        icon="i-lucide-github"
+      >
+        View GitHub Repos
+      </UButton>
+      <UButton
+        to="/settings"
+        variant="outline"
+        color="neutral"
+        class="cursor-pointer"
+        icon="i-lucide-settings"
+      >
+        Settings
+      </UButton>
     </div>
 
-    <!-- Quick actions + recent fleet -->
-    <div class="grid gap-8 lg:grid-cols-3">
-      <div class="lg:col-span-2">
+    <!-- Fleet apps -->
+    <div class="w-full">
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
               <h2 class="font-semibold text-default">Fleet apps</h2>
               <div class="flex items-center gap-2">
+                <UButton
+                  variant="soft"
+                  size="xs"
+                  icon="i-lucide-activity"
+                  class="cursor-pointer"
+                  :loading="statusesRefreshing"
+                  @click="refreshStatuses"
+                >
+                  Refresh Status
+                </UButton>
                 <UButton
                   v-if="!posthogLoaded"
                   variant="soft"
@@ -201,6 +264,7 @@ async function onRefresh() {
                 <UButton
                   v-else
                   variant="ghost"
+                  color="neutral"
                   size="xs"
                   icon="i-lucide-refresh-cw"
                   class="cursor-pointer"
@@ -242,60 +306,10 @@ async function onRefresh() {
             <p class="mt-1 text-sm text-muted">Ensure you are authenticated. Fleet list comes from the registry.</p>
           </div>
         </UCard>
-      </div>
-      <div>
-        <UCard>
-          <template #header>
-            <h2 class="font-semibold text-default">Quick actions</h2>
-          </template>
-          <div class="flex flex-col gap-2">
-            <UButton
-              to="/fleet"
-              variant="outline"
-              color="neutral"
-              block
-              class="cursor-pointer justify-start"
-              icon="i-lucide-grid-3x3"
-            >
-              Browse fleet
-            </UButton>
-            <UButton
-              to="/indexing"
-              variant="outline"
-              color="neutral"
-              block
-              class="cursor-pointer justify-start"
-              icon="i-lucide-send"
-            >
-              Submit URL to Google
-            </UButton>
-            <UButton
-              to="/github"
-              variant="outline"
-              color="neutral"
-              block
-              class="cursor-pointer justify-start"
-              icon="i-lucide-github"
-            >
-              View GitHub Repos
-            </UButton>
-            <UButton
-              to="/settings"
-              variant="outline"
-              color="neutral"
-              block
-              class="cursor-pointer justify-start"
-              icon="i-lucide-settings"
-            >
-              Settings
-            </UButton>
-          </div>
-        </UCard>
-      </div>
     </div>
 
-    <p v-if="lastRefresh" class="mt-6 text-xs text-muted">
+    <!-- <p v-if="lastRefresh" class="mt-6 text-xs text-muted">
       Last refreshed: <NuxtTime :datetime="lastRefresh" relative />
-    </p>
+    </p> -->
   </div>
 </template>

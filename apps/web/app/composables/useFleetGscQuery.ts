@@ -32,6 +32,7 @@ export interface GscQueryParams {
   startDate: string
   endDate: string
   dimension: GscDimension
+  force?: boolean
 }
 
 export function useFleetGscQuery(
@@ -45,6 +46,7 @@ export function useFleetGscQuery(
       startDate: p.startDate,
       endDate: p.endDate,
       dimension: p.dimension,
+      ...(p.force ? { force: 'true' } : {}),
     }).toString()
     return `/api/fleet/gsc/${app}?${q}`
   })
@@ -56,6 +58,6 @@ export function useFleetGscQuery(
     startDate: string
     endDate: string
     dimension: string
-  }>(key, { immediate: false })
+  }>(key)
   return { data, error, loading: pending, load: refresh }
 }

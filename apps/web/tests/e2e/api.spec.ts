@@ -24,23 +24,31 @@ test.describe('API Integration Tests', () => {
         }
     })
 
-    test('GET /api/fleet/status - should return app status', async ({ request }) => {
-        const response = await request.get('/api/fleet/status', {
-            params: { url: 'https://google.com' }
-        })
+    test('GET /api/fleet/status - should return cached app statuses', async ({ request }) => {
+        const response = await request.get('/api/fleet/status')
         expect(response.status()).toBe(200)
         const data = await response.json()
-        expect(data).toHaveProperty('status')
-        expect(['up', 'down']).toContain(data.status)
+        expect(Array.isArray(data)).toBe(true)
+        // May be empty if no cron/refresh has run yet
+        if (data.length > 0) {
+            expect(data[0]).toHaveProperty('app')
+            expect(data[0]).toHaveProperty('status')
+            expect(data[0]).toHaveProperty('checkedAt')
+            expect(['up', 'down']).toContain(data[0].status)
+        }
     })
 
     test('GET /api/fleet/ga/:app - should return Google Analytics stats', async ({ request }) => {
-        const response = await request.get(`/api/fleet/ga/${testApp}`)
+        const today = new Date().toISOString().split('T')[0]
+        const response = await request.get(`/api/fleet/ga/${testApp}`, {
+            params: { startDate: today, endDate: today }
+        })
         // Strict Assertion: expect 200 OK. 
         // This will fail if the service account lacks permissions (403).
         expect(response.status()).toBe(200)
         const data = await response.json()
         expect(data).toHaveProperty('summary')
+        expect(data).toHaveProperty('propertyId')
     })
 
     test('GET /api/fleet/gsc/:app - should return Search Console stats', async ({ request }) => {

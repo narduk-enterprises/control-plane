@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
+import { h } from 'vue'
 import FleetAppStatus from '~/components/fleet/FleetAppStatus.vue'
+import { NuxtLink, UButton } from '#components'
 import type { TableColumn } from '~/types/table'
 
 useSeo({
@@ -15,6 +16,7 @@ useWebPageSchema({
 type FleetApp = { name: string; url: string; dopplerProject: string }
 
 const { apps, refreshApps } = useFleetDashboard()
+const { getStatus, refreshStatuses, isRefreshing } = useFleetStatuses()
 const searchQuery = ref('')
 const fleetApps = computed(() => apps.value ?? [])
 const filteredApps = computed(() => {
@@ -29,10 +31,6 @@ const filteredApps = computed(() => {
 })
 const hasApps = computed(() => fleetApps.value.length > 0)
 const hasResults = computed(() => filteredApps.value.length > 0)
-
-const NuxtLink = resolveComponent('NuxtLink')
-const UButton = resolveComponent('UButton')
-
 const fleetColumns: TableColumn<FleetApp>[] = [
   {
     accessorKey: 'name',
@@ -54,9 +52,8 @@ const fleetColumns: TableColumn<FleetApp>[] = [
   {
     id: 'status',
     header: 'Status',
-    meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } },
     cell: ({ row }) => {
-      return h(FleetAppStatus, { url: row.original.url })
+      return h(FleetAppStatus, { appStatus: getStatus(row.original.name) })
     },
     enableSorting: false,
   },
@@ -120,15 +117,28 @@ const fleetColumnsForTable = fleetColumns as any
           {{ fleetCountLabel }} — open GA4, GSC, PostHog, or IndexNow per app
         </p>
       </div>
-      <UButton
-        variant="outline"
-        color="neutral"
-        icon="i-lucide-refresh-cw"
-        class="cursor-pointer"
-        @click="refreshApps()"
-      >
-        Refresh
-      </UButton>
+      <div class="flex items-center gap-2">
+        <UButton
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-activity"
+          class="cursor-pointer"
+          :loading="isRefreshing"
+          :disabled="isRefreshing"
+          @click="refreshStatuses()"
+        >
+          {{ isRefreshing ? 'Checking...' : 'Check Status' }}
+        </UButton>
+        <UButton
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-refresh-cw"
+          class="cursor-pointer"
+          @click="refreshApps()"
+        >
+          Refresh
+        </UButton>
+      </div>
     </div>
 
     <UCard v-if="hasApps">

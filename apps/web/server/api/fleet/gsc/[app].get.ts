@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { GoogleApiError, googleApiFetch, GSC_SCOPES } from '#layer/server/utils/google'
 import { getFleetAppByName } from '#server/data/fleet-registry'
+import { withD1Cache } from '#server/utils/d1-cache'
 
 const querySchema = z.object({
   startDate: z.string().optional(),
@@ -9,6 +10,7 @@ const querySchema = z.object({
     .enum(['query', 'page', 'device', 'country', 'searchAppearance'])
     .optional()
     .default('query'),
+  force: z.enum(['true', 'false']).optional(),
 })
 
 /** Try a GSC query against a siteUrl, return null on 403/404 */
@@ -54,10 +56,17 @@ export default defineEventHandler(async (event) => {
 
   const parsed = querySchema.safeParse(getQuery(event))
   const query = parsed.success ? parsed.data : { dimension: 'query' as const }
-  const endDate = query.endDate ?? new Date().toISOString().split('T')[0] ?? ''
-  const start = new Date(endDate)
-  start.setDate(start.getDate() - 30)
-  const startDate = query.startDate ?? start.toISOString().split('T')[0] ?? ''
+  let endDate = query.endDate ?? new Date().toISOString().split('T')[0] ?? ''
+  const startObj = new Date(endDate)
+  startObj.setDate(startObj.getDate() - 30)
+  let startDate = query.startDate ?? startObj.toISOString().split('T')[0] ?? ''
+
+  // Prevent crashes from Vue reactivity tearing where start evaluates after end
+  if (startDate > endDate) {
+    const temp = startDate
+    startDate = endDate
+    endDate = temp
+  }
 
   // Standard: sc-domain: (domain-level property)
   // Fallback: URL-prefix (https://domain/) for legacy properties
@@ -65,53 +74,57 @@ export default defineEventHandler(async (event) => {
   const scDomain = `sc-domain:${hostname}`
   const urlPrefix = `${app.url.replace(/\/$/, '')}/`
 
-  // Try sc-domain first, fall back to URL-prefix
-  let result = await tryGscQuery(scDomain, startDate, endDate, query.dimension)
-  const usedFallback = !result
-  if (!result) {
-    result = await tryGscQuery(urlPrefix, startDate, endDate, query.dimension)
-  }
+  const cacheKey = `gsc-app-${appSlug}-${startDate}-${endDate}-${query.dimension}`
 
-  if (!result) {
-    throw createError({
-      statusCode: 403,
-      message: `GSC: No access for '${scDomain}' or '${urlPrefix}'. Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com access in Google Search Console.`,
-    })
-  }
+  return withD1Cache(event, cacheKey, 3600, async () => {
+    // Try sc-domain first, fall back to URL-prefix
+    let result = await tryGscQuery(scDomain, startDate, endDate, query.dimension)
+    const usedFallback = !result
+    if (!result) {
+      result = await tryGscQuery(urlPrefix, startDate, endDate, query.dimension)
+    }
 
-  const data = result.dimensionalData as Record<string, unknown>
-  const rows = (data.rows as Array<Record<string, unknown>>) ?? []
+    if (!result) {
+      throw createError({
+        statusCode: 403,
+        message: `GSC: No access for '${scDomain}' or '${urlPrefix}'. Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com access in Google Search Console.`,
+      })
+    }
 
-  const totalsObj = result.totalData as Record<string, unknown> | null
-  const totalsRow = (totalsObj?.rows as Array<Record<string, unknown>>)?.[0] || null
+    const data = result.dimensionalData as Record<string, unknown>
+    const rows = (data.rows as Array<Record<string, unknown>>) ?? []
 
-  // URL Inspection (best-effort, uses whichever siteUrl worked)
-  let inspectionResult: Record<string, unknown> | undefined
-  try {
-    const inspectionData = await googleApiFetch(
-      `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
-      GSC_SCOPES,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          inspectionUrl: app.url,
-          siteUrl: result.siteUrl,
-          languageCode: 'en-US',
-        }),
-      },
-    ) as Record<string, unknown>
-    inspectionResult = inspectionData.inspectionResult as Record<string, unknown> | undefined
-  } catch { /* best-effort */ }
+    const totalsObj = result.totalData as Record<string, unknown> | null
+    const totalsRow = (totalsObj?.rows as Array<Record<string, unknown>>)?.[0] || null
 
-  return {
-    app: app.name,
-    rows,
-    totals: totalsRow,
-    inspection: inspectionResult,
-    startDate,
-    endDate,
-    dimension: query.dimension,
-    ...(usedFallback ? { gscSiteUrl: result.siteUrl, note: 'Used URL-prefix fallback (not sc-domain)' } : {}),
-  }
+    // URL Inspection (best-effort, uses whichever siteUrl worked)
+    let inspectionResult: Record<string, unknown> | undefined
+    try {
+      const inspectionData = await googleApiFetch(
+        `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
+        GSC_SCOPES,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            inspectionUrl: app.url,
+            siteUrl: result.siteUrl,
+            languageCode: 'en-US',
+          }),
+        },
+      ) as Record<string, unknown>
+      inspectionResult = inspectionData.inspectionResult as Record<string, unknown> | undefined
+    } catch { /* best-effort */ }
+
+    return {
+      app: app.name,
+      rows,
+      totals: totalsRow,
+      inspection: inspectionResult,
+      startDate,
+      endDate,
+      dimension: query.dimension,
+      ...(usedFallback ? { gscSiteUrl: result.siteUrl, note: 'Used URL-prefix fallback (not sc-domain)' } : {}),
+    }
+  }, query.force === 'true')
 })
 

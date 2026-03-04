@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 const props = defineProps<{
   data: { date: string; value: number }[]
+  title?: string
 }>()
 
 // Container and dimensions (arbitrary grid internal coordinates)
@@ -54,7 +55,7 @@ const items = computed(() => {
 <template>
   <div class="relative w-full overflow-hidden rounded-xl border border-default bg-elevated/30">
     <div class="px-5 pt-4 pb-2">
-      <h4 class="text-sm font-medium text-muted">Trend (Last 30 Days)</h4>
+      <h4 class="text-sm font-medium text-muted">{{ title || 'Trend' }}</h4>
     </div>
     
     <div class="px-5 pb-5">

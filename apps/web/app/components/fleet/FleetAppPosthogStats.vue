@@ -35,11 +35,15 @@ const formatNumber = (num: number) => {
   if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
   return num.toString()
 }
+const isMounted = ref(false)
+onMounted(() => {
+  isMounted.value = true
+})
 </script>
 
 <template>
   <div class="group flex items-center gap-3 text-sm min-w-[120px]">
-    <template v-if="loading || refreshing">
+    <template v-if="isMounted && (loading || refreshing)">
       <UIcon name="i-lucide-loader-2" class="size-4 animate-spin text-muted" />
     </template>
 

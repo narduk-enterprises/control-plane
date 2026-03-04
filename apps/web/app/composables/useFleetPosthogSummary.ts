@@ -14,6 +14,7 @@ export function useFleetPosthogSummary() {
     }
 
     async function refreshApp(appName: string) {
+        if (!import.meta.client) return null
         const data = await $fetch<{ summary: { event_count: number; unique_users: number } }>(
             `/api/fleet/posthog/${encodeURIComponent(appName)}`,
             { query: { summaryOnly: 'true', force: 'true' } },

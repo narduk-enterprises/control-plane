@@ -2,6 +2,7 @@
 const route = useRoute()
 const colorMode = useColorMode()
 const appName = useRuntimeConfig().public.appName || 'Narduk Control Plane'
+const currentYear = new Date().getFullYear()
 
 const colorModeIcon = computed(() => {
   if (colorMode.preference === 'system') return 'i-lucide-monitor'
@@ -131,7 +132,7 @@ function isActive(path: string) {
       <div class="border-t border-default py-4" role="contentinfo">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <p class="text-center text-sm text-muted">
-            {{ appName }} &middot; Fleet dashboard &middot; <NuxtTime :datetime="new Date()" year="numeric" />
+            {{ appName }} &middot; Fleet dashboard &middot; {{ currentYear }}
           </p>
         </div>
       </div>

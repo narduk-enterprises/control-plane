@@ -19,6 +19,7 @@ export default defineEventHandler((event) => {
       "img-src 'self' data: https:",
       "font-src 'self' https://fonts.gstatic.com",
       "connect-src 'self' https://www.google-analytics.com https://us.i.posthog.com https://us-assets.i.posthog.com",
+      "frame-src 'self' data:",
       "frame-ancestors 'none'",
     ].join('; '),
   })
