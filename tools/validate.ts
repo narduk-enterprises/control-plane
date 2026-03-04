@@ -34,7 +34,7 @@ async function main() {
   const APP_NAME = packageJson.name
 
   let allGood = true
-  if (!APP_NAME || APP_NAME.includes('sailing-passage-map')) {
+  if (!APP_NAME || APP_NAME.includes('narduk-nuxt-template')) {
     console.error(`  ❌ Project name is still '${APP_NAME}'. Has init been run?`)
     allGood = false
   }
@@ -154,9 +154,9 @@ async function main() {
     console.log('  ⏭ Skipping (Doppler project not found).')
   } else {
     const hubChecks: Array<{ key: string, hub: string, config: string }> = [
-      { key: 'CLOUDFLARE_API_TOKEN', hub: 'sailing-passage-map', config: 'prd' },
-      { key: 'CLOUDFLARE_ACCOUNT_ID', hub: 'sailing-passage-map', config: 'prd' },
-      { key: 'POSTHOG_PUBLIC_KEY', hub: 'narduk-nuxt-template', config: 'prd' },
+      { key: 'CLOUDFLARE_API_TOKEN', hub: 'narduk-nuxt-template', config: 'prd' },
+      { key: 'CLOUDFLARE_ACCOUNT_ID', hub: 'narduk-nuxt-template', config: 'prd' },
+      { key: 'POSTHOG_PUBLIC_KEY', hub: 'narduk-analytics', config: 'prd' },
     ]
 
     for (const { key, hub, config } of hubChecks) {
@@ -194,7 +194,7 @@ async function main() {
   try {
     const remotesOutput = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' })
     const remotes = remotesOutput.split('\n').filter(Boolean)
-    const targetRemoteLine = remotes.find(line => !line.includes('sailing-passage-map') && line.includes('(push)'))
+    const targetRemoteLine = remotes.find(line => !line.includes('narduk-nuxt-template') && line.includes('(push)'))
     if (targetRemoteLine) {
       let url = targetRemoteLine.split(/\s+/)[1]
       url = url.replace(/^(https?:\/\/|git@)/, '').replace(/^github\.com[:/]/, '').replace(/\.git$/, '')
