@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
 import FleetAppStatus from '~/components/fleet/FleetAppStatus.vue'
+import FleetAppPosthogStats from '~/components/fleet/FleetAppPosthogStats.vue'
 import type { TableColumn } from '~/types/table'
 import type { FleetApp } from '~/composables/useFleetDashboard'
 
@@ -19,6 +20,9 @@ const fleetApps = computed(() => apps.value ?? [])
 const fleetCount = computed(() => fleetApps.value.length)
 const hasFleetApps = computed(() => fleetCount.value > 0)
 const lastRefresh = ref<Date | null>(null)
+
+// PostHog summary — manual load only
+const { summary: posthogSummary, loading: posthogLoading, loaded: posthogLoaded, load: loadPosthog } = useFleetPosthogSummary()
 
 // Pagination logic
 const page = ref(1)
@@ -55,6 +59,18 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
     header: 'Status',
     meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell' } },
     cell: ({ row }) => h(FleetAppStatus, { url: row.original.url }),
+    enableSorting: false,
+  },
+  {
+    id: 'posthog',
+    header: 'PostHog (30d)',
+    meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell' } },
+    cell: ({ row }) => h(FleetAppPosthogStats, {
+      appName: row.original.name,
+      stats: posthogSummary.value?.[row.original.name] ?? null,
+      loading: posthogLoading.value,
+      loaded: posthogLoaded.value,
+    }),
     enableSorting: false,
   },
   {
@@ -170,14 +186,38 @@ async function onRefresh() {
           <template #header>
             <div class="flex items-center justify-between">
               <h2 class="font-semibold text-default">Fleet apps</h2>
-              <UButton
-                to="/fleet"
-                variant="ghost"
-                size="sm"
-                class="cursor-pointer"
-              >
-                View all
-              </UButton>
+              <div class="flex items-center gap-2">
+                <UButton
+                  v-if="!posthogLoaded"
+                  variant="soft"
+                  size="xs"
+                  icon="i-lucide-bar-chart-2"
+                  class="cursor-pointer"
+                  :loading="posthogLoading"
+                  @click="loadPosthog"
+                >
+                  Load PostHog Stats
+                </UButton>
+                <UButton
+                  v-else
+                  variant="ghost"
+                  size="xs"
+                  icon="i-lucide-refresh-cw"
+                  class="cursor-pointer"
+                  :loading="posthogLoading"
+                  @click="loadPosthog"
+                >
+                  Refresh Stats
+                </UButton>
+                <UButton
+                  to="/fleet"
+                  variant="ghost"
+                  size="sm"
+                  class="cursor-pointer"
+                >
+                  View all
+                </UButton>
+              </div>
             </div>
           </template>
           <div v-if="hasFleetApps" class="flex flex-col gap-4">
