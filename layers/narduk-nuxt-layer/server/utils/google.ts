@@ -12,6 +12,22 @@ export const INDEXING_SCOPES = [
   'https://www.googleapis.com/auth/indexing',
 ]
 
+/**
+ * Structured error for Google API failures.
+ * Preserves HTTP status, statusText, and response body for downstream handling.
+ */
+export class GoogleApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly body: unknown,
+  ) {
+    super(message)
+    this.name = 'GoogleApiError'
+  }
+}
+
 // ─── Token cache ────────────────────────────────────────────
 // INTENTIONAL module-scope cache: within a Worker isolate's lifetime, this avoids
 // redundant JWT exchanges with Google. The cache is scoped to a single isolate and
@@ -89,7 +105,14 @@ export async function googleApiFetch(url: string, scopes: string[], options: Req
   const response = await fetch(url, { ...options, headers })
 
   if (!response.ok) {
-    throw new Error(`Google API error: ${response.status} ${response.statusText}`)
+    let body: unknown
+    try { body = await response.json() } catch { body = await response.text().catch(() => null) }
+    throw new GoogleApiError(
+      `Google API error: ${response.status} ${response.statusText}`,
+      response.status,
+      response.statusText,
+      body,
+    )
   }
 
   return response.json()
