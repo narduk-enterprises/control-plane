@@ -13,10 +13,10 @@ withDefaults(defineProps<{
   /** Brand color hex — defaults to emerald. Override to match your app's primary color. */
   primaryColor?: string
 }>(), {
-  title: 'Sailing Passage Map',
+  title: 'Nuxt 4 Template',
   description: 'Production-ready Nuxt 4 + Cloudflare Workers',
   icon: '✨',
-  siteName: 'Sailing Passage Map',
+  siteName: 'Nuxt 4 Demo',
   primaryColor: '#10b981', // eslint-disable-line atx/no-inline-hex
 })
 </script>

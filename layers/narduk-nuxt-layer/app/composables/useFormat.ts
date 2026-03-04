@@ -3,9 +3,10 @@
  * Exported as plain functions for tree-shaking, and aliased in `useFormat()` for composable usage.
  */
 
+/* eslint-disable vue-official/require-use-prefix-for-composables */
 const DEFAULT_LOCALE = 'en-US';
 
-export function useFormatCents(
+export function formatCents(
   cents: number,
   options?: { locale?: string; currency?: string }
 ): string {
@@ -17,7 +18,7 @@ export function useFormatCents(
   }).format(cents / 100);
 }
 
-export function useFormatCurrency(
+export function formatCurrency(
   amount: number,
   options?: { locale?: string; currency?: string }
 ): string {
@@ -29,7 +30,7 @@ export function useFormatCurrency(
   }).format(amount);
 }
 
-export function useFormatDate(
+export function formatDate(
   date: Date | number | string,
   options?: { locale?: string; dateStyle?: 'short' | 'medium' | 'long' | 'full' }
 ): string {
@@ -40,7 +41,7 @@ export function useFormatDate(
   }).format(new Date(date));
 }
 
-export function useFormatDateTime(
+export function formatDateTime(
   date: Date | number | string,
   options?: { locale?: string }
 ): string {
@@ -51,7 +52,7 @@ export function useFormatDateTime(
   }).format(new Date(date));
 }
 
-export function useFormatRelative(
+export function formatRelative(
   date: Date | number | string,
   base?: Date
 ): string {
@@ -76,7 +77,7 @@ export function useFormatRelative(
   return rtf.format(diffYear, 'year');
 }
 
-export function useFormatNumber(
+export function formatNumber(
   value: number,
   options?: { locale?: string; minimumFractionDigits?: number; maximumFractionDigits?: number }
 ): string {
@@ -87,7 +88,7 @@ export function useFormatNumber(
   }).format(value);
 }
 
-export function useFormatInteger(
+export function formatInteger(
   value: number,
   options?: { locale?: string }
 ): string {
@@ -97,7 +98,7 @@ export function useFormatInteger(
   }).format(value);
 }
 
-export function useFormatPercent(
+export function formatPercent(
   value: number,
   options?: { locale?: string; decimals?: number }
 ): string {
@@ -110,7 +111,7 @@ export function useFormatPercent(
   }).format(value);
 }
 
-export function useFormatCompact(
+export function formatCompact(
   value: number,
   options?: { locale?: string }
 ): string {
@@ -123,14 +124,14 @@ export function useFormatCompact(
 
 export default function useFormat() {
   return {
-    formatCents: useFormatCents,
-    formatCurrency: useFormatCurrency,
-    formatDate: useFormatDate,
-    formatDateTime: useFormatDateTime,
-    formatRelative: useFormatRelative,
-    formatNumber: useFormatNumber,
-    formatInteger: useFormatInteger,
-    formatPercent: useFormatPercent,
-    formatCompact: useFormatCompact,
+    formatCents,
+    formatCurrency,
+    formatDate,
+    formatDateTime,
+    formatRelative,
+    formatNumber,
+    formatInteger,
+    formatPercent,
+    formatCompact,
   };
 }

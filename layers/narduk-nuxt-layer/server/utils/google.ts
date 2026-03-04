@@ -5,7 +5,7 @@ export const GA_SCOPES = [
 ]
 
 export const GSC_SCOPES = [
-  'https://www.googleapis.com/auth/webmasters',
+  'https://www.googleapis.com/auth/webmasters.readonly',
 ]
 
 export const INDEXING_SCOPES = [
@@ -16,18 +16,15 @@ export const INDEXING_SCOPES = [
 // INTENTIONAL module-scope cache: within a Worker isolate's lifetime, this avoids
 // redundant JWT exchanges with Google. The cache is scoped to a single isolate and
 // is NOT shared across Workers — it acts as a per-instance optimization, not global state.
-// Keyed by sorted scope string so GA and GSC tokens don't collide.
-const tokenCache = new Map<string, { token: string; expiry: number }>()
+let cachedToken: { token: string; expiry: number } | null = null
 
 /**
  * Obtain a Google access token via service account JWT assertion.
- * Caches per scope-set until 60s before expiry.
+ * Caches the token until 60s before expiry.
  */
 async function getAccessToken(scopes: string[]): Promise<string> {
-  const cacheKey = [...scopes].sort().join(' ')
-  const cached = tokenCache.get(cacheKey)
-  if (cached && cached.expiry > Date.now() + 60_000) {
-    return cached.token
+  if (cachedToken && cachedToken.expiry > Date.now() + 60_000) {
+    return cachedToken.token
   }
 
   const config = useRuntimeConfig()
@@ -42,8 +39,6 @@ async function getAccessToken(scopes: string[]): Promise<string> {
     : atob(saKeyJson)
   const sa = JSON.parse(decoded) as { client_email: string; private_key: string }
   const privateKey = await importPKCS8(sa.private_key, 'RS256')
-
-  console.log(`[google API] Using Service Account: ${sa.client_email}, requesting scopes:`, scopes)
 
   const now = Math.floor(Date.now() / 1000)
   const jwt = await new SignJWT({
@@ -72,27 +67,12 @@ async function getAccessToken(scopes: string[]): Promise<string> {
   }
 
   const tokenData = await tokenResponse.json() as { access_token: string; expires_in: number }
-  tokenCache.set(cacheKey, {
+  cachedToken = {
     token: tokenData.access_token,
     expiry: Date.now() + tokenData.expires_in * 1000,
-  })
-
-  return tokenData.access_token
-}
-
-/**
- * Custom error for Google API failures to allow status-based handling.
- */
-export class GoogleApiError extends Error {
-  constructor(
-    public status: number,
-    public statusText: string,
-    public body: string,
-  ) {
-    const detail = body ? ` — ${body.slice(0, 300)}` : ''
-    super(`Google API error: ${status} ${statusText}${detail}`)
-    this.name = 'GoogleApiError'
   }
+
+  return cachedToken.token
 }
 
 /**
@@ -109,8 +89,7 @@ export async function googleApiFetch(url: string, scopes: string[], options: Req
   const response = await fetch(url, { ...options, headers })
 
   if (!response.ok) {
-    const body = await response.text()
-    throw new GoogleApiError(response.status, response.statusText, body)
+    throw new Error(`Google API error: ${response.status} ${response.statusText}`)
   }
 
   return response.json()

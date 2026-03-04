@@ -27,7 +27,12 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    appleTeamId: process.env.APPLE_TEAM_ID || '',
+    appleKeyId: process.env.APPLE_KEY_ID || '',
+    appleSecretKey: process.env.APPLE_SECRET_KEY || '',
+    mapkitServerApiKey: process.env.MAPKIT_SERVER_API_KEY || '',
     public: {
+      mapkitToken: process.env.MAPKIT_TOKEN || '',
       buildVersion: process.env.GITHUB_SHA || process.env.CF_PAGES_COMMIT_SHA || '',
       buildTime: new Date().toISOString(),
     },
@@ -39,7 +44,7 @@ export default defineNuxtConfig({
     description: 'A Nuxt 4 application deployed on Cloudflare Workers.',
   },
 
-  compatibilityDate: '2026-03-04',
+  compatibilityDate: '2026-03-03',
 
   hooks: {
     // Workaround for nuxt/ui#6118: @nuxt/ui@4.5.0 auto-import scanner
@@ -79,7 +84,7 @@ export default defineNuxtConfig({
       driver: 'memory',
     },
   },
-  
+
   image: {
     provider: 'cloudflare',
   },
@@ -103,6 +108,6 @@ export default defineNuxtConfig({
 
   // Expose the layer configurations and files to consumers
   components: [
-    { path: '~/components', pathPrefix: false }
+    { path: fileURLToPath(new URL('./app/components', import.meta.url)), pathPrefix: false }
   ]
 })
