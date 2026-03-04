@@ -21,8 +21,9 @@ const searchQuery = ref('')
 const fleetApps = computed(() => apps.value ?? [])
 const filteredApps = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return fleetApps.value
-  return fleetApps.value.filter(
+  const sorted = [...fleetApps.value].sort((a, b) => a.name.localeCompare(b.name))
+  if (!q) return sorted
+  return sorted.filter(
     (app) =>
       app.name.toLowerCase().includes(q) ||
       app.url.toLowerCase().includes(q) ||

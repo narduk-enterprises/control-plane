@@ -36,10 +36,11 @@ const dimensions: { value: GscDimension; label: string }[] = [
   { value: 'searchAppearance', label: 'Search appearance' },
 ]
 
-const sortKey = ref<'clicks' | 'impressions' | 'ctr' | 'position'>('clicks')
-const sortDir = ref<'asc' | 'desc'>('desc')
+type SortKey = 'key' | 'clicks' | 'impressions' | 'ctr' | 'position'
+const sortKey = ref<SortKey>('key')
+const sortDir = ref<'asc' | 'desc'>('asc')
 
-function sortIndicator(key: 'clicks' | 'impressions' | 'ctr' | 'position') {
+function sortIndicator(key: SortKey) {
   if (sortKey.value !== key) return ''
   return sortDir.value === 'desc' ? '↓' : '↑'
 }
@@ -49,6 +50,11 @@ const tableRows = computed(() => {
   const key = sortKey.value
   const dir = sortDir.value
   return [...rows].sort((a, b) => {
+    if (key === 'key') {
+      const va = a.keys?.[0] ?? ''
+      const vb = b.keys?.[0] ?? ''
+      return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+    }
     const va = a[key] ?? 0
     const vb = b[key] ?? 0
     return dir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number)
@@ -73,7 +79,13 @@ const UButton = resolveComponent('UButton')
 const gscColumns = computed<TableColumn<GscRow>[]>(() => [
   {
     id: 'key',
-    header: data.value?.dimension ?? 'query',
+    header: () => h(UButton, {
+      variant: 'ghost',
+      color: 'neutral',
+      label: `${data.value?.dimension ?? 'query'} ${sortIndicator('key')}`,
+      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+      onClick: () => setSort('key'),
+    }),
     meta: { class: { td: 'max-w-[200px] truncate' } },
     cell: ({ row }) => row.original.keys?.[0] ?? '—',
   },
@@ -128,10 +140,13 @@ function copyCsv() {
   navigator.clipboard.writeText(csvContent.value)
 }
 
-function setSort(key: 'clicks' | 'impressions' | 'ctr' | 'position') {
-  if (sortKey.value === key) sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
-  else sortKey.value = key
-  sortDir.value = 'desc'
+function setSort(key: SortKey) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sortKey.value = key
+    sortDir.value = key === 'key' ? 'asc' : 'desc'
+  }
 }
 
 function onPresetChange(p: string) {

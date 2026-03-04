@@ -3,11 +3,13 @@
  * Reusable card for displaying top-N dimension data (pages, referrers, countries, browsers).
  * Extracted from PostHog and GSC panels to reduce duplication.
  */
-defineProps<{
+const props = defineProps<{
   title: string
   icon: string
   items: { name: string; count: number }[]
 }>()
+
+const sortedItems = computed(() => [...(props.items ?? [])].sort((a, b) => a.name.localeCompare(b.name)))
 
 const columns = [
   { accessorKey: 'name', header: 'Item' },
@@ -23,6 +25,6 @@ const columns = [
         <h3 class="text-sm font-medium">{{ title }}</h3>
       </div>
     </template>
-    <UTable :data="items" :columns="columns" class="text-xs" />
+    <UTable :data="sortedItems" :columns="columns" class="text-xs" />
   </UCard>
 </template>
