@@ -1,7 +1,5 @@
 import { z } from 'zod'
-import { requireAdmin } from '#layer/server/utils/auth'
-import { enforceRateLimit } from '#layer/server/utils/rateLimit'
-import { googleApiFetch, GSC_SCOPES } from '#layer/server/utils/google'
+import { GoogleApiError, googleApiFetch, GSC_SCOPES } from '#layer/server/utils/google'
 import { getFleetAppByName } from '#server/data/fleet-registry'
 
 const querySchema = z.object({
@@ -30,10 +28,9 @@ export default defineEventHandler(async (event) => {
   start.setDate(start.getDate() - 30)
   const startDate = query.startDate ?? start.toISOString().split('T')[0] ?? ''
 
-  console.log(`[fleet-gsc] Querying for app: ${appSlug}, siteUrl: ${app.url}`)
-  // GSC URL-prefix properties typically do not have a trailing slash in the API identifier
+  // Normalized GSC site URL: try sc-domain first if it's a domain-level property, 
+  // but most common are URL-prefix properties.
   const gscSiteUrl = app.url.replace(/\/$/, '')
-  console.log(`[fleet-gsc] Normalized siteUrl for GSC API: ${gscSiteUrl}`)
 
   try {
     const [dimensionalData, totalData, inspectionData] = await Promise.all([
@@ -50,10 +47,7 @@ export default defineEventHandler(async (event) => {
             rowLimit: 50,
           }),
         },
-      ).catch((err) => {
-        console.error('GSC Dimensional Query Error:', err)
-        throw err // Re-throw to be caught by the outer catch
-      }),
+      ),
 
       // 2. Aggregate Totals Query
       googleApiFetch(
@@ -64,14 +58,10 @@ export default defineEventHandler(async (event) => {
           body: JSON.stringify({
             startDate,
             endDate,
-            // no dimensions = aggregate totals
             rowLimit: 1,
           }),
         },
-      ).catch((err) => {
-        console.error('GSC Totals Query Error:', err)
-        return null // Graceful failure for totals
-      }),
+      ).catch(() => null),
 
       // 3. URL Inspection API
       googleApiFetch(
@@ -85,10 +75,7 @@ export default defineEventHandler(async (event) => {
             languageCode: 'en-US',
           }),
         },
-      ).catch((err) => {
-        console.error('GSC Inspection API Error:', err)
-        return null // Graceful failure for inspection data
-      })
+      ).catch(() => null)
     ])
 
     const data = dimensionalData as Record<string, unknown>
@@ -110,38 +97,22 @@ export default defineEventHandler(async (event) => {
       dimension: query.dimension
     }
   } catch (err: unknown) {
-    const e = err as { message?: string }
-    const msg = e.message ?? 'Unknown'
-    if (msg.includes('GSC_SERVICE_ACCOUNT_JSON not configured')) {
-      throw createError({
-        statusCode: 503,
-        message: 'GSC not configured: set GSC_SERVICE_ACCOUNT_JSON in Doppler',
-      })
+    if (err instanceof GoogleApiError) {
+      if (err.status === 403) {
+        throw createError({
+          statusCode: 403,
+          message: `GSC: Permission denied for site '${gscSiteUrl}'. Ensure analytics-admin@narduk-analytics.iam.gserviceaccount.com has access in Google Search Console.`,
+          data: err.body
+        })
+      }
+      if (err.status === 404) {
+        throw createError({
+          statusCode: 404,
+          message: `GSC: Site '${gscSiteUrl}' not found in Search Console.`,
+          data: err.body
+        })
+      }
     }
-    if (msg.includes('ACCESS_TOKEN_SCOPE_INSUFFICIENT') || msg.includes('insufficient authentication scopes')) {
-      throw createError({
-        statusCode: 403,
-        message: `GSC: Token scope mismatch. The cached token may not include webmasters scope. This is an internal bug — please retry.`,
-      })
-    }
-    if (msg.includes('403') && msg.includes('insufficientPermissions')) {
-      throw createError({
-        statusCode: 403,
-        message: `GSC: Service account lacks permission. Add sc-domain:${new URL(gscSiteUrl).hostname} (or ${gscSiteUrl}) in Search Console and grant analytics-admin@narduk-analytics.iam.gserviceaccount.com owner access.`,
-      })
-    }
-    if (msg.includes('403')) {
-      throw createError({
-        statusCode: 403,
-        message: `GSC: Site not verified or service account not added. Add sc-domain:${new URL(gscSiteUrl).hostname} (or ${gscSiteUrl}) in Search Console and grant analytics-admin@narduk-analytics.iam.gserviceaccount.com owner access.`,
-      })
-    }
-    if (msg.includes('404')) {
-      throw createError({
-        statusCode: 404,
-        message: `GSC: Site ${gscSiteUrl} not found. Add and verify the property in Google Search Console.`,
-      })
-    }
-    throw createError({ statusCode: 500, message: `GSC error: ${msg}` })
+    throw err
   }
 })

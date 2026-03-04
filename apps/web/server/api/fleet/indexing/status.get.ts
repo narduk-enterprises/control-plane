@@ -1,7 +1,5 @@
 import { z } from 'zod'
-import { requireAdmin } from '#layer/server/utils/auth'
-import { enforceRateLimit } from '#layer/server/utils/rateLimit'
-import { googleApiFetch, INDEXING_SCOPES } from '#layer/server/utils/google'
+import { GoogleApiError, googleApiFetch, INDEXING_SCOPES } from '#layer/server/utils/google'
 
 const querySchema = z.object({ url: z.string().url() })
 
@@ -14,9 +12,20 @@ export default defineEventHandler(async (event) => {
 
   const { url } = parsed.data
   const encoded = encodeURIComponent(url)
-  const data = await googleApiFetch(
-    `https://indexing.googleapis.com/v3/urlNotifications/metadata?url=${encoded}`,
-    INDEXING_SCOPES,
-  )
-  return { url, metadata: data }
+
+  try {
+    const data = await googleApiFetch(
+      `https://indexing.googleapis.com/v3/urlNotifications/metadata?url=${encoded}`,
+      INDEXING_SCOPES,
+    )
+    return { url, metadata: data }
+  } catch (err) {
+    if (err instanceof GoogleApiError && err.status === 404) {
+      throw createError({
+        statusCode: 404,
+        message: `No indexing metadata found for ${url}. This usually means the URL hasn't been submitted to the Indexing API yet or isn't part of a verified Search Console property.`,
+      })
+    }
+    throw err
+  }
 })

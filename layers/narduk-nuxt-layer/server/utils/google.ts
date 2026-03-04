@@ -81,6 +81,21 @@ async function getAccessToken(scopes: string[]): Promise<string> {
 }
 
 /**
+ * Custom error for Google API failures to allow status-based handling.
+ */
+export class GoogleApiError extends Error {
+  constructor(
+    public status: number,
+    public statusText: string,
+    public body: string,
+  ) {
+    const detail = body ? ` — ${body.slice(0, 300)}` : ''
+    super(`Google API error: ${status} ${statusText}${detail}`)
+    this.name = 'GoogleApiError'
+  }
+}
+
+/**
  * Fetch from Google APIs using service account credentials.
  * Automatically handles JWT-based token generation and caching.
  */
@@ -95,8 +110,7 @@ export async function googleApiFetch(url: string, scopes: string[], options: Req
 
   if (!response.ok) {
     const body = await response.text()
-    const detail = body ? ` — ${body.slice(0, 300)}` : ''
-    throw new Error(`Google API error: ${response.status} ${response.statusText}${detail}`)
+    throw new GoogleApiError(response.status, response.statusText, body)
   }
 
   return response.json()
