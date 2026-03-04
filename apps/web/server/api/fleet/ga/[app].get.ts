@@ -1,7 +1,7 @@
 import { requireAdmin } from '#layer/server/utils/auth'
 import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { getFleetAppByName } from '#server/data/fleet-registry'
-import { googleApiFetch, GA_SCOPES } from '#layer/server/utils/google'
+import { GoogleApiError, googleApiFetch, GA_SCOPES } from '#layer/server/utils/google'
 
 export default defineEventHandler(async (event) => {
     await requireAdmin(event)
@@ -103,14 +103,20 @@ export default defineEventHandler(async (event) => {
             endDate
         }
     } catch (err: unknown) {
-        const e = err as { message?: string }
-        const msg = e.message ?? 'Unknown'
-        if (msg.includes('403') || msg.includes('PERMISSION_DENIED')) {
+        if (err instanceof GoogleApiError) {
+            if (err.status === 403) {
+                throw createError({
+                    statusCode: 403,
+                    message: `GA4: Service account does not have access to property ${propertyId}. Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com Viewer role in GA4 Admin → Property Access Management.`,
+                    data: err.body
+                })
+            }
             throw createError({
-                statusCode: 403,
-                message: `GA4: Service account does not have access to property ${propertyId}. Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com Viewer role in GA4 Admin → Property Access Management.`,
+                statusCode: err.status,
+                message: `GA4 API error: ${err.message}`,
+                data: err.body
             })
         }
-        throw createError({ statusCode: 500, message: `GA4 error: ${msg}` })
+        throw createError({ statusCode: 500, message: `GA4 unexpected error: ${(err as Error).message}` })
     }
 })
