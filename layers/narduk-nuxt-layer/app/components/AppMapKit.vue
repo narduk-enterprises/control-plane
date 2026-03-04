@@ -457,7 +457,8 @@ function buildClusterElement(cluster: { coordinate: unknown; memberAnnotations: 
     el = props.createClusterElement(cluster, count)
   } else {
     // eslint-disable-next-line nuxt-guardrails/no-ssr-dom-access
-    el = import.meta.client ? document.createElement('div') : ({} as HTMLElement)
+    // @ts-ignore
+    el = import.meta.client ? document.createElement('div') : (null as unknown as HTMLElement)
     el.className = 'mapkit-cluster'
     el.innerHTML = `<div class="mapkit-cluster-bubble"><span class="mapkit-cluster-count">${count}</span></div>`
   }
