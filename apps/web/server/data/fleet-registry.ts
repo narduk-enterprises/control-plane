@@ -51,6 +51,11 @@ const KNOWN_GA_PROPERTIES: Record<string, string> = {
   'imessage-dictionary': '526234707',
   'flashcard-pro': '526595766',
   'narduk-enterprises-portfolio': '526233051',
+  'drift-map': '526978811',
+  'tiny-invoice': '526997389',
+  'enigma-box': '526992343',
+  'sailing-passage-map': '526974566',
+  'video-grab': '526953881',
 }
 
 const FLEET_PROJECTS = [
