@@ -14,12 +14,12 @@ export default defineEventHandler(async (event) => {
     if (!app) throw createError({ statusCode: 404, message: 'App not found' })
 
     const config = useRuntimeConfig()
-    const propertyId = config.gaPropertyId as string
+    const propertyId = app.gaPropertyId || (config.gaPropertyId as string)
 
     if (!propertyId) {
         throw createError({
             statusCode: 503,
-            message: 'GA_PROPERTY_ID not configured in runtimeConfig.',
+            message: `No GA4 property ID configured for ${app.name}. Add it to KNOWN_GA_PROPERTIES in fleet-registry.ts or set GA_PROPERTY_ID env var.`,
         })
     }
 

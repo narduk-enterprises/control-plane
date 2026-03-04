@@ -36,14 +36,11 @@ test.describe('API Integration Tests', () => {
 
     test('GET /api/fleet/ga/:app - should return Google Analytics stats', async ({ request }) => {
         const response = await request.get(`/api/fleet/ga/${testApp}`)
-        // Should be 200 or a HANDLED failure (403, 503 if not configured). 
-        // 500 is only for actual unhandled Google API failures now.
-        if (response.status() === 200) {
-            const data = await response.json()
-            expect(data).toHaveProperty('summary')
-        } else {
-            expect([503, 403, 401]).toContain(response.status())
-        }
+        // Strict Assertion: expect 200 OK. 
+        // This will fail if the service account lacks permissions (403).
+        expect(response.status()).toBe(200)
+        const data = await response.json()
+        expect(data).toHaveProperty('summary')
     })
 
     test('GET /api/fleet/gsc/:app - should return Search Console stats', async ({ request }) => {

@@ -15,6 +15,7 @@ export interface FleetApp {
   name: string
   url: string
   dopplerProject: string
+  gaPropertyId?: string
 }
 
 /** Production URLs per Doppler project. Sourced from each app's wrangler.json routes (custom_domain) in ~/new-code. */
@@ -35,6 +36,21 @@ const KNOWN_URLS: Record<string, string> = {
   'circuit-breaker-online': 'https://circuitbreaker.online',
   'sailing-passage-map': 'https://passages.nard.uk',
   'video-grab': 'https://video-grab.nard.uk',
+}
+
+/** GA4 property IDs per app. Sourced from GA Admin API (see /api/fleet/ga/diagnose). */
+const KNOWN_GA_PROPERTIES: Record<string, string> = {
+  'ogpreview-app': '526214794',
+  'circuit-breaker-online': '520350533',
+  'austin-texas-net': '526067189',
+  'papa-everetts-pizza': '526158939',
+  'old-austin-grouch': '526226582',
+  clawdle: '526225128',
+  nagolnagemluapleira: '526231074',
+  'neon-sewer-raid': '526228839',
+  'imessage-dictionary': '526234707',
+  'flashcard-pro': '526595766',
+  'narduk-enterprises-portfolio': '526233051',
 }
 
 const FLEET_PROJECTS = [
@@ -61,6 +77,7 @@ export function getFleetApps(): FleetApp[] {
     name: dopplerProject,
     url: KNOWN_URLS[dopplerProject] ?? `https://${dopplerProject}.nard.uk`,
     dopplerProject,
+    gaPropertyId: KNOWN_GA_PROPERTIES[dopplerProject],
   }))
 }
 
