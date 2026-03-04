@@ -138,6 +138,7 @@ export default defineEventHandler(async (event) => {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ query: { kind: 'HogQLQuery', query: q } }),
+      signal: AbortSignal.timeout(15_000),
     })
 
     const checkRes = async <T>(res: Response, name: string): Promise<T> => {

@@ -11,6 +11,37 @@ const querySchema = z.object({
     .default('query'),
 })
 
+/** Try a GSC query against a siteUrl, return null on 403/404 */
+async function tryGscQuery(siteUrl: string, startDate: string, endDate: string, dimension: string) {
+  const encoded = encodeURIComponent(siteUrl)
+  try {
+    const [dimensionalData, totalData] = await Promise.all([
+      googleApiFetch(
+        `https://www.googleapis.com/webmasters/v3/sites/${encoded}/searchAnalytics/query`,
+        GSC_SCOPES,
+        {
+          method: 'POST',
+          body: JSON.stringify({ startDate, endDate, dimensions: [dimension], rowLimit: 50 }),
+        },
+      ),
+      googleApiFetch(
+        `https://www.googleapis.com/webmasters/v3/sites/${encoded}/searchAnalytics/query`,
+        GSC_SCOPES,
+        {
+          method: 'POST',
+          body: JSON.stringify({ startDate, endDate, rowLimit: 1 }),
+        },
+      ).catch(() => null),
+    ])
+    return { dimensionalData, totalData, siteUrl }
+  } catch (err: unknown) {
+    if (err instanceof GoogleApiError && (err.status === 403 || err.status === 404)) {
+      return null // signal to try fallback
+    }
+    throw err
+  }
+}
+
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
   await enforceRateLimit(event, 'fleet-gsc', 30, 60_000)
@@ -28,92 +59,59 @@ export default defineEventHandler(async (event) => {
   start.setDate(start.getDate() - 30)
   const startDate = query.startDate ?? start.toISOString().split('T')[0] ?? ''
 
-  // GSC site URL: use sc-domain: prefix for domain-level properties
-  // (this is how setup-analytics.ts registers sites via the Webmasters API)
+  // Standard: sc-domain: (domain-level property)
+  // Fallback: URL-prefix (https://domain/) for legacy properties
   const hostname = new URL(app.url).hostname
-  const gscSiteUrl = `sc-domain:${hostname}`
+  const scDomain = `sc-domain:${hostname}`
+  const urlPrefix = `${app.url.replace(/\/$/, '')}/`
 
+  // Try sc-domain first, fall back to URL-prefix
+  let result = await tryGscQuery(scDomain, startDate, endDate, query.dimension)
+  const usedFallback = !result
+  if (!result) {
+    result = await tryGscQuery(urlPrefix, startDate, endDate, query.dimension)
+  }
+
+  if (!result) {
+    throw createError({
+      statusCode: 403,
+      message: `GSC: No access for '${scDomain}' or '${urlPrefix}'. Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com access in Google Search Console.`,
+    })
+  }
+
+  const data = result.dimensionalData as Record<string, unknown>
+  const rows = (data.rows as Array<Record<string, unknown>>) ?? []
+
+  const totalsObj = result.totalData as Record<string, unknown> | null
+  const totalsRow = (totalsObj?.rows as Array<Record<string, unknown>>)?.[0] || null
+
+  // URL Inspection (best-effort, uses whichever siteUrl worked)
+  let inspectionResult: Record<string, unknown> | undefined
   try {
-    const [dimensionalData, totalData, inspectionData] = await Promise.all([
-      // 1. Dimensional Query
-      googleApiFetch(
-        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(gscSiteUrl)}/searchAnalytics/query`,
-        GSC_SCOPES,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            startDate,
-            endDate,
-            dimensions: [query.dimension],
-            rowLimit: 50,
-          }),
-        },
-      ),
+    const inspectionData = await googleApiFetch(
+      `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
+      GSC_SCOPES,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          inspectionUrl: app.url,
+          siteUrl: result.siteUrl,
+          languageCode: 'en-US',
+        }),
+      },
+    ) as Record<string, unknown>
+    inspectionResult = inspectionData.inspectionResult as Record<string, unknown> | undefined
+  } catch { /* best-effort */ }
 
-      // 2. Aggregate Totals Query
-      googleApiFetch(
-        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(gscSiteUrl)}/searchAnalytics/query`,
-        GSC_SCOPES,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            startDate,
-            endDate,
-            rowLimit: 1,
-          }),
-        },
-      ).catch(() => null),
-
-      // 3. URL Inspection API
-      googleApiFetch(
-        `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
-        GSC_SCOPES,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            inspectionUrl: app.url,
-            siteUrl: gscSiteUrl,
-            languageCode: 'en-US',
-          }),
-        },
-      ).catch(() => null)
-    ])
-
-    const data = dimensionalData as Record<string, unknown>
-    const rows = (data.rows as Array<Record<string, unknown>>) ?? []
-
-    const totalsObj = totalData as Record<string, unknown> | null
-    const totalsRow = (totalsObj?.rows as Array<Record<string, unknown>>)?.[0] || null
-
-    const inspectionObj = inspectionData as Record<string, unknown> | null
-    const inspectionResult = inspectionObj?.inspectionResult as Record<string, unknown> | undefined
-
-    return {
-      app: app.name,
-      rows,
-      totals: totalsRow,
-      inspection: inspectionResult,
-      startDate,
-      endDate,
-      dimension: query.dimension
-    }
-  } catch (err: unknown) {
-    if (err instanceof GoogleApiError) {
-      if (err.status === 403) {
-        throw createError({
-          statusCode: 403,
-          message: `GSC: Permission denied for site '${gscSiteUrl}'. Ensure analytics-admin@narduk-analytics.iam.gserviceaccount.com has access in Google Search Console.`,
-          data: err.body
-        })
-      }
-      if (err.status === 404) {
-        throw createError({
-          statusCode: 404,
-          message: `GSC: Site '${gscSiteUrl}' not found in Search Console.`,
-          data: err.body
-        })
-      }
-    }
-    throw err
+  return {
+    app: app.name,
+    rows,
+    totals: totalsRow,
+    inspection: inspectionResult,
+    startDate,
+    endDate,
+    dimension: query.dimension,
+    ...(usedFallback ? { gscSiteUrl: result.siteUrl, note: 'Used URL-prefix fallback (not sc-domain)' } : {}),
   }
 })
+
