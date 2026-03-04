@@ -28,9 +28,10 @@ export default defineEventHandler(async (event) => {
   start.setDate(start.getDate() - 30)
   const startDate = query.startDate ?? start.toISOString().split('T')[0] ?? ''
 
-  // Normalized GSC site URL: try sc-domain first if it's a domain-level property, 
-  // but most common are URL-prefix properties.
-  const gscSiteUrl = app.url.replace(/\/$/, '')
+  // GSC site URL: use sc-domain: prefix for domain-level properties
+  // (this is how setup-analytics.ts registers sites via the Webmasters API)
+  const hostname = new URL(app.url).hostname
+  const gscSiteUrl = `sc-domain:${hostname}`
 
   try {
     const [dimensionalData, totalData, inspectionData] = await Promise.all([
