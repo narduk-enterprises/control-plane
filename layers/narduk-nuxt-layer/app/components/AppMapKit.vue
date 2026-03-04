@@ -452,13 +452,16 @@ function buildPolygonRings(geometry: GeoJSONGeometry): Array<InstanceType<typeof
 function buildClusterElement(cluster: { coordinate: unknown; memberAnnotations: unknown[] }): HTMLElement {
   const count = cluster.memberAnnotations?.length ?? 0
 
+  if (!import.meta.client) {
+    // @ts-expect-error - MapKit JS expects an HTMLElement, but during SSR we return a dummy
+    return { className: 'mapkit-cluster', innerHTML: '', setAttribute: () => {}, style: {}, addEventListener: () => {} }
+  }
+
   let el: HTMLElement
   if (props.createClusterElement) {
     el = props.createClusterElement(cluster, count)
   } else {
-    // eslint-disable-next-line nuxt-guardrails/no-ssr-dom-access
-    // @ts-ignore
-    el = import.meta.client ? document.createElement('div') : (null as unknown as HTMLElement)
+    el = document.createElement('div')
     el.className = 'mapkit-cluster'
     el.innerHTML = `<div class="mapkit-cluster-bubble"><span class="mapkit-cluster-count">${count}</span></div>`
   }

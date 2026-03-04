@@ -75,7 +75,7 @@ export default defineNuxtConfig({
     colorMode: {
       preference: 'system'
     }
-  } : {} as any),
+  } : {}),
 
   ogImage: {
     runtimeCacheStorage: {
