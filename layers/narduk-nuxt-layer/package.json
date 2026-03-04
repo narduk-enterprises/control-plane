@@ -13,7 +13,7 @@
     "access": "restricted"
   },
   "scripts": {
-    "build": "nuxt build",
+    "build": "nuxt prepare",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
