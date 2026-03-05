@@ -79,67 +79,65 @@ const plugin = {
     'no-module-scope-ref': noModuleScopeRef,
     'no-inline-types-in-stores': noInlineTypesInStores,
   },
-}
-
-// Flat config preset — apps just spread this into their config array
-plugin.configs = {
-  recommended: [
-    {
-      name: 'atx/recommended',
-      plugins: { atx: plugin },
-      files: ['**/*.vue'],
-      rules: {
-        'atx/no-raw-tailwind-colors': 'error',
-        'atx/no-tailwind-v3-deprecated': 'error',
-        'atx/no-invalid-nuxt-ui-token': 'error',
-        'atx/no-native-button': 'error',
-        'atx/no-inline-svg': 'error',
-        'atx/lucide-icons-only': 'error',
-        'atx/no-style-block-layout': ['error', { max: 50 }],
-        'atx/require-client-only-switch': 'error',
-        'atx/no-attrs-on-fragment': 'error',
-        'atx/no-native-input': 'error',
-        'atx/no-native-form': 'error',
-        'atx/no-native-table': 'error',
-        'atx/prefer-ulink': 'error',
-        'atx/no-native-layout': 'error',
-        'atx/no-select-empty-value': 'error',
-        'atx/no-native-details': 'error',
-        'atx/no-native-hr': 'error',
-        'atx/no-native-progress': 'error',
-        'atx/no-native-dialog': 'error',
-        'atx/no-native-kbd': 'error',
-        'atx/no-inline-hex': 'error',
-        'atx/no-fetch-in-component': 'error',
-        'atx/no-multi-statement-inline-handler': 'error',
-        'atx/require-client-only-hydration-sensitive': 'warn',
-        'atx/no-apply-in-scoped-style': 'error',
+  configs: {
+    recommended: [
+      {
+        name: 'atx/recommended',
+        plugins: { get atx() { return plugin } },
+        files: ['**/*.vue'],
+        rules: {
+          'atx/no-raw-tailwind-colors': 'error',
+          'atx/no-tailwind-v3-deprecated': 'error',
+          'atx/no-invalid-nuxt-ui-token': 'error',
+          'atx/no-native-button': 'error',
+          'atx/no-inline-svg': 'error',
+          'atx/lucide-icons-only': 'error',
+          'atx/no-style-block-layout': ['error', { max: 50 }],
+          'atx/require-client-only-switch': 'error',
+          'atx/no-attrs-on-fragment': 'error',
+          'atx/no-native-input': 'error',
+          'atx/no-native-form': 'error',
+          'atx/no-native-table': 'error',
+          'atx/prefer-ulink': 'error',
+          'atx/no-native-layout': 'error',
+          'atx/no-select-empty-value': 'error',
+          'atx/no-native-details': 'error',
+          'atx/no-native-hr': 'error',
+          'atx/no-native-progress': 'error',
+          'atx/no-native-dialog': 'error',
+          'atx/no-native-kbd': 'error',
+          'atx/no-inline-hex': 'error',
+          'atx/no-fetch-in-component': 'error',
+          'atx/no-multi-statement-inline-handler': 'error',
+          'atx/require-client-only-hydration-sensitive': 'warn',
+          'atx/no-apply-in-scoped-style': 'error',
+        },
       },
-    },
-  ],
-  app: [
-    {
-      name: 'atx/app',
-      plugins: { atx: plugin },
-      files: ['app/composables/**/*.ts', 'app/utils/**/*.ts', 'app/stores/**/*.ts'],
-      rules: {
-        'atx/no-module-scope-ref': 'warn',
-        'atx/no-inline-types-in-stores': 'warn',
+    ],
+    app: [
+      {
+        name: 'atx/app',
+        plugins: { get atx() { return plugin } },
+        files: ['app/composables/**/*.ts', 'app/utils/**/*.ts', 'app/stores/**/*.ts'],
+        rules: {
+          'atx/no-module-scope-ref': 'warn',
+          'atx/no-inline-types-in-stores': 'warn',
+        },
       },
-    },
-  ],
-  server: [
-    {
-      name: 'atx/server',
-      plugins: { atx: plugin },
-      files: ['server/**/*.ts'],
-      rules: {
-        'atx/require-validated-body': 'error',
-        'atx/require-validated-query': 'error',
-        'atx/prefer-drizzle-operators': 'error',
+    ],
+    server: [
+      {
+        name: 'atx/server',
+        plugins: { get atx() { return plugin } },
+        files: ['server/**/*.ts'],
+        rules: {
+          'atx/require-validated-body': 'error',
+          'atx/require-validated-query': 'error',
+          'atx/prefer-drizzle-operators': 'error',
+        },
       },
-    },
-  ],
+    ],
+  },
 }
 
 export default plugin

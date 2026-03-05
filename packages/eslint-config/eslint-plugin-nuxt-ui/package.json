@@ -18,7 +18,9 @@
   ],
   "scripts": {
     "gen:spec": "tsx scripts/gen-spec.ts",
-    "build": "tsup"
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "eslint",

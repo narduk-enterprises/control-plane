@@ -1,6 +1,6 @@
 {
   "name": "@narduk/eslint-config",
-  "version": "1.20.4",
+  "version": "1.13.9",
   "type": "module",
   "private": true,
   "exports": {
@@ -10,7 +10,9 @@
     "build": "pnpm run build:nuxt-ui && pnpm run build:guardrails && pnpm run build:vue-official",
     "build:nuxt-ui": "cd eslint-plugin-nuxt-ui && pnpm run build",
     "build:guardrails": "cd eslint-plugin-nuxt-guardrails && pnpm run build",
-    "build:vue-official": "cd eslint-plugin-vue-official-best-practices && pnpm run build"
+    "build:vue-official": "cd eslint-plugin-vue-official-best-practices && pnpm run build",
+    "test": "vitest run",
+    "test:plugins": "vitest run eslint-plugins/tests"
   },
   "dependencies": {
     "eslint-config-prettier": "^10.1.8",

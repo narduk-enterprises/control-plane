@@ -22,7 +22,12 @@
         "^build"
       ]
     },
-    "quality": {},
+    "quality": {
+      "dependsOn": [
+        "lint",
+        "typecheck"
+      ]
+    },
     "dev": {
       "cache": false,
       "persistent": true
