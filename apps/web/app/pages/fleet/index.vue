@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import FleetAppStatus from '~/components/fleet/FleetAppStatus.vue'
-import { NuxtLink, UButton } from '#components'
+import { NuxtLink, UButton, UTooltip } from '#components'
 import type { TableColumn } from '~/types/table'
 
 useSeo({
@@ -47,8 +47,18 @@ const fleetColumns: TableColumn<FleetApp>[] = [
   {
     accessorKey: 'url',
     header: 'URL',
-    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate text-muted hidden md:table-cell' } },
-    cell: ({ row }) => row.original.url,
+    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate hidden md:table-cell' } },
+    cell: ({ row }) => {
+      return h('a', {
+        href: row.original.url,
+        target: '_blank',
+        rel: 'noopener',
+        class: 'text-muted hover:text-primary transition-colors hover:underline flex items-center gap-1',
+      }, [
+        row.original.url.replace(/^https?:\/\//, ''),
+        h('span', { class: 'i-lucide-external-link size-3 opacity-50' }),
+      ])
+    },
   },
   {
     id: 'status',
@@ -65,26 +75,30 @@ const fleetColumns: TableColumn<FleetApp>[] = [
     cell: ({ row }) => {
       const app = row.original
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
-        h(UButton, {
-          to: `/fleet/${app.name}`,
-          size: 'xs',
-          variant: 'ghost',
-          color: 'neutral',
-          icon: 'i-lucide-bar-chart-3',
-          'aria-label': 'GSC',
-          class: 'cursor-pointer',
-        }),
-        h(UButton, {
-          to: app.url,
-          target: '_blank',
-          rel: 'noopener',
-          size: 'xs',
-          variant: 'ghost',
-          color: 'neutral',
-          icon: 'i-lucide-external-link',
-          'aria-label': 'Open app',
-          class: 'cursor-pointer',
-        }),
+        h(UTooltip, { text: 'View GSC Data' }, () => [
+          h(UButton, {
+            to: `/fleet/${app.name}`,
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            icon: 'i-lucide-bar-chart-3',
+            'aria-label': 'GSC',
+            class: 'cursor-pointer',
+          })
+        ]),
+        h(UTooltip, { text: 'Open App in Browser' }, () => [
+          h(UButton, {
+            to: app.url,
+            target: '_blank',
+            rel: 'noopener',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            icon: 'i-lucide-external-link',
+            'aria-label': 'Open app',
+            class: 'cursor-pointer',
+          })
+        ]),
       ])
     },
     enableSorting: false,
@@ -151,7 +165,21 @@ const fleetColumnsForTable = fleetColumns as any
             placeholder="Search by name or URL..."
             class="max-w-xs"
             icon="i-lucide-search"
-          />
+            autofocus
+          >
+            <template #trailing>
+              <UButton
+                v-show="searchQuery !== ''"
+                color="neutral"
+                variant="link"
+                size="xs"
+                icon="i-lucide-x"
+                aria-label="Clear search"
+                class="cursor-pointer px-1"
+                @click="searchQuery = ''"
+              />
+            </template>
+          </UInput>
         </div>
       </template>
       <div v-if="hasResults" class="overflow-x-auto">
@@ -160,10 +188,13 @@ const fleetColumnsForTable = fleetColumns as any
           :columns="fleetColumnsForTable"
         />
       </div>
-      <div v-else class="rounded-lg border border-dashed border-default p-8 text-center">
-        <UIcon name="i-lucide-search-x" class="mx-auto size-10 text-muted" />
-        <p class="mt-2 text-sm font-medium text-default">No matches</p>
-        <p class="mt-1 text-sm text-muted">Try a different search.</p>
+      <div v-else class="rounded-lg border border-dashed border-default p-8 text-center bg-elevated/50">
+        <UIcon name="i-lucide-search-x" class="mx-auto size-12 text-muted/50 mb-3" />
+        <p class="text-base font-medium text-default">No matches for "{{ searchQuery }}"</p>
+        <p class="mt-1 mb-4 text-sm text-muted">Try a different search term or clear the filter.</p>
+        <UButton variant="outline" color="neutral" @click="searchQuery = ''">
+          Clear Search
+        </UButton>
       </div>
     </UCard>
 

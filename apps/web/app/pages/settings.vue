@@ -12,9 +12,9 @@ const config = useRuntimeConfig().public
 const breadcrumbItems = [{ label: 'Dashboard', to: '/' }, { label: 'Settings' }]
 
 const integrations = computed(() => [
-  { name: 'PostHog', configured: !!(config.posthogPublicKey && config.posthogProjectId), hint: 'Analytics' },
-  { name: 'GA4', configured: !!(config.gaMeasurementId || config.gaPropertyId), hint: 'Google Analytics' },
-  { name: 'IndexNow', configured: !!config.indexNowKey, hint: 'Search engines' },
+  { name: 'PostHog', icon: 'i-lucide-users', configured: !!(config.posthogPublicKey && config.posthogProjectId), hint: 'Analytics & Events' },
+  { name: 'GA4', icon: 'i-lucide-activity', configured: !!(config.gaMeasurementId || config.gaPropertyId), hint: 'Google Analytics' },
+  { name: 'IndexNow', icon: 'i-lucide-globe', configured: !!config.indexNowKey, hint: 'Search engine indexing' },
 ])
 </script>
 
@@ -36,11 +36,16 @@ const integrations = computed(() => [
         <li
           v-for="int in integrations"
           :key="int.name"
-          class="flex items-center justify-between rounded-lg border border-default px-4 py-3"
+          class="flex items-center justify-between rounded-lg border border-default px-4 py-3 transition-colors hover:bg-elevated/50"
         >
-          <div>
-            <p class="font-medium text-default">{{ int.name }}</p>
-            <p class="text-sm text-muted">{{ int.hint }}</p>
+          <div class="flex items-center gap-3">
+            <div class="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <UIcon :name="int.icon" class="size-5" />
+            </div>
+            <div>
+              <p class="font-medium text-default">{{ int.name }}</p>
+              <p class="text-sm text-muted">{{ int.hint }}</p>
+            </div>
           </div>
           <UBadge
             :color="int.configured ? 'success' : 'neutral'"

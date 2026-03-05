@@ -49,12 +49,12 @@ function isActive(path: string) {
         <div class="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
           <NuxtLink
             to="/"
-            class="flex items-center gap-2.5 rounded-lg py-2 pr-2 transition-colors hover:bg-elevated cursor-pointer"
+            class="group flex items-center gap-2.5 rounded-lg py-2 pr-2 transition-colors hover:bg-elevated cursor-pointer"
           >
-            <div class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-50">
+            <div class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-50 transition-transform group-hover:scale-105">
               <UIcon name="i-lucide-activity" class="size-5" />
             </div>
-            <span class="font-display font-semibold text-lg text-default hidden sm:block">{{ appName }}</span>
+            <span class="font-display font-semibold text-lg text-default transition-colors group-hover:text-primary hidden sm:block">{{ appName }}</span>
           </NuxtLink>
 
           <!-- Desktop nav -->
@@ -129,11 +129,22 @@ function isActive(path: string) {
         </div>
       </div>
 
-      <div class="border-t border-default py-4" role="contentinfo">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <p class="text-center text-sm text-muted">
-            {{ appName }} &middot; Fleet dashboard &middot; {{ currentYear }}
+      <div class="border-t border-default py-6 mt-auto" role="contentinfo">
+        <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
+          <p class="text-sm text-muted">
+            &copy; {{ currentYear }} {{ appName }}. All rights reserved.
           </p>
+          <div class="flex items-center gap-4 text-sm text-muted">
+            <NuxtLink to="https://github.com/narduk-enterprises" target="_blank" class="hover:text-primary transition-colors flex items-center gap-1">
+              <UIcon name="i-lucide-github" class="size-4" />
+              GitHub
+            </NuxtLink>
+            <span>&middot;</span>
+            <span class="flex items-center gap-1">
+              <UIcon name="i-lucide-zap" class="size-4 text-primary" />
+              Narduk Nuxt Template
+            </span>
+          </div>
         </div>
       </div>
     </div>

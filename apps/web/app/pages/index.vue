@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h } from 'vue'
-import { NuxtLink, UButton, FleetAppStatus, FleetAppPosthogStats } from '#components'
+import { NuxtLink, UButton, FleetAppStatus, FleetAppPosthogStats, UTooltip, UIcon } from '#components'
 import type { TableColumn } from '~/types/table'
 import type { FleetApp } from '~/composables/useFleetDashboard'
 
@@ -15,7 +15,7 @@ useWebPageSchema({
 })
 
 const { apps, refreshApps } = useFleetDashboard()
-const { getStatus, refreshStatuses, isRefreshing: statusesRefreshing } = useFleetStatuses()
+const { getStatus, refreshStatuses } = useFleetStatuses()
 const fleetApps = computed(() => apps.value ?? [])
 const fleetCount = computed(() => fleetApps.value.length)
 const hasFleetApps = computed(() => fleetCount.value > 0)
@@ -23,6 +23,14 @@ const lastRefresh = ref<Date | null>(null)
 
 // PostHog summary — manual load only
 const { summary: posthogSummary, loading: posthogLoading, loaded: posthogLoaded, load: loadPosthog } = useFleetPosthogSummary()
+
+const isCheckingAll = ref(false)
+async function checkAllStatuses() {
+  if (!fleetApps.value.length) return
+  isCheckingAll.value = true
+  await refreshStatuses()
+  isCheckingAll.value = false
+}
 
 // Pagination logic
 const page = ref(1)
@@ -48,8 +56,18 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
   {
     accessorKey: 'url',
     header: 'URL',
-    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate text-muted hidden md:table-cell' } },
-    cell: ({ row }) => row.original.url,
+    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate hidden md:table-cell' } },
+    cell: ({ row }) => {
+      return h('a', {
+        href: row.original.url,
+        target: '_blank',
+        rel: 'noopener',
+        class: 'text-muted hover:text-primary transition-colors hover:underline flex items-center gap-1',
+      }, [
+        row.original.url.replace(/^https?:\/\//, ''),
+        h(UIcon, { name: 'i-lucide-external-link', class: 'size-3 opacity-50' }),
+      ])
+    },
   },
   {
     id: 'status',
@@ -78,26 +96,30 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
     cell: ({ row }) => {
       const app = row.original
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
-        h(UButton, {
-          to: `/fleet/${app.name}`,
-          size: 'xs',
-          variant: 'ghost',
-          color: 'neutral',
-          icon: 'i-lucide-bar-chart-3',
-          'aria-label': 'GSC',
-          class: 'cursor-pointer',
-        }),
-        h(UButton, {
-          to: app.url,
-          target: '_blank',
-          rel: 'noopener',
-          size: 'xs',
-          variant: 'ghost',
-          color: 'neutral',
-          icon: 'i-lucide-external-link',
-          'aria-label': 'Open app',
-          class: 'cursor-pointer',
-        }),
+        h(UTooltip, { text: 'View GSC Data' }, () => [
+          h(UButton, {
+            to: `/fleet/${app.name}`,
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            icon: 'i-lucide-bar-chart-3',
+            'aria-label': 'GSC',
+            class: 'cursor-pointer',
+          })
+        ]),
+        h(UTooltip, { text: 'Open App in Browser' }, () => [
+          h(UButton, {
+            to: app.url,
+            target: '_blank',
+            rel: 'noopener',
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            icon: 'i-lucide-external-link',
+            'aria-label': 'Open app',
+            class: 'cursor-pointer',
+          })
+        ]),
       ])
     },
     enableSorting: false,
@@ -139,7 +161,7 @@ async function onRefresh() {
     <!-- KPI cards -->
     <ClientOnly>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
-        <UCard class="cursor-default transition-base hover:shadow-elevated">
+        <UCard class="cursor-default transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300">
           <div class="flex items-center gap-4">
             <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <UIcon name="i-lucide-grid-3x3" class="size-6" />
@@ -152,7 +174,7 @@ async function onRefresh() {
             </div>
           </div>
         </UCard>
-        <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/fleet')">
+        <UCard class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300" @click="navigateTo('/fleet')">
           <div class="flex items-center gap-4">
             <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <UIcon name="i-lucide-bar-chart-3" class="size-6" />
@@ -163,7 +185,7 @@ async function onRefresh() {
             </div>
           </div>
         </UCard>
-        <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/fleet')">
+        <UCard class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300" @click="navigateTo('/fleet')">
           <div class="flex items-center gap-4">
             <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <UIcon name="i-lucide-users" class="size-6" />
@@ -174,7 +196,7 @@ async function onRefresh() {
             </div>
           </div>
         </UCard>
-        <UCard class="cursor-pointer transition-base hover:shadow-elevated" @click="navigateTo('/indexing')">
+        <UCard class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300" @click="navigateTo('/indexing')">
           <div class="flex items-center gap-4">
             <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <UIcon name="i-lucide-search" class="size-6" />
@@ -238,17 +260,20 @@ async function onRefresh() {
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
-              <h2 class="font-semibold text-default">Fleet apps</h2>
               <div class="flex items-center gap-2">
+                <h2 class="font-semibold text-default">Fleet apps</h2>
+                <UBadge variant="subtle" color="primary" size="sm" class="rounded-full px-2" v-if="fleetCount">{{ fleetCount }}</UBadge>
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-2">
                 <UButton
                   variant="soft"
                   size="xs"
                   icon="i-lucide-activity"
                   class="cursor-pointer"
-                  :loading="statusesRefreshing"
-                  @click="refreshStatuses"
+                  :loading="isCheckingAll"
+                  @click="checkAllStatuses"
                 >
-                  Refresh Status
+                  Check All
                 </UButton>
                 <UButton
                   v-if="!posthogLoaded"
@@ -300,16 +325,22 @@ async function onRefresh() {
               />
             </div>
           </div>
-          <div v-else class="rounded-lg border border-dashed border-default p-8 text-center">
-            <UIcon name="i-lucide-inbox" class="mx-auto size-10 text-muted" />
-            <p class="mt-2 text-sm font-medium text-default">No fleet apps</p>
-            <p class="mt-1 text-sm text-muted">Ensure you are authenticated. Fleet list comes from the registry.</p>
+          <div v-else class="rounded-lg border border-dashed border-default p-8 text-center bg-elevated/50">
+            <UIcon name="i-lucide-inbox" class="mx-auto size-12 text-muted/50 mb-3" />
+            <p class="text-base font-medium text-default">No fleet apps configured</p>
+            <p class="mt-1 mb-4 text-sm text-muted">Fleet apps are configured inside the central registry.</p>
+            <UButton to="/settings" variant="outline" color="neutral" icon="i-lucide-settings">
+              Go to Settings
+            </UButton>
           </div>
         </UCard>
     </div>
 
-    <!-- <p v-if="lastRefresh" class="mt-6 text-xs text-muted">
-      Last refreshed: <NuxtTime :datetime="lastRefresh" relative />
-    </p> -->
+    <div v-if="lastRefresh" class="mt-6 flex justify-end">
+      <p class="text-xs text-muted flex items-center gap-1.5">
+        <UIcon name="i-lucide-clock" class="size-3" />
+        Last refreshed: <NuxtTime :datetime="lastRefresh" relative class="font-medium" />
+      </p>
+    </div>
   </div>
 </template>

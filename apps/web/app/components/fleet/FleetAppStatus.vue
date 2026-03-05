@@ -9,10 +9,10 @@ type BadgeColor = 'neutral' | 'error' | 'success'
 
 const badgeConfig = computed(() => {
   if (!props.appStatus) {
-    return { color: 'neutral' as BadgeColor, icon: 'i-lucide-clock', label: 'Pending', class: '' }
+    return { color: 'neutral' as BadgeColor, icon: 'i-lucide-help-circle', label: 'Unknown', class: 'opacity-75' }
   }
   if (props.appStatus.status === 'down') {
-    return { color: 'error' as BadgeColor, icon: 'i-lucide-x-circle', label: 'Down', class: '' }
+    return { color: 'error' as BadgeColor, icon: 'i-lucide-x-circle', label: 'Down', class: 'ring-1 ring-error/50 font-medium' }
   }
   return { color: 'success' as BadgeColor, icon: 'i-lucide-check-circle-2', label: 'Up', class: '' }
 })
@@ -62,8 +62,8 @@ onMounted(() => {
       size="xs"
       :icon="(isMounted && isRefreshing) ? 'i-lucide-loader-2' : 'i-lucide-refresh-cw'"
       :class="[
-        'size-6 p-0 transition-base cursor-pointer hover:bg-elevated text-muted hover:text-default rounded-full flex items-center justify-center shrink-0',
-        (isMounted && isRefreshing) && 'animate-spin'
+        'size-6 p-0 transition-all cursor-pointer hover:bg-elevated text-muted hover:text-default rounded-full flex items-center justify-center shrink-0',
+        (isMounted && isRefreshing) && 'animate-spin text-primary hover:text-primary relative scale-110'
       ]"
       :aria-label="`Refresh ${props.appStatus.app} status`"
       :disabled="isRefreshing"

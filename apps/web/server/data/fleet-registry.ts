@@ -12,70 +12,70 @@
  * Sources: .github/workflows/template-sync-bot.yml (matrix.repo), tools/validate-fleet-doppler.ts
  */
 export interface FleetApp {
-  name: string
-  url: string
-  dopplerProject: string
-  gaPropertyId?: string
+  name: string;
+  url: string;
+  dopplerProject: string;
+  gaPropertyId?: string;
 }
 
 /** Production URLs per Doppler project. Sourced from each app's wrangler.json routes (custom_domain) in ~/new-code. */
 const KNOWN_URLS: Record<string, string> = {
-  clawdle: 'https://clawdle.nard.uk',
-  'flashcard-pro': 'https://flashcard-pro.nard.uk',
-  'narduk-enterprises-portfolio': 'https://portfolio.nard.uk',
-  'papa-everetts-pizza': 'https://papaeverettspizza.com',
-  'ogpreview-app': 'https://ogpreview.app',
-  'old-austin-grouch': 'https://grouch.austin-texas.net',
-  'neon-sewer-raid': 'https://neon-sewer-raid.nard.uk',
-  'imessage-dictionary': 'https://dictionary.nard.uk',
-  nagolnagemluapleira: 'https://nagolnagemluapleira.nard.uk',
-  'drift-map': 'https://drift-map.nard.uk',
-  'tiny-invoice': 'https://tiny-invoice.nard.uk',
-  'enigma-box': 'https://enigma-box.nard.uk',
   'austin-texas-net': 'https://austin-texas.net',
   'circuit-breaker-online': 'https://circuitbreaker.online',
+  clawdle: 'https://clawdle.nard.uk',
+  'drift-map': 'https://drift-map.nard.uk',
+  'enigma-box': 'https://enigma-box.nard.uk',
+  'flashcard-pro': 'https://flashcard-pro.nard.uk',
+  'imessage-dictionary': 'https://dictionary.nard.uk',
+  nagolnagemluapleira: 'https://nagolnagemluapleira.nard.uk',
+  'narduk-enterprises-portfolio': 'https://portfolio.nard.uk',
+  'neon-sewer-raid': 'https://neon-sewer-raid.nard.uk',
+  'ogpreview-app': 'https://ogpreview.app',
+  'old-austin-grouch': 'https://grouch.austin-texas.net',
+  'papa-everetts-pizza': 'https://papaeverettspizza.com',
   'sailing-passage-map': 'https://passages.nard.uk',
+  'tiny-invoice': 'https://tiny-invoice.nard.uk',
   'video-grab': 'https://video-grab.nard.uk',
-}
+};
 
 /** GA4 property IDs per app. Sourced from GA Admin API (see /api/fleet/ga/diagnose). */
 const KNOWN_GA_PROPERTIES: Record<string, string> = {
-  'ogpreview-app': '526214794',
-  'circuit-breaker-online': '520350533',
   'austin-texas-net': '526067189',
-  'papa-everetts-pizza': '526158939',
-  'old-austin-grouch': '526226582',
+  'circuit-breaker-online': '520350533',
   clawdle: '526225128',
-  nagolnagemluapleira: '526231074',
-  'neon-sewer-raid': '526228839',
-  'imessage-dictionary': '526234707',
-  'flashcard-pro': '526595766',
-  'narduk-enterprises-portfolio': '526233051',
   'drift-map': '526978811',
-  'tiny-invoice': '526997389',
   'enigma-box': '526992343',
+  'flashcard-pro': '526595766',
+  'imessage-dictionary': '526234707',
+  nagolnagemluapleira: '526231074',
+  'narduk-enterprises-portfolio': '526233051',
+  'neon-sewer-raid': '526228839',
+  'ogpreview-app': '526214794',
+  'old-austin-grouch': '526226582',
+  'papa-everetts-pizza': '526158939',
   'sailing-passage-map': '526974566',
+  'tiny-invoice': '526997389',
   'video-grab': '526953881',
-}
+};
 
 const FLEET_PROJECTS = [
-  'neon-sewer-raid',
-  'old-austin-grouch',
-  'ogpreview-app',
-  'imessage-dictionary',
-  'narduk-enterprises-portfolio',
-  'drift-map',
-  'tiny-invoice',
-  'enigma-box',
-  'papa-everetts-pizza',
-  'flashcard-pro',
-  'clawdle',
-  'circuit-breaker-online',
-  'nagolnagemluapleira',
   'austin-texas-net',
+  'circuit-breaker-online',
+  'clawdle',
+  'drift-map',
+  'enigma-box',
+  'flashcard-pro',
+  'imessage-dictionary',
+  'nagolnagemluapleira',
+  'narduk-enterprises-portfolio',
+  'neon-sewer-raid',
+  'ogpreview-app',
+  'old-austin-grouch',
+  'papa-everetts-pizza',
   'sailing-passage-map',
+  'tiny-invoice',
   'video-grab',
-] as const
+] as const;
 
 export function getFleetApps(): FleetApp[] {
   return FLEET_PROJECTS.map((dopplerProject) => ({
@@ -83,9 +83,9 @@ export function getFleetApps(): FleetApp[] {
     url: KNOWN_URLS[dopplerProject] ?? `https://${dopplerProject}.nard.uk`,
     dopplerProject,
     gaPropertyId: KNOWN_GA_PROPERTIES[dopplerProject],
-  }))
+  }));
 }
 
 export function getFleetAppByName(name: string): FleetApp | undefined {
-  return getFleetApps().find((app) => app.name === name)
+  return getFleetApps().find((app) => app.name === name);
 }
