@@ -36,9 +36,10 @@ async function checkAllStatuses() {
 const page = ref(1)
 const itemsPerPage = 20
 const paginatedApps = computed(() => {
+  const sortedApps = [...fleetApps.value].sort((a, b) => a.name.localeCompare(b.name))
   const start = (page.value - 1) * itemsPerPage
   const end = start + itemsPerPage
-  return fleetApps.value.slice(start, end)
+  return sortedApps.slice(start, end)
 })
 
 const dashboardColumns: TableColumn<FleetApp>[] = [

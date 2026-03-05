@@ -50,8 +50,8 @@ async function checkSingle() {
     }
   })
   
-  console.log(`🌐 Visiting: https://austin-texas.net`)
-  await page.goto('https://austin-texas.net', { waitUntil: 'networkidle', timeout: 30000 })
+  console.log(`🌐 Visiting: http://localhost:3002`)
+  await page.goto('http://localhost:3002', { waitUntil: 'networkidle', timeout: 30000 })
   
   const nuxtConfig = await page.evaluate(() => {
     return (window as any).__NUXT__ || {}
@@ -82,6 +82,18 @@ async function checkSingle() {
     console.log(`❌ FAILED - window.posthog is completely missing!`)
   }
   
+  await new Promise(r => setTimeout(r, 6000))
+
+  if (phRequestFound) {
+    if (posthogAppProperty) {
+      console.log(`✅ SUCCESS - Network payload PostHog app property: ${posthogAppProperty}`)
+    } else {
+      console.log(`❌ FAILED - Network payload PostHog app property is null/missing!`)
+    }
+  } else {
+    console.log(`❌ FAILED - No PostHog network requests intercepted!`)
+  }
+
   await browser.close()
 }
 

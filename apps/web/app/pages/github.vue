@@ -158,12 +158,17 @@ const githubColumns: TableColumn<GithubRepo>[] = [
 const githubColumnsForTable = githubColumns as any
 
 const searchQuery = ref('')
-const filteredRepos = computed(() => {
+const sortedRepos = computed(() => {
   if (!repos.value) return []
+  return [...repos.value].sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const filteredRepos = computed(() => {
+  const allRepos = sortedRepos.value
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return repos.value
+  if (!q) return allRepos
   
-  return repos.value.filter(repo => 
+  return allRepos.filter(repo => 
     repo.name.toLowerCase().includes(q) || 
     (repo.description && repo.description.toLowerCase().includes(q)) ||
     (repo.language && repo.language.toLowerCase().includes(q))
