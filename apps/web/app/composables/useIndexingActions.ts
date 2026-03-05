@@ -4,9 +4,12 @@ export function useIndexingPublish() {
     method: 'POST',
     body: publishBody,
     immediate: false,
+    server: false,
+    watch: false,
   })
   async function submitUrl(url: string, type = 'URL_UPDATED') {
     publishBody.value = { url, type }
+    await nextTick()
     await refresh()
     return data.value
   }
@@ -15,14 +18,29 @@ export function useIndexingPublish() {
 
 export function useIndexingStatus() {
   const statusUrl = ref('')
-  const key = computed(
-    () => `/api/fleet/indexing/status?url=${encodeURIComponent(statusUrl.value)}`,
-  )
-  const { data, error, pending, refresh } = useFetch(key, { immediate: false })
-  async function checkStatus(url: string) {
-    statusUrl.value = url
+
+  const query = computed(() => {
+    if (!statusUrl.value) return {}
+    return { url: statusUrl.value }
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Nuxt runtime supports null, types don't
+  const { data, error, pending, refresh } = useFetch(() => {
+    if (!statusUrl.value) return null as any
+    return '/api/fleet/indexing/status'
+  }, {
+    query,
+    immediate: false,
+    server: false,
+    watch: false,
+  })
+
+  async function checkStatus(inputUrl: string) {
+    statusUrl.value = inputUrl
+    await nextTick()
     await refresh()
     return data.value
   }
+
   return { data, error, loading: pending, checkStatus }
 }

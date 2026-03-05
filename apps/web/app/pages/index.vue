@@ -14,16 +14,16 @@ useWebPageSchema({
   description: 'Fleet dashboard overview.',
 })
 
-const forceRefresh = ref(false)
 const { 
   apps: fleetApps, 
   getAppStatus: getStatus, 
   refreshStatuses, 
   refreshApps, 
   refreshPosthog,
+  forceRefreshAll,
   posthogSummary, 
   isLoading 
-} = useFleet(forceRefresh)
+} = useFleet()
 
 const fleetCount = computed(() => fleetApps.value.length)
 const hasFleetApps = computed(() => fleetCount.value > 0)
@@ -136,9 +136,7 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
 const columnsForTable = dashboardColumns as any
 
 async function onRefresh() {
-  forceRefresh.value = true
-  await Promise.all([refreshApps(), refreshStatuses(), refreshPosthog()])
-  forceRefresh.value = false
+  await forceRefreshAll()
   lastRefresh.value = new Date()
 }
 </script>

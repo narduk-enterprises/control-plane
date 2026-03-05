@@ -10,27 +10,21 @@ export interface FleetApp {
 
 type PosthogSummaryMap = Record<string, { eventCount: number; users: number }>
 
-export function useFleet(forceRefresh?: Ref<boolean>) {
-  // 1. Unified Fetching
-  const q = computed(() => ({ force: forceRefresh?.value ? 'true' : undefined }))
-
+export function useFleet() {
   const { data: rawApps, refresh: refreshApps, status: appsStatus } = useFetch<FleetApp[]>('/api/fleet/apps', {
     default: () => [],
-    query: q,
   })
 
   const { data: rawStatuses, refresh: refreshStatusesRaw, status: statusesStatus } = useFetch<FleetAppStatusRecord[]>('/api/fleet/status', {
     default: () => [],
-    query: q,
     lazy: true,
     server: false,
   })
 
   const { data: rawPosthog, refresh: refreshPosthog, status: posthogStatus } = useFetch<PosthogSummaryMap>('/api/fleet/posthog/summary', {
     default: () => ({}),
-    query: q,
     server: false,
-    lazy: true
+    lazy: true,
   })
 
   // 2. Transformed & Sorted Data Maps
@@ -74,7 +68,16 @@ export function useFleet(forceRefresh?: Ref<boolean>) {
     return refreshingSpecificApps.value.has(appName)
   }
 
-  // 4. Global Load State
+  // 4. Force refresh all data (busts D1 caches)
+  async function forceRefreshAll() {
+    await Promise.all([
+      refreshApps(),
+      refreshStatusesRaw(),
+      refreshPosthog(),
+    ])
+  }
+
+  // 5. Global Load State
   const isLoading = computed(() => {
     return appsStatus.value === 'pending' || statusesStatus.value === 'pending' || posthogStatus.value === 'pending'
   })
@@ -94,6 +97,7 @@ export function useFleet(forceRefresh?: Ref<boolean>) {
     
     refreshApps,
     refreshPosthog,
+    forceRefreshAll,
     isLoading,
   }
 }

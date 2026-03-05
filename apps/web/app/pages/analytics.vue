@@ -1,6 +1,39 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import type { GscRow } from '~/composables/useFleetGscQuery';
+
+interface GAData {
+  app: string
+  propertyId: string
+  summary: Record<string, number> | null
+  deltas: Record<string, number> | null
+  timeSeries: { date: string, value: number }[]
+  startDate: string
+  endDate: string
+}
+
+interface PosthogData {
+  app: string
+  summary: Record<string, number>
+  timeSeries: { date: string, value: number }[]
+  topPages: { name: string, count: number }[]
+  topReferrers: { name: string, count: number }[]
+  topCountries: { name: string, count: number }[]
+  topBrowsers: { name: string, count: number }[]
+  replaysUrl: string
+  startDate: string
+  endDate: string
+}
+
+interface GscData {
+  app: string
+  rows: GscRow[]
+  totals: { clicks?: number, impressions?: number, ctr?: number, position?: number } | null
+  inspection: unknown
+  startDate: string
+  endDate: string
+  dimension: string
+}
 
 useSeo({
   title: 'Analytics Dashboard',
@@ -34,59 +67,65 @@ const optsRef = dateState.presetOptions;
 const setPresetFn = dateState.setPreset;
 const is1hRef = dateState.is1h;
 
-// Data sources
-const forceRefresh = ref(false);
+// Data sources — watch: false, manually triggered via loadAll()
+const forceFlag = ref(false);
 
 // 1. Google Analytics
 const {
-  data: gaData,
+  data: gaDataRaw,
   loading: gaLoading,
   load: gaLoad,
-} = useFleetGA(selectedAppName, startRef, endRef, forceRefresh);
+} = useFleetGA(selectedAppName, startRef, endRef, forceFlag);
+const gaData = gaDataRaw as Ref<GAData | null>;
+
 // 2. Google Search Console
 const gscParams = computed(() => ({
   startDate: startRef.value,
   endDate: endRef.value,
   dimension: 'page' as const,
-  force: forceRefresh.value,
+  force: forceFlag.value,
 }));
 const {
-  data: gscData,
+  data: gscDataRaw,
   loading: gscLoading,
   load: gscLoad,
 } = useFleetGscQuery(selectedAppName, gscParams);
+const gscData = gscDataRaw as Ref<GscData | null>;
+
 // 3. PostHog
 const {
-  data: posthogData,
+  data: posthogDataRaw,
   loading: posthogLoading,
   load: posthogLoad,
-} = useFleetPosthog(selectedAppName, startRef, endRef, forceRefresh);
+} = useFleetPosthog(selectedAppName, startRef, endRef, forceFlag);
+const posthogData = posthogDataRaw as Ref<PosthogData | null>;
 
-async function refreshAll() {
+// Unified load function — loads all relevant data sources
+async function loadAll(force = false) {
   if (!selectedAppName.value) return;
-  forceRefresh.value = true;
-  const reqs = [posthogLoad()];
+  forceFlag.value = force;
+  await nextTick();
+  const reqs: Promise<void>[] = [posthogLoad()];
   if (!is1hRef.value) reqs.push(gaLoad(), gscLoad());
   await Promise.all(reqs);
-  forceRefresh.value = false;
+  if (force) forceFlag.value = false;
+}
+
+async function refreshAll() {
+  await loadAll(true);
 }
 
 // 4. IndexNow Summary
-const { data: indexnowSummary, status: indexnowStatus, refresh: refreshIndexnow } = useFetch('/api/fleet/indexnow/summary', {
+const { data: indexnowSummary, status: indexnowStatus } = useFetch('/api/fleet/indexnow/summary', {
   immediate: true,
 })
 
-// Watch app or date range to load data implicitly
+// Watch app or date range to load data
 watch(
   [selectedAppName, startRef, endRef],
   () => {
-    if (!selectedAppName.value || !startRef.value || !endRef.value) return;
-    // Don't force refresh when changing dates/app, just trigger loads
-    const reqs = [posthogLoad()];
-    if (!is1hRef.value) reqs.push(gaLoad(), gscLoad());
-    Promise.all(reqs);
+    loadAll();
   },
-  { immediate: true }
 );
 
 // Derived chart data

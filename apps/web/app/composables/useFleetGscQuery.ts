@@ -1,5 +1,4 @@
 import type { MaybeRefOrGetter } from 'vue'
-import { toValue, computed } from 'vue'
 
 export type GscDimension = 'query' | 'page' | 'device' | 'country' | 'searchAppearance'
 
@@ -35,34 +34,42 @@ export interface GscQueryParams {
   force?: boolean
 }
 
+interface GscQueryResponse {
+  app: string
+  rows: GscRow[]
+  totals: GscTotals | null
+  inspection: GscInspection | null
+  startDate: string
+  endDate: string
+  dimension: string
+}
+
 export function useFleetGscQuery(
   appName: MaybeRefOrGetter<string>,
   params: MaybeRefOrGetter<GscQueryParams>,
 ) {
-  const key = computed(() => {
-    const app = toValue(appName)
-    if (!app) return null as unknown as string
-
-    const appEncoded = encodeURIComponent(app)
+  const query = computed(() => {
     const p = toValue(params)
-    if (!p.startDate || !p.endDate) return null as unknown as string
-
-    const q = new URLSearchParams({
+    if (!p.startDate || !p.endDate) return {}
+    return {
       startDate: p.startDate,
       endDate: p.endDate,
       dimension: p.dimension,
       ...(p.force ? { force: 'true' } : {}),
-    }).toString()
-    return `/api/fleet/gsc/${appEncoded}?${q}`
+    }
   })
-  const { data, error, pending, refresh } = useFetch<{
-    app: string
-    rows: GscRow[]
-    totals: GscTotals | null
-    inspection: GscInspection | null
-    startDate: string
-    endDate: string
-    dimension: string
-  }>(key)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Nuxt runtime supports null, types don't
+  const { data, error, pending, refresh } = useFetch<GscQueryResponse>(() => {
+    const app = toValue(appName)
+    if (!app) return null as any
+    return `/api/fleet/gsc/${encodeURIComponent(app)}`
+  }, {
+    query,
+    server: false,
+    lazy: true,
+    watch: false,
+  })
+
   return { data, error, loading: pending, load: refresh }
 }
