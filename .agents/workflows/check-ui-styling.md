@@ -4,7 +4,7 @@ description: Audit Tailwind v4 CSS import order, token usage, and Nuxt UI v4 com
 
 This workflow enforces Tailwind CSS v4 and Nuxt UI 4 styling standards. Incorrect import order is the #1 cause of completely unstyled Nuxt UI components. It also ensures the codebase correctly uses modern styling primitives and avoids deprecated patterns.
 
-**ESLint (run first):** Component renames (UDivider→USeparator, UDropdown→UDropdownMenu) are enforced by `nuxt-ui/no-deprecated-component`. Hardcoded colors and icons by `atx/no-inline-hex`, `atx/no-raw-tailwind-colors`, and `atx/lucide-icons-only`. Tailwind v3 deprecated classes (flex-shrink→shrink, bg-gradient-to-*→bg-linear-to-*) by `atx/no-tailwind-v3-deprecated`. Invalid Nuxt UI tokens (e.g. text-foreground) by `atx/no-invalid-nuxt-ui-token`. `atx/no-apply-in-scoped-style` disallows `@apply` in scoped styles. Run `pnpm run lint` before manual checks below.
+**ESLint (run first):** Component renames (UDivider→USeparator, UDropdown→UDropdownMenu) are enforced by `nuxt-ui/no-deprecated-component`. Hardcoded colors and icons by `atx/no-inline-hex`, `atx/no-raw-tailwind-colors`, and `atx/lucide-icons-only`. Tailwind v3 deprecated classes (flex-shrink→shrink, bg-gradient-to-_→bg-linear-to-_) by `atx/no-tailwind-v3-deprecated`. Invalid Nuxt UI tokens (e.g. text-foreground) by `atx/no-invalid-nuxt-ui-token`. `atx/no-apply-in-scoped-style` disallows `@apply` in scoped styles. Run `pnpm run lint` before manual checks below.
 
 1. **Verify `main.css` import order**
    - The import order MUST be: (1) Google Fonts `@import url(...)`, (2) `@import 'tailwindcss'`, (3) `@import '@nuxt/ui'`. Getting this wrong causes all Nuxt UI components to render unstyled.
@@ -57,3 +57,24 @@ This workflow enforces Tailwind CSS v4 and Nuxt UI 4 styling standards. Incorrec
 
 8. **Review `app.config.ts`**
    - Verify that the UI configuration is correctly structured for v4 (e.g., configuring `primary` and `neutral` under `ui.colors`).
+
+9. **Check Nuxt UI Pro component adoption for landing pages**
+   - Landing pages should use Pro layout primitives instead of custom div-heavy structures:
+     - `UPageHero` for hero sections (not raw flex/grid containers)
+     - `UPageSection` for content sections (not bare `<section>` tags)
+     - `UPageFeature` for feature showcases
+     - `UPageCTA` for call-to-action blocks
+     - `UHeader` / `UFooter` for navigation and footers
+       // turbo
+       `grep -rnl 'PageHero\|PageSection\|PageFeature\|PageCTA\|UHeader\|UFooter' app/pages/ app/layouts/ 2>/dev/null || echo "No Pro landing page components found — verify if landing pages exist"`
+   - If the app has marketing/landing pages built with raw HTML instead of Pro components, flag for refactoring.
+
+10. **Check dashboard layout compliance**
+    - Admin or dashboard pages should use Pro dashboard primitives:
+      - `UDashboardGroup` for the outer layout with sidebar state management
+      - `UDashboardSidebar` for collapsible side navigation
+      - `UDashboardPanel` for resizable content panels
+      - `UDashboardNavbar` for the top navigation bar
+        // turbo
+        `grep -rnl 'DashboardGroup\|DashboardSidebar\|DashboardPanel\|DashboardNavbar' app/pages/ app/layouts/ 2>/dev/null || echo "No Pro dashboard components found — verify if dashboard pages exist"`
+    - If the app has dashboard pages built with custom sidebar/panel layouts, flag for migration to Pro components.

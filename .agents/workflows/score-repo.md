@@ -66,23 +66,23 @@ Audit GitHub Actions workflows for correctness and completeness.
 1. **Workflow inventory**
    // turbo
    - Run `ls .github/workflows/`
-   - Expect: `ci.yml`, `deploy.yml`, `publish-layer.yml`, `deploy-showcase.yml` (minimum)
+   - Expect: `ci.yml` (quality-only), `version-bump.yml`, `weekly-drift-check.yml` (minimum)
 
 2. **CI (pull requests)**
    - Must run: `pnpm install --frozen-lockfile`, lint, typecheck
    - Should run: build (catches build-time errors)
    - Should run: test (if tests exist)
 
-3. **Deploy (push to main)**
-   - Must have concurrency groups with `cancel-in-progress: true`
-   - Cache paths must point to correct monorepo subdirectories (e.g., `apps/web/.nuxt`, not `.nuxt`)
-   - Must have `paths-ignore` to avoid re-triggering on layer publish commits
+3. **Deploy (local only)**
+   - CI does NOT deploy — deployment is done locally via `pnpm run ship` (wrangler deploy)
+   - The `/deploy` agent workflow must refuse to deploy a dirty repo (uncommitted changes)
+   - `pnpm run ship` script must exist in root package.json
 
 4. **Layer publishing**
-   - Must auto-bump version and publish on layer changes
+   - Must auto-bump version and publish on layer changes (template repo only)
    - Commit message should include `[skip ci]` to avoid deploy loops
 
-**Scoring:** 10 = all checks pass. -1 for each: missing workflow, no build in CI, wrong cache paths, no concurrency control, no path guards.
+**Scoring:** 10 = all checks pass. -1 for each: missing workflow, no build in CI, wrong cache paths, no concurrency control, no path guards, no dirty-repo guard in deploy workflow.
 
 ---
 
@@ -409,8 +409,8 @@ Audit for deprecated Nuxt UI syntax, old v2/v3 patterns, and common Nuxt UI v4 m
 3. **Legacy CSS imports**
    // turbo
    - Run `grep -rn "@nuxt/ui-pro\|@import.*ui-pro" apps/ layers/ --include='*.css' --include='*.ts' --include='*.vue' | grep -v 'node_modules' | head -10`
-   - `@import '@nuxt/ui-pro'` must be replaced with `@import '@nuxt/ui'`
-   - `@nuxt/ui-pro` module registration must be removed
+   - `@nuxt/ui-pro` is unified into `@nuxt/ui` in v4 — any `@import '@nuxt/ui-pro'` must be replaced with `@import '@nuxt/ui'`
+   - `@nuxt/ui-pro` module registration must be removed (all Pro components are included in `@nuxt/ui` v4)
 
 4. **CSS import order**
    // turbo
@@ -446,12 +446,17 @@ Audit for deprecated Nuxt UI syntax, old v2/v3 patterns, and common Nuxt UI v4 m
    - Passing `useAsyncData` `refresh` directly to `@click` causes TS errors (MouseEvent vs AsyncDataExecuteOptions)
    - Must wrap: `@click="() => refresh()"`
 
-10. **Duplicate `@nuxt/ui-pro` dependency**
+10. **Stale `@nuxt/ui-pro` dependency**
     // turbo
     - Run `grep -rn 'ui-pro' apps/ layers/ --include='package.json' | grep -v 'node_modules' | head -5`
-    - Having both `@nuxt/ui` and `@nuxt/ui-pro` causes module resolution conflicts and duplicate Vue instances
+    - `@nuxt/ui-pro` is unified into `@nuxt/ui` in v4 — a separate `@nuxt/ui-pro` dependency must be removed
 
-**Scoring:** 10 = all checks pass. -1 for each: deprecated component name, old prop syntax, legacy CSS import, wrong import order, legacy color tokens, `@apply` with semantic classes, stale model modifiers, old utility paths, unguarded refresh handler, duplicate ui-pro dependency.
+11. **Pro Component Adoption**
+    // turbo
+    - Run `grep -rnl 'PageHero\|PageSection\|PageFeature\|PageCTA\|DashboardGroup\|DashboardSidebar\|PricingPlan\|AuthForm\|BlogPost' apps/ layers/ --include='*.vue' | grep -v 'node_modules' | head -15`
+    - Nuxt UI v4 includes 110+ components including powerful Pro layout primitives (Dashboard*, Page*, Pricing*, Blog*, Auth\*). Landing pages should use `PageHero`, `PageSection`, `PageFeature`, `PageCTA`. Admin dashboards should use `DashboardGroup`, `DashboardSidebar`, `DashboardPanel`. Flag apps that build these patterns with custom divs.
+
+**Scoring:** 10 = all checks pass. -1 for each: deprecated component name, old prop syntax, legacy CSS import, wrong import order, legacy color tokens, `@apply` with semantic classes, stale model modifiers, old utility paths, unguarded refresh handler, stale ui-pro dependency, no Pro component adoption.
 
 ## 15. Accessibility (Target: 10/10)
 

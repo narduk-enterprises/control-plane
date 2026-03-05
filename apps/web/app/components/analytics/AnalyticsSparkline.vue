@@ -8,7 +8,7 @@ const props = withDefaults(
     height?: number
     color?: string
   }>(),
-  { width: 80, height: 28, color: 'var(--ui-primary)' },
+  { width: 80, height: 28, color: 'var(--ui-primary)', compareData: undefined },
 )
 
 const pathData = computed(() => {
@@ -42,6 +42,7 @@ const comparePathData = computed(() => {
 
 <template>
   <div class="inline-block overflow-hidden rounded" :style="{ width: `${width}px`, height: `${height}px` }">
+    <!-- eslint-disable-next-line atx/no-inline-svg -- sparkline requires direct SVG rendering -->
     <svg :width="width" :height="height" class="block" xmlns="http://www.w3.org/2000/svg">
       <path
         v-if="comparePathData"

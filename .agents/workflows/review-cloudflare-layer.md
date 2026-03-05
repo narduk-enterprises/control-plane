@@ -246,21 +246,23 @@ Review the developer experience of cloning, setting up, and running the template
 
 ## Step 7: Deployment & CI/CD Readiness
 
-Validate the deployment pipeline against Cloudflare's monorepo CI/CD guide.
+Validate the deployment pipeline. Deployment is done **locally** via `wrangler deploy` — CI is quality-only.
 
 1. **Check deploy scripts:**
    // turbo
    `grep -n '"deploy"' */*/package.json 2>/dev/null`
    - Expected pattern: `"deploy": "nuxt build && wrangler deploy"`. Both steps must be present.
+   - Root package.json should have `"deploy": "doppler run -- pnpm --filter web run deploy"`.
 
-2. **Check for build watch paths** (Cloudflare CI/CD best practice for monorepos):
-   - Each Worker in the monorepo should have build watch paths configured in the Cloudflare dashboard to avoid deploying unchanged apps.
-   - **This is a manual check** — note in the report if CI/CD is not documented.
-
-3. **Check GitHub Actions or CI config:**
+2. **Check `/deploy` agent workflow has dirty-repo guard:**
    // turbo
-   `ls .github/workflows/ 2>/dev/null || echo "⚠️ No GitHub Actions workflows found"`
-   - If present, verify they run `pnpm install`, `pnpm run quality` (lint + typecheck), and deploy only changed workspaces.
+   `grep -c 'porcelain' .agents/workflows/deploy.md`
+   - The deploy workflow must refuse to deploy when the working tree has uncommitted changes.
+
+3. **Check CI is quality-only (no deploy job):**
+   // turbo
+   `grep -c 'wrangler deploy' .github/workflows/ci.yml`
+   - Should be 0 — CI should only run lint, typecheck, and tests.
 
 4. **Check for `wrangler` version consistency:**
    // turbo
@@ -273,13 +275,13 @@ Validate the deployment pipeline against Cloudflare's monorepo CI/CD guide.
 
 This step ensures this review covers gaps not already handled by other workflows. Check off each existing workflow and note any overlap.
 
-| Workflow               | Covered by this review? | Overlap notes                                                                     |
-| ---------------------- | ----------------------- | --------------------------------------------------------------------------------- |
-| `/check-layer-health`  | Partially               | That workflow covers shadowing/config drift; this adds Cloudflare-specific checks |
-| `/audit-repo-hygiene`  | No overlap              | Run separately for secrets/junk files                                             |
-| `/check-nuxt-ssr`      | No overlap              | SSR safety is orthogonal to Cloudflare config                                     |
-| `/check-nuxt-ui-v4`    | No overlap              | UI component audit is orthogonal                                                  |
-| `/check-data-fetching` | No overlap              | Data fetching patterns are orthogonal                                             |
+| Workflow                      | Covered by this review? | Overlap notes                                                                     |
+| ----------------------------- | ----------------------- | --------------------------------------------------------------------------------- |
+| `/check-layer-health`         | Partially               | That workflow covers shadowing/config drift; this adds Cloudflare-specific checks |
+| `/audit-repo-hygiene`         | No overlap              | Run separately for secrets/junk files                                             |
+| `/check-ssr-hydration-safety` | No overlap              | SSR safety is orthogonal to Cloudflare config                                     |
+| `/check-ui-styling`           | No overlap              | UI component audit is orthogonal                                                  |
+| `/check-data-fetching`        | No overlap              | Data fetching patterns are orthogonal                                             |
 
 ---
 
@@ -287,15 +289,15 @@ This step ensures this review covers gaps not already handled by other workflows
 
 Write a structured report with the following sections. Every finding must include the **official doc source** it was checked against.
 
-| Section             | What to Include                                                           |
-| ------------------- | ------------------------------------------------------------------------- |
-| **Wrangler Config** | Each config file with pass/fail per check, doc reference                  |
-| **Nitro & Build**   | Preset validation, esbuild target, externals                              |
-| **D1 & Drizzle**    | Middleware injection, singleton pattern, schema location, migration paths |
-| **Bindings**        | Binding ↔ wrangler matrix, type safety                                    |
-| **Edge Safety**     | Global state, floating promises, crypto, process.env                      |
-| **DX**              | Onboarding friction points, missing scripts, config inconsistencies       |
-| **CI/CD**           | Deploy scripts, wrangler version consistency, build watch paths           |
+| Section             | What to Include                                                                 |
+| ------------------- | ------------------------------------------------------------------------------- |
+| **Wrangler Config** | Each config file with pass/fail per check, doc reference                        |
+| **Nitro & Build**   | Preset validation, esbuild target, externals                                    |
+| **D1 & Drizzle**    | Middleware injection, singleton pattern, schema location, migration paths       |
+| **Bindings**        | Binding ↔ wrangler matrix, type safety                                          |
+| **Edge Safety**     | Global state, floating promises, crypto, process.env                            |
+| **DX**              | Onboarding friction points, missing scripts, config inconsistencies             |
+| **CI/CD**           | Deploy scripts, wrangler version consistency, dirty-repo guard, quality-only CI |
 
 For each finding, assign a severity:
 

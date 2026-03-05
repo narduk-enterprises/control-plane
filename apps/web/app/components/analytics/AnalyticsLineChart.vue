@@ -80,7 +80,7 @@ const annotationPluginsConfig = computed(() => {
   const ann = props.annotations
   if (!ann?.length) return {}
   const vLines: Record<string, { type: 'line'; xMin: string; xMax: string; borderColor: string; borderWidth: number; borderDash: number[] }> = {}
-  ann.forEach((a, i) => {
+  for (const [i, a] of ann.entries()) {
     vLines[`vline-${i}`] = {
       type: 'line',
       xMin: a.date,
@@ -89,7 +89,7 @@ const annotationPluginsConfig = computed(() => {
       borderWidth: 1,
       borderDash: [2, 2],
     }
-  })
+  }
   return { annotation: { annotations: vLines } }
 })
 

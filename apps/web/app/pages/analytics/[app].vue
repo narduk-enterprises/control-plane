@@ -30,7 +30,7 @@ const gscParamsQuery = computed(() => ({
   dimension: 'query' as GscDimension,
   force: force.value,
 }))
-const { data: gscQueryData, loading: gscQueryLoading, load: loadGscQuery } = useFleetGscQuery(appName, gscParamsQuery)
+const { data: gscQueryData, loading: _gscQueryLoading, load: loadGscQuery } = useFleetGscQuery(appName, gscParamsQuery)
 
 const gscParamsDevice = computed(() => ({
   startDate: startDate.value,
@@ -46,7 +46,7 @@ const { data: posthogData, error: posthogError, loading: posthogLoading, load: l
   endDate,
   force,
 )
-const { data: indexnowData, loading: indexnowLoading, submit: submitIndexnow } = useFleetIndexnow(appName)
+const { data: _indexnowData, loading: indexnowLoading, submit: submitIndexnow } = useFleetIndexnow(appName)
 const { data: sitemapData, error: sitemapError, loading: sitemapLoading, run: runSitemapAnalysis } = useFleetSitemapAnalysis(appName)
 
 function loadAll() {
@@ -107,6 +107,10 @@ const breadcrumbItems = computed(() => [
   { label: 'Analytics', to: '/analytics' },
   { label: appName.value },
 ])
+
+const gscTopQueries = computed(() => (gscQueryData.value?.rows ?? []).slice(0, 10))
+const gscTopDevices = computed(() => (gscDeviceData.value?.rows ?? []).slice(0, 5))
+const sitemapUrlsPreview = computed(() => (sitemapData.value?.urls ?? []).slice(0, 50))
 </script>
 
 <template>
@@ -130,6 +134,7 @@ const breadcrumbItems = computed(() => [
             class="cursor-pointer p-0"
             icon="i-lucide-external-link"
           >
+            <!-- eslint-disable-next-line vue-official/no-template-complex-expressions -->
             {{ appUrl.replace(/^https?:\/\//, '') }}
           </UButton>
           <UBadge
@@ -271,7 +276,7 @@ const breadcrumbItems = computed(() => [
         </template>
         <div class="max-h-64 overflow-auto">
           <UTable
-            :data="(gscQueryData.rows ?? []).slice(0, 10)"
+            :data="gscTopQueries"
             :columns="[
               { accessorKey: 'keys', header: 'Query', meta: { class: { td: 'max-w-[180px] truncate' } }, cell: ({ row }) => row.original.keys?.[0] ?? '—' },
               { accessorKey: 'clicks', header: 'Clicks', cell: ({ row }) => (row.original.clicks ?? 0).toLocaleString() },
@@ -304,7 +309,7 @@ const breadcrumbItems = computed(() => [
         </template>
         <div class="max-h-48 overflow-auto">
           <UTable
-            :data="(gscDeviceData.rows ?? []).slice(0, 5)"
+            :data="gscTopDevices"
             :columns="[
               { accessorKey: 'keys', header: 'Device', cell: ({ row }) => row.original.keys?.[0] ?? '—' },
               { accessorKey: 'clicks', header: 'Clicks', cell: ({ row }) => (row.original.clicks ?? 0).toLocaleString() },
@@ -390,9 +395,9 @@ const breadcrumbItems = computed(() => [
       <div v-else-if="sitemapData" class="mt-4 space-y-4">
         <div class="flex flex-wrap gap-4 text-sm">
           <span class="font-medium text-default">Sitemap:</span>
-          <a :href="sitemapData.sitemapUrl" target="_blank" rel="noopener" class="text-primary-600 hover:underline">
+          <ULink :to="sitemapData.sitemapUrl" target="_blank" rel="noopener" class="text-primary hover:underline">
             {{ sitemapData.sitemapUrl }}
-          </a>
+          </ULink>
         </div>
         <div class="flex flex-wrap gap-6 text-sm">
           <span><strong class="text-default">{{ sitemapData.totalUrls }}</strong> <span class="text-muted">URLs</span></span>
@@ -417,8 +422,8 @@ const breadcrumbItems = computed(() => [
         </div>
         <div v-else-if="sitemapData.urls?.length" class="max-h-48 overflow-auto rounded-lg border border-default p-2">
           <ul class="list-inside list-disc space-y-1 font-mono text-xs text-muted">
-            <li v-for="u in sitemapData.urls.slice(0, 50)" :key="u" class="truncate">
-              <a :href="u" target="_blank" rel="noopener" class="text-primary-600 hover:underline">{{ u }}</a>
+            <li v-for="u in sitemapUrlsPreview" :key="u" class="truncate">
+              <ULink :to="u" target="_blank" rel="noopener" class="text-primary hover:underline">{{ u }}</ULink>
             </li>
           </ul>
           <p v-if="sitemapData.urls.length > 50" class="mt-2 text-xs text-muted">

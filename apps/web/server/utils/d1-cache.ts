@@ -86,11 +86,11 @@ export async function withD1Cache<T>(
                 const isExpired = row.expires_at <= nowSec
                 const withinStale = staleWindowSeconds > 0 && row.expires_at + staleWindowSeconds > nowSec
                 if (!isExpired) {
-                    console.log(`[D1 Cache HIT] ${cacheKey}`)
+                    if (import.meta.dev) console.log(`[D1 Cache HIT] ${cacheKey}`)
                     return wrap(JSON.parse(row.value) as T, false)
                 }
                 if (withinStale) {
-                    console.log(`[D1 Cache STALE] ${cacheKey}`)
+                    if (import.meta.dev) console.log(`[D1 Cache STALE] ${cacheKey}`)
                     const parsed = JSON.parse(row.value) as T
                     // Background refresh (fire-and-forget)
                     Promise.resolve()
@@ -104,7 +104,7 @@ export async function withD1Cache<T>(
                     return wrap(parsed, true)
                 }
             }
-            console.log(`[D1 Cache MISS] ${cacheKey}`)
+            if (import.meta.dev) console.log(`[D1 Cache MISS] ${cacheKey}`)
         } catch (err) {
             console.error(`[D1 Cache GET Error] ${cacheKey}`, err)
         }
@@ -119,7 +119,7 @@ export async function withD1Cache<T>(
     if (d1 && result !== undefined) {
         try {
             await setCache(d1, cacheKey, JSON.stringify(result), ttlSeconds)
-            console.log(`[D1 Cache SET] ${cacheKey}`)
+            if (import.meta.dev) console.log(`[D1 Cache SET] ${cacheKey}`)
         } catch (err) {
             console.error(`[D1 Cache SET Error] ${cacheKey}`, err)
         }

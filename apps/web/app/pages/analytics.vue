@@ -35,7 +35,7 @@ const viewMode = ref<'cards' | 'dense'>('cards')
 watch(viewMode, (v) => {
   try {
     if (import.meta.client && typeof localStorage !== 'undefined') localStorage.setItem('analytics-view-mode', v)
-  } catch (_) {}
+  } catch (_) { /* localStorage may be unavailable */ }
 })
 
 const sortKey = ref('name')
@@ -96,7 +96,7 @@ onMounted(() => {
   try {
     const saved = localStorage.getItem('analytics-view-mode') as 'cards' | 'dense' | null
     if (saved === 'cards' || saved === 'dense') viewMode.value = saved
-  } catch (_) {}
+  } catch (_) { /* localStorage may be unavailable */ }
   refreshStatusesRaw()
   if (!is1hRef.value) loadAll()
 })

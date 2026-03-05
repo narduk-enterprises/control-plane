@@ -74,7 +74,7 @@ function buildInsights(apps: Record<string, FleetAppAnalyticsSummary>): Analytic
       delta: leader.delta,
     })
   }
-  const decliner = withUserDelta.filter((x) => x.delta < -THRESHOLD_PCT)[0]
+  const decliner = withUserDelta.find((x) => x.delta < -THRESHOLD_PCT)
   if (decliner) {
     insights.push({
       type: 'drop',

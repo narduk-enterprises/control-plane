@@ -10,7 +10,7 @@ import { requireAdmin } from '#layer/server/utils/auth'
 import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { getFleetAppByName } from '#server/data/fleet-registry'
 
-const LOC_REGEX = /<loc>\s*([^<]+)\s*<\/loc>/gi
+const LOC_REGEX = /<loc>([^<]+)<\/loc>/gi
 const MAX_INDEX_SITEMAPS = 10
 const MAX_URLS_DEEP = 200
 const FETCH_TIMEOUT_MS = 12_000
@@ -21,7 +21,7 @@ function extractLocUrls(xml: string): string[] {
   let m: RegExpExecArray | null
   LOC_REGEX.lastIndex = 0
   while ((m = LOC_REGEX.exec(xml)) !== null) {
-    const url = m[1].trim()
+    const url = (m[1] ?? '').trim()
     if (url && !urls.includes(url)) urls.push(url)
   }
   return urls

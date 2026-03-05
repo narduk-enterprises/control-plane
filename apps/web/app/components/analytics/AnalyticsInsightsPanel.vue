@@ -47,9 +47,10 @@ const severityColor = (s: string) => {
 <template>
   <UCard v-if="insights.length > 0 || loading" class="mb-6 bg-elevated/30">
     <template #header>
-      <button
-        type="button"
-        class="flex w-full items-center justify-between gap-2 text-left"
+      <UButton
+        variant="ghost"
+        color="neutral"
+        class="flex w-full items-center justify-between gap-2 text-left cursor-pointer -mx-2"
         @click="isCollapsed = !isCollapsed"
       >
         <div class="flex items-center gap-2">
@@ -60,7 +61,7 @@ const severityColor = (s: string) => {
           </UBadge>
         </div>
         <UIcon :name="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'" class="size-4 text-muted" />
-      </button>
+      </UButton>
     </template>
     <div v-if="!isCollapsed">
       <div v-if="loading && !insights.length" class="flex items-center gap-2 text-sm text-muted">

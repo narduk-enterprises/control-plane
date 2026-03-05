@@ -75,6 +75,7 @@ const columns = computed(() => [
 
 <template>
   <div class="overflow-x-auto rounded-lg border border-default">
+    <!-- eslint-disable-next-line atx/no-native-table -- custom dense table not suitable for UTable migration -->
     <table class="w-full min-w-[600px] text-sm">
       <thead>
         <tr class="border-b border-default bg-elevated/50">
@@ -84,14 +85,16 @@ const columns = computed(() => [
             class="px-3 py-2 text-left font-medium text-muted"
             :class="col.class"
           >
-            <button
+            <UButton
               v-if="col.key !== 'sparkline' && col.key !== 'status'"
-              type="button"
-              class="hover:text-default"
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              class="-mx-2 cursor-pointer hover:text-default"
               @click="toggleSort(col.key)"
             >
               {{ col.label }}
-            </button>
+            </UButton>
             <span v-else>{{ col.label }}</span>
           </th>
         </tr>
@@ -124,6 +127,7 @@ const columns = computed(() => [
             {{ (summaryMap[app.name]?.gsc?.totals?.clicks ?? 0).toLocaleString() }}
           </td>
           <td class="px-3 py-2 text-right tabular-nums">
+            <!-- eslint-disable-next-line vue-official/no-template-complex-expressions -->
             {{ Number(summaryMap[app.name]?.posthog?.summary?.event_count ?? 0).toLocaleString() }}
           </td>
           <td class="px-3 py-2">

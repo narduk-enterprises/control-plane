@@ -39,6 +39,7 @@ export function useFleetAnalyticsSummary(
   const query = computed(() => ({
     startDate: toValue(startDate),
     endDate: toValue(endDate),
+    // eslint-disable-next-line vue-official/no-composable-conditional-hooks -- false positive: toValue(options?.force) is not conditional
     ...(toValue(options?.force) ? { force: 'true' } : {}),
   }))
 

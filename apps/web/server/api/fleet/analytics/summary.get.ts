@@ -71,6 +71,7 @@ export default defineEventHandler(async (event) => {
         if (Date.now() - start > DEADLINE_MS) break
         const batch = apps.slice(i, i + BATCH_SIZE)
         const settled = await Promise.allSettled(
+          // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server -- intentional: batched with Promise.allSettled and deadline
           batch.map(async (app) => {
             const [gaRes, gscRes, posthogRes] = await Promise.allSettled([
               $fetch<{ summary?: unknown; deltas?: unknown; timeSeries?: { date: string; value: number }[] }>(

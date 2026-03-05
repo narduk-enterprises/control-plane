@@ -28,7 +28,7 @@ cd apps/web && CMD=$(node -p "require('./package.json').scripts['db:migrate']?.r
 3. Build and deploy to Cloudflare Workers:
 
 ```bash
-cd apps/web && doppler run -- pnpm run deploy
+pnpm run ship
 ```
 
 4. Push the committed code to the remote (good practice, separate from deploy):
