@@ -37,7 +37,7 @@ const lines = FLEET_APPS.map((app) => {
   const url = app.url
   const dopplerProject = app.name
   const gaPropertyId = app.gaPropertyId ? `'${app.gaPropertyId}'` : 'NULL'
-  const posthogAppName = (app as Record<string, unknown>).posthogAppName ? `'${(app as Record<string, unknown>).posthogAppName}'` : 'NULL'
+  const posthogAppName = (app as Record<string, unknown>).posthogAppName ? `'${String((app as Record<string, unknown>).posthogAppName).replace(/'/g, "''")}'` : 'NULL'
   const githubRepo = app.githubRepo ? `'${app.githubRepo}'` : 'NULL'
   const isActive = (app as Record<string, unknown>).isActive === false ? 0 : 1
   return `INSERT OR REPLACE INTO fleet_apps (name, url, doppler_project, ga_property_id, posthog_app_name, github_repo, is_active, created_at, updated_at) VALUES ('${name}', '${url}', '${dopplerProject}', ${gaPropertyId}, ${posthogAppName}, ${githubRepo}, ${isActive}, '${now}', '${now}');`
