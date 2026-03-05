@@ -1,5 +1,6 @@
 <script setup lang="ts">
 useSeo({
+  robots: 'noindex',
   title: 'Settings',
   description: 'Control Plane configuration and integrations.',
 })

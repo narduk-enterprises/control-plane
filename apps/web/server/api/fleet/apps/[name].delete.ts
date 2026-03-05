@@ -1,6 +1,11 @@
 import { eq } from 'drizzle-orm'
+import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { fleetApps } from '#server/database/schema'
+
+const querySchema = z.object({
+  hard: z.enum(['true', 'false']).optional(),
+})
 
 /**
  * DELETE /api/fleet/apps/[name]
@@ -20,7 +25,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: `App '${appName}' not found.` })
   }
 
-  const query = getQuery(event)
+  const rawQuery = getQuery(event)
+  const query = querySchema.parse(rawQuery)
+  
   if (query.hard === 'true') {
     await db.delete(fleetApps).where(eq(fleetApps.name, appName))
     return { ok: true, app: appName, action: 'deleted' }

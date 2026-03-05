@@ -2,6 +2,7 @@
 import type { FleetApp } from '~/composables/useFleet'
 
 useSeo({
+  robots: 'noindex',
   title: 'Manage Fleet',
   description: 'Add, edit, and manage fleet app registrations.',
 })
@@ -12,13 +13,7 @@ useWebPageSchema({
 
 const toast = useToast()
 
-// Fetch all apps including inactive
-const { data: allApps, refresh: refreshApps, status } = useFetch<FleetApp[]>('/api/fleet/apps', {
-  query: { includeInactive: 'true' },
-  default: () => [],
-})
-
-const isLoading = computed(() => status.value === 'pending')
+const { rawApps: allApps, refreshApps, isLoading, adminAddApp, adminToggleApp, adminDeleteApp } = useFleet({ includeInactive: true })
 const sortedApps = computed(() => [...(allApps.value ?? [])].sort((a, b) => a.name.localeCompare(b.name)))
 const activeCount = computed(() => sortedApps.value.filter(a => a.isActive !== false).length)
 const inactiveCount = computed(() => sortedApps.value.filter(a => a.isActive === false).length)
@@ -48,23 +43,21 @@ async function addApp() {
   if (!addForm.name || !addForm.url) return
   isAdding.value = true
   try {
-    await $fetch('/api/fleet/apps', {
-      method: 'POST',
-      body: {
+    await adminAddApp({
         name: addForm.name,
         url: addForm.url,
         dopplerProject: addForm.dopplerProject || addForm.name,
         gaPropertyId: addForm.gaPropertyId || null,
         posthogAppName: addForm.posthogAppName || null,
         githubRepo: addForm.githubRepo || null,
-      },
-    })
+      })
     toast.add({ title: 'App added', description: `${addForm.name} has been added to the fleet.`, color: 'success' })
     showAddModal.value = false
     resetAddForm()
     await refreshApps()
-  } catch (err: any) {
-    toast.add({ title: 'Error', description: err.data?.message || err.message || 'Failed to add app', color: 'error' })
+  } catch (err) {
+    const error = err as { data?: { message?: string }, message?: string }
+    toast.add({ title: 'Error', description: error.data?.message || error.message || 'Failed to add app', color: 'error' })
   } finally {
     isAdding.value = false
   }
@@ -74,18 +67,16 @@ async function addApp() {
 async function toggleActive(app: FleetApp) {
   const newState = app.isActive === false
   try {
-    await $fetch(`/api/fleet/apps/${encodeURIComponent(app.name)}`, {
-      method: 'PUT',
-      body: { isActive: newState },
-    })
+    await adminToggleApp(app.name, newState)
     toast.add({
       title: newState ? 'Activated' : 'Deactivated',
       description: `${app.name} is now ${newState ? 'active' : 'inactive'}.`,
       color: newState ? 'success' : 'warning',
     })
     await refreshApps()
-  } catch (err: any) {
-    toast.add({ title: 'Error', description: err.data?.message || 'Failed to update app', color: 'error' })
+  } catch (err) {
+    const error = err as { data?: { message?: string }, message?: string }
+    toast.add({ title: 'Error', description: error.data?.message || 'Failed to update app', color: 'error' })
   }
 }
 
@@ -93,11 +84,12 @@ async function toggleActive(app: FleetApp) {
 async function deleteApp(app: FleetApp) {
   if (!confirm(`Permanently delete "${app.name}"? This cannot be undone.`)) return
   try {
-    await $fetch(`/api/fleet/apps/${encodeURIComponent(app.name)}?hard=true`, { method: 'DELETE' })
+    await adminDeleteApp(app.name)
     toast.add({ title: 'Deleted', description: `${app.name} has been removed from the fleet.`, color: 'success' })
     await refreshApps()
-  } catch (err: any) {
-    toast.add({ title: 'Error', description: err.data?.message || 'Failed to delete', color: 'error' })
+  } catch (err) {
+    const error = err as { data?: { message?: string }, message?: string }
+    toast.add({ title: 'Error', description: error.data?.message || 'Failed to delete', color: 'error' })
   }
 }
 
@@ -106,6 +98,10 @@ const breadcrumbItems = computed(() => [
   { label: 'Fleet', to: '/fleet' },
   { label: 'Manage' },
 ])
+
+function formatUrl(url: string) {
+  return url.replace(/^https?:\/\//, '')
+}
 </script>
 
 <template>
@@ -167,15 +163,14 @@ const breadcrumbItems = computed(() => [
               </UBadge>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-              <a
-                :href="app.url"
+              <ULink
+                :to="app.url"
                 target="_blank"
-                rel="noopener"
                 class="hover:text-primary transition-colors hover:underline flex items-center gap-1"
               >
-                {{ app.url.replace(/^https?:\/\//, '') }}
+                {{ formatUrl(app.url) }}
                 <UIcon name="i-lucide-external-link" class="size-3 opacity-50" />
-              </a>
+              </ULink>
               <span v-if="app.gaPropertyId" class="flex items-center gap-1">
                 <UIcon name="i-lucide-bar-chart-2" class="size-3" />
                 GA: {{ app.gaPropertyId }}

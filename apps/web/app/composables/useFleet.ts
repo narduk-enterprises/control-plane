@@ -14,8 +14,10 @@ export interface FleetApp {
 
 type PosthogSummaryMap = Record<string, { eventCount: number; users: number }>
 
-export function useFleet() {
+export function useFleet(options?: { includeInactive?: boolean }) {
+  const query = options?.includeInactive ? { includeInactive: 'true' } : undefined
   const { data: rawApps, refresh: refreshApps, status: appsStatus } = useFetch<FleetApp[]>('/api/fleet/apps', {
+    query,
     default: () => [],
   })
 
@@ -86,6 +88,19 @@ export function useFleet() {
     return appsStatus.value === 'pending' || statusesStatus.value === 'pending' || posthogStatus.value === 'pending'
   })
 
+  // 6. Admin Mutations
+  async function adminAddApp(body: Record<string, unknown>) {
+    return $fetch('/api/fleet/apps', { method: 'POST', body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+  }
+
+  async function adminToggleApp(appName: string, isActive: boolean) {
+    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}`, { method: 'PUT', body: { isActive }, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+  }
+
+  async function adminDeleteApp(appName: string, hard: boolean = true) {
+    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}${hard ? '?hard=true' : ''}`, { method: 'DELETE', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+  }
+
   return {
     apps,
     rawApps,
@@ -103,5 +118,9 @@ export function useFleet() {
     refreshPosthog,
     forceRefreshAll,
     isLoading,
+    
+    adminAddApp,
+    adminToggleApp,
+    adminDeleteApp,
   }
 }
