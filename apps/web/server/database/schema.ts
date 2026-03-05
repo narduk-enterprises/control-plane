@@ -13,6 +13,9 @@ export const appStatus = sqliteTable('app_status', {
     status: text('status').notNull(), // 'up' | 'down'
     statusCode: integer('status_code'),
     checkedAt: text('checked_at').notNull().$defaultFn(() => new Date().toISOString()),
+    indexnowLastSubmission: text('indexnow_last_submission'),
+    indexnowTotalSubmissions: integer('indexnow_total_submissions').notNull().default(0),
+    indexnowLastSubmittedCount: integer('indexnow_last_submitted_count'),
 })
 
 // ─── KV Cache ───────────────────────────────────────────────

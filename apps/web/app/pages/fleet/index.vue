@@ -15,15 +15,12 @@ useWebPageSchema({
 
 type FleetApp = { name: string; url: string; dopplerProject: string }
 
-const { apps, refreshApps } = useFleetDashboard()
-const { getStatus, refreshStatuses, isRefreshing } = useFleetStatuses()
+const { apps: fleetApps, getAppStatus: getStatus, refreshStatuses, refreshApps, isRefreshingStatus: isRefreshing } = useFleet()
 const searchQuery = ref('')
-const fleetApps = computed(() => apps.value ?? [])
 const filteredApps = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const sorted = [...fleetApps.value].sort((a, b) => a.name.localeCompare(b.name))
-  if (!q) return sorted
-  return sorted.filter(
+  if (!q) return fleetApps.value
+  return fleetApps.value.filter(
     (app) =>
       app.name.toLowerCase().includes(q) ||
       app.url.toLowerCase().includes(q) ||
@@ -65,6 +62,28 @@ const fleetColumns: TableColumn<FleetApp>[] = [
     header: 'Status',
     cell: ({ row }) => {
       return h(FleetAppStatus, { appStatus: getStatus(row.original.name) })
+    },
+    enableSorting: false,
+  },
+  {
+    id: 'indexnow',
+    header: 'IndexNow',
+    cell: ({ row }) => {
+      const status = getStatus(row.original.name)
+      if (!status?.indexnowLastSubmission) return h('span', { class: 'text-[10px] text-muted' }, '-')
+      
+      const lastDate = new Date(status.indexnowLastSubmission)
+      const diffDays = Math.floor((new Date().getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+      
+      let label = ''
+      if (diffDays === 0) label = 'Today'
+      else if (diffDays === 1) label = 'Yesterday'
+      else label = `${diffDays}d ago`
+
+      return h('div', { class: 'flex flex-col' }, [
+        h('span', { class: 'text-xs font-medium' }, label),
+        status.indexnowLastSubmittedCount ? h('span', { class: 'text-[10px] text-muted' }, `${status.indexnowLastSubmittedCount} URLs`) : null
+      ])
     },
     enableSorting: false,
   },

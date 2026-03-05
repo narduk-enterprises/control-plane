@@ -36,7 +36,16 @@ export async function checkAllFleetStatuses(event: H3Event): Promise<AppStatus[]
         // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server -- Intentional: parallel HTTP checks, not DB queries
         apps.map(async (app) => {
             const { status, code } = await checkUrl(app.url)
-            return { app: app.name, url: app.url, status, statusCode: code, checkedAt: now }
+            return { 
+                app: app.name, 
+                url: app.url, 
+                status, 
+                statusCode: code, 
+                checkedAt: now,
+                indexnowLastSubmission: null,
+                indexnowTotalSubmissions: 0,
+                indexnowLastSubmittedCount: null,
+            }
         }),
     )
 
@@ -71,7 +80,16 @@ export async function checkSingleFleetAppStatus(event: H3Event, appName: string)
     const now = new Date().toISOString()
     const { status, code } = await checkUrl(app.url)
 
-    const row: AppStatus = { app: app.name, url: app.url, status, statusCode: code, checkedAt: now }
+    const row: AppStatus = { 
+        app: app.name, 
+        url: app.url, 
+        status, 
+        statusCode: code, 
+        checkedAt: now,
+        indexnowLastSubmission: null,
+        indexnowTotalSubmissions: 0,
+        indexnowLastSubmittedCount: null,
+    }
 
     await db.insert(appStatus).values(row).onConflictDoUpdate({
         target: appStatus.app,

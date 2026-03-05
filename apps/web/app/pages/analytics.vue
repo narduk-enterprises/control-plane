@@ -12,11 +12,7 @@ useWebPageSchema({
 });
 
 // Fleet Apps
-const { apps } = useFleetDashboard();
-const fleetApps = computed(() => {
-  const allApps = apps.value ?? [];
-  return [...allApps].sort((a, b) => a.name.localeCompare(b.name));
-});
+const { apps: fleetApps } = useFleet();
 const selectedAppName = ref<string>('');
 
 watch(
@@ -74,6 +70,11 @@ async function refreshAll() {
   await Promise.all(reqs);
   forceRefresh.value = false;
 }
+
+// 4. IndexNow Summary
+const { data: indexnowSummary, status: indexnowStatus, refresh: refreshIndexnow } = useFetch('/api/fleet/indexnow/summary', {
+  immediate: true,
+})
 
 // Watch app or date range to load data implicitly
 watch(
@@ -232,7 +233,7 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
     </div>
 
     <!-- KPI Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <!-- GA KPIs -->
       <UCard v-if="!is1hRef">
         <template #header>
@@ -327,6 +328,31 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
           </div>
         </div>
         <div v-else class="text-sm text-muted">No search data or still loading.</div>
+      </UCard>
+
+      <!-- IndexNow KPIs -->
+      <UCard>
+        <template #header>
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-send" class="text-success size-5" />
+            <h3 class="font-medium">IndexNow</h3>
+            <USkeleton v-if="indexnowStatus === 'pending' && !indexnowSummary" class="w-12 h-4" />
+          </div>
+        </template>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs text-muted mb-1">Total Pings</p>
+            <p class="text-xl font-semibold">
+              {{ indexnowSummary?.totalSubmissions?.toLocaleString() ?? '-' }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-muted mb-1">Active Apps</p>
+            <p class="text-xl font-semibold">
+              {{ indexnowSummary?.appsWithIndexnow ?? 0 }}/{{ indexnowSummary?.totalFleetSize ?? 0 }}
+            </p>
+          </div>
+        </div>
       </UCard>
     </div>
 

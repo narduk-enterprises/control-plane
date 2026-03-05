@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 
@@ -8,6 +9,10 @@ const CACHE_TTL_SECONDS = 60 // 1 minute
 export default defineEventHandler(async (event) => {
     await requireAdmin(event)
     await enforceRateLimit(event, 'fleet-posthog-summary', 30, 60_000)
+
+    const queryParams = await getValidatedQuery(event, z.object({
+        force: z.enum(['true', 'false']).optional(),
+    }).parse)
 
     return withD1Cache(event, 'posthog-summary', CACHE_TTL_SECONDS, async () => {
 
@@ -75,5 +80,5 @@ export default defineEventHandler(async (event) => {
             console.error('[PostHog Summary] Error:', e.message)
             throw createError({ statusCode: 500, message: `PostHog summary error: ${e.message ?? 'Unknown'}` })
         }
-    })
+    }, queryParams.force === 'true')
 })

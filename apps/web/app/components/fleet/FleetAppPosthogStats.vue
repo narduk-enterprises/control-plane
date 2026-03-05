@@ -6,27 +6,19 @@ const props = defineProps<{
   loaded?: boolean
 }>()
 
-const { refreshApp } = useFleetPosthogSummary()
+const { refreshPosthog, isRefreshingStatus: refreshing } = useFleet()
 const manualStats = ref<{ eventCount: number; users: number } | null>(null)
-const refreshing = ref(false)
 
 const displayStats = computed(() => manualStats.value || props.stats)
 
 async function handleRefresh() {
   if (!props.appName || refreshing.value) return
 
-  refreshing.value = true
   try {
-    const stats = await refreshApp(props.appName)
-    if (stats) {
-      manualStats.value = stats
-    }
+    await refreshPosthog()
   }
   catch (err) {
     console.error(`[PostHog Refresh] Error for ${props.appName}:`, err)
-  }
-  finally {
-    refreshing.value = false
   }
 }
 

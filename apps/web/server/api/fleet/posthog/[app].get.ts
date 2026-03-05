@@ -56,7 +56,8 @@ export default defineEventHandler(async (event) => {
 
   return withD1Cache(event, cacheKey, 3600, async () => {
 
-    const escapedApp = app.name.replaceAll("'", "\\'")
+    const posthogName = app.posthogAppName ?? app.name
+    const escapedApp = posthogName.replaceAll("'", "\\'")
     const startISO = start.toISOString().slice(0, 19)
     const endISO = end.toISOString().slice(0, 19)
 
@@ -194,7 +195,7 @@ export default defineEventHandler(async (event) => {
         const topBrowsers = batchedRows.filter(r => r[0] === 'browser').map(r => ({ name: String(r[1] || 'Unknown'), count: Number(r[2] ?? 0) }))
 
         const uiHost = host.includes('us.i.posthog.com') ? 'https://us.posthog.com' : 'https://eu.posthog.com'
-        const replaysUrl = `${uiHost}/project/${projectId}/replays?properties=[{"key":"app","value":["${encodeURIComponent(app.name)}"],"operator":"exact","type":"event"}]`
+        const replaysUrl = `${uiHost}/project/${projectId}/replays?properties=[{"key":"app","value":["${encodeURIComponent(posthogName)}"],"operator":"exact","type":"event"}]`
 
         payload = {
           app: app.name,

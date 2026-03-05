@@ -16,6 +16,7 @@ export interface FleetApp {
   url: string;
   dopplerProject: string;
   gaPropertyId?: string;
+  posthogAppName?: string;
 }
 
 /** Production URLs per Doppler project. Sourced from each app's wrangler.json routes (custom_domain) in ~/new-code. */
@@ -38,7 +39,6 @@ const KNOWN_URLS: Record<string, string> = {
   'video-grab': 'https://video-grab.nard.uk',
 };
 
-/** GA4 property IDs per app. Sourced from GA Admin API (see /api/fleet/ga/diagnose). */
 const KNOWN_GA_PROPERTIES: Record<string, string> = {
   'austin-texas-net': '526067189',
   'circuit-breaker-online': '520350533',
@@ -56,6 +56,12 @@ const KNOWN_GA_PROPERTIES: Record<string, string> = {
   'sailing-passage-map': '526974566',
   'tiny-invoice': '526997389',
   'video-grab': '526953881',
+};
+
+/** PostHog app proper names if they differ from the name/dopplerProject slug */
+const KNOWN_POSTHOG_APPS: Record<string, string> = {
+  'papa-everetts-pizza': "Papa Everett's Pizza Co.",
+  'drift-map': 'Drift Map',
 };
 
 const FLEET_PROJECTS = [
@@ -83,6 +89,7 @@ export function getFleetApps(): FleetApp[] {
     url: KNOWN_URLS[dopplerProject] ?? `https://${dopplerProject}.nard.uk`,
     dopplerProject,
     gaPropertyId: KNOWN_GA_PROPERTIES[dopplerProject],
+    posthogAppName: KNOWN_POSTHOG_APPS[dopplerProject],
   }));
 }
 

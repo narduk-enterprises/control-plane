@@ -14,6 +14,11 @@ const showResponsePre = computed(() => data.value?.response != null && typeof da
 async function onSubmit() {
   await submit()
 }
+
+const formattedLastSubmission = computed(() => {
+  if (!data.value?.indexnowLastSubmission) return null
+  return new Date(data.value.indexnowLastSubmission).toLocaleString()
+})
 </script>
 
 <template>
@@ -35,8 +40,17 @@ async function onSubmit() {
     </div>
 
     <div v-else-if="data" class="rounded-lg border border-default bg-elevated/30 p-4">
-      <p class="text-sm font-medium text-default">Status {{ data.status }}</p>
-      <p class="mt-1 text-xs text-muted">{{ data.targetUrl }}</p>
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-sm font-medium text-default">Status {{ data.status }}</p>
+          <p class="mt-1 text-xs text-muted">{{ data.targetUrl }}</p>
+        </div>
+        <div v-if="formattedLastSubmission" class="text-right">
+          <p class="text-xs font-medium text-primary">Last Submitted</p>
+          <p class="text-[10px] text-muted">{{ formattedLastSubmission }}</p>
+          <p v-if="data.indexnowLastSubmittedCount" class="text-[10px] text-muted">({{ data.indexnowLastSubmittedCount }} URLs)</p>
+        </div>
+      </div>
       <p v-if="data.status === 404 && (data as any).message" class="mt-2 text-sm text-warning">
         {{ (data as any).message }}
       </p>

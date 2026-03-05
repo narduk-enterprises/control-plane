@@ -27,7 +27,7 @@ const checkedAgo = computed(() => {
   return `${hours}h ago`
 })
 
-const { refreshAppStatus, isAppRefreshing } = useFleetStatuses()
+const { refreshAppStatus, isAppRefreshing } = useFleet()
 const isRefreshing = computed(() => props.appStatus?.app ? isAppRefreshing(props.appStatus.app) : false)
 
 async function handleRefresh() {

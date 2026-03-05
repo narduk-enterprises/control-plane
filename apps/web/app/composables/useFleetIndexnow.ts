@@ -7,7 +7,10 @@ export function useFleetIndexnow(appName: MaybeRefOrGetter<string>) {
     app: string
     status: number
     targetUrl: string
-    response: unknown
+    response: any
+    indexnowLastSubmission?: string
+    indexnowTotalSubmissions?: number
+    indexnowLastSubmittedCount?: number
   }>(key, {
     method: 'POST',
     body: {},

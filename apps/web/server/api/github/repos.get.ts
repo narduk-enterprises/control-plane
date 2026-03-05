@@ -43,7 +43,10 @@ interface GithubRawRuns {
     }>
 }
 
-export default defineEventHandler(async (_event): Promise<GithubRepo[]> => {
+import { z } from 'zod'
+import { withD1Cache } from '#server/utils/d1-cache'
+
+export default defineEventHandler(async (event): Promise<GithubRepo[]> => {
     const config = useRuntimeConfig()
     const token = config.githubToken
 
@@ -60,7 +63,12 @@ export default defineEventHandler(async (_event): Promise<GithubRepo[]> => {
         'User-Agent': 'Narduk-Control-Plane',
     }
 
-    try {
+    const queryParams = await getValidatedQuery(event, z.object({
+        force: z.enum(['true', 'false']).optional(),
+    }).parse)
+
+    return withD1Cache(event, 'github-repos-dashboard', 3600, async () => {
+        try {
         // Fetch 10 most recently updated repositories for the authenticated user
         const reposRes = await $fetch<GithubRawRepo[]>('https://api.github.com/user/repos?sort=updated&per_page=12', {
             headers,
@@ -120,4 +128,5 @@ export default defineEventHandler(async (_event): Promise<GithubRepo[]> => {
             message: 'Failed to fetch GitHub data',
         })
     }
+    }, queryParams.force === 'true')
 })

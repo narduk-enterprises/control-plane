@@ -8,4 +8,7 @@ export interface FleetAppStatusRecord {
     status: 'up' | 'down'
     statusCode: number | null
     checkedAt: string
+    indexnowLastSubmission: string | null
+    indexnowTotalSubmissions: number
+    indexnowLastSubmittedCount: number | null
 }

@@ -1,4 +1,5 @@
 import { appStatus } from '#server/database/schema'
+import { z } from 'zod'
 
 /**
  * GET /api/fleet/status
@@ -8,11 +9,17 @@ import { appStatus } from '#server/database/schema'
  * to populate the table (first-run / fresh migration scenario).
  */
 export default defineEventHandler(async (event) => {
+    const queryParams = await getValidatedQuery(event, z.object({
+        force: z.enum(['true', 'false']).optional(),
+    }).parse)
+
     const db = useDatabase(event)
-    const rows = await db.select().from(appStatus).all()
 
-    if (rows.length > 0) return rows
+    if (queryParams.force !== 'true') {
+        const rows = await db.select().from(appStatus).all()
+        if (rows.length > 0) return rows
+    }
 
-    // No cached data — run the checks now and return fresh results
+    // No cached data or forced — run the checks now and return fresh results
     return checkAllFleetStatuses(event)
 })

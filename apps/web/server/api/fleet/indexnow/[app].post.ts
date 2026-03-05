@@ -27,10 +27,26 @@ export default defineEventHandler(async (event) => {
     body: JSON.stringify(payload),
   })
 
-  const data = await res.json().catch(() => ({}))
+  const data = await res.json().catch(() => ({})) as any
   const message =
     res.status === 404
       ? 'Fleet app does not expose /api/indexnow/submit. Ensure the app uses the Narduk template layer or implements this endpoint.'
       : undefined
+
+  // Record stats if successful
+  if (res.ok) {
+    const db = useDatabase(event)
+    const { eq, sql } = await import('drizzle-orm')
+    const appStatusTable = (await import('#server/database/schema')).appStatus
+
+    await db.update(appStatusTable)
+      .set({
+        indexnowLastSubmission: new Date().toISOString(),
+        indexnowTotalSubmissions: sql`${appStatusTable.indexnowTotalSubmissions} + 1`,
+        indexnowLastSubmittedCount: data.submitted ?? 0,
+      })
+      .where(eq(appStatusTable.app, app.name))
+  }
+
   return { app: app.name, status: res.status, targetUrl, response: data, message }
 })

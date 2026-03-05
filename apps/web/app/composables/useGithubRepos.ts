@@ -19,6 +19,10 @@ export interface GithubRepo {
     } | null
 }
 
-export function useGithubRepos() {
-    return useFetch<GithubRepo[]>('/api/github/repos')
+export function useGithubRepos(force?: Ref<boolean>) {
+    return useFetch<GithubRepo[]>('/api/github/repos', {
+        query: computed(() => ({
+            force: force?.value ? 'true' : undefined
+        }))
+    })
 }

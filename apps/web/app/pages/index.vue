@@ -2,7 +2,7 @@
 import { h } from 'vue'
 import { NuxtLink, UButton, FleetAppStatus, FleetAppPosthogStats, UTooltip, UIcon } from '#components'
 import type { TableColumn } from '~/types/table'
-import type { FleetApp } from '~/composables/useFleetDashboard'
+import type { FleetApp } from '~/composables/useFleet'
 
 useSeo({
   title: 'Dashboard',
@@ -14,15 +14,20 @@ useWebPageSchema({
   description: 'Fleet dashboard overview.',
 })
 
-const { apps, refreshApps } = useFleetDashboard()
-const { getStatus, refreshStatuses } = useFleetStatuses()
-const fleetApps = computed(() => apps.value ?? [])
+const forceRefresh = ref(false)
+const { 
+  apps: fleetApps, 
+  getAppStatus: getStatus, 
+  refreshStatuses, 
+  refreshApps, 
+  refreshPosthog,
+  posthogSummary, 
+  isLoading 
+} = useFleet(forceRefresh)
+
 const fleetCount = computed(() => fleetApps.value.length)
 const hasFleetApps = computed(() => fleetCount.value > 0)
 const lastRefresh = ref<Date | null>(null)
-
-// PostHog summary — manual load only
-const { summary: posthogSummary, loading: posthogLoading, loaded: posthogLoaded, load: loadPosthog } = useFleetPosthogSummary()
 
 const isCheckingAll = ref(false)
 async function checkAllStatuses() {
@@ -84,9 +89,9 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
     header: 'PostHog (30d)',
     cell: ({ row }) => h(FleetAppPosthogStats, {
       appName: row.original.name,
-      stats: posthogSummary.value?.[row.original.name] ?? null,
-      loading: posthogLoading.value,
-      loaded: posthogLoaded.value,
+      stats: posthogSummary.value?.[row.original.posthogAppName ?? row.original.name] ?? null,
+      loading: isLoading.value,
+      loaded: !isLoading.value,
     }),
     enableSorting: false,
   },
@@ -131,7 +136,9 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
 const columnsForTable = dashboardColumns as any
 
 async function onRefresh() {
-  await refreshApps()
+  forceRefresh.value = true
+  await Promise.all([refreshApps(), refreshStatuses(), refreshPosthog()])
+  forceRefresh.value = false
   lastRefresh.value = new Date()
 }
 </script>
@@ -277,27 +284,15 @@ async function onRefresh() {
                   Check All
                 </UButton>
                 <UButton
-                  v-if="!posthogLoaded"
-                  variant="soft"
-                  size="xs"
-                  icon="i-lucide-bar-chart-2"
-                  class="cursor-pointer"
-                  :loading="posthogLoading"
-                  @click="loadPosthog"
-                >
-                  Load PostHog Stats
-                </UButton>
-                <UButton
-                  v-else
-                  variant="ghost"
+                  variant="outline"
                   color="neutral"
                   size="xs"
                   icon="i-lucide-refresh-cw"
                   class="cursor-pointer"
-                  :loading="posthogLoading"
-                  @click="loadPosthog"
+                  :loading="isLoading"
+                  @click="onRefresh"
                 >
-                  Refresh Stats
+                  Refresh All Data
                 </UButton>
                 <UButton
                   to="/fleet"
