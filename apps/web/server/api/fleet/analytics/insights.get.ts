@@ -1,6 +1,5 @@
 import { z } from 'zod'
-import { getRequestURL, getRequestHeaders } from 'h3'
-import { withD1Cache } from '#server/utils/d1-cache'
+import { getD1CacheDB, getCached, withD1Cache } from '#server/utils/d1-cache'
 import type { FleetAppAnalyticsSummary } from './summary.get'
 
 const querySchema = z.object({
@@ -115,22 +114,22 @@ export default defineEventHandler(async (event) => {
 
   const cacheKey = `fleet-analytics-insights-${startDate}-${endDate}`
   const TTL = 30 * 60
-
+  const summaryCacheKey = `fleet-analytics-summary-${startDate}-${endDate}`
   const STALE_WINDOW = 30 * 60
-  return withD1Cache(event, cacheKey, TTL, async () => {
-    const baseURL = getRequestURL(event).origin
-    const headers = getRequestHeaders(event)
-    const authHeaders: Record<string, string> = {}
-    if (headers.cookie) authHeaders.cookie = headers.cookie
-    if (headers.authorization) authHeaders.authorization = headers.authorization
-    if (headers['x-requested-with']) authHeaders['x-requested-with'] = headers['x-requested-with']
 
-    const raw = await $fetch<{ apps?: Record<string, FleetAppAnalyticsSummary> } | { data: { apps?: Record<string, FleetAppAnalyticsSummary> } }>(
-      `/api/fleet/analytics/summary?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
-      { baseURL, headers: authHeaders },
-    )
-    const data = raw && typeof raw === 'object' && 'data' in raw && raw.data ? (raw as { data: { apps?: Record<string, FleetAppAnalyticsSummary> } }).data : (raw as { apps?: Record<string, FleetAppAnalyticsSummary> })
-    const apps = data?.apps ?? {}
+  return withD1Cache(event, cacheKey, TTL, async () => {
+    // Read summary from D1 cache only — never call the summary API (avoids 522 when summary is cold).
+    const d1 = getD1CacheDB(event)
+    let apps: Record<string, FleetAppAnalyticsSummary> = {}
+    if (d1) {
+      try {
+        const raw = await getCached(d1, summaryCacheKey)
+        if (raw) {
+          const parsed = JSON.parse(raw) as { apps?: Record<string, FleetAppAnalyticsSummary> }
+          apps = parsed?.apps ?? {}
+        }
+      } catch (_) { /* use empty apps */ }
+    }
     return { insights: buildInsights(apps), startDate, endDate }
   }, parsed.force === 'true', { staleWindowSeconds: STALE_WINDOW })
 })
