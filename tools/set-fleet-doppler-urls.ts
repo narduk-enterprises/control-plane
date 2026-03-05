@@ -1,6 +1,6 @@
 /**
  * Set SITE_URL in each fleet app's Doppler project (prd) to match the control-plane registry.
- * Run from control-plane root with Doppler CLI installed and write access to each project.
+ * Fetches the app list from the control plane API.
  *
  * Usage:
  *   npx tsx tools/set-fleet-doppler-urls.ts           # set SITE_URL in all fleet projects
@@ -11,9 +11,22 @@
  */
 
 import { execSync } from 'node:child_process'
-import { getFleetApps } from '../apps/web/server/data/fleet-registry'
 
+const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
 const dryRun = process.argv.includes('--dry-run')
+
+interface FleetApp { name: string; url: string; dopplerProject: string }
+
+async function fetchFleetApps(): Promise<FleetApp[]> {
+  try {
+    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json() as Promise<FleetApp[]>
+  } catch {
+    console.error(`❌ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    process.exit(1)
+  }
+}
 
 function isDopplerAvailable(): boolean {
   try {
@@ -36,13 +49,13 @@ function setSecret(project: string, config: string, key: string, value: string):
   }
 }
 
-function main() {
+async function main() {
   if (!isDopplerAvailable()) {
     console.error('❌ Doppler CLI not available. Install: https://docs.doppler.com/docs/install-cli')
     process.exit(1)
   }
 
-  const apps = getFleetApps()
+  const apps = await fetchFleetApps()
   console.log('')
   console.log(dryRun ? 'Fleet Doppler SITE_URL (dry run — no changes)' : 'Setting SITE_URL in fleet Doppler projects (prd)')
   console.log('────────────────────────────────────────────────────────')
@@ -55,7 +68,7 @@ function main() {
       ok++
       continue
     }
-    const success = setSecret(app.name, 'prd', 'SITE_URL', app.url)
+    const success = setSecret(app.dopplerProject, 'prd', 'SITE_URL', app.url)
     if (success) {
       console.log(`  ✅ ${app.name.padEnd(28)} SITE_URL=${app.url}`)
       ok++

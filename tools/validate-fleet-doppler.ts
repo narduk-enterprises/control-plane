@@ -5,7 +5,7 @@
  * Usage:
  *   pnpm run check:fleet-doppler
  *
- * This runs under `doppler run`, so the template project's secrets are available.
+ * Fetches the app list from the deployed control plane API.
  * For fleet-wide read access, set FLEET_DOPPLER_TOKEN in the template's Doppler
  * project (prd) to a service token with read access to all fleet projects; the
  * script uses it when present for doppler secrets calls.
@@ -18,24 +18,25 @@ if (process.env.FLEET_DOPPLER_TOKEN) {
   process.env.DOPPLER_TOKEN = process.env.FLEET_DOPPLER_TOKEN
 }
 
-const FLEET_PROJECTS = [
-  'neon-sewer-raid',
-  'old-austin-grouch',
-  'ogpreview-app',
-  'imessage-dictionary',
-  'narduk-enterprises-portfolio',
-  'drift-map',
-  'tiny-invoice',
-  'enigma-box',
-  'papa-everetts-pizza',
-  'flashcard-pro',
-  'clawdle',
-  'circuit-breaker-online',
-  'nagolnagemluapleira',
-  'austin-texas-net',
-  'sailing-passage-map',
-  'video-grab',
-]
+const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
+
+interface FleetApp {
+  name: string
+  url: string
+  dopplerProject: string
+}
+
+async function fetchFleetApps(): Promise<FleetApp[]> {
+  try {
+    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json() as Promise<FleetApp[]>
+  } catch (err) {
+    console.error(`⚠️ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    console.error('   Ensure the control plane is deployed and accessible, or set CONTROL_PLANE_URL.')
+    process.exit(1)
+  }
+}
 
 const REQUIRED_SECRETS = ['SITE_URL'] as const
 
@@ -60,18 +61,21 @@ function getSecretNames(project: string, config: string): Set<string> | null {
   }
 }
 
-function main() {
+async function main() {
   if (!isDopplerAvailable()) {
     console.error('❌ Doppler CLI not available. Install and log in: https://docs.doppler.com/docs/install-cli')
     process.exit(1)
   }
 
+  const apps = await fetchFleetApps()
+
   console.log('')
-  console.log('Fleet Doppler validation (required secrets in prd)')
+  console.log(`Fleet Doppler validation (${apps.length} apps, required secrets in prd)`)
   console.log('────────────────────────────────────────────────')
   let failed = 0
   let noAccess = 0
-  for (const project of FLEET_PROJECTS) {
+  for (const app of apps) {
+    const project = app.dopplerProject
     const names = getSecretNames(project, 'prd')
     if (names === null) {
       console.log(`  ⚠️ ${project.padEnd(28)} unable to read (no Doppler access to this project)`)

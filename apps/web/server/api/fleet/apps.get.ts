@@ -8,9 +8,16 @@ export default defineEventHandler(async (event) => {
 
   const queryParams = await getValidatedQuery(event, z.object({
     force: z.enum(['true', 'false']).optional(),
+    includeInactive: z.enum(['true', 'false']).optional(),
   }).parse)
 
-  return withD1Cache(event, 'fleet-apps-list', 3600, async () => {
-    return getFleetApps()
+  const cacheKey = queryParams.includeInactive === 'true' ? 'fleet-apps-list-all' : 'fleet-apps-list'
+
+  return withD1Cache(event, cacheKey, 3600, async () => {
+    if (queryParams.includeInactive === 'true') {
+      const { getAllFleetApps } = await import('#server/data/fleet-registry')
+      return getAllFleetApps(event)
+    }
+    return getFleetApps(event)
   }, queryParams.force === 'true')
 })

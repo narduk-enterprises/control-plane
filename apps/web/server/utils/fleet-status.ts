@@ -1,4 +1,4 @@
-import { getFleetApps } from '#server/data/fleet-registry'
+import { getFleetApps, getFleetAppByName } from '#server/data/fleet-registry'
 import { appStatus } from '#server/database/schema'
 import type { AppStatus } from '#server/database/schema'
 import type { H3Event } from 'h3'
@@ -29,7 +29,7 @@ async function checkUrl(url: string): Promise<{ status: 'up' | 'down'; code: num
  */
 export async function checkAllFleetStatuses(event: H3Event): Promise<AppStatus[]> {
     const db = useDatabase(event)
-    const apps = getFleetApps()
+    const apps = await getFleetApps(event)
     const now = new Date().toISOString()
 
     const results = await Promise.allSettled(
@@ -70,8 +70,7 @@ export async function checkAllFleetStatuses(event: H3Event): Promise<AppStatus[]
  */
 export async function checkSingleFleetAppStatus(event: H3Event, appName: string): Promise<AppStatus> {
     const db = useDatabase(event)
-    const apps = getFleetApps()
-    const app = apps.find(a => a.name === appName)
+    const app = await getFleetAppByName(event, appName)
 
     if (!app) {
         throw createError({ statusCode: 404, message: `App '${appName}' not found in registry.` })

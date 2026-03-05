@@ -1,8 +1,28 @@
+/**
+ * Check IndexNow setup for all fleet apps.
+ * Fetches the fleet app list from the control plane API.
+ *
+ * Usage: npx tsx scripts/check-indexnow.ts
+ */
 import { execSync } from 'node:child_process'
-import { getFleetApps } from '../apps/web/server/data/fleet-registry'
+
+const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
+
+interface FleetApp { name: string; url: string; dopplerProject: string }
+
+async function fetchFleetApps(): Promise<FleetApp[]> {
+  try {
+    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json() as Promise<FleetApp[]>
+  } catch {
+    console.error(`❌ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    process.exit(1)
+  }
+}
 
 async function checkIndexNow() {
-  const apps = getFleetApps()
+  const apps = await fetchFleetApps()
   console.log(`🔍 Checking IndexNow setup for ${apps.length} apps...\n`)
 
   for (const app of apps) {

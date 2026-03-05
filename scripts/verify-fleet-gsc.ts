@@ -1,6 +1,8 @@
-import { getFleetApps } from '../apps/web/server/data/fleet-registry'
 import { googleApiFetch } from '../layers/narduk-nuxt-layer/server/utils/google'
 import { $fetch } from 'ofetch'
+
+const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
+interface FleetApp { name: string; url: string; dopplerProject: string }
 
 // Mock runtime config for googleApiFetch
 globalThis.useRuntimeConfig = () => ({
@@ -101,7 +103,15 @@ async function verifyDomain(hostname: string) {
 }
 
 async function main() {
-  const apps = getFleetApps()
+  let apps: FleetApp[]
+  try {
+    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    apps = await res.json() as FleetApp[]
+  } catch {
+    console.error(`❌ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    process.exit(1)
+  }
   for (const app of apps) {
     const hostname = new URL(app.url).hostname
     await verifyDomain(hostname)

@@ -4,7 +4,12 @@ export interface FleetApp {
   name: string
   url: string
   dopplerProject: string
-  posthogAppName?: string
+  gaPropertyId?: string | null
+  posthogAppName?: string | null
+  githubRepo?: string | null
+  isActive?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
 type PosthogSummaryMap = Record<string, { eventCount: number; users: number }>

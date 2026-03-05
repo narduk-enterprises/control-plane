@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     const appSlug = getRouterParam(event, 'app')
     if (!appSlug) throw createError({ statusCode: 400, message: 'Missing app' })
 
-    const app = getFleetAppByName(appSlug)
+    const app = await getFleetAppByName(event, appSlug)
     if (!app) throw createError({ statusCode: 404, message: 'App not found' })
 
     // Use per-app property ID from fleet registry
@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
     if (!propertyId) {
         throw createError({
             statusCode: 503,
-            message: `GA4: No property ID configured for ${app.name}. Add it to KNOWN_GA_PROPERTIES in fleet-registry.ts.`,
+            message: `GA4: No property ID configured for ${app.name}. Add it via the control plane at /fleet/manage.`,
         })
     }
 

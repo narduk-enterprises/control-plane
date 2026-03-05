@@ -3,14 +3,13 @@
  *
  * Usage:
  *   npx tsx tools/check-apps-reachable.ts
- *   npx tsx tools/check-apps-reachable.ts --urls=./fleet-urls.json   # use URL list file instead of Doppler
+ *   npx tsx tools/check-apps-reachable.ts --urls=./fleet-urls.json   # use URL list file instead
  *   npx tsx tools/check-apps-reachable.ts --timeout=15
  *
- * With Doppler: reads SITE_URL from each project's prd config (same project list as sync bot).
+ * By default, fetches the app list from the deployed control plane API.
  * With --urls=path: JSON file with { "app-name": "https://..." } or [ "https://...", ... ].
  */
 
-import { execSync } from 'node:child_process'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -18,44 +17,24 @@ const args = process.argv.slice(2)
 const urlListPath = args.find((a) => a.startsWith('--urls='))?.slice(7)
 const timeoutSec = Number(args.find((a) => a.startsWith('--timeout='))?.slice(10) || '10') * 1000
 
-const FLEET_PROJECTS = [
-  'neon-sewer-raid',
-  'old-austin-grouch',
-  'ogpreview-app',
-  'imessage-dictionary',
-  'narduk-enterprises-portfolio',
-  'drift-map',
-  'tiny-invoice',
-  'enigma-box',
-  'papa-everetts-pizza',
-  'flashcard-pro',
-  'clawdle',
-  'circuit-breaker-online',
-  'nagolnagemluapleira',
-  'austin-texas-net',
-  'sailing-passage-map',
-  'video-grab',
-]
+const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
 
-function isDopplerAvailable(): boolean {
-  try {
-    execSync('doppler --version', { encoding: 'utf-8', stdio: 'pipe' })
-    return true
-  } catch {
-    return false
-  }
+interface FleetApp {
+  name: string
+  url: string
+  dopplerProject: string
 }
 
-function getDopplerSiteUrl(project: string): string | null {
+async function fetchFleetApps(): Promise<[string, string][]> {
   try {
-    const out = execSync(
-      `doppler secrets get SITE_URL --project "${project}" --config prd --plain 2>/dev/null`,
-      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-    )
-    const url = out.trim()
-    return url && url.startsWith('http') ? url : null
+    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const apps = (await res.json()) as FleetApp[]
+    return apps.map((a) => [a.name, a.url])
   } catch {
-    return null
+    console.error(`⚠️ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    console.error('   Ensure the control plane is deployed and accessible.')
+    process.exit(1)
   }
 }
 
@@ -110,18 +89,12 @@ async function main() {
   if (urlListPath) {
     const obj = loadUrlsFromFile(urlListPath)
     entries = Object.entries(obj)
-  } else if (isDopplerAvailable()) {
-    entries = FLEET_PROJECTS.map((name) => [name, getDopplerSiteUrl(name) ?? '']).filter(
-      (e): e is [string, string] => !!e[1],
-    )
+  } else {
+    entries = await fetchFleetApps()
     if (entries.length === 0) {
-      console.error('No SITE_URL found for any Doppler project. Check Doppler CLI auth and prd config.')
+      console.error('No fleet apps found. Check control plane API.')
       process.exit(1)
     }
-  } else {
-    console.error('Doppler CLI not available and no --urls= file provided.')
-    console.error('  Install Doppler CLI, or run with: --urls=./fleet-urls.json')
-    process.exit(1)
   }
 
   console.log('')

@@ -1,8 +1,19 @@
 import { chromium } from 'playwright'
-import { getFleetApps } from '../apps/web/server/data/fleet-registry'
+
+const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
+interface FleetApp { name: string; url: string }
 
 async function generateTraffic() {
-  const apps = getFleetApps()
+  let apps: FleetApp[]
+  try {
+    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    apps = await res.json() as FleetApp[]
+  } catch {
+    console.error(`❌ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    process.exit(1)
+  }
+
   console.log(`🚀 Launching headless browser to simulate real user visits on ${apps.length} apps...`)
   
   const browser = await chromium.launch({ headless: true })

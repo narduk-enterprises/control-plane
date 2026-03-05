@@ -1,17 +1,23 @@
 import { $fetch } from 'ofetch'
-import { getFleetApps } from '../apps/web/server/data/fleet-registry'
 
-const apps = getFleetApps()
-// Circuit Breaker Sales
-const app = apps.find(a => a.name === 'circuit-breaker-online')!
+const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
+interface FleetApp { name: string; url: string; dopplerProject: string; gaPropertyId?: string | null }
 
 async function sendManualEvent() {
+  let apps: FleetApp[]
+  try {
+    apps = await $fetch<FleetApp[]>(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+  } catch {
+    console.error(`❌ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    process.exit(1)
+  }
+
+  // Circuit Breaker Sales
+  const app = apps.find(a => a.name === 'circuit-breaker-online')!
+
   const measurementId = 'G-8WZ93XNKHX' // From Circuit Breaker
-  const apiSecret = process.env.GA_API_SECRET // We'd need to create one, or just try Measurement Protocol directly
   
-  // Actually, we can just simulate the exact GET request gtag.js makes to /g/collect
-  // We'll construct the payload manually to bypass Chromium network limitations
-  
+  // Simulate the exact GET request gtag.js makes to /g/collect
   const cid = Math.random().toString(36).substring(2) + '.' + Date.now()
   const sid = Math.floor(Date.now() / 1000)
   

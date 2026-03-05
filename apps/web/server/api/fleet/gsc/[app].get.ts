@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
   const appSlug = getRouterParam(event, 'app')
   if (!appSlug) throw createError({ statusCode: 400, message: 'Missing app' })
 
-  const app = getFleetAppByName(appSlug)
+  const app = await getFleetAppByName(event, appSlug)
   if (!app) throw createError({ statusCode: 404, message: 'App not found' })
 
   const parsed = querySchema.safeParse(getQuery(event))
