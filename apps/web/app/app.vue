@@ -1,37 +1,38 @@
 <script setup lang="ts">
-const route = useRoute()
-const colorMode = useColorMode()
-const appName = useRuntimeConfig().public.appName || 'Narduk Control Plane'
-const currentYear = new Date().getFullYear()
+const route = useRoute();
+const colorMode = useColorMode();
+const appName = useRuntimeConfig().public.appName || 'Narduk Control Plane';
+const currentYear = new Date().getFullYear();
 
 const colorModeIcon = computed(() => {
-  if (colorMode.preference === 'system') return 'i-lucide-monitor'
-  return colorMode.value === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun'
-})
+  if (colorMode.preference === 'system') return 'i-lucide-monitor';
+  return colorMode.value === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun';
+});
 
 function cycleColorMode() {
-  const modes = ['system', 'light', 'dark'] as const
-  const idx = modes.indexOf(colorMode.preference as typeof modes[number])
-  colorMode.preference = modes[(idx + 1) % modes.length]!
+  const modes = ['system', 'light', 'dark'] as const;
+  const idx = modes.indexOf(colorMode.preference as (typeof modes)[number]);
+  colorMode.preference = modes[(idx + 1) % modes.length]!;
 }
 
 const navItems = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
   { label: 'Fleet', to: '/fleet', icon: 'i-lucide-grid-3x3' },
+  { label: 'Analytics', to: '/analytics', icon: 'i-lucide-activity' },
   { label: 'Indexing', to: '/indexing', icon: 'i-lucide-search' },
   { label: 'GitHub', to: '/github', icon: 'i-lucide-github' },
   { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
-]
+];
 
-const mobileMenuOpen = ref(false)
+const mobileMenuOpen = ref(false);
 
 watch(route, () => {
-  mobileMenuOpen.value = false
-})
+  mobileMenuOpen.value = false;
+});
 
 function isActive(path: string) {
-  if (path === '/') return route.path === '/'
-  return route.path.startsWith(path)
+  if (path === '/') return route.path === '/';
+  return route.path.startsWith(path);
 }
 </script>
 
@@ -45,28 +46,42 @@ function isActive(path: string) {
     </ULink>
     <div class="app-shell min-h-screen flex flex-col bg-default">
       <!-- Header: floating bar with spacing -->
-      <div role="banner" class="sticky top-4 left-4 right-4 z-50 mx-4 mt-4 rounded-xl border border-default bg-default/95 shadow-elevated backdrop-blur-xl transition-base">
+      <div
+        role="banner"
+        class="sticky top-4 left-4 right-4 z-50 mx-4 mt-4 rounded-xl border border-default bg-default/95 shadow-elevated backdrop-blur-xl transition-base"
+      >
         <div class="flex h-14 items-center justify-between gap-4 px-4 sm:px-6">
           <NuxtLink
             to="/"
             class="group flex items-center gap-2.5 rounded-lg py-2 pr-2 transition-colors hover:bg-elevated cursor-pointer"
           >
-            <div class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-50 transition-transform group-hover:scale-105">
+            <div
+              class="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-50 transition-transform group-hover:scale-105"
+            >
               <UIcon name="i-lucide-activity" class="size-5" />
             </div>
-            <span class="font-display font-semibold text-lg text-default transition-colors group-hover:text-primary hidden sm:block">{{ appName }}</span>
+            <span
+              class="font-display font-semibold text-lg text-default transition-colors group-hover:text-primary hidden sm:block"
+              >{{ appName }}</span
+            >
           </NuxtLink>
 
           <!-- Desktop nav -->
-          <div class="hidden md:flex items-center gap-0.5" role="navigation" aria-label="Main navigation">
+          <div
+            class="hidden md:flex items-center gap-0.5"
+            role="navigation"
+            aria-label="Main navigation"
+          >
             <NuxtLink
               v-for="item in navItems"
               :key="item.to"
               :to="item.to"
               class="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer"
-              :class="isActive(item.to)
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted hover:bg-elevated hover:text-default'"
+              :class="
+                isActive(item.to)
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted hover:bg-elevated hover:text-default'
+              "
             >
               <UIcon :name="item.icon" class="size-4 shrink-0" />
               {{ item.label }}
@@ -109,9 +124,11 @@ function isActive(path: string) {
               :key="item.to"
               :to="item.to"
               class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors cursor-pointer"
-              :class="isActive(item.to)
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted hover:bg-elevated hover:text-default'"
+              :class="
+                isActive(item.to)
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted hover:bg-elevated hover:text-default'
+              "
             >
               <UIcon :name="item.icon" class="size-4" />
               {{ item.label }}
@@ -130,12 +147,18 @@ function isActive(path: string) {
       </div>
 
       <div class="border-t border-default py-6 mt-auto" role="contentinfo">
-        <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
+        <div
+          class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8"
+        >
           <p class="text-sm text-muted">
             &copy; {{ currentYear }} {{ appName }}. All rights reserved.
           </p>
           <div class="flex items-center gap-4 text-sm text-muted">
-            <NuxtLink to="https://github.com/narduk-enterprises" target="_blank" class="hover:text-primary transition-colors flex items-center gap-1">
+            <NuxtLink
+              to="https://github.com/narduk-enterprises"
+              target="_blank"
+              class="hover:text-primary transition-colors flex items-center gap-1"
+            >
               <UIcon name="i-lucide-github" class="size-4" />
               GitHub
             </NuxtLink>
