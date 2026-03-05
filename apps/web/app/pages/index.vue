@@ -268,37 +268,40 @@ async function onRefresh() {
                 <h2 class="font-semibold text-default">Fleet apps</h2>
                 <UBadge variant="subtle" color="primary" size="sm" class="rounded-full px-2" v-if="fleetCount">{{ fleetCount }}</UBadge>
               </div>
-              <div class="flex flex-wrap items-center justify-end gap-2">
-                <UButton
-                  variant="soft"
-                  size="xs"
-                  icon="i-lucide-activity"
-                  class="cursor-pointer"
-                  :loading="isCheckingAll"
-                  @click="checkAllStatuses"
-                >
-                  Check All
-                </UButton>
-                <UButton
-                  variant="outline"
-                  color="neutral"
-                  size="xs"
-                  icon="i-lucide-refresh-cw"
-                  class="cursor-pointer"
-                  :loading="isLoading"
-                  @click="onRefresh"
-                >
-                  Refresh All Data
-                </UButton>
-                <UButton
-                  to="/fleet"
-                  variant="ghost"
-                  size="sm"
-                  class="cursor-pointer"
-                >
-                  View all
-                </UButton>
-              </div>
+              <!-- hydration: loading/disabled depends on client-only fetch status -->
+              <ClientOnly>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                  <UButton
+                    variant="soft"
+                    size="xs"
+                    icon="i-lucide-activity"
+                    class="cursor-pointer"
+                    :loading="isCheckingAll"
+                    @click="checkAllStatuses"
+                  >
+                    Check All
+                  </UButton>
+                  <UButton
+                    variant="outline"
+                    color="neutral"
+                    size="xs"
+                    icon="i-lucide-refresh-cw"
+                    class="cursor-pointer"
+                    :loading="isLoading"
+                    @click="onRefresh"
+                  >
+                    Refresh All Data
+                  </UButton>
+                  <UButton
+                    to="/fleet"
+                    variant="ghost"
+                    size="sm"
+                    class="cursor-pointer"
+                  >
+                    View all
+                  </UButton>
+                </div>
+              </ClientOnly>
             </div>
           </template>
           <div v-if="hasFleetApps" class="flex flex-col gap-4">
@@ -331,7 +334,8 @@ async function onRefresh() {
     <div v-if="lastRefresh" class="mt-6 flex justify-end">
       <p class="text-xs text-muted flex items-center gap-1.5">
         <UIcon name="i-lucide-clock" class="size-3" />
-        Last refreshed: <NuxtTime :datetime="lastRefresh" relative class="font-medium" />
+        <!-- hydration: relative time differs SSR vs CSR -->
+        Last refreshed: <ClientOnly><NuxtTime :datetime="lastRefresh" relative class="font-medium" /></ClientOnly>
       </p>
     </div>
   </div>

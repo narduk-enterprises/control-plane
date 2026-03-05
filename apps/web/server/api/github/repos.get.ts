@@ -69,8 +69,8 @@ export default defineEventHandler(async (event): Promise<GithubRepo[]> => {
 
     return withD1Cache(event, 'github-repos-dashboard', 3600, async () => {
         try {
-        // Fetch 10 most recently updated repositories for the authenticated user
-        const reposRes = await $fetch<GithubRawRepo[]>('https://api.github.com/user/repos?sort=updated&per_page=12', {
+        // Fetch all repositories from the narduk-enterprises organization
+        const reposRes = await $fetch<GithubRawRepo[]>('https://api.github.com/orgs/narduk-enterprises/repos?sort=updated&per_page=100', {
             headers,
         })
         const repos = reposRes

@@ -46,7 +46,8 @@ useWebPageSchema({
 
 // Fleet Apps
 const { apps: fleetApps } = useFleet();
-const selectedAppName = ref<string>('');
+// hydration: initialize selectedAppName synchronously from initial data (SSR/CSR must match)
+const selectedAppName = ref<string>(fleetApps.value[0]?.name ?? '');
 
 watch(
   fleetApps,
@@ -55,7 +56,6 @@ watch(
       selectedAppName.value = newApps[0]?.name ?? '';
     }
   },
-  { immediate: true }
 );
 
 // Date Range
@@ -201,15 +201,20 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       </div>
 
       <div class="flex flex-col sm:flex-row items-end sm:items-center gap-4">
-        <!-- App Selector -->
-        <USelectMenu
-          v-model="selectedAppName"
-          :items="fleetApps"
-          value-key="name"
-          label-key="name"
-          placeholder="Select an app"
-          class="w-48 bg-white"
-        />
+        <!-- hydration: USelectMenu Radix ComboboxTrigger renders different classes SSR vs CSR -->
+        <ClientOnly>
+          <USelectMenu
+            v-model="selectedAppName"
+            :items="fleetApps"
+            value-key="name"
+            label-key="name"
+            placeholder="Select an app"
+            class="w-48 bg-white"
+          />
+          <template #fallback>
+            <div class="w-48 h-9 rounded-md border border-default bg-white animate-pulse" />
+          </template>
+        </ClientOnly>
 
         <!-- Date Range Presets -->
         <div class="flex flex-wrap items-center gap-2">

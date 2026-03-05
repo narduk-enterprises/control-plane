@@ -186,7 +186,7 @@ const filteredRepos = computed(() => {
           GitHub Repositories
         </h1>
         <p class="mt-1 text-sm text-muted">
-          Recent repositories and CI/CD build statuses
+          All repositories and CI/CD build statuses
         </p>
       </div>
       <UButton

@@ -15,7 +15,8 @@
     "deploy": "nuxt build && wrangler deploy",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
-    "quality": "echo 'quality pass'"
+    "quality": "echo 'quality pass'",
+    "test:hydration": "node scripts/hydration-smoke.mjs"
   },
   "dependencies": {
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",

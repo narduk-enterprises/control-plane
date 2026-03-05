@@ -72,18 +72,26 @@ const fleetColumns: TableColumn<FleetApp>[] = [
       const status = getStatus(row.original.name)
       if (!status?.indexnowLastSubmission) return h('span', { class: 'text-[10px] text-muted' }, '-')
       
-      const lastDate = new Date(status.indexnowLastSubmission)
-      const diffDays = Math.floor((new Date().getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
-      
-      let label = ''
-      if (diffDays === 0) label = 'Today'
-      else if (diffDays === 1) label = 'Yesterday'
-      else label = `${diffDays}d ago`
-
-      return h('div', { class: 'flex flex-col' }, [
-        h('span', { class: 'text-xs font-medium' }, label),
-        status.indexnowLastSubmittedCount ? h('span', { class: 'text-[10px] text-muted' }, `${status.indexnowLastSubmittedCount} URLs`) : null
-      ])
+      // hydration: Date.now() differs SSR vs CSR, render relative time client-only
+      return h('ClientOnly', null, {
+        default: () => {
+          const lastDate = new Date(status.indexnowLastSubmission!)
+          if (Number.isNaN(lastDate.getTime())) return h('span', { class: 'text-[10px] text-muted' }, '-')
+          const diffDays = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+          let label = ''
+          if (diffDays === 0) label = 'Today'
+          else if (diffDays === 1) label = 'Yesterday'
+          else label = `${diffDays}d ago`
+          // Access both camelCase and snake_case for D1 compatibility
+          const raw = status as unknown as Record<string, unknown>
+          const count = raw.indexnowLastSubmittedCount ?? raw['indexnow_last_submitted_count']
+          return h('div', { class: 'flex flex-col' }, [
+            h('span', { class: 'text-xs font-medium' }, label),
+            count ? h('span', { class: 'text-[10px] text-muted' }, `${count} URLs`) : null,
+          ])
+        },
+        fallback: () => h('div', { class: 'h-8 w-16 bg-elevated rounded animate-pulse' }),
+      })
     },
     enableSorting: false,
   },
