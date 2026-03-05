@@ -21,13 +21,22 @@ async function checkPosthog() {
       // PostHog sends data to its API usually via /e/ or /s/ or /capture/ endpoints
       if (url.includes('posthog.com') || url.includes('us.i.posthog.com')) {
         phRequestFound = true
-        const postData = req.postDataJSON()
-        if (postData && postData.properties && postData.properties.app) {
-          posthogAppProperty = postData.properties.app
-        } else if (postData && postData.properties && postData.properties.$set && postData.properties.$set.app) {
-          posthogAppProperty = postData.properties.$set.app
-        } else if (url.includes('data=')) {
-          // sometimes it's base64 encoded in the URL or payload if not JSON
+        let payload: any = null
+        try { payload = req.postDataJSON() } catch(e) {}
+        
+        if (payload) {
+          // Check for top-level properties
+          if (payload.properties?.app) posthogAppProperty = payload.properties.app
+          else if (payload.properties?.$set?.app) posthogAppProperty = payload.properties.$set.app
+          else if (payload.$set?.app) posthogAppProperty = payload.$set.app
+          
+          // Check for batched events
+          if (payload.batch && Array.isArray(payload.batch)) {
+            for (const event of payload.batch) {
+              if (event.properties?.app) posthogAppProperty = event.properties.app
+              else if (event.properties?.$set?.app) posthogAppProperty = event.properties.$set.app
+            }
+          }
         }
       }
     })

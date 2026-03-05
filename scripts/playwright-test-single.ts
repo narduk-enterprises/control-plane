@@ -27,6 +27,7 @@ async function checkSingle() {
         if (req.method() === 'POST') {
           try {
             payload = req.postDataJSON()
+            console.log('\n[RAW POSTHOG PAYLOAD INTERCEPTED]', JSON.stringify(payload, null, 2))
           } catch(e) { }
         } else if (req.method() === 'GET') {
           const defaultUrl = new URL(url)
@@ -34,6 +35,7 @@ async function checkSingle() {
           if (data) {
             try {
               payload = JSON.parse(Buffer.from(data, 'base64').toString('utf8'))
+              console.log('\n[RAW POSTHOG GET PAYLOAD INTERCEPTED]', JSON.stringify(payload, null, 2))
             } catch(e) { }
           }
         }
@@ -50,8 +52,8 @@ async function checkSingle() {
     }
   })
   
-  console.log(`🌐 Visiting: http://localhost:3002`)
-  await page.goto('http://localhost:3002', { waitUntil: 'networkidle', timeout: 30000 })
+  console.log(`🌐 Visiting: https://austin-texas.net`)
+  await page.goto('https://austin-texas.net', { waitUntil: 'networkidle', timeout: 30000 })
   
   const nuxtConfig = await page.evaluate(() => {
     return (window as any).__NUXT__ || {}

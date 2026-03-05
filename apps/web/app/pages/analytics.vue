@@ -13,7 +13,10 @@ useWebPageSchema({
 
 // Fleet Apps
 const { apps } = useFleetDashboard();
-const fleetApps = computed(() => apps.value ?? []);
+const fleetApps = computed(() => {
+  const allApps = apps.value ?? [];
+  return [...allApps].sort((a, b) => a.name.localeCompare(b.name));
+});
 const selectedAppName = ref<string>('');
 
 watch(
@@ -156,11 +159,13 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
 
       <div class="flex flex-col sm:flex-row items-end sm:items-center gap-4">
         <!-- App Selector -->
-        <USelect
+        <USelectMenu
           v-model="selectedAppName"
-          :options="fleetApps.map((a) => ({ label: a.name, value: a.name }))"
+          :items="fleetApps"
+          value-key="name"
+          label-key="name"
           placeholder="Select an app"
-          class="w-48"
+          class="w-48 bg-white"
         />
 
         <!-- Date Range Presets -->
