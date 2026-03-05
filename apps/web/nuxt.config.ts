@@ -1,8 +1,10 @@
 // deploy-trigger: 2026-03-04T20:40:25Z
 import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
+import { readFileSync } from 'node:fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8'))
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -31,6 +33,8 @@ export default defineNuxtConfig({
     posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
     gaPropertyId: process.env.GA_PROPERTY_ID || '',
     public: {
+      appVersion: pkg.version,
+      buildDate: new Date().toISOString(),
       appUrl: process.env.SITE_URL || 'https://control-plane.nard.uk',
       appName: process.env.APP_NAME || 'Narduk Control Plane',
       posthogPublicKey: process.env.POSTHOG_PUBLIC_KEY || '',
