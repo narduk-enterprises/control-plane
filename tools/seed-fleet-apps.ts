@@ -11,7 +11,7 @@
 
 const FLEET_APPS = [
   { name: 'austin-texas-net', url: 'https://austin-texas.net', gaPropertyId: '526067189', githubRepo: 'narduk-enterprises/austin-texas-net' },
-  { name: 'ai-media-gen', url: 'https://ai-media-gen.nard.uk', gaPropertyId: null, githubRepo: 'narduk-enterprises/ai-media-gen', isActive: false },
+  { name: 'ai-media-gen', url: 'https://ai-media-gen.nard.uk', gaPropertyId: null, githubRepo: 'narduk-enterprises/ai-media-gen' },
   { name: 'circuit-breaker-online', url: 'https://circuitbreaker.online', gaPropertyId: '520350533', githubRepo: 'narduk-enterprises/circuit-breaker-online' },
   { name: 'clawdle', url: 'https://clawdle.nard.uk', gaPropertyId: '526225128', githubRepo: 'narduk-enterprises/clawdle' },
   { name: 'drift-map', url: 'https://drift-map.nard.uk', gaPropertyId: '526978811', posthogAppName: 'Drift Map', githubRepo: 'narduk-enterprises/drift-map' },
