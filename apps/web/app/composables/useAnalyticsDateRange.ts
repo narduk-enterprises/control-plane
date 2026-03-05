@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 
-export type DatePreset = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'custom'
+export type DatePreset = '1h' | 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'custom'
 
 export interface DateRange {
     startDate: string
@@ -9,6 +9,7 @@ export interface DateRange {
 }
 
 const PRESET_LABELS: Record<DatePreset, string> = {
+    '1h': 'Last Hour',
     today: 'Today',
     yesterday: 'Yesterday',
     '7d': 'Last 7 Days',
@@ -26,6 +27,11 @@ function computeDates(preset: DatePreset): { startDate: string; endDate: string 
     const end = formatDate(now)
 
     switch (preset) {
+        case '1h': {
+            const s = new Date(now)
+            s.setHours(s.getHours() - 1)
+            return { startDate: s.toISOString(), endDate: now.toISOString() }
+        }
         case 'today':
             return { startDate: end, endDate: end }
         case 'yesterday': {
@@ -80,6 +86,7 @@ export function useAnalyticsDateRange(defaultPreset: MaybeRefOrGetter<DatePreset
     const presetLabel = computed(() => PRESET_LABELS[preset.value])
 
     const isToday = computed(() => preset.value === 'today')
+    const is1h = computed(() => preset.value === '1h')
 
     return {
         preset,
@@ -88,6 +95,7 @@ export function useAnalyticsDateRange(defaultPreset: MaybeRefOrGetter<DatePreset
         presetOptions,
         presetLabel,
         isToday,
+        is1h,
         setPreset,
     }
 }

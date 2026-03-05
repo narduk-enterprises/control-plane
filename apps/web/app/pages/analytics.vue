@@ -36,6 +36,7 @@ const startRef = dateState.startDate;
 const endRef = dateState.endDate;
 const optsRef = dateState.presetOptions;
 const setPresetFn = dateState.setPreset;
+const is1hRef = dateState.is1h;
 
 // Data sources
 const forceRefresh = ref(false);
@@ -68,7 +69,9 @@ const {
 async function refreshAll() {
   if (!selectedAppName.value) return;
   forceRefresh.value = true;
-  await Promise.all([gaLoad(), gscLoad(), posthogLoad()]);
+  const reqs = [posthogLoad()];
+  if (!is1hRef.value) reqs.push(gaLoad(), gscLoad());
+  await Promise.all(reqs);
   forceRefresh.value = false;
 }
 
@@ -78,7 +81,9 @@ watch(
   () => {
     if (!selectedAppName.value || !startRef.value || !endRef.value) return;
     // Don't force refresh when changing dates/app, just trigger loads
-    Promise.all([gaLoad(), gscLoad(), posthogLoad()]);
+    const reqs = [posthogLoad()];
+    if (!is1hRef.value) reqs.push(gaLoad(), gscLoad());
+    Promise.all(reqs);
   },
   { immediate: true }
 );
@@ -210,17 +215,26 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
     <!-- Main Chart -->
     <div class="mb-8">
       <AnalyticsCombinedChart
+        v-if="!is1hRef"
         :ga-data="gaTimeSeries"
         :gsc-data="gscTimeSeries"
         :posthog-data="phTimeSeries"
         :title="`Metrics Trend for ${selectedAppName || '...'}`"
+      />
+      <UAlert
+        v-else
+        icon="i-lucide-info"
+        title="Hourly filtering active"
+        description="Google Analytics and Search Console data are hidden because they only support daily granularity."
+        color="info"
+        variant="subtle"
       />
     </div>
 
     <!-- KPI Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <!-- GA KPIs -->
-      <UCard>
+      <UCard v-if="!is1hRef">
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-bar-chart-2" class="text-primary size-5" />
@@ -280,7 +294,7 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       </UCard>
 
       <!-- GSC KPIs -->
-      <UCard>
+      <UCard v-if="!is1hRef">
         <template #header>
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-bar-chart-3" class="text-info size-5" />

@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
     end = temp
   }
 
-  const cacheKey = `posthog-app-${appSlug}-${isSummaryOnly ? 'summary' : 'full'}-${start.toISOString().slice(0, 10)}-${end.toISOString().slice(0, 10)}`
+  const cacheKey = `posthog-app-${appSlug}-${isSummaryOnly ? 'summary' : 'full'}-${start.toISOString().slice(0, 19)}-${end.toISOString().slice(0, 19)}`
 
   return withD1Cache(event, cacheKey, 3600, async () => {
 
