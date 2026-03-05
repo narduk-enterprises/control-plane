@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getD1CacheDB, getCached, withD1Cache } from '#server/utils/d1-cache'
+import { getD1CacheDB, getCached, withD1Cache } from '#layer/server/utils/d1Cache'
 import type { FleetAppAnalyticsSummary } from './summary.get'
 
 const querySchema = z.object({
@@ -125,7 +125,7 @@ export default defineEventHandler(async (event) => {
       try {
         const raw = await getCached(d1, summaryCacheKey)
         if (raw) {
-          const parsed = JSON.parse(raw) as { apps?: Record<string, FleetAppAnalyticsSummary> }
+          const parsed = JSON.parse(raw.value) as { apps?: Record<string, FleetAppAnalyticsSummary> }
           apps = parsed?.apps ?? {}
         }
       } catch (_) { /* use empty apps */ }

@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { getFleetAppByName } from '#server/data/fleet-registry'
+import { withD1Cache } from '#layer/server/utils/d1Cache'
 
-import { withD1Cache } from '#server/utils/d1-cache'
+
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -80,22 +81,31 @@ export default defineEventHandler(async (event) => {
   `
 
     try {
-      const fetchHogQL = (q: string) => fetch(`${host.replace(/\/$/, '')}/api/projects/${projectId}/query/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ query: { kind: 'HogQLQuery', query: q } }),
-        signal: AbortSignal.timeout(15_000),
-      })
+      const apiUrl = `${host.replace(/\/$/, '')}/api/projects/${projectId}/query/`
+      const fetchHogQL = (q: string) => {
+        if (import.meta.dev) console.log(`[PostHog Request] ${apiUrl}\n  Query: ${q.trim().replaceAll(/\s+/g, ' ').slice(0, 200)}`)
+        return fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({ query: { kind: 'HogQLQuery', query: q } }),
+          signal: AbortSignal.timeout(15_000),
+        })
+      }
 
       const checkRes = async <T>(res: Response, name: string): Promise<T> => {
         if (!res.ok) {
           const text = await res.text()
           throw new Error(`PostHog API ${name} ${res.status}: ${text}`)
         }
-        return res.json() as Promise<T>
+        const data = await res.json() as T
+        if (import.meta.dev) {
+          const d = data as Record<string, unknown>
+          console.log(`[PostHog Response] ${name}: ${(d.results as unknown[])?.length ?? 0} rows, columns: ${JSON.stringify(d.columns ?? [])}`)
+        }
+        return data
       }
 
       type HogQLResult = { columns?: string[], results?: (string | number | null)[][] }

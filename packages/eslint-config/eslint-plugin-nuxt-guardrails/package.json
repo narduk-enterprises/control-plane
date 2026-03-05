@@ -18,6 +18,7 @@
   "scripts": {
     "gen:spec": "tsx scripts/gen-nuxt-spec.ts",
     "build": "tsup",
+    "prepare": "tsup",
     "test": "vitest run",
     "test:watch": "vitest"
   },

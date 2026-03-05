@@ -6,6 +6,59 @@
  * protections with application-level defense-in-depth.
  */
 export default defineEventHandler((event) => {
+  const config = useRuntimeConfig(event)
+  const isDev = import.meta.dev
+
+  // 1. Gather our baseline required sources
+  const baseScriptSrc = [
+    "'self'",
+    "'unsafe-inline'",
+    "'unsafe-eval'",
+    "https://*.googletagmanager.com",
+    "https://us.i.posthog.com",
+    "https://us-assets.i.posthog.com",
+    "https://static.cloudflareinsights.com",
+    "https://cdn.apple-mapkit.com",
+    "https://pagead2.googlesyndication.com"
+  ]
+
+  const baseConnectSrc = [
+    "'self'",
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://*.googletagmanager.com",
+    "https://us.i.posthog.com",
+    "https://us-assets.i.posthog.com",
+    "https://*.apple-mapkit.com",
+    "https://*.apple.com"
+  ]
+
+  // 2. Add dev-only connections
+  if (isDev) {
+    baseConnectSrc.push('http:', 'https:', 'ws:', 'wss:')
+  }
+
+  // 3. Inject explicit posthogHost if it's not the default
+  if (config.public.posthogHost && config.public.posthogHost !== 'https://us.i.posthog.com') {
+    baseScriptSrc.push(config.public.posthogHost)
+    baseConnectSrc.push(config.public.posthogHost)
+  }
+
+  // 4. Inject arbitrary comma-separated overrides from Doppler (e.g., CSP_SCRIPT_SRC, CSP_CONNECT_SRC)
+  if (config.public.cspScriptSrc) {
+    const customScripts = config.public.cspScriptSrc.split(',').map(s => s.trim()).filter(Boolean)
+    baseScriptSrc.push(...customScripts)
+  }
+
+  if (config.public.cspConnectSrc) {
+    const customConnects = config.public.cspConnectSrc.split(',').map(s => s.trim()).filter(Boolean)
+    baseConnectSrc.push(...customConnects)
+  }
+
+  // 5. Deduplicate sources using Sets, then join with spaces
+  const finalScriptSrc = `script-src ${Array.from(new Set(baseScriptSrc)).join(' ')}`
+  const finalConnectSrc = `connect-src ${Array.from(new Set(baseConnectSrc)).join(' ')}`
+
   setResponseHeaders(event, {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
@@ -14,11 +67,11 @@ export default defineEventHandler((event) => {
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     'Content-Security-Policy': [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googletagmanager.com https://us.i.posthog.com https://us-assets.i.posthog.com https://static.cloudflareinsights.com https://cdn.apple-mapkit.com https://pagead2.googlesyndication.com`,
+      finalScriptSrc,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: https:",
       "font-src 'self' https://fonts.gstatic.com",
-      `connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.apple-mapkit.com https://*.apple.com${import.meta.dev ? ' http: https: ws: wss:' : ''}`,
+      finalConnectSrc,
       "frame-ancestors 'none'",
     ].join('; '),
   })

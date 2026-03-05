@@ -20,6 +20,8 @@ declare module 'nuxt/schema' {
     gaMeasurementId: string
     posthogProjectId: string
     indexNowKey: string
+    cspScriptSrc: string
+    cspConnectSrc: string
     /** Set at build time for "latest build" checks (e.g. CI or curl script). */
     buildVersion: string
     /** ISO string set at build time. */

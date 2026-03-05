@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { enforceRateLimit } from '#layer/server/utils/rateLimit'
+import { withD1Cache } from '#layer/server/utils/d1Cache'
 
-import { withD1Cache } from '#server/utils/d1-cache'
+
 
 const CACHE_TTL_SECONDS = 5 * 60 // 5 min
 const STALE_WINDOW_SECONDS = 5 * 60 // 5 min
@@ -48,7 +49,9 @@ export default defineEventHandler(async (event) => {
   `
 
         try {
-            const res = await fetch(`${host.replace(/\/$/, '')}/api/projects/${projectId}/query/`, {
+            const apiUrl = `${host.replace(/\/$/, '')}/api/projects/${projectId}/query/`
+            if (import.meta.dev) console.log(`[PostHog Summary Request] ${apiUrl}\n  Query: ${hogqlQuery.trim().replaceAll(/\s+/g, ' ').slice(0, 200)}`)
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -65,6 +68,7 @@ export default defineEventHandler(async (event) => {
 
             type HogQLResult = { results?: (string | number | null)[][] }
             const data = (await res.json()) as HogQLResult
+            if (import.meta.dev) console.log(`[PostHog Summary Response] ${data.results?.length ?? 0} apps returned`)
 
             const result: Record<string, { eventCount: number; users: number; pageviews: number; sessions: number }> = {}
             for (const row of data.results ?? []) {

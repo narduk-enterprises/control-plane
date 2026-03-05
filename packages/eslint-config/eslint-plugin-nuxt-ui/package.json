@@ -19,6 +19,7 @@
   "scripts": {
     "gen:spec": "tsx scripts/gen-spec.ts",
     "build": "tsup",
+    "prepare": "tsup",
     "test": "vitest run",
     "test:watch": "vitest"
   },

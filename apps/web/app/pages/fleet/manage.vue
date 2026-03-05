@@ -13,10 +13,19 @@ useWebPageSchema({
 
 const toast = useToast()
 
-const { rawApps: allApps, refreshApps, isLoading, adminAddApp, adminToggleApp, adminDeleteApp } = useFleet({ includeInactive: true })
-const sortedApps = computed(() => [...(allApps.value ?? [])].sort((a, b) => a.name.localeCompare(b.name)))
-const activeCount = computed(() => sortedApps.value.filter(a => a.isActive !== false).length)
-const inactiveCount = computed(() => sortedApps.value.filter(a => a.isActive === false).length)
+const {
+  rawApps: allApps,
+  refreshApps,
+  isLoading,
+  adminAddApp,
+  adminToggleApp,
+  adminDeleteApp,
+} = useFleet({ includeInactive: true })
+const sortedApps = computed(() =>
+  [...(allApps.value ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+)
+const activeCount = computed(() => sortedApps.value.filter((a) => a.isActive !== false).length)
+const inactiveCount = computed(() => sortedApps.value.filter((a) => a.isActive === false).length)
 
 // Add app modal
 const showAddModal = ref(false)
@@ -25,6 +34,7 @@ const addForm = reactive({
   url: '',
   dopplerProject: '',
   gaPropertyId: '',
+  gaMeasurementId: '',
   posthogAppName: '',
   githubRepo: '',
 })
@@ -35,6 +45,7 @@ function resetAddForm() {
   addForm.url = ''
   addForm.dopplerProject = ''
   addForm.gaPropertyId = ''
+  addForm.gaMeasurementId = ''
   addForm.posthogAppName = ''
   addForm.githubRepo = ''
 }
@@ -44,20 +55,29 @@ async function addApp() {
   isAdding.value = true
   try {
     await adminAddApp({
-        name: addForm.name,
-        url: addForm.url,
-        dopplerProject: addForm.dopplerProject || addForm.name,
-        gaPropertyId: addForm.gaPropertyId || null,
-        posthogAppName: addForm.posthogAppName || null,
-        githubRepo: addForm.githubRepo || null,
-      })
-    toast.add({ title: 'App added', description: `${addForm.name} has been added to the fleet.`, color: 'success' })
+      name: addForm.name,
+      url: addForm.url,
+      dopplerProject: addForm.dopplerProject || addForm.name,
+      gaPropertyId: addForm.gaPropertyId || null,
+      gaMeasurementId: addForm.gaMeasurementId || null,
+      posthogAppName: addForm.posthogAppName || null,
+      githubRepo: addForm.githubRepo || null,
+    })
+    toast.add({
+      title: 'App added',
+      description: `${addForm.name} has been added to the fleet.`,
+      color: 'success',
+    })
     showAddModal.value = false
     resetAddForm()
     await refreshApps()
   } catch (err) {
-    const error = err as { data?: { message?: string }, message?: string }
-    toast.add({ title: 'Error', description: error.data?.message || error.message || 'Failed to add app', color: 'error' })
+    const error = err as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'Error',
+      description: error.data?.message || error.message || 'Failed to add app',
+      color: 'error',
+    })
   } finally {
     isAdding.value = false
   }
@@ -75,8 +95,12 @@ async function toggleActive(app: FleetApp) {
     })
     await refreshApps()
   } catch (err) {
-    const error = err as { data?: { message?: string }, message?: string }
-    toast.add({ title: 'Error', description: error.data?.message || 'Failed to update app', color: 'error' })
+    const error = err as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'Error',
+      description: error.data?.message || 'Failed to update app',
+      color: 'error',
+    })
   }
 }
 
@@ -85,11 +109,19 @@ async function deleteApp(app: FleetApp) {
   if (!confirm(`Permanently delete "${app.name}"? This cannot be undone.`)) return
   try {
     await adminDeleteApp(app.name)
-    toast.add({ title: 'Deleted', description: `${app.name} has been removed from the fleet.`, color: 'success' })
+    toast.add({
+      title: 'Deleted',
+      description: `${app.name} has been removed from the fleet.`,
+      color: 'success',
+    })
     await refreshApps()
   } catch (err) {
-    const error = err as { data?: { message?: string }, message?: string }
-    toast.add({ title: 'Error', description: error.data?.message || 'Failed to delete', color: 'error' })
+    const error = err as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'Error',
+      description: error.data?.message || 'Failed to delete',
+      color: 'error',
+    })
   }
 }
 
@@ -109,9 +141,7 @@ function formatUrl(url: string) {
     <AppBreadcrumbs :items="breadcrumbItems" />
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="font-display text-2xl font-semibold text-default">
-          Manage Fleet
-        </h1>
+        <h1 class="font-display text-2xl font-semibold text-default">Manage Fleet</h1>
         <p class="mt-1 text-sm text-muted">
           {{ activeCount }} active, {{ inactiveCount }} inactive — add, edit, or deactivate apps
         </p>
@@ -127,11 +157,7 @@ function formatUrl(url: string) {
         >
           Refresh
         </UButton>
-        <UButton
-          icon="i-lucide-plus"
-          class="cursor-pointer"
-          @click="showAddModal = true"
-        >
+        <UButton icon="i-lucide-plus" class="cursor-pointer" @click="showAddModal = true">
           Add App
         </UButton>
       </div>
@@ -153,12 +179,7 @@ function formatUrl(url: string) {
               <h3 class="font-semibold text-default truncate">
                 {{ app.name }}
               </h3>
-              <UBadge
-                v-if="app.isActive === false"
-                variant="subtle"
-                color="warning"
-                size="xs"
-              >
+              <UBadge v-if="app.isActive === false" variant="subtle" color="warning" size="xs">
                 Inactive
               </UBadge>
             </div>
@@ -250,18 +271,10 @@ function formatUrl(url: string) {
 
           <div class="flex flex-col gap-4">
             <UFormField label="App Name" required>
-              <UInput
-                v-model="addForm.name"
-                placeholder="my-app-name"
-                class="w-full"
-              />
+              <UInput v-model="addForm.name" placeholder="my-app-name" class="w-full" />
             </UFormField>
             <UFormField label="Production URL" required>
-              <UInput
-                v-model="addForm.url"
-                placeholder="https://my-app.nard.uk"
-                class="w-full"
-              />
+              <UInput v-model="addForm.url" placeholder="https://my-app.nard.uk" class="w-full" />
             </UFormField>
             <UFormField label="Doppler Project" hint="Defaults to app name">
               <UInput
@@ -270,19 +283,14 @@ function formatUrl(url: string) {
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="GA4 Property ID">
-              <UInput
-                v-model="addForm.gaPropertyId"
-                placeholder="526067189"
-                class="w-full"
-              />
+            <UFormField label="GA4 Property ID" hint="Numeric ID for Reporting API">
+              <UInput v-model="addForm.gaPropertyId" placeholder="526067189" class="w-full" />
+            </UFormField>
+            <UFormField label="GA Measurement ID" hint="G-XXXXXXXX from runtime config">
+              <UInput v-model="addForm.gaMeasurementId" placeholder="G-XXXXXXXXXX" class="w-full" />
             </UFormField>
             <UFormField label="PostHog App Name" hint="Only if different from app name">
-              <UInput
-                v-model="addForm.posthogAppName"
-                placeholder="My App Name"
-                class="w-full"
-              />
+              <UInput v-model="addForm.posthogAppName" placeholder="My App Name" class="w-full" />
             </UFormField>
             <UFormField label="GitHub Repo">
               <UInput

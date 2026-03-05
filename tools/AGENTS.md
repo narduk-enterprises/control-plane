@@ -6,13 +6,15 @@ These are **Node.js automation scripts** that run locally or in CI. They are **N
 
 ## Scripts
 
-| Script                 | Purpose                                                                                                   | Usage                                                   |
-| ---------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `init.ts`              | Transforms a fresh template clone into a ready-to-deploy app (renames, provisions D1, Doppler, analytics) | `pnpm init -- --name="..." --display="..." --url="..."` |
-| `validate.ts`          | Confirms infrastructure is correctly provisioned (D1, Doppler, GitHub secrets)                            | `pnpm run validate`                                     |
-| `generate-favicons.ts` | Generates all favicon variants (apple-touch-icon, ico, PNG, webmanifest) from a source SVG                | `pnpm generate:favicons`                                |
-| `setup-analytics.ts`   | Bootstraps GA4, Google Search Console, and IndexNow                                                       | Called by `init.ts` or run directly                     |
-| `gsc-toolbox.ts`       | Google Search Console API utilities                                                                       | Used by `setup-analytics.ts`                            |
+| Script                      | Purpose                                                                                                                    | Usage                                                                    |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `init.ts`                   | Transforms a fresh template clone into a ready-to-deploy app (renames, provisions D1, Doppler, analytics)                  | `pnpm init -- --name="..." --display="..." --url="..."`                  |
+| `validate.ts`               | Confirms infrastructure is correctly provisioned (D1, Doppler, GitHub secrets)                                             | `pnpm run validate`                                                      |
+| `generate-favicons.ts`      | Generates all favicon variants (apple-touch-icon, ico, PNG, webmanifest) from a source SVG                                 | `pnpm generate:favicons`                                                 |
+| `setup-analytics.ts`        | Bootstraps GA4, Google Search Console, and IndexNow                                                                        | Called by `init.ts` or run directly                                      |
+| `gsc-toolbox.ts`            | Google Search Console API utilities                                                                                        | Used by `setup-analytics.ts`                                             |
+| `set-fleet-doppler-urls.ts` | Bulk-set `SITE_URL` (default) or analytics keys (`--sync-analytics`) across all fleet Doppler projects                     | `npx tsx tools/set-fleet-doppler-urls.ts [--sync-analytics] [--dry-run]` |
+| `validate-fleet-doppler.ts` | Verify all fleet apps have required Doppler secrets: `SITE_URL`, `POSTHOG_PUBLIC_KEY`, `POSTHOG_HOST`, `GA_MEASUREMENT_ID` | `pnpm run check:fleet-doppler`                                           |
 
 ## vs. `scripts/`
 

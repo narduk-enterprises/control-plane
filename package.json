@@ -29,14 +29,17 @@
     "db:migrate": "pnpm --filter web run db:migrate",
     "dev:kill": "sh scripts/dev-kill.sh",
     "test:e2e": "playwright test",
-    "generate:favicons": "npx tsx tools/generate-favicons.ts"
+    "generate:favicons": "npx tsx tools/generate-favicons.ts",
+    "predeploy": "node tools/check-setup.cjs"
   },
   "pnpm": {
     "overrides": {
       "esbuild": ">=0.25.0",
       "serialize-javascript": ">=7.0.3",
       "@cloudflare/unenv-preset": "2.12.1",
-      "nuxt-og-image": "6.0.0-beta.47"
+      "nuxt-og-image": "6.0.0-beta.47",
+      "@takumi-rs/core": ">=0.70.1",
+      "@takumi-rs/wasm": ">=0.70.1"
     },
     "onlyBuiltDependencies": [
       "@parcel/watcher",

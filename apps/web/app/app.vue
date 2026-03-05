@@ -21,6 +21,7 @@ const navItems = [
   { label: 'Manage Fleet', to: '/fleet/manage', icon: 'i-lucide-list-checks' },
   { label: 'Analytics', to: '/analytics', icon: 'i-lucide-activity' },
   { label: 'Indexing', to: '/indexing', icon: 'i-lucide-search' },
+  { label: 'Audit', to: '/audit', icon: 'i-lucide-shield-check' },
   { label: 'GitHub', to: '/github', icon: 'i-lucide-github' },
   { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
 ];

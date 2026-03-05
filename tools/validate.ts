@@ -42,7 +42,7 @@ async function main() {
   console.log(`\n🔍 Validating Setup for: ${APP_NAME}`)
 
   // 1. Check D1 Databases (reads database_name from each app's wrangler.json)
-  console.log('\nStep 1/5: Validating D1 Databases...')
+  console.log('\nStep 1/6: Validating D1 Databases...')
   try {
     const appsDir = path.join(ROOT_DIR, 'apps')
     const entries = await fs.readdir(appsDir, { withFileTypes: true })
@@ -78,7 +78,7 @@ async function main() {
   }
 
   // 2. Check wrangler.json database_id values
-  console.log('\nStep 2/5: Validating wrangler.json database IDs...')
+  console.log('\nStep 2/6: Validating wrangler.json database IDs...')
   try {
     const appsDir = path.join(ROOT_DIR, 'apps')
     const entries = await fs.readdir(appsDir, { withFileTypes: true })
@@ -117,7 +117,7 @@ async function main() {
   }
 
   // 3. Doppler
-  console.log('\nStep 3/5: Validating Doppler Configuration...')
+  console.log('\nStep 3/6: Validating Doppler Configuration...')
   let dopplerOk = true
   dopplerOk = checkCommand(
     `doppler projects get ${APP_NAME}`,
@@ -149,7 +149,7 @@ async function main() {
   }
 
   // 3b. Verify hub-and-spoke references resolve correctly
-  console.log('\nStep 3b/5: Validating Doppler Hub References...')
+  console.log('\nStep 3b/6: Validating Doppler Hub References...')
   if (!dopplerOk) {
     console.log('  ⏭ Skipping (Doppler project not found).')
   } else {
@@ -189,7 +189,7 @@ async function main() {
   }
 
   // 4. GitHub Secret
-  console.log('\nStep 4/5: Validating GitHub Secrets...')
+  console.log('\nStep 4/6: Validating GitHub Secrets...')
   let targetRepoFlag = ''
   try {
     const remotesOutput = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' })
@@ -218,6 +218,46 @@ async function main() {
   } catch (error: any) {
     const stderr = error.stderr || error.message || ''
     console.error(`  ❌ Failed to list GitHub secrets: ${stderr}`)
+    allGood = false
+  }
+
+  // 5. Package.json health (critical deps + script database names)
+  console.log('\nStep 5/6: Validating apps/web/package.json...')
+  try {
+    const webPkgPath = path.join(ROOT_DIR, 'apps', 'web', 'package.json')
+    const webPkgContent = await fs.readFile(webPkgPath, 'utf-8')
+    const webPkg = JSON.parse(webPkgContent)
+
+    const requiredDeps = ['drizzle-orm', 'zod']
+    const requiredDevDeps = ['@cloudflare/workers-types', '@iconify-json/lucide']
+
+    for (const dep of requiredDeps) {
+      if (webPkg.dependencies?.[dep]) {
+        console.log(`  ✅ ${dep} in dependencies`)
+      } else {
+        console.error(`  ❌ ${dep} missing from dependencies (typecheck will fail)`)
+        allGood = false
+      }
+    }
+    for (const dep of requiredDevDeps) {
+      if (webPkg.devDependencies?.[dep]) {
+        console.log(`  ✅ ${dep} in devDependencies`)
+      } else {
+        console.error(`  ❌ ${dep} missing from devDependencies`)
+        allGood = false
+      }
+    }
+
+    // Ensure db:migrate doesn't still reference the template database name
+    const migrateScript = webPkg.scripts?.['db:migrate'] || ''
+    if (migrateScript.includes('narduk-nuxt-template')) {
+      console.error(`  ❌ db:migrate script still references 'narduk-nuxt-template' — run setup with --repair`)
+      allGood = false
+    } else if (migrateScript) {
+      console.log('  ✅ db:migrate script references correct database name')
+    }
+  } catch (e: any) {
+    console.error(`  ❌ Failed to read apps/web/package.json: ${e.message}`)
     allGood = false
   }
 

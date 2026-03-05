@@ -8,6 +8,7 @@ const bodySchema = z.object({
   url: z.string().url().optional(),
   dopplerProject: z.string().min(1).optional(),
   gaPropertyId: z.string().nullish(),
+  gaMeasurementId: z.string().nullish(),
   posthogAppName: z.string().nullish(),
   githubRepo: z.string().nullish(),
   isActive: z.boolean().optional(),
@@ -26,13 +27,21 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const parsed = bodySchema.safeParse(body)
   if (!parsed.success) {
-    throw createError({ statusCode: 400, message: `Validation error: ${parsed.error.issues.map(i => i.message).join(', ')}` })
+    throw createError({
+      statusCode: 400,
+      message: `Validation error: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
+    })
   }
 
   const db = useDatabase(event)
 
   // Check app exists
-  const existing = await db.select().from(fleetApps).where(eq(fleetApps.name, appName)).limit(1).all()
+  const existing = await db
+    .select()
+    .from(fleetApps)
+    .where(eq(fleetApps.name, appName))
+    .limit(1)
+    .all()
   if (existing.length === 0) {
     throw createError({ statusCode: 404, message: `App '${appName}' not found.` })
   }
@@ -40,8 +49,12 @@ export default defineEventHandler(async (event) => {
   const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() }
   if (parsed.data.url !== undefined) updates.url = parsed.data.url
   if (parsed.data.dopplerProject !== undefined) updates.dopplerProject = parsed.data.dopplerProject
-  if (parsed.data.gaPropertyId !== undefined) updates.gaPropertyId = parsed.data.gaPropertyId ?? null
-  if (parsed.data.posthogAppName !== undefined) updates.posthogAppName = parsed.data.posthogAppName ?? null
+  if (parsed.data.gaPropertyId !== undefined)
+    updates.gaPropertyId = parsed.data.gaPropertyId ?? null
+  if (parsed.data.gaMeasurementId !== undefined)
+    updates.gaMeasurementId = parsed.data.gaMeasurementId ?? null
+  if (parsed.data.posthogAppName !== undefined)
+    updates.posthogAppName = parsed.data.posthogAppName ?? null
   if (parsed.data.githubRepo !== undefined) updates.githubRepo = parsed.data.githubRepo ?? null
   if (parsed.data.isActive !== undefined) updates.isActive = parsed.data.isActive
 

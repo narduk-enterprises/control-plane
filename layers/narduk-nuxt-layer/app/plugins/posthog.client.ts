@@ -33,6 +33,7 @@ export default defineNuxtPlugin(() => {
   (window as any).$nuxt.$posthog = posthog
 
   // Tag internal traffic and uniquely identify the fleet application
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const superProperties: Record<string, any> = { app: appName }
   if (window.location.hostname.endsWith('.pages.dev')) {
     superProperties.is_internal_user = true

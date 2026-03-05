@@ -1,7 +1,8 @@
 import { requireAdmin } from '#layer/server/utils/auth'
 import { getFleetApps } from '#server/data/fleet-registry'
 import { z } from 'zod'
-import { withD1Cache } from '#server/utils/d1-cache'
+import { withD1Cache } from '#layer/server/utils/d1Cache'
+
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)

@@ -9,6 +9,8 @@ overrides:
   serialize-javascript: '>=7.0.3'
   '@cloudflare/unenv-preset': 2.12.1
   nuxt-og-image: 6.0.0-beta.47
+  '@takumi-rs/core': '>=0.70.1'
+  '@takumi-rs/wasm': '>=0.70.1'
 
 importers:
 
@@ -119,10 +121,10 @@ importers:
         specifier: ^3.4.0
         version: 3.4.0(2d547b41fe7f41c4b549c6794d298434)
       '@takumi-rs/core':
-        specifier: ^0.70.1
+        specifier: '>=0.70.1'
         version: 0.70.4
       '@takumi-rs/wasm':
-        specifier: ^0.70.1
+        specifier: '>=0.70.1'
         version: 0.70.4
       drizzle-orm:
         specifier: ^0.45.1
@@ -5528,8 +5530,8 @@ packages:
     peerDependencies:
       '@resvg/resvg-js': ^2.6.0
       '@resvg/resvg-wasm': ^2.6.0
-      '@takumi-rs/core': ^0.70.1
-      '@takumi-rs/wasm': ^0.70.1
+      '@takumi-rs/core': '>=0.70.1'
+      '@takumi-rs/wasm': '>=0.70.1'
       '@unhead/vue': ^2.0.5
       fontless: ^0.2.0
       playwright-core: ^1.50.0

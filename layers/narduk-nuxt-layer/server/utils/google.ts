@@ -37,7 +37,7 @@ export class GoogleApiError extends Error {
 // redundant JWT exchanges with Google. The cache is scoped to a single isolate and
 // is NOT shared across Workers — it acts as a per-instance optimization, not global state.
 // We must cache by scopes to prevent a GSC token from mistakenly being used for a GA request!
-let cachedTokens: Record<string, { token: string; expiry: number }> = {}
+const cachedTokens: Record<string, { token: string; expiry: number }> = {}
 
 /**
  * Obtain a Google access token via service account JWT assertion.

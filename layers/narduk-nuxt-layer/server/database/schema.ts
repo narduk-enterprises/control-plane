@@ -29,9 +29,17 @@ export const todos = sqliteTable('todos', {
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 
+// ─── KV Cache ───────────────────────────────────────────────
+export const kvCache = sqliteTable('kv_cache', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  expiresAt: integer('expires_at').notNull(),
+})
+
 // ─── Type helpers ───────────────────────────────────────────
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Session = typeof sessions.$inferSelect
 export type Todo = typeof todos.$inferSelect
 export type NewTodo = typeof todos.$inferInsert
+export type KvCacheEntry = typeof kvCache.$inferSelect

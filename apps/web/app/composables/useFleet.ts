@@ -5,6 +5,7 @@ export interface FleetApp {
   url: string
   dopplerProject: string
   gaPropertyId?: string | null
+  gaMeasurementId?: string | null
   posthogAppName?: string | null
   githubRepo?: string | null
   isActive?: boolean
@@ -16,18 +17,30 @@ type PosthogSummaryMap = Record<string, { eventCount: number; users: number }>
 
 export function useFleet(options?: { includeInactive?: boolean }) {
   const query = options?.includeInactive ? { includeInactive: 'true' } : undefined
-  const { data: rawApps, refresh: refreshApps, status: appsStatus } = useFetch<FleetApp[]>('/api/fleet/apps', {
+  const {
+    data: rawApps,
+    refresh: refreshApps,
+    status: appsStatus,
+  } = useFetch<FleetApp[]>('/api/fleet/apps', {
     query,
     default: () => [],
   })
 
-  const { data: rawStatuses, refresh: refreshStatusesRaw, status: statusesStatus } = useFetch<FleetAppStatusRecord[]>('/api/fleet/status', {
+  const {
+    data: rawStatuses,
+    refresh: refreshStatusesRaw,
+    status: statusesStatus,
+  } = useFetch<FleetAppStatusRecord[]>('/api/fleet/status', {
     default: () => [],
     lazy: true,
     server: false,
   })
 
-  const { data: rawPosthog, refresh: refreshPosthog, status: posthogStatus } = useFetch<PosthogSummaryMap>('/api/fleet/posthog/summary', {
+  const {
+    data: rawPosthog,
+    refresh: refreshPosthog,
+    status: posthogStatus,
+  } = useFetch<PosthogSummaryMap>('/api/fleet/posthog/summary', {
     default: () => ({}),
     server: false,
     lazy: true,
@@ -53,7 +66,10 @@ export function useFleet(options?: { includeInactive?: boolean }) {
   async function refreshStatuses() {
     isRefreshingStatus.value = true
     try {
-      await $fetch('/api/fleet/status/refresh', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      await $fetch('/api/fleet/status/refresh', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
       await refreshStatusesRaw()
     } finally {
       isRefreshingStatus.value = false
@@ -64,7 +80,10 @@ export function useFleet(options?: { includeInactive?: boolean }) {
   async function refreshAppStatus(appName: string) {
     refreshingSpecificApps.value.add(appName)
     try {
-      await $fetch(`/api/fleet/status/${encodeURIComponent(appName)}/refresh`, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      await $fetch(`/api/fleet/status/${encodeURIComponent(appName)}/refresh`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
       await refreshStatusesRaw()
     } finally {
       refreshingSpecificApps.value.delete(appName)
@@ -76,29 +95,40 @@ export function useFleet(options?: { includeInactive?: boolean }) {
 
   // 4. Force refresh all data (busts D1 caches)
   async function forceRefreshAll() {
-    await Promise.all([
-      refreshApps(),
-      refreshStatusesRaw(),
-      refreshPosthog(),
-    ])
+    await Promise.all([refreshApps(), refreshStatusesRaw(), refreshPosthog()])
   }
 
   // 5. Global Load State
   const isLoading = computed(() => {
-    return appsStatus.value === 'pending' || statusesStatus.value === 'pending' || posthogStatus.value === 'pending'
+    return (
+      appsStatus.value === 'pending' ||
+      statusesStatus.value === 'pending' ||
+      posthogStatus.value === 'pending'
+    )
   })
 
   // 6. Admin Mutations
   async function adminAddApp(body: Record<string, unknown>) {
-    return $fetch('/api/fleet/apps', { method: 'POST', body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    return $fetch('/api/fleet/apps', {
+      method: 'POST',
+      body,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
   }
 
   async function adminToggleApp(appName: string, isActive: boolean) {
-    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}`, { method: 'PUT', body: { isActive }, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}`, {
+      method: 'PUT',
+      body: { isActive },
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
   }
 
   async function adminDeleteApp(appName: string, hard: boolean = true) {
-    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}${hard ? '?hard=true' : ''}`, { method: 'DELETE', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}${hard ? '?hard=true' : ''}`, {
+      method: 'DELETE',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
   }
 
   return {
@@ -107,19 +137,19 @@ export function useFleet(options?: { includeInactive?: boolean }) {
     rawStatuses,
     statusMap,
     posthogSummary: rawPosthog,
-    
+
     getAppStatus,
     refreshStatuses,
     refreshAppStatus,
     isAppRefreshing,
     isRefreshingStatus,
-    
+
     refreshApps,
     refreshPosthog,
     refreshStatusesRaw,
     forceRefreshAll,
     isLoading,
-    
+
     adminAddApp,
     adminToggleApp,
     adminDeleteApp,
