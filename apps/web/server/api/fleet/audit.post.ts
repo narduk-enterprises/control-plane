@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
 
   // Audit all apps in parallel — eliminates serial latency stacking across fleet
   const results = await Promise.all(
+    // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server
     apps.map(async (app): Promise<AuditResult> => {
       let html = ''
 

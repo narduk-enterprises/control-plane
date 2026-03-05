@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { h } from 'vue'
 import type { AuditResult } from '~/types/audit'
-import type { TableColumn } from '~/types/table'
 
 useSeo({
   title: 'Fleet Audit',
@@ -22,161 +20,40 @@ async function runAudit() {
   hasRun.value = true
   try {
     results.value = await auditApi.runAudit()
-  }
-  catch (err) {
+  } catch (err) {
     console.error('Audit failed:', err)
-  }
-  finally {
+  } finally {
     isAuditing.value = false
   }
 }
 
-// Flatten results for the table
-interface FlatCheck {
-  app: string
-  url: string
-  checkName: string
-  status: 'pass' | 'fail' | 'warning' | 'skipped'
-  expected: string | null
-  actual: string | null
-  message: string
-  fetchError?: string
-}
-
-const flatChecks = computed<FlatCheck[]>(() => {
-  const rows: FlatCheck[] = []
+// Summary counts — derive from results directly
+const allChecks = computed((): Array<{ status: string }> => {
+  const out: Array<{ status: string }> = []
   for (const r of results.value) {
     if (r.fetchError) {
-      rows.push({
-        app: r.app,
-        url: r.url,
-        checkName: 'Fetch',
-        status: 'fail',
-        expected: null,
-        actual: null,
-        message: r.fetchError,
-        fetchError: r.fetchError,
-      })
-      continue
-    }
-    for (const c of r.checks) {
-      rows.push({
-        app: r.app,
-        url: r.url,
-        checkName: c.name,
-        status: c.status,
-        expected: c.expected,
-        actual: c.actual,
-        message: c.message,
-      })
+      out.push({ status: 'fail' })
+    } else {
+      for (const c of r.checks) out.push(c)
     }
   }
-  return rows
+  return out
 })
+const passCount = computed(() => allChecks.value.filter((c) => c.status === 'pass').length)
+const failCount = computed(() => allChecks.value.filter((c) => c.status === 'fail').length)
+const warnCount = computed(() => allChecks.value.filter((c) => c.status === 'warning').length)
+const skipCount = computed(() => allChecks.value.filter((c) => c.status === 'skipped').length)
 
-// Summary counts
-const passCount = computed(() => flatChecks.value.filter(c => c.status === 'pass').length)
-const failCount = computed(() => flatChecks.value.filter(c => c.status === 'fail').length)
-const warnCount = computed(() => flatChecks.value.filter(c => c.status === 'warning').length)
-const skipCount = computed(() => flatChecks.value.filter(c => c.status === 'skipped').length)
-const appCount = computed(() => results.value.length)
-
-function statusColor(status: string): string {
-  switch (status) {
-    case 'pass': return 'text-success'
-    case 'fail': return 'text-error'
-    case 'warning': return 'text-warning'
-    default: return 'text-muted'
-  }
+// Apps that have at least one non-pass check
+function hasIssue(app: AuditResult): boolean {
+  if (app.fetchError) return true
+  return app.checks.some((c) => c.status !== 'pass')
 }
 
-function statusIcon(status: string): string {
-  switch (status) {
-    case 'pass': return 'i-lucide-circle-check'
-    case 'fail': return 'i-lucide-circle-x'
-    case 'warning': return 'i-lucide-triangle-alert'
-    default: return 'i-lucide-circle-minus'
-  }
-}
+const appsWithIssues = computed(() => results.value.filter(hasIssue))
+const allPassApps = computed(() => results.value.filter((a) => !hasIssue(a)))
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case 'pass': return 'Pass'
-    case 'fail': return 'Fail'
-    case 'warning': return 'Warn'
-    default: return 'Skip'
-  }
-}
-
-// Filtering
-const filterStatus = ref<string>('all')
-const searchQuery = ref('')
-
-const filteredChecks = computed(() => {
-  let rows = flatChecks.value
-  if (filterStatus.value !== 'all') {
-    rows = rows.filter(r => r.status === filterStatus.value)
-  }
-  const q = searchQuery.value.trim().toLowerCase()
-  if (q) {
-    rows = rows.filter(r =>
-      r.app.toLowerCase().includes(q) ||
-      r.checkName.toLowerCase().includes(q) ||
-      r.message.toLowerCase().includes(q),
-    )
-  }
-  return rows
-})
-
-const columns: TableColumn<FlatCheck>[] = [
-  {
-    accessorKey: 'app',
-    header: 'App',
-    cell: ({ row }) => h('span', { class: 'font-medium text-default' }, row.original.app),
-  },
-  {
-    accessorKey: 'checkName',
-    header: 'Check',
-    cell: ({ row }) => h('span', { class: 'text-sm' }, row.original.checkName),
-  },
-  {
-    id: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-      const s = row.original.status
-      return h('div', { class: `flex items-center gap-1.5 font-medium text-sm ${statusColor(s)}` }, [
-        h('span', { class: `${statusIcon(s)} size-4` }),
-        statusLabel(s),
-      ])
-    },
-  },
-  {
-    id: 'expected',
-    header: 'Expected',
-    meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell max-w-[180px] truncate' } },
-    cell: ({ row }) => h('span', { class: 'text-xs text-muted font-mono' }, row.original.expected ?? '—'),
-  },
-  {
-    id: 'actual',
-    header: 'Actual',
-    meta: { class: { th: 'hidden lg:table-cell', td: 'hidden lg:table-cell max-w-[180px] truncate' } },
-    cell: ({ row }) => h('span', { class: 'text-xs text-muted font-mono' }, row.original.actual ?? '—'),
-  },
-  {
-    id: 'message',
-    header: 'Details',
-    meta: { class: { td: 'max-w-[300px] text-wrap' } },
-    cell: ({ row }) => h('span', { class: 'text-xs text-muted' }, row.original.message),
-  },
-]
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
-const columnsForTable = columns as any
-
-const breadcrumbItems = computed(() => [
-  { label: 'Dashboard', to: '/' },
-  { label: 'Audit' },
-])
+const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label: 'Audit' }])
 </script>
 
 <template>
@@ -184,11 +61,9 @@ const breadcrumbItems = computed(() => [
     <AppBreadcrumbs :items="breadcrumbItems" />
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="font-display text-2xl font-semibold text-default">
-          Fleet Audit
-        </h1>
+        <h1 class="font-display text-2xl font-semibold text-default">Fleet Audit</h1>
         <p class="mt-1 text-sm text-muted">
-          Verify PostHog, Google Analytics, and APP_NAME configuration across all fleet apps
+          Verify PostHog, Google Analytics, and app name configuration across all fleet apps
         </p>
       </div>
       <UButton
@@ -206,121 +81,104 @@ const breadcrumbItems = computed(() => [
     <div v-if="hasRun && !isAuditing" class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
       <UCard class="text-center">
         <p class="text-2xl font-bold text-default">
-          {{ appCount }}
+          {{ results.length }}
         </p>
-        <p class="text-xs text-muted mt-0.5">
-          Apps
-        </p>
+        <p class="mt-0.5 text-xs text-muted">Apps</p>
       </UCard>
       <UCard class="text-center">
         <p class="text-2xl font-bold text-success">
           {{ passCount }}
         </p>
-        <p class="text-xs text-muted mt-0.5">
-          Passed
-        </p>
+        <p class="mt-0.5 text-xs text-muted">Passed</p>
       </UCard>
       <UCard class="text-center">
         <p class="text-2xl font-bold text-error">
           {{ failCount }}
         </p>
-        <p class="text-xs text-muted mt-0.5">
-          Failed
-        </p>
+        <p class="mt-0.5 text-xs text-muted">Failed</p>
       </UCard>
       <UCard class="text-center">
         <p class="text-2xl font-bold text-warning">
           {{ warnCount }}
         </p>
-        <p class="text-xs text-muted mt-0.5">
-          Warnings
-        </p>
+        <p class="mt-0.5 text-xs text-muted">Warnings</p>
       </UCard>
       <UCard class="text-center">
         <p class="text-2xl font-bold text-muted">
           {{ skipCount }}
         </p>
-        <p class="text-xs text-muted mt-0.5">
-          Skipped
-        </p>
+        <p class="mt-0.5 text-xs text-muted">Skipped</p>
       </UCard>
     </div>
 
     <!-- Loading state -->
     <UCard v-if="isAuditing">
       <div class="flex flex-col items-center justify-center gap-4 py-12">
-        <div class="relative">
-          <div class="size-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-        </div>
+        <div
+          class="size-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin"
+        />
         <div class="text-center">
-          <p class="font-medium text-default">
-            Auditing fleet apps...
-          </p>
+          <p class="font-medium text-default">Auditing fleet apps…</p>
           <p class="mt-1 text-sm text-muted">
-            Fetching and analysing HTML from each production site
+            Fetching and analysing all production sites in parallel
           </p>
         </div>
       </div>
     </UCard>
 
-    <!-- Results table -->
-    <UCard v-else-if="hasRun && flatChecks.length > 0">
-      <template #header>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <!-- Results — two sections -->
+    <template v-else-if="hasRun && results.length > 0">
+      <!-- Section 1: Apps with issues — expanded by default -->
+      <div v-if="appsWithIssues.length > 0" class="mb-6">
+        <div class="mb-3 flex items-center gap-2">
+          <UIcon name="i-lucide-triangle-alert" class="size-4 text-warning" />
           <h2 class="font-semibold text-default">
-            Audit Results
+            Issues ({{ appsWithIssues.length }}
+            <span class="font-normal text-muted"
+              >app{{ appsWithIssues.length === 1 ? '' : 's' }}</span
+            >)
           </h2>
-          <div class="flex items-center gap-2">
-            <USelect
-              v-model="filterStatus"
-              :items="[
-                { label: 'All Statuses', value: 'all' },
-                { label: 'Pass', value: 'pass' },
-                { label: 'Fail', value: 'fail' },
-                { label: 'Warning', value: 'warning' },
-                { label: 'Skipped', value: 'skipped' },
-              ]"
-              class="w-36"
-            />
-            <UInput
-              v-model="searchQuery"
-              placeholder="Filter by app or check..."
-              class="max-w-xs"
-              icon="i-lucide-search"
-            >
-              <template #trailing>
-                <UButton
-                  v-show="searchQuery !== ''"
-                  color="neutral"
-                  variant="link"
-                  size="xs"
-                  icon="i-lucide-x"
-                  aria-label="Clear search"
-                  class="cursor-pointer px-1"
-                  @click="searchQuery = ''"
-                />
-              </template>
-            </UInput>
-          </div>
         </div>
-      </template>
-      <div class="overflow-x-auto">
-        <UTable
-          :data="filteredChecks"
-          :columns="columnsForTable"
+        <AuditAppList
+          :apps="appsWithIssues"
+          :default-expanded="true"
+          empty-message="No apps with issues."
         />
       </div>
-    </UCard>
+
+      <!-- Divider + all-clear if nothing has issues -->
+      <UCard v-else class="mb-6">
+        <div class="flex items-center justify-center gap-3 py-4 text-success">
+          <UIcon name="i-lucide-shield-check" class="size-6" />
+          <p class="font-semibold">All apps passed every check</p>
+        </div>
+      </UCard>
+
+      <!-- Section 2: All apps — collapsed -->
+      <div>
+        <div class="mb-3 flex items-center gap-2">
+          <UIcon name="i-lucide-layers" class="size-4 text-muted" />
+          <h2 class="font-semibold text-default">All Apps ({{ results.length }})</h2>
+          <p v-if="allPassApps.length > 0" class="text-xs text-muted">
+            — {{ allPassApps.length }} fully passing
+          </p>
+        </div>
+        <AuditAppList
+          :apps="results"
+          :default-expanded="false"
+          empty-message="No apps in fleet registry."
+        />
+      </div>
+    </template>
 
     <!-- Empty / no-run state -->
     <UCard v-else-if="!hasRun">
-      <div class="rounded-lg border border-dashed border-default p-12 text-center bg-elevated/50">
-        <UIcon name="i-lucide-shield-check" class="mx-auto size-14 text-muted/40 mb-4" />
-        <p class="text-base font-medium text-default">
-          Fleet Configuration Audit
-        </p>
-        <p class="mt-2 text-sm text-muted max-w-md mx-auto">
-          Click "Run Audit" to fetch each app's production HTML and verify that PostHog, Google Analytics, and APP_NAME configurations match the fleet registry.
+      <div class="rounded-lg border border-dashed border-default bg-elevated/50 p-12 text-center">
+        <UIcon name="i-lucide-shield-check" class="mx-auto mb-4 size-14 text-muted/40" />
+        <p class="text-base font-medium text-default">Fleet Configuration Audit</p>
+        <p class="mx-auto mt-2 max-w-md text-sm text-muted">
+          Click "Run Audit" to fetch each app's production HTML and verify PostHog, Google
+          Analytics, and app name configurations match the fleet registry.
         </p>
       </div>
     </UCard>
@@ -329,9 +187,7 @@ const breadcrumbItems = computed(() => [
     <UCard v-else>
       <div class="rounded-lg border border-dashed border-default p-8 text-center">
         <UIcon name="i-lucide-inbox" class="mx-auto size-10 text-muted" />
-        <p class="mt-2 text-sm font-medium text-default">
-          No audit results
-        </p>
+        <p class="mt-2 text-sm font-medium text-default">No audit results</p>
         <p class="mt-1 text-sm text-muted">
           The audit completed but produced no results. Ensure fleet apps are registered.
         </p>
