@@ -127,7 +127,7 @@ const summaryMap = computed(() => {
             :name="summaryMap.get(app.app)!.icon"
             :class="`size-5 shrink-0 ${summaryMap.get(app.app)!.colorClass}`"
           />
-          <div class="min-w-0">
+          <div class="min-w-0 flex-1">
             <p class="truncate font-semibold text-default">
               {{ app.app }}
             </p>
