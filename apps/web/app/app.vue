@@ -18,6 +18,7 @@ function cycleColorMode() {
 const navItems = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
   { label: 'Fleet', to: '/fleet', icon: 'i-lucide-grid-3x3' },
+  { label: 'Manage Fleet', to: '/fleet/manage', icon: 'i-lucide-list-checks' },
   { label: 'Analytics', to: '/analytics', icon: 'i-lucide-activity' },
   { label: 'Indexing', to: '/indexing', icon: 'i-lucide-search' },
   { label: 'GitHub', to: '/github', icon: 'i-lucide-github' },
