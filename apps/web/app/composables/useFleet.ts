@@ -124,6 +124,14 @@ export function useFleet(options?: { includeInactive?: boolean }) {
     })
   }
 
+  async function adminEditApp(appName: string, body: Record<string, unknown>) {
+    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}`, {
+      method: 'PUT',
+      body,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
+  }
+
   async function adminDeleteApp(appName: string, hard: boolean = true) {
     return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}${hard ? '?hard=true' : ''}`, {
       method: 'DELETE',
@@ -151,6 +159,7 @@ export function useFleet(options?: { includeInactive?: boolean }) {
     isLoading,
 
     adminAddApp,
+    adminEditApp,
     adminToggleApp,
     adminDeleteApp,
   }

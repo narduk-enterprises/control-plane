@@ -18,6 +18,7 @@ const {
   refreshApps,
   isLoading,
   adminAddApp,
+  adminEditApp,
   adminToggleApp,
   adminDeleteApp,
 } = useFleet({ includeInactive: true })
@@ -80,6 +81,62 @@ async function addApp() {
     })
   } finally {
     isAdding.value = false
+  }
+}
+
+// Edit app modal
+const showEditModal = ref(false)
+const editingApp = ref<FleetApp | null>(null)
+const editForm = reactive({
+  url: '',
+  dopplerProject: '',
+  gaPropertyId: '',
+  gaMeasurementId: '',
+  posthogAppName: '',
+  githubRepo: '',
+})
+const isEditing = ref(false)
+
+function openEditModal(app: FleetApp) {
+  editingApp.value = app
+  editForm.url = app.url
+  editForm.dopplerProject = app.dopplerProject || ''
+  editForm.gaPropertyId = app.gaPropertyId || ''
+  editForm.gaMeasurementId = app.gaMeasurementId || ''
+  editForm.posthogAppName = app.posthogAppName || ''
+  editForm.githubRepo = app.githubRepo || ''
+  showEditModal.value = true
+}
+
+async function saveEdit() {
+  if (!editingApp.value || !editForm.url) return
+  isEditing.value = true
+  try {
+    await adminEditApp(editingApp.value.name, {
+      url: editForm.url,
+      dopplerProject: editForm.dopplerProject || editingApp.value.name,
+      gaPropertyId: editForm.gaPropertyId || null,
+      gaMeasurementId: editForm.gaMeasurementId || null,
+      posthogAppName: editForm.posthogAppName || null,
+      githubRepo: editForm.githubRepo || null,
+    })
+    toast.add({
+      title: 'Updated',
+      description: `${editingApp.value.name} has been updated.`,
+      color: 'success',
+    })
+    showEditModal.value = false
+    editingApp.value = null
+    await refreshApps()
+  } catch (err) {
+    const error = err as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'Error',
+      description: error.data?.message || error.message || 'Failed to update app',
+      color: 'error',
+    })
+  } finally {
+    isEditing.value = false
   }
 }
 
@@ -207,6 +264,16 @@ function formatUrl(url: string) {
             </div>
           </div>
           <div class="flex items-center gap-1 shrink-0">
+            <UTooltip text="Edit">
+              <UButton
+                icon="i-lucide-pencil"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                class="cursor-pointer"
+                @click="openEditModal(app)"
+              />
+            </UTooltip>
             <UTooltip :text="app.isActive === false ? 'Activate' : 'Deactivate'">
               <UButton
                 :icon="app.isActive === false ? 'i-lucide-eye' : 'i-lucide-eye-off'"
@@ -318,6 +385,81 @@ function formatUrl(url: string) {
                 @click="addApp()"
               >
                 Add App
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- Edit App Modal -->
+    <UModal v-model:open="showEditModal">
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-default">Edit {{ editingApp?.name }}</h3>
+              <UButton
+                icon="i-lucide-x"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                class="cursor-pointer"
+                @click="showEditModal = false"
+              />
+            </div>
+          </template>
+
+          <div class="flex flex-col gap-4">
+            <UFormField label="Production URL" required>
+              <UInput v-model="editForm.url" placeholder="https://my-app.nard.uk" class="w-full" />
+            </UFormField>
+            <UFormField label="Doppler Project">
+              <UInput
+                v-model="editForm.dopplerProject"
+                :placeholder="editingApp?.name || 'my-app-name'"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="GA4 Property ID" hint="Numeric ID for Reporting API">
+              <UInput v-model="editForm.gaPropertyId" placeholder="526067189" class="w-full" />
+            </UFormField>
+            <UFormField label="GA Measurement ID" hint="G-XXXXXXXX from runtime config">
+              <UInput
+                v-model="editForm.gaMeasurementId"
+                placeholder="G-XXXXXXXXXX"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="PostHog App Name" hint="Only if different from app name">
+              <UInput v-model="editForm.posthogAppName" placeholder="My App Name" class="w-full" />
+            </UFormField>
+            <UFormField label="GitHub Repo">
+              <UInput
+                v-model="editForm.githubRepo"
+                placeholder="narduk-enterprises/my-app-name"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton
+                variant="outline"
+                color="neutral"
+                class="cursor-pointer"
+                @click="showEditModal = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                :loading="isEditing"
+                :disabled="!editForm.url"
+                class="cursor-pointer"
+                @click="saveEdit()"
+              >
+                Save Changes
               </UButton>
             </div>
           </template>
