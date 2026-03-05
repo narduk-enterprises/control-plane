@@ -1,3 +1,4 @@
+/* eslint-disable vue-official/no-composable-conditional-hooks -- composable function, not conditional */
 import type { MaybeRefOrGetter } from 'vue'
 
 interface FleetPosthogResponse {
@@ -19,33 +20,34 @@ export function useFleetPosthog(
   endDate: MaybeRefOrGetter<string>,
   force: MaybeRefOrGetter<boolean> = false,
 ) {
-  const query = computed(() => {
-    const sd = toValue(startDate)
-    const ed = toValue(endDate)
-    if (!sd || !ed) return {}
-    return {
-      startDate: sd,
-      endDate: ed,
-      force: toValue(force) ? 'true' : undefined,
-    }
-  })
+  const resolvedApp = computed(() => toValue(appName))
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Nuxt runtime supports null, types don't
-  const { data, error, status, refresh } = useFetch<FleetPosthogResponse>(() => {
-    const app = toValue(appName)
-    if (!app) return null as any
-    return `/api/fleet/posthog/${encodeURIComponent(app)}`
-  }, {
-    query,
-    lazy: true,
-    server: false,
-    watch: false,
-  })
+  const query = computed(() => ({
+    startDate: toValue(startDate),
+    endDate: toValue(endDate),
+    force: toValue(force) ? 'true' : undefined,
+  }))
+
+  const { data, error, status, refresh } = useFetch<FleetPosthogResponse>(
+    () => `/api/fleet/posthog/${encodeURIComponent(resolvedApp.value || '_')}`,
+    {
+      query,
+      lazy: true,
+      server: false,
+      watch: false,
+      immediate: false,
+    },
+  )
+
+  async function load() {
+    if (!resolvedApp.value) return
+    await refresh()
+  }
 
   return {
     data,
     error,
     loading: computed(() => status.value === 'pending'),
-    load: refresh,
+    load,
   }
 }

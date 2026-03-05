@@ -48,9 +48,10 @@ export function useFleetGscQuery(
   appName: MaybeRefOrGetter<string>,
   params: MaybeRefOrGetter<GscQueryParams>,
 ) {
+  const resolvedApp = computed(() => toValue(appName))
+
   const query = computed(() => {
     const p = toValue(params)
-    if (!p.startDate || !p.endDate) return {}
     return {
       startDate: p.startDate,
       endDate: p.endDate,
@@ -59,17 +60,21 @@ export function useFleetGscQuery(
     }
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Nuxt runtime supports null, types don't
-  const { data, error, pending, refresh } = useFetch<GscQueryResponse>(() => {
-    const app = toValue(appName)
-    if (!app) return null as any
-    return `/api/fleet/gsc/${encodeURIComponent(app)}`
-  }, {
-    query,
-    server: false,
-    lazy: true,
-    watch: false,
-  })
+  const { data, error, pending, refresh } = useFetch<GscQueryResponse>(
+    () => `/api/fleet/gsc/${encodeURIComponent(resolvedApp.value || '_')}`,
+    {
+      query,
+      server: false,
+      lazy: true,
+      watch: false,
+      immediate: false,
+    },
+  )
 
-  return { data, error, loading: pending, load: refresh }
+  async function load() {
+    if (!resolvedApp.value) return
+    await refresh()
+  }
+
+  return { data, error, loading: pending, load }
 }

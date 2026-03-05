@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     body: JSON.stringify(payload),
   })
 
-  const data = await res.json().catch(() => ({})) as any
+  const data = await res.json().catch(() => ({})) as Record<string, unknown>
   const message =
     res.status === 404
       ? 'Fleet app does not expose /api/indexnow/submit. Ensure the app uses the Narduk template layer or implements this endpoint.'
@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
       .set({
         indexnowLastSubmission: new Date().toISOString(),
         indexnowTotalSubmissions: sql`${appStatusTable.indexnowTotalSubmissions} + 1`,
-        indexnowLastSubmittedCount: data.submitted ?? 0,
+        indexnowLastSubmittedCount: (data.submitted as number) ?? 0,
       })
       .where(eq(appStatusTable.app, app.name))
   }

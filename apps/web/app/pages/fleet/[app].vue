@@ -2,12 +2,9 @@
 const route = useRoute()
 const appName = computed(() => (route.params.app as string) ?? '')
 
-useHead({
-  title: computed(() => `${appName.value} — Fleet`),
-})
 useSeo({
-  title: 'Fleet App',
-  description: 'GA4, GSC, PostHog, IndexNow analytics for a fleet app.',
+  title: `${appName.value} — Fleet`,
+  description: `GA4, GSC, PostHog, IndexNow for ${appName.value}.`,
 })
 useWebPageSchema({
   name: 'Fleet App Analytics',

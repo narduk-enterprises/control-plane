@@ -12,18 +12,23 @@ interface FleetIndexnowResponse {
 }
 
 export function useFleetIndexnow(appName: MaybeRefOrGetter<string>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Nuxt runtime supports null, types don't
-  const { data, error, pending, refresh } = useFetch<FleetIndexnowResponse>(() => {
-    const app = toValue(appName)
-    if (!app) return null as any
-    return `/api/fleet/indexnow/${encodeURIComponent(app)}`
-  }, {
-    method: 'POST',
-    body: {},
-    immediate: false,
-    server: false,
-    watch: false,
-  })
+  const resolvedApp = computed(() => toValue(appName))
 
-  return { data, error, loading: pending, submit: refresh }
+  const { data, error, pending, refresh } = useFetch<FleetIndexnowResponse>(
+    () => `/api/fleet/indexnow/${encodeURIComponent(resolvedApp.value || '_')}`,
+    {
+      method: 'POST',
+      body: {},
+      immediate: false,
+      server: false,
+      watch: false,
+    },
+  )
+
+  async function submit() {
+    if (!resolvedApp.value) return
+    await refresh()
+  }
+
+  return { data, error, loading: pending, submit }
 }

@@ -1,3 +1,6 @@
+import { z } from 'zod'
+import { withD1Cache } from '#server/utils/d1-cache'
+
 export interface GithubRepo {
     id: number
     name: string
@@ -42,9 +45,6 @@ interface GithubRawRuns {
         created_at: string
     }>
 }
-
-import { z } from 'zod'
-import { withD1Cache } from '#server/utils/d1-cache'
 
 export default defineEventHandler(async (event): Promise<GithubRepo[]> => {
     const config = useRuntimeConfig()

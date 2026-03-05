@@ -24,11 +24,7 @@ export function useIndexingStatus() {
     return { url: statusUrl.value }
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Nuxt runtime supports null, types don't
-  const { data, error, pending, refresh } = useFetch(() => {
-    if (!statusUrl.value) return null as any
-    return '/api/fleet/indexing/status'
-  }, {
+  const { data, error, pending, refresh } = useFetch('/api/fleet/indexing/status', {
     query,
     immediate: false,
     server: false,

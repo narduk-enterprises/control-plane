@@ -116,9 +116,7 @@ async function refreshAll() {
 }
 
 // 4. IndexNow Summary
-const { data: indexnowSummary, status: indexnowStatus } = useFetch('/api/fleet/indexnow/summary', {
-  immediate: true,
-})
+const { data: indexnowSummary, status: indexnowStatus } = useFleetIndexnowSummary()
 
 // Watch app or date range to load data
 watch(

@@ -20,7 +20,20 @@ export interface GithubRepo {
 }
 
 export function useGithubRepos() {
-    return useFetch<GithubRepo[]>('/api/github/repos', {
+    const forceQuery = ref(false)
+
+    const { data, status, error, refresh } = useFetch<GithubRepo[]>('/api/github/repos', {
+        query: computed(() => ({
+            force: forceQuery.value ? 'true' : undefined,
+        })),
         default: () => [],
     })
+
+    async function forceRefresh() {
+        forceQuery.value = true
+        await refresh()
+        forceQuery.value = false
+    }
+
+    return { data, status, error, refresh, forceRefresh }
 }

@@ -9,16 +9,22 @@ interface FleetGscResponse {
 }
 
 export function useFleetGsc(appName: MaybeRefOrGetter<string>) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Nuxt runtime supports null, types don't
-  const { data, error, pending, refresh } = useFetch<FleetGscResponse>(() => {
-    const app = toValue(appName)
-    if (!app) return null as any
-    return `/api/fleet/gsc/${encodeURIComponent(app)}`
-  }, {
-    server: false,
-    lazy: true,
-    watch: false,
-  })
+  const resolvedApp = computed(() => toValue(appName))
 
-  return { data, error, loading: pending, load: refresh }
+  const { data, error, pending, refresh } = useFetch<FleetGscResponse>(
+    () => `/api/fleet/gsc/${encodeURIComponent(resolvedApp.value || '_')}`,
+    {
+      server: false,
+      lazy: true,
+      watch: false,
+      immediate: false,
+    },
+  )
+
+  async function load() {
+    if (!resolvedApp.value) return
+    await refresh()
+  }
+
+  return { data, error, loading: pending, load }
 }

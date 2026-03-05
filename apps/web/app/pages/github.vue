@@ -13,7 +13,7 @@ useWebPageSchema({
   description: 'Recent GitHub repositories and CI/CD build statuses.',
 })
 
-const { data: repos, status, error, refresh } = useGithubRepos()
+const { data: repos, status, error, forceRefresh } = useGithubRepos()
 
 const isLoading = computed(() => status.value === 'pending')
 
@@ -117,7 +117,7 @@ const githubColumns: TableColumn<GithubRepo>[] = [
     accessorKey: 'updatedAt',
     header: 'Updated',
     meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell tabular-nums text-xs w-32' } },
-    cell: ({ row }) => h(NuxtTime, { datetime: row.original.updatedAt, relative: true })
+    cell: ({ row }) => h('ClientOnly', null, () => h(NuxtTime, { datetime: row.original.updatedAt, relative: true }))
   },
   {
     id: 'actions',
@@ -195,7 +195,7 @@ const filteredRepos = computed(() => {
         icon="i-lucide-refresh-cw"
         class="cursor-pointer shrink-0"
         :loading="isLoading"
-        @click="() => refresh()"
+        @click="() => forceRefresh()"
       >
         Refresh
       </UButton>
@@ -210,7 +210,7 @@ const filteredRepos = computed(() => {
       variant="soft"
       icon="i-lucide-alert-circle"
       class="mb-8"
-      :actions="[{ label: 'Try again', onClick: () => refresh() }]"
+      :actions="[{ label: 'Try again', onClick: () => forceRefresh() }]"
     />
 
     <!-- Loading State -->

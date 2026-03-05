@@ -18,8 +18,6 @@ const {
   apps: fleetApps, 
   getAppStatus: getStatus, 
   refreshStatuses, 
-  refreshApps, 
-  refreshPosthog,
   forceRefreshAll,
   posthogSummary, 
   isLoading 
