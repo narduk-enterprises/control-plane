@@ -23,20 +23,14 @@ const setPresetFn = dateState.setPreset
 const is1hRef = dateState.is1h
 
 const forceFlag = ref(false)
-const { data: summaryData, meta: summaryMeta, loading: summaryLoading, load: loadSummary } = useFleetAnalyticsSummary(
+const { data: summaryData, meta: summaryMeta, loading: summaryLoading, error: summaryError, load: loadSummary } = useFleetAnalyticsSummary(
   startRef,
   endRef,
   { force: forceFlag },
 )
-const { insights, loading: insightsLoading, load: loadInsights } = useFleetAnalyticsInsights(startRef, endRef, { force: forceFlag })
+const { insights, loading: insightsLoading, error: insightsError, load: loadInsights } = useFleetAnalyticsInsights(startRef, endRef, { force: forceFlag })
 
 const viewMode = ref<'cards' | 'dense'>('cards')
-try {
-  if (import.meta.client && typeof localStorage !== 'undefined') {
-    const saved = localStorage.getItem('analytics-view-mode') as 'cards' | 'dense' | null
-    if (saved === 'cards' || saved === 'dense') viewMode.value = saved
-  }
-} catch (_) {}
 
 watch(viewMode, (v) => {
   try {
@@ -99,6 +93,10 @@ async function refreshAll() {
 watch([startRef, endRef], () => { loadAll() }, { immediate: false })
 
 onMounted(() => {
+  try {
+    const saved = localStorage.getItem('analytics-view-mode') as 'cards' | 'dense' | null
+    if (saved === 'cards' || saved === 'dense') viewMode.value = saved
+  } catch (_) {}
   refreshStatusesRaw()
   if (!is1hRef.value) loadAll()
 })
@@ -184,6 +182,28 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       variant="subtle"
       class="mb-6"
     />
+
+    <UAlert
+      v-if="(summaryError || insightsError) && !summaryLoading && !insightsLoading"
+      icon="i-lucide-alert-circle"
+      title="Failed to load analytics"
+      color="error"
+      variant="subtle"
+      class="mb-6"
+      :description="summaryError?.message || insightsError?.message || 'Server timeout or error (502/522). Cache may still be warming from cron.'"
+    >
+      <template #actions>
+        <UButton
+          size="xs"
+          color="error"
+          variant="soft"
+          class="cursor-pointer"
+          @click="refreshAll"
+        >
+          Retry
+        </UButton>
+      </template>
+    </UAlert>
 
     <template v-if="!is1hRef">
       <AnalyticsInsightsPanel

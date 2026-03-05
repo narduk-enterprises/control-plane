@@ -47,6 +47,7 @@ const { data: posthogData, error: posthogError, loading: posthogLoading, load: l
   force,
 )
 const { data: indexnowData, loading: indexnowLoading, submit: submitIndexnow } = useFleetIndexnow(appName)
+const { data: sitemapData, error: sitemapError, loading: sitemapLoading, run: runSitemapAnalysis } = useFleetSitemapAnalysis(appName)
 
 function loadAll() {
   if (!appName.value) return
@@ -346,6 +347,87 @@ const breadcrumbItems = computed(() => [
       </UButton>
     </UCard>
 
+    <!-- Sitemap analysis -->
+    <UCard>
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-map" class="text-primary-500 size-5" />
+            <h3 class="text-sm font-medium text-default">Sitemap analysis</h3>
+          </div>
+          <div class="flex gap-2">
+            <UButton
+              size="xs"
+              variant="outline"
+              color="neutral"
+              :loading="sitemapLoading"
+              class="cursor-pointer"
+              icon="i-lucide-file-search"
+              @click="runSitemapAnalysis(false)"
+            >
+              Run analysis
+            </UButton>
+            <UButton
+              size="xs"
+              variant="outline"
+              color="primary"
+              :loading="sitemapLoading"
+              class="cursor-pointer"
+              icon="i-lucide-scan-search"
+              @click="runSitemapAnalysis(true)"
+            >
+              Deep analysis
+            </UButton>
+          </div>
+        </div>
+      </template>
+      <p class="text-sm text-muted">
+        Fetch sitemap.xml and list all URLs. Deep analysis runs HEAD requests on each URL (up to 200) for status and response time.
+      </p>
+      <div v-if="sitemapError" class="mt-3 rounded-lg border border-error/30 bg-error/5 p-3 text-sm text-error">
+        {{ sitemapError.message }}
+      </div>
+      <div v-else-if="sitemapData" class="mt-4 space-y-4">
+        <div class="flex flex-wrap gap-4 text-sm">
+          <span class="font-medium text-default">Sitemap:</span>
+          <a :href="sitemapData.sitemapUrl" target="_blank" rel="noopener" class="text-primary-600 hover:underline">
+            {{ sitemapData.sitemapUrl }}
+          </a>
+        </div>
+        <div class="flex flex-wrap gap-6 text-sm">
+          <span><strong class="text-default">{{ sitemapData.totalUrls }}</strong> <span class="text-muted">URLs</span></span>
+          <template v-if="sitemapData.deepSummary">
+            <span><strong class="text-success">{{ sitemapData.deepSummary.ok }}</strong> <span class="text-muted">OK</span></span>
+            <span><strong class="text-error">{{ sitemapData.deepSummary.error }}</strong> <span class="text-muted">errors</span></span>
+            <span v-if="sitemapData.deepSummary.timeout > 0"><strong class="text-warning">{{ sitemapData.deepSummary.timeout }}</strong> <span class="text-muted">timeouts</span></span>
+            <span><span class="text-muted">Avg</span> <strong class="text-default">{{ sitemapData.deepSummary.avgDurationMs }} ms</strong></span>
+          </template>
+        </div>
+        <div v-if="sitemapData.entries?.length" class="max-h-80 overflow-auto rounded-lg border border-default">
+          <UTable
+            :data="sitemapData.entries"
+            :columns="[
+              { accessorKey: 'url', header: 'URL', meta: { class: { td: 'max-w-[320px] truncate font-mono text-xs' } }, cell: ({ row }) => row.original.url },
+              { accessorKey: 'status', header: 'Status', cell: ({ row }) => row.original.status || '—' },
+              { accessorKey: 'durationMs', header: 'Time (ms)', cell: ({ row }) => row.original.durationMs },
+              { accessorKey: 'error', header: 'Error', cell: ({ row }) => row.original.error ?? '—' },
+            ]"
+            class="text-xs"
+          />
+        </div>
+        <div v-else-if="sitemapData.urls?.length" class="max-h-48 overflow-auto rounded-lg border border-default p-2">
+          <ul class="list-inside list-disc space-y-1 font-mono text-xs text-muted">
+            <li v-for="u in sitemapData.urls.slice(0, 50)" :key="u" class="truncate">
+              <a :href="u" target="_blank" rel="noopener" class="text-primary-600 hover:underline">{{ u }}</a>
+            </li>
+          </ul>
+          <p v-if="sitemapData.urls.length > 50" class="mt-2 text-xs text-muted">
+            + {{ sitemapData.urls.length - 50 }} more URLs
+          </p>
+        </div>
+      </div>
+    </UCard>
+
     <!-- Quick Actions -->
     <UCard>
       <template #header>
@@ -408,6 +490,10 @@ const breadcrumbItems = computed(() => [
     <div v-if="posthogError" class="rounded-lg border border-error/30 bg-error/5 p-4">
       <p class="text-sm font-medium text-error">PostHog error</p>
       <p class="mt-1 text-sm text-muted">{{ posthogError.message }}</p>
+    </div>
+    <div v-if="sitemapError" class="rounded-lg border border-error/30 bg-error/5 p-4">
+      <p class="text-sm font-medium text-error">Sitemap analysis error</p>
+      <p class="mt-1 text-sm text-muted">{{ sitemapError.message }}</p>
     </div>
   </div>
 </template>

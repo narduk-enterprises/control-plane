@@ -12,12 +12,12 @@ description: Build and deploy locally via wrangler — refuses to deploy a dirty
 git status --porcelain
 ```
 
-   - If the output is **empty** → working tree is clean. Continue to step 2.
-   - If the output is **non-empty** → there are uncommitted changes. **Stop here.** Stage and commit all changes first:
-     ```bash
-     git add -A && git commit -m "<conventional commit message>"
-     ```
-     Then re-run this workflow from the top.
+- If the output is **empty** → working tree is clean. Continue to step 2.
+- If the output is **non-empty** → there are uncommitted changes. **Stop here.** Stage and commit all changes first:
+  ```bash
+  git add -A && git commit -m "<conventional commit message>"
+  ```
+  Then re-run this workflow from the top.
 
 2. Run D1 migrations against the **remote** database (if applicable):
 

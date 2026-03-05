@@ -42,7 +42,7 @@ export function useFleetAnalyticsSummary(
     ...(toValue(options?.force) ? { force: 'true' } : {}),
   }))
 
-  const { data: rawData, status, refresh } = useFetch<FleetAnalyticsSummaryResponse | { data: FleetAnalyticsSummaryResponse; _meta: FleetAnalyticsSummaryMeta }>(
+  const { data: rawData, status, error, refresh } = useFetch<FleetAnalyticsSummaryResponse | { data: FleetAnalyticsSummaryResponse; _meta: FleetAnalyticsSummaryMeta }>(
     '/api/fleet/analytics/summary',
     {
       query,
@@ -75,6 +75,7 @@ export function useFleetAnalyticsSummary(
     meta,
     loading,
     status,
+    error,
     load,
     refresh,
   }

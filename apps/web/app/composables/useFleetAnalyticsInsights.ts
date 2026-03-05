@@ -22,7 +22,7 @@ export function useFleetAnalyticsInsights(
     ...(toValue(options?.force) ? { force: 'true' } : {}),
   }))
 
-  const { data, status, refresh } = useFetch<{ insights: AnalyticsInsight[]; startDate: string; endDate: string }>(
+  const { data, status, error, refresh } = useFetch<{ insights: AnalyticsInsight[]; startDate: string; endDate: string }>(
     '/api/fleet/analytics/insights',
     {
       query,
@@ -39,5 +39,5 @@ export function useFleetAnalyticsInsights(
     await refresh()
   }
 
-  return { data, insights, loading, status, load, refresh }
+  return { data, insights, loading, status, error, load, refresh }
 }

@@ -47,6 +47,10 @@ export default defineEventHandler(async (event) => {
 
   const cacheKey = `fleet-analytics-summary-${startDate}-${endDate}`
   const TTL = 30 * 60
+  /** Wall-clock deadline so we never exceed Cloudflare Worker limits (522). Return partial results when hit. */
+  const DEADLINE_MS = 22_000
+  const BATCH_SIZE = 4
+
   const result = await withD1Cache(
     event,
     cacheKey,
@@ -60,65 +64,71 @@ export default defineEventHandler(async (event) => {
       if (headers.authorization) authHeaders.authorization = headers.authorization
       if (headers['x-requested-with']) authHeaders['x-requested-with'] = headers['x-requested-with']
 
-      const settled = await Promise.allSettled(
-        apps.map(async (app) => {
-          const [gaRes, gscRes, posthogRes] = await Promise.allSettled([
-            $fetch<{ summary?: unknown; deltas?: unknown; timeSeries?: { date: string; value: number }[] }>(
-              `/api/fleet/ga/${encodeURIComponent(app.name)}`,
-              {
-                baseURL,
-                headers: authHeaders,
-                query: { startDate, endDate },
-              },
-            ).catch(() => null),
-            $fetch<{ totals?: unknown; rows?: unknown[] }>(`/api/fleet/gsc/${encodeURIComponent(app.name)}`, {
-              baseURL,
-              headers: authHeaders,
-              query: { startDate, endDate, dimension: 'query' },
-            }).catch(() => null),
-            $fetch<{ summary?: Record<string, number>; timeSeries?: { date: string; value: number }[] }>(
-              `/api/fleet/posthog/${encodeURIComponent(app.name)}`,
-              {
-                baseURL,
-                headers: authHeaders,
-                query: { startDate, endDate },
-              },
-            ).catch(() => null),
-          ])
-
-          const ga = gaRes.status === 'fulfilled' && gaRes.value ? gaRes.value : null
-          const gsc = gscRes.status === 'fulfilled' && gscRes.value ? gscRes.value : null
-          const posthog = posthogRes.status === 'fulfilled' && posthogRes.value ? posthogRes.value : null
-
-          const out: FleetAppAnalyticsSummary = {
-            ga: ga
-              ? {
-                  summary: ga.summary as FleetAppAnalyticsSummary['ga'] extends { summary: infer S } ? S : never,
-                  deltas: (ga.deltas ?? null) as FleetAppAnalyticsSummary['ga'] extends { deltas: infer D } ? D : null,
-                  timeSeries: ga.timeSeries ?? [],
-                }
-              : null,
-            gsc: gsc
-              ? {
-                  totals: (gsc.totals ?? null) as FleetAppAnalyticsSummary['gsc'] extends { totals: infer T } ? T : null,
-                  rowsCount: gsc.rows?.length ?? 0,
-                }
-              : null,
-            posthog: posthog
-              ? { summary: posthog.summary ?? {}, timeSeries: posthog.timeSeries ?? [] }
-              : null,
-          }
-          return { appName: app.name, ...out }
-        }),
-      )
-
       const summaryMap: Record<string, FleetAppAnalyticsSummary> = {}
-      for (const p of settled) {
-        if (p.status === 'fulfilled' && p.value) {
-          const { appName, ga, gsc, posthog } = p.value
-          summaryMap[appName] = { ga, gsc, posthog }
+      const start = Date.now()
+
+      for (let i = 0; i < apps.length; i += BATCH_SIZE) {
+        if (Date.now() - start > DEADLINE_MS) break
+        const batch = apps.slice(i, i + BATCH_SIZE)
+        const settled = await Promise.allSettled(
+          batch.map(async (app) => {
+            const [gaRes, gscRes, posthogRes] = await Promise.allSettled([
+              $fetch<{ summary?: unknown; deltas?: unknown; timeSeries?: { date: string; value: number }[] }>(
+                `/api/fleet/ga/${encodeURIComponent(app.name)}`,
+                {
+                  baseURL,
+                  headers: authHeaders,
+                  query: { startDate, endDate },
+                },
+              ).catch(() => null),
+              $fetch<{ totals?: unknown; rows?: unknown[] }>(`/api/fleet/gsc/${encodeURIComponent(app.name)}`, {
+                baseURL,
+                headers: authHeaders,
+                query: { startDate, endDate, dimension: 'query' },
+              }).catch(() => null),
+              $fetch<{ summary?: Record<string, number>; timeSeries?: { date: string; value: number }[] }>(
+                `/api/fleet/posthog/${encodeURIComponent(app.name)}`,
+                {
+                  baseURL,
+                  headers: authHeaders,
+                  query: { startDate, endDate },
+                },
+              ).catch(() => null),
+            ])
+
+            const ga = gaRes.status === 'fulfilled' && gaRes.value ? gaRes.value : null
+            const gsc = gscRes.status === 'fulfilled' && gscRes.value ? gscRes.value : null
+            const posthog = posthogRes.status === 'fulfilled' && posthogRes.value ? posthogRes.value : null
+
+            const out: FleetAppAnalyticsSummary = {
+              ga: ga
+                ? {
+                    summary: ga.summary as FleetAppAnalyticsSummary['ga'] extends { summary: infer S } ? S : never,
+                    deltas: (ga.deltas ?? null) as FleetAppAnalyticsSummary['ga'] extends { deltas: infer D } ? D : null,
+                    timeSeries: ga.timeSeries ?? [],
+                  }
+                : null,
+              gsc: gsc
+                ? {
+                    totals: (gsc.totals ?? null) as FleetAppAnalyticsSummary['gsc'] extends { totals: infer T } ? T : null,
+                    rowsCount: gsc.rows?.length ?? 0,
+                  }
+                : null,
+              posthog: posthog
+                ? { summary: posthog.summary ?? {}, timeSeries: posthog.timeSeries ?? [] }
+                : null,
+            }
+            return { appName: app.name, ...out }
+          }),
+        )
+        for (const p of settled) {
+          if (p.status === 'fulfilled' && p.value) {
+            const { appName, ga, gsc, posthog } = p.value
+            summaryMap[appName] = { ga, gsc, posthog }
+          }
         }
       }
+
       return { apps: summaryMap, startDate, endDate }
     },
     parsed.force === 'true',
