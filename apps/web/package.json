@@ -21,11 +21,16 @@
   "dependencies": {
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
     "@narduk/eslint-config": "workspace:*",
+    "chart.js": "^4.5.1",
+    "chartjs-plugin-annotation": "^3.1.0",
+    "chartjs-plugin-zoom": "^2.2.0",
     "drizzle-orm": "^0.45.1",
     "nuxt": "^4.3.1",
+    "vue-chartjs": "^5.3.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260226.0",
     "@tailwindcss/vite": "^4.0.0",
     "eslint": "^10.0.2",
     "nitro-cloudflare-dev": "^0.2.2",
@@ -33,8 +38,7 @@
     "typescript": "^5.9.3",
     "vitest": "^4.0.18",
     "vue-tsc": "^3.2.5",
-    "wrangler": "^4.20.0",
-    "@cloudflare/workers-types": "^4.20260226.0"
+    "wrangler": "^4.20.0"
   },
   "overrides": {
     "@cloudflare/unenv-preset": "2.12.1",

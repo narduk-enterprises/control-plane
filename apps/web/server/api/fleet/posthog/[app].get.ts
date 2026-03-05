@@ -53,8 +53,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const cacheKey = `posthog-app-${appSlug}-${isSummaryOnly ? 'summary' : 'full'}-${start.toISOString().slice(0, 19)}-${end.toISOString().slice(0, 19)}`
+  const TTL = 30 * 60
+  const staleWindow = 30 * 60
 
-  return withD1Cache(event, cacheKey, 3600, async () => {
+  return withD1Cache(event, cacheKey, TTL, async () => {
 
     const posthogName = app.posthogAppName ?? app.name
     const escapedApp = posthogName.replaceAll("'", "\\'")
@@ -216,5 +218,5 @@ export default defineEventHandler(async (event) => {
       const e = err as { message?: string }
       throw createError({ statusCode: 500, message: `PostHog error: ${e.message ?? 'Unknown'}` })
     }
-  }, queryParams.force === 'true')
+  }, queryParams.force === 'true', { staleWindowSeconds: staleWindow })
 })

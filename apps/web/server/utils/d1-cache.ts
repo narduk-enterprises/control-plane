@@ -22,26 +22,87 @@ export async function setCache(db: D1Database, key: string, value: string, ttlSe
         .run()
 }
 
+export interface D1CacheMeta {
+    cachedAt: string
+    stale: boolean
+}
+
+export interface WithD1CacheOptions {
+    /** If set, return cached data when expired but within this many seconds of expiry, and refresh in background */
+    staleWindowSeconds?: number
+    /** If true, return value is wrapped as { data: T, _meta: D1CacheMeta } */
+    returnMeta?: boolean
+}
+
 /**
  * Wraps an async fetcher with D1 KV caching.
  * Falls back to executing the fetcher if D1 is unavailable or errors out.
+ * Optional: stale-while-revalidate and _meta (cachedAt, stale) for progressive loading.
  */
 export async function withD1Cache<T>(
     event: H3Event,
     cacheKey: string,
     ttlSeconds: number,
     fetcher: () => Promise<T>,
+    isForce?: boolean,
+    options?: WithD1CacheOptions & { returnMeta?: false },
+): Promise<T>
+export async function withD1Cache<T>(
+    event: H3Event,
+    cacheKey: string,
+    ttlSeconds: number,
+    fetcher: () => Promise<T>,
+    isForce: boolean,
+    options: WithD1CacheOptions & { returnMeta: true },
+): Promise<{ data: T; _meta: D1CacheMeta }>
+export async function withD1Cache<T>(
+    event: H3Event,
+    cacheKey: string,
+    ttlSeconds: number,
+    fetcher: () => Promise<T>,
     isForce = false,
-): Promise<T> {
+    options: WithD1CacheOptions = {},
+): Promise<T | { data: T; _meta: D1CacheMeta }> {
+    const { staleWindowSeconds = 0, returnMeta = false } = options
     const d1 = getD1CacheDB(event)
+    const nowSec = Math.floor(Date.now() / 1000)
+
+    const wrap = (data: T, stale: boolean): T | { data: T; _meta: D1CacheMeta } => {
+        if (!returnMeta) return data
+        return {
+            data,
+            _meta: { cachedAt: new Date().toISOString(), stale },
+        }
+    }
 
     // Try D1 cache first
     if (d1 && !isForce) {
         try {
-            const cached = await getCached(d1, cacheKey)
-            if (cached) {
-                console.log(`[D1 Cache HIT] ${cacheKey}`)
-                return JSON.parse(cached) as T
+            const row = await d1
+                .prepare('SELECT value, expires_at FROM kv_cache WHERE key = ?')
+                .bind(cacheKey)
+                .first<{ value: string; expires_at: number }>()
+            if (row) {
+                const isExpired = row.expires_at <= nowSec
+                const withinStale = staleWindowSeconds > 0 && row.expires_at + staleWindowSeconds > nowSec
+                if (!isExpired) {
+                    console.log(`[D1 Cache HIT] ${cacheKey}`)
+                    return wrap(JSON.parse(row.value) as T, false)
+                }
+                if (withinStale) {
+                    console.log(`[D1 Cache STALE] ${cacheKey}`)
+                    const parsed = JSON.parse(row.value) as T
+                    // Background refresh (fire-and-forget)
+                    Promise.resolve()
+                        .then(() => fetcher())
+                        .then((fresh) => {
+                            if (d1 && fresh !== undefined) {
+                                return setCache(d1, cacheKey, JSON.stringify(fresh), ttlSeconds)
+                            }
+                        })
+                        .catch((err) => console.error(`[D1 Cache Background refresh] ${cacheKey}`, err))
+                    return wrap(parsed, true)
+                }
             }
             console.log(`[D1 Cache MISS] ${cacheKey}`)
         } catch (err) {
@@ -54,7 +115,7 @@ export async function withD1Cache<T>(
     // Execute the actual logic
     const result = await fetcher()
 
-    // Background persist to D1 cache
+    // Persist to D1 cache
     if (d1 && result !== undefined) {
         try {
             await setCache(d1, cacheKey, JSON.stringify(result), ttlSeconds)
@@ -64,5 +125,5 @@ export async function withD1Cache<T>(
         }
     }
 
-    return result
+    return wrap(result as T, false)
 }

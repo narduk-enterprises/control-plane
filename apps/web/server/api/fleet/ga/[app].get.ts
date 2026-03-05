@@ -61,8 +61,12 @@ export default defineEventHandler(async (event) => {
     const timeDimension = isSingleDay ? 'dateHour' : 'date'
 
     const cacheKey = `ga-app-${appSlug}-${startDate}-${endDate}`
+    const today = new Date().toISOString().split('T')[0] ?? ''
+    const isTodayRange = endDate === today
+    const TTL = isTodayRange ? 15 * 60 : 6 * 3600
+    const staleWindow = isTodayRange ? 15 * 60 : 2 * 3600
 
-    return withD1Cache(event, cacheKey, 3600, async () => {
+    return withD1Cache(event, cacheKey, TTL, async () => {
         try {
             const data = (await googleApiFetch(
                 `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
@@ -213,5 +217,5 @@ export default defineEventHandler(async (event) => {
             }
             throw createError({ statusCode: 500, message: `GA4 unexpected error: ${(err as Error).message}` })
         }
-    }, query.force === 'true')
+    }, query.force === 'true', { staleWindowSeconds: staleWindow })
 })

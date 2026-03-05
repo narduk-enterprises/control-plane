@@ -1,42 +1,40 @@
 ---
-description: Commit, push, and monitor GitHub Actions — fix failures and retry until green
+description: Build and deploy locally via wrangler — refuses to deploy a dirty repo
 ---
 
 // turbo-all
 
 ## Steps
 
-1. Stage all changes and commit:
+1. **Guard: Refuse to deploy a dirty repo.** The working tree must be clean (all changes committed).
+
 ```bash
-cd /Users/narduk/new-code/circuit-breaker-online
-git add -A
-git status
+git status --porcelain
 ```
 
-2. Commit with a descriptive message (adjust message as needed):
+   - If the output is **empty** → working tree is clean. Continue to step 2.
+   - If the output is **non-empty** → there are uncommitted changes. **Stop here.** Stage and commit all changes first:
+     ```bash
+     git add -A && git commit -m "<conventional commit message>"
+     ```
+     Then re-run this workflow from the top.
+
+2. Run D1 migrations against the **remote** database (if applicable):
+
 ```bash
-git commit -m "<conventional commit message>"
+cd apps/web && CMD=$(node -p "require('./package.json').scripts['db:migrate']?.replaceAll('--local', '--remote') || ''") && [ -n "$CMD" ] && eval "$CMD" || echo "No db:migrate script — skipping."
 ```
 
-3. Push to current branch:
+3. Build and deploy to Cloudflare Workers:
+
+```bash
+cd apps/web && doppler run -- pnpm run deploy
+```
+
+4. Push the committed code to the remote (good practice, separate from deploy):
+
 ```bash
 git push
 ```
 
-4. Watch the GitHub Actions run (wait for it to complete):
-```bash
-gh run watch --exit-status
-```
-   - If `gh run watch` exits **0** → the run passed. Skip to step 7.
-   - If it exits **non-zero** → a job failed. Continue to step 5.
-
-5. View the failed job logs to diagnose the issue:
-```bash
-gh run view --log-failed | tail -80
-```
-
-6. Fix the failure locally:
-   - Apply the necessary code or config fix.
-   - Return to **step 1** and repeat.
-
-7. Report success to the user.
+5. Report success to the user — include the deployed URL from wrangler output.

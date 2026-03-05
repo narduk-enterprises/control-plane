@@ -116,6 +116,7 @@ export function useFleet(options?: { includeInactive?: boolean }) {
     
     refreshApps,
     refreshPosthog,
+    refreshStatusesRaw,
     forceRefreshAll,
     isLoading,
     

@@ -4,7 +4,8 @@ import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 
 import { withD1Cache } from '#server/utils/d1-cache'
 
-const CACHE_TTL_SECONDS = 60 // 1 minute
+const CACHE_TTL_SECONDS = 5 * 60 // 5 min
+const STALE_WINDOW_SECONDS = 5 * 60 // 5 min
 
 export default defineEventHandler(async (event) => {
     await requireAdmin(event)
@@ -35,7 +36,9 @@ export default defineEventHandler(async (event) => {
         const hogqlQuery = `
     SELECT properties.app AS app_name,
            count() AS event_count,
-           count(DISTINCT distinct_id) AS unique_users
+           count(DISTINCT distinct_id) AS unique_users,
+           countIf(event = '$pageview') AS pageviews,
+           count(DISTINCT properties.$session_id) AS sessions
     FROM events
     WHERE timestamp >= '${start.toISOString().slice(0, 19)}'
       AND timestamp <= '${end.toISOString().slice(0, 19)}'
@@ -63,13 +66,15 @@ export default defineEventHandler(async (event) => {
             type HogQLResult = { results?: (string | number | null)[][] }
             const data = (await res.json()) as HogQLResult
 
-            const result: Record<string, { eventCount: number; users: number }> = {}
+            const result: Record<string, { eventCount: number; users: number; pageviews: number; sessions: number }> = {}
             for (const row of data.results ?? []) {
                 const appName = String(row[0] ?? '')
                 if (appName) {
                     result[appName] = {
                         eventCount: Number(row[1] ?? 0),
                         users: Number(row[2] ?? 0),
+                        pageviews: Number(row[3] ?? 0),
+                        sessions: Number(row[4] ?? 0),
                     }
                 }
             }
@@ -80,5 +85,5 @@ export default defineEventHandler(async (event) => {
             console.error('[PostHog Summary] Error:', e.message)
             throw createError({ statusCode: 500, message: `PostHog summary error: ${e.message ?? 'Unknown'}` })
         }
-    }, queryParams.force === 'true')
+    }, queryParams.force === 'true', { staleWindowSeconds: STALE_WINDOW_SECONDS })
 })

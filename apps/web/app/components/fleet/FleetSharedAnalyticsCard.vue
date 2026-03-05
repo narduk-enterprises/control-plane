@@ -260,7 +260,7 @@ function onPresetClick(val: DatePreset) {
 
     <!-- Chart -->
     <div v-if="showChart" class="mt-4">
-      <FleetAnalyticsChart :data="timeSeries ?? []" :title="chartTitle" />
+      <AnalyticsLineChart :data="timeSeries ?? []" :title="chartTitle" />
     </div>
 
     <div v-else-if="showEmptyState" class="rounded-lg border border-dashed border-default p-6 text-center">

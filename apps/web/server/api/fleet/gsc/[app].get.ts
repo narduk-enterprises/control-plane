@@ -75,8 +75,10 @@ export default defineEventHandler(async (event) => {
   const urlPrefix = `${app.url.replace(/\/$/, '')}/`
 
   const cacheKey = `gsc-app-${appSlug}-${startDate}-${endDate}-${query.dimension}`
+  const TTL = 4 * 3600
+  const staleWindow = 2 * 3600
 
-  return withD1Cache(event, cacheKey, 3600, async () => {
+  return withD1Cache(event, cacheKey, TTL, async () => {
     // Try sc-domain first, fall back to URL-prefix
     let result = await tryGscQuery(scDomain, startDate, endDate, query.dimension)
     const usedFallback = !result
@@ -125,6 +127,6 @@ export default defineEventHandler(async (event) => {
       dimension: query.dimension,
       ...(usedFallback ? { gscSiteUrl: result.siteUrl, note: 'Used URL-prefix fallback (not sc-domain)' } : {}),
     }
-  }, query.force === 'true')
+  }, query.force === 'true', { staleWindowSeconds: staleWindow })
 })
 

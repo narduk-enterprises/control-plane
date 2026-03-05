@@ -12,12 +12,14 @@ export default defineEventHandler(async (event) => {
   }).parse)
 
   const cacheKey = queryParams.includeInactive === 'true' ? 'fleet-apps-list-all' : 'fleet-apps-list'
+  const TTL = 3600
+  const staleWindow = 3600
 
-  return withD1Cache(event, cacheKey, 3600, async () => {
+  return withD1Cache(event, cacheKey, TTL, async () => {
     if (queryParams.includeInactive === 'true') {
       const { getAllFleetApps } = await import('#server/data/fleet-registry')
       return getAllFleetApps(event)
     }
     return getFleetApps(event)
-  }, queryParams.force === 'true')
+  }, queryParams.force === 'true', { staleWindowSeconds: staleWindow })
 })
