@@ -24,6 +24,7 @@ export default defineNuxtPlugin(() => {
   //  posthog.opt_out_capturing()
   //  return
   // }
+  ;(window as any).posthog = posthog
 
   // Tag internal traffic
   if (window.location.hostname.endsWith('.pages.dev')) {

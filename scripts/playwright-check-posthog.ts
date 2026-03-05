@@ -1,14 +1,16 @@
-import { chromium } from 'playwright'
+import { firefox } from 'playwright'
 import { getFleetApps } from '../apps/web/server/data/fleet-registry'
 
 async function checkPosthog() {
   const apps = getFleetApps()
   console.log(`🚀 Launching headless browser to check PostHog on ${apps.length} apps...`)
   
-  const browser = await chromium.launch({ headless: true })
+  const browser = await firefox.launch({ headless: true })
   
   for (const app of apps) {
-    const context = await browser.newContext()
+    const context = await browser.newContext({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0'
+    })
     const page = await context.newPage()
     
     let posthogAppProperty = null
@@ -45,7 +47,7 @@ async function checkPosthog() {
         console.log(`  ❌ PostHog network requests MISSING entirely!`)
       }
       
-      await new Promise(r => setTimeout(r, 2000))
+      await new Promise(r => setTimeout(r, 6000))
     } catch (e: any) {
       console.error(`  ❌ Failed to fully load ${app.url}: ${e.message}`)
     } finally {

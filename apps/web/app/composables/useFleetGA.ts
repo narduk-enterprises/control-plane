@@ -7,10 +7,15 @@ export function useFleetGA(
     force: MaybeRefOrGetter<boolean> = false,
 ) {
     const key = computed(() => {
-        const app = encodeURIComponent(toValue(appName))
+        const app = toValue(appName)
+        if (!app) return null as unknown as string
+        
+        const appEncoded = encodeURIComponent(app)
         const sd = toValue(startDate)
         const ed = toValue(endDate)
-        return `/api/fleet/ga/${app}?startDate=${sd}&endDate=${ed}&force=${toValue(force)}`
+        if (!sd || !ed) return null as unknown as string
+        
+        return `/api/fleet/ga/${appEncoded}?startDate=${sd}&endDate=${ed}&force=${toValue(force)}`
     })
     const { data, error, status, refresh } = useFetch<{
         app: string

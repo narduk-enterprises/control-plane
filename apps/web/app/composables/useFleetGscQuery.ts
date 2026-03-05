@@ -40,15 +40,20 @@ export function useFleetGscQuery(
   params: MaybeRefOrGetter<GscQueryParams>,
 ) {
   const key = computed(() => {
-    const app = encodeURIComponent(toValue(appName))
+    const app = toValue(appName)
+    if (!app) return null as unknown as string
+
+    const appEncoded = encodeURIComponent(app)
     const p = toValue(params)
+    if (!p.startDate || !p.endDate) return null as unknown as string
+
     const q = new URLSearchParams({
       startDate: p.startDate,
       endDate: p.endDate,
       dimension: p.dimension,
       ...(p.force ? { force: 'true' } : {}),
     }).toString()
-    return `/api/fleet/gsc/${app}?${q}`
+    return `/api/fleet/gsc/${appEncoded}?${q}`
   })
   const { data, error, pending, refresh } = useFetch<{
     app: string

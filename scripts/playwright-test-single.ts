@@ -1,8 +1,10 @@
-import { chromium } from 'playwright'
+import { firefox } from 'playwright'
 
 async function checkSingle() {
-  const browser = await chromium.launch({ headless: true })
-  const context = await browser.newContext()
+  const browser = await firefox.launch({ headless: true })
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0'
+  })
   const page = await context.newPage()
   
   let phRequestFound = false
@@ -14,7 +16,9 @@ async function checkSingle() {
 
   page.on('request', req => {
     const url = req.url()
-    console.log(`[Network] ${req.method()} ${url}`)
+    if (req.method() === 'POST') {
+      console.log(`[POST] ${url}`)
+    }
     
     if (url.includes('posthog') || url.includes('/e/')) {
         phRequestFound = true
@@ -46,33 +50,36 @@ async function checkSingle() {
     }
   })
   
-  console.log(`🌐 Visiting: http://localhost:3002`)
-  await page.goto('http://localhost:3002', { waitUntil: 'networkidle', timeout: 30000 })
+  console.log(`🌐 Visiting: https://austin-texas.net`)
+  await page.goto('https://austin-texas.net', { waitUntil: 'networkidle', timeout: 30000 })
   
   const nuxtConfig = await page.evaluate(() => {
     return (window as any).__NUXT__ || {}
   })
   // console.log('__NUXT__:', JSON.stringify(nuxtConfig, null, 2))
   
-  await page.evaluate(() => {
+  const evalResult = await page.evaluate(async () => {
     console.log('Manually calling posthog.capture')
     if ((window as any).posthog) {
       (window as any).posthog.capture('playwright_test')
+      return {
+        found: true,
+        appProperty: (window as any).posthog.get_property('app')
+      }
     } else {
       console.log('window.posthog is missing natively on the page')
+      return { found: false, appProperty: null }
     }
   })
   
-  await new Promise(r => setTimeout(r, 5000))
-  
-  if (phRequestFound) {
-    if (posthogAppProperty) {
-      console.log(`✅ SUCCESS - PostHog app property: ${posthogAppProperty}`)
+  if (evalResult.found) {
+    if (evalResult.appProperty) {
+      console.log(`✅ SUCCESS - In-browser PostHog app property: ${evalResult.appProperty}`)
     } else {
-      console.log(`❌ FAILED - PostHog app property is still missing!`)
+      console.log(`❌ FAILED - In-browser PostHog app property is null/missing!`)
     }
   } else {
-    console.log(`❌ FAILED - PostHog requests missing!`)
+    console.log(`❌ FAILED - window.posthog is completely missing!`)
   }
   
   await browser.close()
