@@ -1,8 +1,21 @@
 <script setup lang="ts">
 import { h } from 'vue'
-import { NuxtLink, UButton, FleetAppStatus, FleetAppPosthogStats, UTooltip, UIcon } from '#components'
+import {
+  NuxtLink,
+  UButton,
+  FleetAppStatus,
+  FleetAppPosthogStats,
+  UTooltip,
+  UIcon,
+} from '#components'
 import type { TableColumn } from '~/types/table'
 import type { FleetApp } from '~/composables/useFleet'
+
+type EnrichedFleetApp = FleetApp & {
+  _posthogStats: { eventCount: number; users: number } | null
+  _posthogLoading: boolean
+  _posthogLoaded: boolean
+}
 
 useSeo({
   title: 'Dashboard',
@@ -14,13 +27,13 @@ useWebPageSchema({
   description: 'Fleet dashboard overview.',
 })
 
-const { 
-  apps: fleetApps, 
-  getAppStatus: getStatus, 
-  refreshStatuses, 
+const {
+  apps: fleetApps,
+  getAppStatus: getStatus,
+  refreshStatuses,
   forceRefreshAll,
-  posthogSummary, 
-  isLoading 
+  posthogSummary,
+  isLoading,
 } = useFleet()
 
 const fleetCount = computed(() => fleetApps.value.length)
@@ -38,39 +51,64 @@ async function checkAllStatuses() {
 // Pagination logic
 const page = ref(1)
 const itemsPerPage = 20
-const paginatedApps = computed(() => {
-  const sortedApps = [...fleetApps.value].sort((a, b) => a.name.localeCompare(b.name))
-  const start = (page.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return sortedApps.slice(start, end)
+
+// Merge PostHog stats INTO each row so TanStack Table re-renders when the async data loads
+const enrichedApps = computed<EnrichedFleetApp[]>(() => {
+  const ph = posthogSummary.value
+  const loading = isLoading.value
+  return [...fleetApps.value]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((app) => ({
+      ...app,
+      _posthogStats: ph?.[app.name] ?? null,
+      _posthogLoading: loading,
+      _posthogLoaded: !loading,
+    }))
 })
 
-const dashboardColumns: TableColumn<FleetApp>[] = [
+const paginatedApps = computed(() => {
+  const start = (page.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return enrichedApps.value.slice(start, end)
+})
+
+const dashboardColumns: TableColumn<EnrichedFleetApp>[] = [
   {
     accessorKey: 'name',
     header: 'App',
     cell: ({ row }) => {
       const app = row.original
-      return h(NuxtLink, {
-        to: `/fleet/${app.name}`,
-        class: 'font-medium text-primary hover:underline cursor-pointer',
-      }, () => app.name)
+      return h(
+        NuxtLink,
+        {
+          to: `/fleet/${app.name}`,
+          class: 'font-medium text-primary hover:underline cursor-pointer',
+        },
+        () => app.name,
+      )
     },
   },
   {
     accessorKey: 'url',
     header: 'URL',
-    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate hidden md:table-cell' } },
+    meta: {
+      class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate hidden md:table-cell' },
+    },
     cell: ({ row }) => {
-      return h('a', {
-        href: row.original.url,
-        target: '_blank',
-        rel: 'noopener',
-        class: 'text-muted hover:text-primary transition-colors hover:underline flex items-center gap-1',
-      }, [
-        row.original.url.replace(/^https?:\/\//, ''),
-        h(UIcon, { name: 'i-lucide-external-link', class: 'size-3 opacity-50' }),
-      ])
+      return h(
+        'a',
+        {
+          href: row.original.url,
+          target: '_blank',
+          rel: 'noopener',
+          class:
+            'text-muted hover:text-primary transition-colors hover:underline flex items-center gap-1',
+        },
+        [
+          row.original.url.replace(/^https?:\/\//, ''),
+          h(UIcon, { name: 'i-lucide-external-link', class: 'size-3 opacity-50' }),
+        ],
+      )
     },
   },
   {
@@ -85,12 +123,13 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
   {
     id: 'posthog',
     header: 'PostHog (30d)',
-    cell: ({ row }) => h(FleetAppPosthogStats, {
-      appName: row.original.name,
-      stats: posthogSummary.value?.[row.original.posthogAppName ?? row.original.name] ?? null,
-      loading: isLoading.value,
-      loaded: !isLoading.value,
-    }),
+    cell: ({ row }) =>
+      h(FleetAppPosthogStats, {
+        appName: row.original.name,
+        stats: row.original._posthogStats,
+        loading: row.original._posthogLoading,
+        loaded: row.original._posthogLoaded,
+      }),
     enableSorting: false,
   },
   {
@@ -109,7 +148,7 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
             icon: 'i-lucide-bar-chart-3',
             'aria-label': 'GSC',
             class: 'cursor-pointer',
-          })
+          }),
         ]),
         h(UTooltip, { text: 'Open App in Browser' }, () => [
           h(UButton, {
@@ -122,7 +161,7 @@ const dashboardColumns: TableColumn<FleetApp>[] = [
             icon: 'i-lucide-external-link',
             'aria-label': 'Open app',
             class: 'cursor-pointer',
-          })
+          }),
         ]),
       ])
     },
@@ -144,12 +183,8 @@ async function onRefresh() {
     <AppBreadcrumbs :items="[{ label: 'Dashboard' }]" />
     <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="font-display text-2xl font-semibold text-default">
-          Dashboard
-        </h1>
-        <p class="mt-1 text-sm text-muted">
-          Fleet overview and quick actions
-        </p>
+        <h1 class="font-display text-2xl font-semibold text-default">Dashboard</h1>
+        <p class="mt-1 text-sm text-muted">Fleet overview and quick actions</p>
       </div>
       <UButton
         variant="outline"
@@ -165,9 +200,13 @@ async function onRefresh() {
     <!-- KPI cards -->
     <ClientOnly>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
-        <UCard class="cursor-default transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300">
+        <UCard
+          class="cursor-default transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300"
+        >
           <div class="flex items-center gap-4">
-            <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div
+              class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            >
               <UIcon name="i-lucide-grid-3x3" class="size-6" />
             </div>
             <div>
@@ -178,9 +217,14 @@ async function onRefresh() {
             </div>
           </div>
         </UCard>
-        <UCard class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300" @click="navigateTo('/fleet')">
+        <UCard
+          class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300"
+          @click="navigateTo('/fleet')"
+        >
           <div class="flex items-center gap-4">
-            <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div
+              class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            >
               <UIcon name="i-lucide-bar-chart-3" class="size-6" />
             </div>
             <div>
@@ -189,9 +233,14 @@ async function onRefresh() {
             </div>
           </div>
         </UCard>
-        <UCard class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300" @click="navigateTo('/fleet')">
+        <UCard
+          class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300"
+          @click="navigateTo('/fleet')"
+        >
           <div class="flex items-center gap-4">
-            <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div
+              class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            >
               <UIcon name="i-lucide-users" class="size-6" />
             </div>
             <div>
@@ -200,9 +249,14 @@ async function onRefresh() {
             </div>
           </div>
         </UCard>
-        <UCard class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300" @click="navigateTo('/indexing')">
+        <UCard
+          class="cursor-pointer transition-transform hover:-translate-y-1 hover:shadow-elevated duration-300"
+          @click="navigateTo('/indexing')"
+        >
           <div class="flex items-center gap-4">
-            <div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div
+              class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            >
               <UIcon name="i-lucide-search" class="size-6" />
             </div>
             <div>
@@ -261,81 +315,81 @@ async function onRefresh() {
 
     <!-- Fleet apps -->
     <div class="w-full">
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <h2 class="font-semibold text-default">Fleet apps</h2>
-                <UBadge variant="subtle" color="primary" size="sm" class="rounded-full px-2" v-if="fleetCount">{{ fleetCount }}</UBadge>
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <h2 class="font-semibold text-default">Fleet apps</h2>
+              <UBadge
+                variant="subtle"
+                color="primary"
+                size="sm"
+                class="rounded-full px-2"
+                v-if="fleetCount"
+                >{{ fleetCount }}</UBadge
+              >
+            </div>
+            <!-- hydration: loading/disabled depends on client-only fetch status -->
+            <ClientOnly>
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <UButton
+                  variant="soft"
+                  size="xs"
+                  icon="i-lucide-activity"
+                  class="cursor-pointer"
+                  :loading="isCheckingAll"
+                  @click="checkAllStatuses"
+                >
+                  Check All
+                </UButton>
+                <UButton
+                  variant="outline"
+                  color="neutral"
+                  size="xs"
+                  icon="i-lucide-refresh-cw"
+                  class="cursor-pointer"
+                  :loading="isLoading"
+                  @click="onRefresh"
+                >
+                  Refresh All Data
+                </UButton>
+                <UButton to="/fleet" variant="ghost" size="sm" class="cursor-pointer">
+                  View all
+                </UButton>
               </div>
-              <!-- hydration: loading/disabled depends on client-only fetch status -->
-              <ClientOnly>
-                <div class="flex flex-wrap items-center justify-end gap-2">
-                  <UButton
-                    variant="soft"
-                    size="xs"
-                    icon="i-lucide-activity"
-                    class="cursor-pointer"
-                    :loading="isCheckingAll"
-                    @click="checkAllStatuses"
-                  >
-                    Check All
-                  </UButton>
-                  <UButton
-                    variant="outline"
-                    color="neutral"
-                    size="xs"
-                    icon="i-lucide-refresh-cw"
-                    class="cursor-pointer"
-                    :loading="isLoading"
-                    @click="onRefresh"
-                  >
-                    Refresh All Data
-                  </UButton>
-                  <UButton
-                    to="/fleet"
-                    variant="ghost"
-                    size="sm"
-                    class="cursor-pointer"
-                  >
-                    View all
-                  </UButton>
-                </div>
-              </ClientOnly>
-            </div>
-          </template>
-          <div v-if="hasFleetApps" class="flex flex-col gap-4">
-            <div class="overflow-x-auto rounded-lg border border-default">
-              <UTable
-                :data="paginatedApps"
-                :columns="columnsForTable"
-                class="min-w-full"
-              />
-            </div>
-            <div v-if="fleetCount > itemsPerPage" class="flex justify-end">
-              <UPagination
-                v-model:page="page"
-                :total="fleetCount"
-                :items-per-page="itemsPerPage"
-              />
-            </div>
+            </ClientOnly>
           </div>
-          <div v-else class="rounded-lg border border-dashed border-default p-8 text-center bg-elevated/50">
-            <UIcon name="i-lucide-inbox" class="mx-auto size-12 text-muted/50 mb-3" />
-            <p class="text-base font-medium text-default">No fleet apps configured</p>
-            <p class="mt-1 mb-4 text-sm text-muted">Fleet apps are configured inside the central registry.</p>
-            <UButton to="/settings" variant="outline" color="neutral" icon="i-lucide-settings">
-              Go to Settings
-            </UButton>
+        </template>
+        <div v-if="hasFleetApps" class="flex flex-col gap-4">
+          <div class="overflow-x-auto rounded-lg border border-default">
+            <UTable :data="paginatedApps" :columns="columnsForTable" class="min-w-full" />
           </div>
-        </UCard>
+          <div v-if="fleetCount > itemsPerPage" class="flex justify-end">
+            <UPagination v-model:page="page" :total="fleetCount" :items-per-page="itemsPerPage" />
+          </div>
+        </div>
+        <div
+          v-else
+          class="rounded-lg border border-dashed border-default p-8 text-center bg-elevated/50"
+        >
+          <UIcon name="i-lucide-inbox" class="mx-auto size-12 text-muted/50 mb-3" />
+          <p class="text-base font-medium text-default">No fleet apps configured</p>
+          <p class="mt-1 mb-4 text-sm text-muted">
+            Fleet apps are configured inside the central registry.
+          </p>
+          <UButton to="/settings" variant="outline" color="neutral" icon="i-lucide-settings">
+            Go to Settings
+          </UButton>
+        </div>
+      </UCard>
     </div>
 
     <div v-if="lastRefresh" class="mt-6 flex justify-end">
       <p class="text-xs text-muted flex items-center gap-1.5">
         <UIcon name="i-lucide-clock" class="size-3" />
         <!-- hydration: relative time differs SSR vs CSR -->
-        Last refreshed: <ClientOnly><NuxtTime :datetime="lastRefresh" relative class="font-medium" /></ClientOnly>
+        Last refreshed:
+        <ClientOnly><NuxtTime :datetime="lastRefresh" relative class="font-medium" /></ClientOnly>
       </p>
     </div>
   </div>
