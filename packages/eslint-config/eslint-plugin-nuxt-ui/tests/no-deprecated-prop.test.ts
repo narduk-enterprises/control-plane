@@ -82,6 +82,6 @@ ruleTester.run('no-deprecated-prop', rule, {
         },
       ],
       output: '<template><UAvatar text="text" /></template>',
-    }
+    },
   ],
 })

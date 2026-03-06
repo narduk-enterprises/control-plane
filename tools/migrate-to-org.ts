@@ -21,7 +21,7 @@
  *   3. Run sync-template.ts to standardize infra
  *   4. Replace loganrenz → narduk-enterprises across all app files
  *   5. Regenerate pnpm-lock.yaml
- *   6. Add repo to template sync bot fleet
+ *   6. Update the control-plane managed repo catalog
  *   7. Commit and push
  */
 
@@ -34,14 +34,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const TEMPLATE_DIR = join(__dirname, '..')
 const TARGET_ORG = 'narduk-enterprises'
 
-const args = process.argv.slice(2).filter(a => !a.startsWith('--'))
-const flags = new Set(process.argv.slice(2).filter(a => a.startsWith('--')))
+const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
+const flags = new Set(process.argv.slice(2).filter((a) => a.startsWith('--')))
 const dryRun = flags.has('--dry-run')
 const skipTransfer = flags.has('--skip-transfer')
 
 const appDir = args[0]?.replace(/^~/, process.env.HOME || '')
 if (!appDir) {
-  console.error('Usage: npx tsx tools/migrate-to-org.ts <app-directory> [--dry-run] [--skip-transfer]')
+  console.error(
+    'Usage: npx tsx tools/migrate-to-org.ts <app-directory> [--dry-run] [--skip-transfer]',
+  )
   console.error('  e.g: npx tsx tools/migrate-to-org.ts ~/new-code/austin-texas-net')
   process.exit(1)
 }
@@ -53,12 +55,25 @@ if (!existsSync(appDir)) {
 
 const appName = appDir.split('/').pop() || 'unknown'
 
-function run(cmd: string, opts: { cwd?: string, stdio?: 'inherit' | 'pipe' } = {}) {
-  return execSync(cmd, { encoding: 'utf-8', stdio: opts.stdio || 'pipe', cwd: opts.cwd || appDir }).trim()
+function run(cmd: string, opts: { cwd?: string; stdio?: 'inherit' | 'pipe' } = {}) {
+  return execSync(cmd, {
+    encoding: 'utf-8',
+    stdio: opts.stdio || 'pipe',
+    cwd: opts.cwd || appDir,
+  }).trim()
 }
 
 function walkTextFiles(dir: string): string[] {
-  const skip = new Set(['node_modules', '.git', '.nuxt', '.output', 'dist', '.wrangler', '.turbo', '.data'])
+  const skip = new Set([
+    'node_modules',
+    '.git',
+    '.nuxt',
+    '.output',
+    'dist',
+    '.wrangler',
+    '.turbo',
+    '.data',
+  ])
   const binaryExt = /\.(png|jpe?g|gif|webp|svg|ico|ttf|woff2?|sqlite|db|lock)$/i
   const files: string[] = []
 
@@ -93,7 +108,9 @@ function main() {
       currentOwner = match[1]
       repoName = match[2]
     }
-  } catch { /* no remote */ }
+  } catch {
+    /* no remote */
+  }
 
   if (!currentOwner) {
     console.error('  Could not detect GitHub repo owner from git remote.')
@@ -126,7 +143,9 @@ function main() {
           console.log(`  ⏭ ${TARGET_ORG}/${repoName} already exists.`)
         } else {
           console.error(`  ❌ Transfer failed: ${msg}`)
-          console.error('  You may need to transfer manually at https://github.com/settings/repositories')
+          console.error(
+            '  You may need to transfer manually at https://github.com/settings/repositories',
+          )
           console.error(`  Then re-run with --skip-transfer`)
           process.exit(1)
         }
@@ -143,9 +162,19 @@ function main() {
   const newTemplate = `https://github.com/${TARGET_ORG}/sailing-passage-map.git`
 
   if (!dryRun) {
-    try { run(`git remote set-url origin ${newOrigin}`) } catch { /* ignore */ }
-    try { run(`git remote set-url template ${newTemplate}`) } catch {
-      try { run(`git remote add template ${newTemplate}`) } catch { /* already exists */ }
+    try {
+      run(`git remote set-url origin ${newOrigin}`)
+    } catch {
+      /* ignore */
+    }
+    try {
+      run(`git remote set-url template ${newTemplate}`)
+    } catch {
+      try {
+        run(`git remote add template ${newTemplate}`)
+      } catch {
+        /* already exists */
+      }
     }
   }
   console.log(`  origin   → ${newOrigin}`)
@@ -156,10 +185,10 @@ function main() {
   console.log('Step 4: Running sync-template...')
   const syncArgs = dryRun ? '--dry-run' : ''
   try {
-    run(
-      `npx tsx tools/sync-template.ts ${appDir} ${syncArgs}`,
-      { cwd: TEMPLATE_DIR, stdio: 'inherit' },
-    )
+    run(`npx tsx tools/sync-template.ts ${appDir} ${syncArgs}`, {
+      cwd: TEMPLATE_DIR,
+      stdio: 'inherit',
+    })
   } catch {
     console.warn('  ⚠️ sync-template had issues (non-fatal)')
   }
@@ -185,7 +214,9 @@ function main() {
         console.log(`  UPDATE: ${rel}`)
         replacedFiles++
       }
-    } catch { /* skip unreadable files */ }
+    } catch {
+      /* skip unreadable files */
+    }
   }
   console.log(`  ${replacedFiles} files updated.`)
 
@@ -202,29 +233,13 @@ function main() {
     console.log('  Would run pnpm install --no-frozen-lockfile')
   }
 
-  // ── Step 7: Add to sync bot fleet ──
+  // ── Step 7: Control-plane managed repo follow-up ──
   console.log()
-  console.log('Step 7: Adding to template sync bot fleet...')
-  const botPath = join(TEMPLATE_DIR, '.github/workflows/template-sync-bot.yml')
-  if (existsSync(botPath)) {
-    const botContent = readFileSync(botPath, 'utf-8')
-    if (botContent.includes(repoName)) {
-      console.log(`  ⏭ ${repoName} already in fleet.`)
-    } else {
-      const updated = botContent.replace(
-        /(\s+- neon-sewer-raid\n)/,
-        `$1          - ${repoName}\n`,
-      )
-      if (updated !== botContent) {
-        if (!dryRun) {
-          writeFileSync(botPath, updated, 'utf-8')
-        }
-        console.log(`  ✅ Added ${repoName} to sync bot matrix.`)
-      } else {
-        console.log(`  ⚠️ Could not auto-add to fleet — add manually to template-sync-bot.yml`)
-      }
-    }
-  }
+  console.log('Step 7: Updating control-plane managed repo catalog...')
+  console.log(`  ℹ️ Sync membership is now owned by control-plane, not template-sync-bot.yml.`)
+  console.log(
+    '  Add the repo to control-plane/apps/web/server/data/managed-repos.ts and re-export config/fleet-sync-repos.json.',
+  )
 
   // ── Step 8: Commit and push ──
   console.log()
@@ -264,7 +279,9 @@ function main() {
     console.log(' Next steps:')
     console.log('   1. Verify: gh repo view narduk-enterprises/' + repoName)
     console.log('   2. Push template sync bot update:')
-    console.log(`      cd ${TEMPLATE_DIR} && git add -A && git commit -m "chore: add ${repoName} to sync bot fleet" && git push`)
+    console.log(
+      `      cd ${TEMPLATE_DIR} && git add -A && git commit -m "chore: add ${repoName} to sync bot fleet" && git push`,
+    )
     console.log('   3. Set up Doppler: doppler setup --project ' + repoName + ' --config dev')
     console.log('   4. Verify CI: gh run list --repo narduk-enterprises/' + repoName)
   }

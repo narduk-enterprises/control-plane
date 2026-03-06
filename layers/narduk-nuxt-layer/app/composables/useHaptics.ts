@@ -66,8 +66,7 @@ function vibrate(pattern: number | number[]): void {
       try {
         navigator.vibrate(pattern)
         return
-      }
-      catch {
+      } catch {
         // Vibration API might be blocked; fall through to fallback
       }
     }
@@ -95,8 +94,7 @@ function vibrate(pattern: number | number[]): void {
         requestAnimationFrame(() => {
           label.remove()
         })
-      }
-      catch {
+      } catch {
         // Silently fail if this trick doesn't work
       }
     }
@@ -104,13 +102,13 @@ function vibrate(pattern: number | number[]): void {
     if (Array.isArray(pattern)) {
       let delay = 0
       for (let i = 0; i < pattern.length; i++) {
-        if (i % 2 === 0) { // Even indices are vibrate durations
+        if (i % 2 === 0) {
+          // Even indices are vibrate durations
           setTimeout(fireHaptic, delay)
         }
-        delay += (pattern[i] || 0)
+        delay += pattern[i] || 0
       }
-    }
-    else {
+    } else {
       fireHaptic()
     }
   }

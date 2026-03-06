@@ -1,12 +1,16 @@
 /**
  * Rule: nuxt-ui/no-deprecated-prop
- * 
+ *
  * Error if an attribute/prop is known to be deprecated/renamed; provide autofix when a mechanical rename exists.
  */
 
 // Note: Using basic ESLint types for compatibility
 import type { AST } from 'vue-eslint-parser'
-import { normalizeComponentName, normalizePropName, isNuxtUIComponent } from '../utils/component-utils'
+import {
+  normalizeComponentName,
+  normalizePropName,
+  isNuxtUIComponent,
+} from '../utils/component-utils'
 import { getComponentSpec } from '../utils/spec-loader'
 import type { PluginOptions } from '../types'
 
@@ -17,7 +21,7 @@ export interface RuleContext {
     messageId: string
     data?: Record<string, string>
     fix?: (_fixer: {
-      replaceTextRange: (_range: [number, number], _text: string) => unknown,
+      replaceTextRange: (_range: [number, number], _text: string) => unknown
       replaceText: (_node: any, _text: string) => unknown
     }) => unknown
   }) => void
@@ -26,7 +30,7 @@ export interface RuleContext {
     parserServices?: {
       defineTemplateBodyVisitor: (
         visitor: Record<string, (node: AST.Node) => void>,
-        scriptVisitor?: Record<string, (node: AST.Node) => void>
+        scriptVisitor?: Record<string, (node: AST.Node) => void>,
       ) => Record<string, (node: AST.Node) => void>
     }
   }
@@ -80,7 +84,7 @@ export default {
     }
 
     return parserServices.defineTemplateBodyVisitor({
-      'VElement'(node: AST.Node) {
+      VElement(node: AST.Node) {
         const vElement = node as AST.VElement
         const componentName = vElement.name
         if (!isNuxtUIComponent(componentName, prefixes, allowedComponents)) {
@@ -119,7 +123,8 @@ export default {
           if (deprecated) {
             const replacement = deprecated.replacedBy
               ? `Use "${deprecated.replacedBy}" instead`
-              : 'See https://ui.nuxt.com/docs/components/' + normalizedName.toLowerCase().replace(/^u/, '')
+              : 'See https://ui.nuxt.com/docs/components/' +
+                normalizedName.toLowerCase().replace(/^u/, '')
 
             context.report({
               node: attr,
@@ -129,14 +134,15 @@ export default {
                 componentName: normalizedName,
                 replacement,
               },
-              fix: deprecated.replacedBy && attr.key.range
-                ? (fixer) => {
-                    if (deprecated.replacedBy!.includes('=')) {
-                      return fixer.replaceText(attr, deprecated.replacedBy!)
+              fix:
+                deprecated.replacedBy && attr.key.range
+                  ? (fixer) => {
+                      if (deprecated.replacedBy!.includes('=')) {
+                        return fixer.replaceText(attr, deprecated.replacedBy!)
+                      }
+                      return fixer.replaceTextRange(attr.key.range!, deprecated.replacedBy!)
                     }
-                    return fixer.replaceTextRange(attr.key.range!, deprecated.replacedBy!)
-                  }
-                : undefined,
+                  : undefined,
             })
           }
         }

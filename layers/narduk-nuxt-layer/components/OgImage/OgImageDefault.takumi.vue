@@ -5,20 +5,23 @@
   is explicitly Takumi via `.takumi.vue`.
 -->
 <script setup lang="ts">
-withDefaults(defineProps<{
-  title?: string
-  description?: string
-  icon?: string
-  siteName?: string
-  /** Brand color hex — defaults to emerald. Override to match your app's primary color. */
-  primaryColor?: string
-}>(), {
-  title: 'Nuxt 4 Template',
-  description: 'Production-ready Nuxt 4 + Cloudflare Workers',
-  icon: '✨',
-  siteName: 'Nuxt 4 Demo',
-  primaryColor: '#10b981', // eslint-disable-line atx/no-inline-hex
-})
+withDefaults(
+  defineProps<{
+    title?: string
+    description?: string
+    icon?: string
+    siteName?: string
+    /** Brand color hex — defaults to emerald. Override to match your app's primary color. */
+    primaryColor?: string
+  }>(),
+  {
+    title: 'Nuxt 4 Template',
+    description: 'Production-ready Nuxt 4 + Cloudflare Workers',
+    icon: '✨',
+    siteName: 'Nuxt 4 Demo',
+    primaryColor: '#10b981', // eslint-disable-line atx/no-inline-hex
+  },
+)
 </script>
 
 <template>

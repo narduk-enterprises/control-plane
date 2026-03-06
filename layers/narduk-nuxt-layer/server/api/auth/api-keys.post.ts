@@ -11,6 +11,8 @@ const bodySchema = z.object({
  * Create a new API key. Returns the raw key ONCE — caller must save it.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'auth-api-keys', 10, 60_000)
+
   const user = await requireAuth(event)
   const { name } = await readValidatedBody(event, bodySchema.parse)
 

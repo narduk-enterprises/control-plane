@@ -32,11 +32,13 @@ export function useScrollReveal() {
           if (entry.isIntersecting) {
             const delay = (entry.target as HTMLElement).dataset.delay
             if (delay) {
-              setTimeout(() => {
-                entry.target.classList.add('revealed')
-              }, Number.parseInt(delay) * 100)
-            }
-            else {
+              setTimeout(
+                () => {
+                  entry.target.classList.add('revealed')
+                },
+                Number.parseInt(delay) * 100,
+              )
+            } else {
               entry.target.classList.add('revealed')
             }
             observer.unobserve(entry.target)

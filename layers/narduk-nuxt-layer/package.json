@@ -24,7 +24,8 @@
     "test:unit": "vitest run",
     "quality": "pnpm run prelint && pnpm run lint && pnpm run typecheck && pnpm run test:unit",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path ../../.gitignore"
   },
   "dependencies": {
     "@nuxt/eslint": "^1.15.2",

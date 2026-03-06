@@ -41,15 +41,27 @@ h4,
 
 /* ─── Elevation Utilities ─── */
 
-.shadow-card { box-shadow: var(--shadow-card); }
-.shadow-elevated { box-shadow: var(--shadow-elevated); }
-.shadow-overlay { box-shadow: var(--shadow-overlay); }
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}
+.shadow-elevated {
+  box-shadow: var(--shadow-elevated);
+}
+.shadow-overlay {
+  box-shadow: var(--shadow-overlay);
+}
 
 /* ─── Transition Utilities ─── */
 
-.transition-fast { transition: all var(--transition-fast); }
-.transition-base { transition: all var(--transition-base); }
-.transition-slow { transition: all var(--transition-slow); }
+.transition-fast {
+  transition: all var(--transition-fast);
+}
+.transition-base {
+  transition: all var(--transition-base);
+}
+.transition-slow {
+  transition: all var(--transition-slow);
+}
 
 /* ─── Glassmorphism — uses stable Nuxt UI design tokens ─── */
 

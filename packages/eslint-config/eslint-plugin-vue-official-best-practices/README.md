@@ -1,16 +1,20 @@
 # eslint-plugin-vue-official-best-practices
 
-ESLint plugin to enforce Vue 3 best practices (Composition API + `<script setup>`) based strictly on official Vue documentation, with Nuxt compatibility.
+ESLint plugin to enforce Vue 3 best practices (Composition API +
+`<script setup>`) based strictly on official Vue documentation, with Nuxt
+compatibility.
 
 ## Installation
 
-This plugin is part of the monorepo and is automatically available when running ESLint.
+This plugin is part of the monorepo and is automatically available when running
+ESLint.
 
 ## Configuration
 
 ### Recommended (Default)
 
-The `recommended` config provides pragmatic defaults with warnings for most rules and errors for critical violations:
+The `recommended` config provides pragmatic defaults with warnings for most
+rules and errors for critical violations:
 
 ```javascript
 import vueOfficialBestPractices from './tools/eslint-plugin-vue-official-best-practices/src/index.js'
@@ -51,7 +55,9 @@ export default {
 Warns when Options API is used instead of `<script setup>`.
 
 **Options:**
-- `allowOptionsApi` (boolean, default: `true`) - Allow Options API in mixed codebases
+
+- `allowOptionsApi` (boolean, default: `true`) - Allow Options API in mixed
+  codebases
 
 **Docs:** [Vue Style Guide](https://vuejs.org/style-guide/)
 
@@ -62,12 +68,14 @@ Warns when Options API is used instead of `<script setup>`.
 Errors on top-level side effects in `<script setup>` that can cause SSR issues.
 
 **Detects:**
+
 - `fetch()` calls (not `useFetch`)
 - `setInterval`/`setTimeout` without cleanup
 - `addEventListener` without cleanup
 - Direct DOM access (`document.*`, `window.*`)
 
 **Allows:**
+
 - Side effects inside lifecycle hooks (`onMounted`, etc.)
 - Nuxt composables at top-level (`useFetch`, `useAsyncData`, etc.)
 
@@ -79,9 +87,11 @@ Errors on top-level side effects in `<script setup>` that can cause SSR issues.
 
 Errors on async computed properties (anti-pattern).
 
-**Suggests:** Use `watchEffect`/`watch` + `ref`, or Nuxt data fetching composables.
+**Suggests:** Use `watchEffect`/`watch` + `ref`, or Nuxt data fetching
+composables.
 
-**Docs:** [Vue Composition API FAQ](https://vuejs.org/guide/extras/composition-api-faq.html)
+**Docs:**
+[Vue Composition API FAQ](https://vuejs.org/guide/extras/composition-api-faq.html)
 
 ---
 
@@ -92,9 +102,11 @@ Warns against deep watches for performance.
 **Suppression:** Use `/* vue-official allow-deep-watch */` comment
 
 **Options:**
+
 - `strict` (boolean, default: `true`) - Enable strict mode
 
-**Docs:** [Vue Best Practices](https://vuejs.org/guide/best-practices/overview.html)
+**Docs:**
+[Vue Best Practices](https://vuejs.org/guide/best-practices/overview.html)
 
 ---
 
@@ -103,14 +115,17 @@ Warns against deep watches for performance.
 Warns on complex expressions in templates.
 
 **Detects:**
+
 - Nested ternaries (depth > 1)
 - Chained logical ops beyond threshold (default: 3)
 - Function calls with arguments (unless whitelisted)
 
 **Options:**
+
 - `maxTernaryDepth` (number, default: `1`)
 - `maxLogicalOps` (number, default: `3`)
-- `allowedFunctions` (string[], default: formatters like `formatPrice`, `formatChange`, etc.)
+- `allowedFunctions` (string[], default: formatters like `formatPrice`,
+  `formatChange`, etc.)
 
 **Docs:** [Vue Style Guide](https://vuejs.org/style-guide/)
 
@@ -118,19 +133,24 @@ Warns on complex expressions in templates.
 
 #### `vue-official/consistent-defineprops-emits`
 
-Errors if `defineProps` or `defineEmits` are called multiple times or not at top-level.
+Errors if `defineProps` or `defineEmits` are called multiple times or not at
+top-level.
 
-**Docs:** [Vue Composition API](https://vuejs.org/guide/extras/composition-api-faq.html)
+**Docs:**
+[Vue Composition API](https://vuejs.org/guide/extras/composition-api-faq.html)
 
 ---
 
 #### `vue-official/prefer-typed-defineprops`
 
-Warns if `defineProps()` uses runtime-only props instead of typed props in TypeScript.
+Warns if `defineProps()` uses runtime-only props instead of typed props in
+TypeScript.
 
-**Suggests:** `defineProps<{...}>()` or `withDefaults(defineProps<{...}>(), {...})`
+**Suggests:** `defineProps<{...}>()` or
+`withDefaults(defineProps<{...}>(), {...})`
 
-**Docs:** [Vue TypeScript Guide](https://vuejs.org/guide/typescript/overview.html)
+**Docs:**
+[Vue TypeScript Guide](https://vuejs.org/guide/typescript/overview.html)
 
 ---
 
@@ -143,7 +163,9 @@ Warns when composable functions don't use "use" prefix.
 **Applies to:** `composables/**/*.ts|js` (configurable)
 
 **Options:**
-- `paths` (string[], default: `['**/composables/**/*.ts', '**/composables/**/*.js']`)
+
+- `paths` (string[], default:
+  `['**/composables/**/*.ts', '**/composables/**/*.js']`)
 
 **Docs:** [Vue Style Guide](https://vuejs.org/style-guide/)
 
@@ -151,11 +173,13 @@ Warns when composable functions don't use "use" prefix.
 
 #### `vue-official/no-composable-conditional-hooks`
 
-Warns if composable conditionally calls Vue composables (`ref`, `computed`, `watchEffect`, etc.).
+Warns if composable conditionally calls Vue composables (`ref`, `computed`,
+`watchEffect`, etc.).
 
 **Allows:** Hooks inside lifecycle callbacks (those are already conditional)
 
-**Docs:** [Vue Composition API FAQ](https://vuejs.org/guide/extras/composition-api-faq.html)
+**Docs:**
+[Vue Composition API FAQ](https://vuejs.org/guide/extras/composition-api-faq.html)
 
 ---
 
@@ -166,7 +190,9 @@ Errors when DOM access in composables lacks client guard.
 **Requires:** `if (import.meta.client) { ... }` or `onMounted(...)`
 
 **Options:**
-- `allowProcessClient` (boolean, default: `false`) - Allow `process.client` (Nuxt legacy)
+
+- `allowProcessClient` (boolean, default: `false`) - Allow `process.client`
+  (Nuxt legacy)
 
 **Docs:** [Vue SSR Guide](https://vuejs.org/guide/scaling-up/ssr.html)
 
@@ -187,6 +213,7 @@ Errors if `defineStore` is called without a string literal id.
 Warns against direct state mutation outside store actions.
 
 **Options:**
+
 - `strict` (boolean, default: `true`) - Enable strict mode
 
 **Docs:** [Pinia Docs](https://pinia.vuejs.org/)
@@ -200,6 +227,7 @@ Warns when destructuring reactive store properties without `storeToRefs`.
 **Autofix:** Available for simple cases
 
 **Example:**
+
 ```typescript
 // ❌ Bad
 const { count } = useCounterStore()
@@ -217,7 +245,8 @@ const { count } = storeToRefs(useCounterStore())
 The plugin automatically detects Nuxt projects and adjusts rules accordingly:
 
 - **Auto-detection:** Checks for `nuxt` dependency or `nuxt.config.*` files
-- **Allowed patterns:** Top-level `useFetch`, `useAsyncData`, `useState`, etc. in `<script setup>`
+- **Allowed patterns:** Top-level `useFetch`, `useAsyncData`, `useState`, etc.
+  in `<script setup>`
 - **SSR safety:** Prefers `import.meta.client` over `process.client` in messages
 
 ## Examples
@@ -251,7 +280,7 @@ fetch('/api/users') // Use useFetch() instead
 
 // ❌ Async computed
 const data = computed(async () => {
-  return await fetch('/api').then(r => r.json())
+  return await fetch('/api').then((r) => r.json())
 })
 
 // ❌ Deep watch without comment

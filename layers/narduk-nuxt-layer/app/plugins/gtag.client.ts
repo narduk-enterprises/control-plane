@@ -15,21 +15,18 @@ export default defineNuxtPlugin(() => {
 
   if (!measurementId || import.meta.server) return
 
-  if (
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1'
-  ) {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return
   }
 
   window.dataLayer = window.dataLayer || []
 
   // Must use `arguments` — gtag.js silently drops Array-based pushes
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, prefer-rest-params
-  function gtag(..._args: any[]) { window.dataLayer.push(arguments as any) }
+  function gtag(...args: unknown[]) {
+    window.dataLayer.push(args as unknown as IArguments)
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(window as any).gtag = gtag
+  ;(window as any).gtag = gtag // eslint-disable-line @typescript-eslint/no-explicit-any
 
   gtag('js', new Date())
   gtag('config', measurementId)

@@ -6,7 +6,12 @@
       "name": "UButton",
       "props": [
         { "name": "oldProp", "type": "string", "deprecated": true },
-        { "name": "padded", "type": "boolean", "deprecated": true, "replacedBy": ":ui=\"{ root: 'p-0' }\"" },
+        {
+          "name": "padded",
+          "type": "boolean",
+          "deprecated": true,
+          "replacedBy": ":ui=\"{ root: 'p-0' }\""
+        },
         { "name": "variant", "type": "string", "enum": ["solid", "outline", "soft"] },
         { "name": "color", "type": "string", "enum": ["primary", "gray", "red"] }
       ],

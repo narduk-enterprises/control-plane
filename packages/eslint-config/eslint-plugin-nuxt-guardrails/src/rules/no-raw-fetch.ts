@@ -44,7 +44,12 @@ export default {
       const inPages = normalized.includes('/app/pages/')
       const inComponents = normalized.includes('/app/components/')
       if (!inPages && !inComponents) return {}
-      if (normalized.includes('e2e/') || normalized.includes('.spec.') || normalized.includes('.test.')) return {}
+      if (
+        normalized.includes('e2e/') ||
+        normalized.includes('.spec.') ||
+        normalized.includes('.test.')
+      )
+        return {}
     }
 
     return {

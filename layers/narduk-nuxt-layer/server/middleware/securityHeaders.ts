@@ -14,23 +14,23 @@ export default defineEventHandler((event) => {
     "'self'",
     "'unsafe-inline'",
     "'unsafe-eval'",
-    "https://*.googletagmanager.com",
-    "https://us.i.posthog.com",
-    "https://us-assets.i.posthog.com",
-    "https://static.cloudflareinsights.com",
-    "https://cdn.apple-mapkit.com",
-    "https://pagead2.googlesyndication.com"
+    'https://*.googletagmanager.com',
+    'https://us.i.posthog.com',
+    'https://us-assets.i.posthog.com',
+    'https://static.cloudflareinsights.com',
+    'https://cdn.apple-mapkit.com',
+    'https://pagead2.googlesyndication.com',
   ]
 
   const baseConnectSrc = [
     "'self'",
-    "https://*.google-analytics.com",
-    "https://*.analytics.google.com",
-    "https://*.googletagmanager.com",
-    "https://us.i.posthog.com",
-    "https://us-assets.i.posthog.com",
-    "https://*.apple-mapkit.com",
-    "https://*.apple.com"
+    'https://*.google-analytics.com',
+    'https://*.analytics.google.com',
+    'https://*.googletagmanager.com',
+    'https://us.i.posthog.com',
+    'https://us-assets.i.posthog.com',
+    'https://*.apple-mapkit.com',
+    'https://*.apple.com',
   ]
 
   // 2. Add dev-only connections
@@ -46,12 +46,18 @@ export default defineEventHandler((event) => {
 
   // 4. Inject arbitrary comma-separated overrides from Doppler (e.g., CSP_SCRIPT_SRC, CSP_CONNECT_SRC)
   if (config.public.cspScriptSrc) {
-    const customScripts = config.public.cspScriptSrc.split(',').map(s => s.trim()).filter(Boolean)
+    const customScripts = config.public.cspScriptSrc
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
     baseScriptSrc.push(...customScripts)
   }
 
   if (config.public.cspConnectSrc) {
-    const customConnects = config.public.cspConnectSrc.split(',').map(s => s.trim()).filter(Boolean)
+    const customConnects = config.public.cspConnectSrc
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
     baseConnectSrc.push(...customConnects)
   }
 

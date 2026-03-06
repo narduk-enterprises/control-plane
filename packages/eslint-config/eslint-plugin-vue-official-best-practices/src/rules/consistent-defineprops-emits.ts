@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/consistent-defineprops-emits
- * 
+ *
  * Ensures defineProps and defineEmits are called once at top-level
  */
 
@@ -21,21 +21,22 @@ export default {
     messages: {
       multipleDefineProps: 'defineProps() should be called only once at top-level. See: {{url}}',
       multipleDefineEmits: 'defineEmits() should be called only once at top-level. See: {{url}}',
-      notTopLevel: 'defineProps() and defineEmits() must be called at top-level of <script setup>. See: {{url}}',
+      notTopLevel:
+        'defineProps() and defineEmits() must be called at top-level of <script setup>. See: {{url}}',
     },
   },
   create(context: RuleContext<string, any[]>): RuleListener {
     const parserServices = (context.sourceCode?.parserServices ?? context.parserServices) as any
-    
+
     if (!parserServices || !parserServices.defineTemplateBodyVisitor) {
       // For non-Vue files, check directly
       let definePropsCount = 0
       let defineEmitsCount = 0
       const definePropsNodes: any[] = []
       const defineEmitsNodes: any[] = []
-      
+
       return {
-        'CallExpression'(node: any) {
+        CallExpression(node: any) {
           if (
             node.callee &&
             node.callee.type === 'Identifier' &&
@@ -49,11 +50,11 @@ export default {
               })
               return
             }
-            
+
             definePropsCount++
             definePropsNodes.push(node)
           }
-          
+
           if (
             node.callee &&
             node.callee.type === 'Identifier' &&
@@ -67,7 +68,7 @@ export default {
               })
               return
             }
-            
+
             defineEmitsCount++
             defineEmitsNodes.push(node)
           }
@@ -83,7 +84,7 @@ export default {
               })
             })
           }
-          
+
           // Report multiple defineEmits
           if (defineEmitsCount > 1) {
             defineEmitsNodes.slice(1).forEach((node) => {
@@ -97,14 +98,14 @@ export default {
         },
       }
     }
-    
+
     let definePropsCount = 0
     let defineEmitsCount = 0
     const definePropsNodes: any[] = []
     const defineEmitsNodes: any[] = []
-    
+
     const scriptVisitor = {
-      'CallExpression'(node: any) {
+      CallExpression(node: any) {
         if (
           node.callee &&
           node.callee.type === 'Identifier' &&
@@ -118,11 +119,11 @@ export default {
             })
             return
           }
-          
+
           definePropsCount++
           definePropsNodes.push(node)
         }
-        
+
         if (
           node.callee &&
           node.callee.type === 'Identifier' &&
@@ -136,18 +137,15 @@ export default {
             })
             return
           }
-          
+
           defineEmitsCount++
           defineEmitsNodes.push(node)
         }
       },
     }
-    
-    const baseVisitor = parserServices.defineTemplateBodyVisitor(
-      {},
-      scriptVisitor
-    )
-    
+
+    const baseVisitor = parserServices.defineTemplateBodyVisitor({}, scriptVisitor)
+
     // Add Program:exit to check for multiple calls
     return {
       ...baseVisitor,
@@ -162,7 +160,7 @@ export default {
             })
           })
         }
-        
+
         // Report multiple defineEmits
         if (defineEmitsCount > 1) {
           defineEmitsNodes.slice(1).forEach((node) => {

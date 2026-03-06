@@ -18,8 +18,7 @@ export default {
       category: 'ATX Design System',
     },
     messages: {
-      lucideOnly:
-        'Icon "{{ icon }}" uses a non-Lucide prefix — use i-lucide-* icons only.',
+      lucideOnly: 'Icon "{{ icon }}" uses a non-Lucide prefix — use i-lucide-* icons only.',
     },
     schema: [],
   },
@@ -59,10 +58,10 @@ export default {
       },
       {
         // Script setup: catches icon strings in data arrays like navItems
-        'Literal'(node) {
+        Literal(node) {
           checkString(node, node.value)
         },
-      }
+      },
     )
   },
 }

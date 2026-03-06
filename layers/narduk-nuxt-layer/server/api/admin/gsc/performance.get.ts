@@ -22,13 +22,17 @@ export default defineEventHandler(async (event) => {
   const gscSiteUrl = `sc-domain:${new URL(siteUrl).hostname}`
   const query = await getValidatedQuery(event, querySchema.parse)
 
-  const endDate = query.endDate ? String(query.endDate) : (new Date().toISOString().split('T')[0] ?? '')
+  const endDate = query.endDate
+    ? String(query.endDate)
+    : (new Date().toISOString().split('T')[0] ?? '')
   const start = new Date(endDate)
   start.setDate(start.getDate() - 30)
-  const startDate = query.startDate ? String(query.startDate) : (start.toISOString().split('T')[0] ?? '')
+  const startDate = query.startDate
+    ? String(query.startDate)
+    : (start.toISOString().split('T')[0] ?? '')
 
   try {
-    const data = await googleApiFetch(
+    const data = (await googleApiFetch(
       `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(gscSiteUrl)}/searchAnalytics/query`,
       GSC_SCOPES,
       {
@@ -40,7 +44,7 @@ export default defineEventHandler(async (event) => {
           rowLimit: 50,
         }),
       },
-    ) as Record<string, unknown>
+    )) as Record<string, unknown>
 
     const rows = data.rows as Array<Record<string, unknown>> | undefined
 

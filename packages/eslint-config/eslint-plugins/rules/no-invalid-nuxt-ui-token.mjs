@@ -25,7 +25,7 @@ const INVALID_SEMANTIC_TOKENS = [
 
 const INVALID_PATTERN = new RegExp(
   `\\b(${INVALID_SEMANTIC_TOKENS.map((t) => t.token.replace(/-/g, '\\-')).join('|')})\\b`,
-  'g'
+  'g',
 )
 
 /** @type {import('eslint').Rule.RuleModule} */
@@ -47,7 +47,7 @@ export default {
     if (!context.filename.endsWith('.vue')) return {}
 
     const suggestMap = Object.fromEntries(
-      INVALID_SEMANTIC_TOKENS.map(({ token, suggest }) => [token, suggest])
+      INVALID_SEMANTIC_TOKENS.map(({ token, suggest }) => [token, suggest]),
     )
 
     function checkString(node, str) {

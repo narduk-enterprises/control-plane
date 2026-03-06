@@ -5,7 +5,7 @@ packages:
   - tools/eslint-plugin-vue-official-best-practices
 
 onlyBuiltDependencies:
-  - '@parcel/watcher'
+  - "@parcel/watcher"
   - better-sqlite3
   - core-js
   - esbuild

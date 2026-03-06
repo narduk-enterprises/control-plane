@@ -10,9 +10,23 @@ import { defineTemplateBodyVisitor } from '../utils.mjs'
 
 const GRAY_SCALES = ['gray', 'zinc', 'slate', 'stone', 'neutral']
 const BRAND_COLORS = [
-  'green', 'emerald', 'blue', 'red', 'yellow', 'orange', 'purple',
-  'pink', 'indigo', 'teal', 'cyan', 'amber', 'lime', 'fuchsia',
-  'violet', 'rose', 'sky',
+  'green',
+  'emerald',
+  'blue',
+  'red',
+  'yellow',
+  'orange',
+  'purple',
+  'pink',
+  'indigo',
+  'teal',
+  'cyan',
+  'amber',
+  'lime',
+  'fuchsia',
+  'violet',
+  'rose',
+  'sky',
 ]
 
 const ALL_COLORS = [...GRAY_SCALES, ...BRAND_COLORS]
@@ -20,7 +34,7 @@ const ALL_COLORS = [...GRAY_SCALES, ...BRAND_COLORS]
 // Matches text-gray-400, bg-emerald-500, border-zinc-800 etc.
 const COLOR_REGEX = new RegExp(
   `\\b(?:text|bg|border|ring|shadow|divide|from|via|to|outline|accent|caret|fill|stroke)-(?:${ALL_COLORS.join('|')})-\\d{2,3}\\b`,
-  'g'
+  'g',
 )
 
 /** @type {import('eslint').Rule.RuleModule} */

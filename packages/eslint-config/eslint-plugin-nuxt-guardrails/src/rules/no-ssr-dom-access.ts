@@ -1,6 +1,6 @@
 /**
  * Rule: nuxt-guardrails/no-ssr-dom-access
- * 
+ *
  * Detects unguarded window/document/localStorage access in server context
  */
 
@@ -17,26 +17,32 @@ export default {
     },
     schema: [],
     messages: {
-      unguardedDomAccess: 'Unguarded {{type}} access may cause SSR errors. Use onMounted() or guard with import.meta.client. See: https://nuxt.com/docs/4.x/guide/concepts/rendering',
+      unguardedDomAccess:
+        'Unguarded {{type}} access may cause SSR errors. Use onMounted() or guard with import.meta.client. See: https://nuxt.com/docs/4.x/guide/concepts/rendering',
     },
   },
   create(context: Rule.RuleContext): Rule.RuleListener {
     const filename = context.filename ?? (context as any).getFilename?.() ?? ''
-    const parserServices = (context.sourceCode?.parserServices ?? (context as any).parserServices) as any
-    
+    const parserServices = (context.sourceCode?.parserServices ??
+      (context as any).parserServices) as any
+
     // Skip client-only files
     if (filename.includes('.client.') || filename.includes('.client/')) {
       return {}
     }
-    
+
     // Skip e2e test files
-    if (filename.includes('e2e/') || filename.includes('.spec.ts') || filename.includes('.test.ts')) {
+    if (
+      filename.includes('e2e/') ||
+      filename.includes('.spec.ts') ||
+      filename.includes('.test.ts')
+    ) {
       return {}
     }
-    
+
     // For Vue files, only check script, not template
     const isVueFile = filename.endsWith('.vue')
-    
+
     return {
       MemberExpression(node: any) {
         // Skip if this is in a Vue template (not script)
@@ -53,20 +59,20 @@ export default {
           }
         }
         const domInfo = isDomAccess(node)
-        
+
         if (!domInfo.type) {
           return
         }
-        
+
         // Allow if in client context
         if (isInClientContext(node, context)) {
           return
         }
-        
+
         // Check for early return guard in the same block
         // This checks if there's an early return with !import.meta.client before this node
         let checkNode: any = node
-        
+
         // Walk up to find the containing function block
         while (checkNode) {
           if (checkNode.type === 'BlockStatement' && checkNode.body) {
@@ -77,7 +83,7 @@ export default {
                 if (!stmt.range) continue
                 // Stop when we pass the node; later statements cannot guard it
                 if (stmt.range[0] > nodePos) break
-                
+
                 // Check for: if (!import.meta.client) return
                 if (
                   stmt.type === 'IfStatement' &&
@@ -86,8 +92,8 @@ export default {
                   stmt.test.operator === '!' &&
                   isImportMetaClient(stmt.test.argument) &&
                   (stmt.consequent.type === 'ReturnStatement' ||
-                   (stmt.consequent.type === 'BlockStatement' &&
-                    stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
+                    (stmt.consequent.type === 'BlockStatement' &&
+                      stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
                 ) {
                   return // Found early return guard
                 }
@@ -96,13 +102,17 @@ export default {
                   stmt.type === 'IfStatement' &&
                   stmt.test &&
                   stmt.test.type === 'LogicalExpression' &&
-                  ((stmt.test.left && stmt.test.left.type === 'UnaryExpression' &&
-                    stmt.test.left.operator === '!' && isImportMetaClient(stmt.test.left.argument)) ||
-                   (stmt.test.right && stmt.test.right.type === 'UnaryExpression' &&
-                    stmt.test.right.operator === '!' && isImportMetaClient(stmt.test.right.argument))) &&
+                  ((stmt.test.left &&
+                    stmt.test.left.type === 'UnaryExpression' &&
+                    stmt.test.left.operator === '!' &&
+                    isImportMetaClient(stmt.test.left.argument)) ||
+                    (stmt.test.right &&
+                      stmt.test.right.type === 'UnaryExpression' &&
+                      stmt.test.right.operator === '!' &&
+                      isImportMetaClient(stmt.test.right.argument))) &&
                   (stmt.consequent.type === 'ReturnStatement' ||
-                   (stmt.consequent.type === 'BlockStatement' &&
-                    stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
+                    (stmt.consequent.type === 'BlockStatement' &&
+                      stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
                 ) {
                   return // Found early return guard
                 }
@@ -124,7 +134,7 @@ export default {
                   if (!stmt.range) continue
                   // Stop when we pass the node; later statements cannot guard it
                   if (stmt.range[0] > nodePos) break
-                  
+
                   // Same checks as above
                   if (
                     stmt.type === 'IfStatement' &&
@@ -133,8 +143,8 @@ export default {
                     stmt.test.operator === '!' &&
                     isImportMetaClient(stmt.test.argument) &&
                     (stmt.consequent.type === 'ReturnStatement' ||
-                     (stmt.consequent.type === 'BlockStatement' &&
-                      stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
+                      (stmt.consequent.type === 'BlockStatement' &&
+                        stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
                   ) {
                     return
                   }
@@ -142,13 +152,17 @@ export default {
                     stmt.type === 'IfStatement' &&
                     stmt.test &&
                     stmt.test.type === 'LogicalExpression' &&
-                    ((stmt.test.left && stmt.test.left.type === 'UnaryExpression' &&
-                      stmt.test.left.operator === '!' && isImportMetaClient(stmt.test.left.argument)) ||
-                     (stmt.test.right && stmt.test.right.type === 'UnaryExpression' &&
-                      stmt.test.right.operator === '!' && isImportMetaClient(stmt.test.right.argument))) &&
+                    ((stmt.test.left &&
+                      stmt.test.left.type === 'UnaryExpression' &&
+                      stmt.test.left.operator === '!' &&
+                      isImportMetaClient(stmt.test.left.argument)) ||
+                      (stmt.test.right &&
+                        stmt.test.right.type === 'UnaryExpression' &&
+                        stmt.test.right.operator === '!' &&
+                        isImportMetaClient(stmt.test.right.argument))) &&
                     (stmt.consequent.type === 'ReturnStatement' ||
-                     (stmt.consequent.type === 'BlockStatement' &&
-                      stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
+                      (stmt.consequent.type === 'BlockStatement' &&
+                        stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
                   ) {
                     return
                   }
@@ -159,7 +173,7 @@ export default {
           }
           checkNode = checkNode.parent
         }
-        
+
         // Check if we're in a computed/arrow function with early return
         let current: any = node.parent
         while (current) {
@@ -170,7 +184,12 @@ export default {
               // Check for early return in block before our node
               for (const stmt of body.body) {
                 // Stop when we reach a statement that contains our node
-                if (stmt.range && node.range && stmt.range[0] <= node.range[0] && stmt.range[1] >= node.range[1]) {
+                if (
+                  stmt.range &&
+                  node.range &&
+                  stmt.range[0] <= node.range[0] &&
+                  stmt.range[1] >= node.range[1]
+                ) {
                   break
                 }
                 // Check for early return pattern
@@ -181,8 +200,8 @@ export default {
                   stmt.test.operator === '!' &&
                   isImportMetaClient(stmt.test.argument) &&
                   (stmt.consequent.type === 'ReturnStatement' ||
-                   (stmt.consequent.type === 'BlockStatement' &&
-                    stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
+                    (stmt.consequent.type === 'BlockStatement' &&
+                      stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
                 ) {
                   // This early return comes before our node
                   return // Guarded by early return
@@ -200,9 +219,13 @@ export default {
               }
             }
           }
-          
+
           // Check if we're inside a computed() call
-          if (current.type === 'CallExpression' && current.callee && current.callee.name === 'computed') {
+          if (
+            current.type === 'CallExpression' &&
+            current.callee &&
+            current.callee.name === 'computed'
+          ) {
             const arg = current.arguments && current.arguments[0]
             if (arg && arg.type === 'ArrowFunctionExpression') {
               const body = arg.body
@@ -210,7 +233,12 @@ export default {
                 // Check for early return in block before our node
                 for (const stmt of body.body) {
                   // Stop when we reach a statement that contains our node
-                  if (stmt.range && node.range && stmt.range[0] <= node.range[0] && stmt.range[1] >= node.range[1]) {
+                  if (
+                    stmt.range &&
+                    node.range &&
+                    stmt.range[0] <= node.range[0] &&
+                    stmt.range[1] >= node.range[1]
+                  ) {
                     break
                   }
                   // Check for early return pattern
@@ -221,8 +249,8 @@ export default {
                     stmt.test.operator === '!' &&
                     isImportMetaClient(stmt.test.argument) &&
                     (stmt.consequent.type === 'ReturnStatement' ||
-                     (stmt.consequent.type === 'BlockStatement' &&
-                      stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
+                      (stmt.consequent.type === 'BlockStatement' &&
+                        stmt.consequent.body.some((s: any) => s.type === 'ReturnStatement')))
                   ) {
                     // This early return comes before our node
                     return // Guarded by early return
@@ -231,7 +259,7 @@ export default {
               }
             }
           }
-          
+
           // Check if parent is a conditional with import.meta.client
           if (current.type === 'IfStatement' && current.test) {
             // Check if test is import.meta.client or contains it (e.g., x && import.meta.client)
@@ -246,10 +274,10 @@ export default {
               return // Guarded by import.meta.client in logical expression
             }
           }
-          
+
           current = current.parent
         }
-        
+
         context.report({
           node,
           messageId: 'unguardedDomAccess',

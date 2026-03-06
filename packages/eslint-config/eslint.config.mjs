@@ -42,7 +42,7 @@ export const sharedConfigs = [
     },
     rules: {
       'vue/multi-word-component-names': 'off',
-    }
+    },
   },
 
   // TypeScript files
@@ -70,14 +70,7 @@ export const sharedConfigs = [
 
   // Global ignores
   {
-    ignores: [
-      '.nuxt/**',
-      '.output/**',
-      'dist/**',
-      'node_modules/**',
-      '**/*.d.ts',
-      'scripts/**',
-    ],
+    ignores: ['.nuxt/**', '.output/**', 'dist/**', 'node_modules/**', '**/*.d.ts', 'scripts/**'],
   },
 
   // TypeScript files - disable base no-unused-vars for interfaces
@@ -216,7 +209,7 @@ export const sharedConfigs = [
       security,
     },
     rules: {
-      'security/detect-object-injection': 'off',   // too noisy for bracket access
+      'security/detect-object-injection': 'off', // too noisy for bracket access
       'security/detect-non-literal-regexp': 'warn',
       'security/detect-unsafe-regex': 'error',
       'security/detect-buffer-noassert': 'error',

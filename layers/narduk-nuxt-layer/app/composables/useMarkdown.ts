@@ -44,7 +44,10 @@ export function useMarkdown() {
       return `<img src="${safeUrl}" alt="${alt}" class="max-w-full rounded-lg my-1" loading="lazy" />`
     })
     // Code: `inline code`
-    out = out.replaceAll(/`([^`]+)`/g, '<code class="rounded bg-muted px-1 py-0.5 text-sm">$1</code>')
+    out = out.replaceAll(
+      /`([^`]+)`/g,
+      '<code class="rounded bg-muted px-1 py-0.5 text-sm">$1</code>',
+    )
     out = out.replaceAll(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     out = out.replaceAll(/\*(.+?)\*/g, '<em>$1</em>')
     out = out.replaceAll('\n', '<br>')

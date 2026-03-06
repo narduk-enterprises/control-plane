@@ -22,7 +22,7 @@ export function normalizeComponentName(name: string, prefixes: string[] = ['U'])
 
   // Convert to PascalCase
   let pascalCase: string
-  
+
   if (name.includes('-')) {
     // Kebab-case: u-button -> UButton
     pascalCase = name
@@ -35,7 +35,7 @@ export function normalizeComponentName(name: string, prefixes: string[] = ['U'])
     // If it's all lowercase and starts with a prefix letter, capitalize prefix + next letter
     const firstChar = name.charAt(0).toUpperCase()
     const rest = name.slice(1)
-    
+
     // Check if this looks like a prefix (single letter) + component name
     // For "ubutton": "u" (prefix) + "button" (component) -> "U" + "Button"
     // For "umodal": "u" (prefix) + "modal" (component) -> "U" + "Modal"
@@ -65,7 +65,7 @@ export function normalizeComponentName(name: string, prefixes: string[] = ['U'])
 export function isNuxtUIComponent(
   name: string,
   prefixes: string[] = ['U'],
-  allowedComponents?: string[]
+  allowedComponents?: string[],
 ): boolean {
   const normalized = normalizeComponentName(name, prefixes)
   if (!normalized) return false

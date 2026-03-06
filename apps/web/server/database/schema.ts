@@ -7,8 +7,8 @@ import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
 export * from '../../../../layers/narduk-nuxt-layer/server/database/schema'
 
 // ─── Fleet Apps Registry ────────────────────────────────────
-// Single source of truth for all narduk-enterprises fleet apps.
-// Replaces the former hardcoded arrays in fleet-registry.ts.
+// Public app registry used by status/audit/analytics APIs. Seeded from the
+// managed-repo catalog in server/data/managed-repos.ts.
 export const fleetApps = sqliteTable('fleet_apps', {
   name: text('name').primaryKey(),
   url: text('url').notNull(),

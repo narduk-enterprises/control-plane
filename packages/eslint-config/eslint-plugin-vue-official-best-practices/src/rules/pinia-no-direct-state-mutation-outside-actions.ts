@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/pinia-no-direct-state-mutation-outside-actions
- * 
+ *
  * Warns against direct state mutation outside store actions
  */
 
@@ -28,22 +28,23 @@ export default {
       },
     ],
     messages: {
-      noDirectMutation: 'Avoid direct state mutation outside store actions. Use store actions instead. See: {{url}}',
+      noDirectMutation:
+        'Avoid direct state mutation outside store actions. Use store actions instead. See: {{url}}',
     },
   },
   create(context: RuleContext<string, any[]>): RuleListener {
     const options = context.options[0] || {}
     const strict = options.strict !== false // Default: true
-    
+
     if (!strict) {
       return {}
     }
-    
+
     // Track defineStore calls to know what's inside a store
     const storeScopes = new Set<any>()
-    
+
     return {
-      'CallExpression'(node: any) {
+      CallExpression(node: any) {
         // Track defineStore calls
         if (
           node.callee &&
@@ -58,11 +59,11 @@ export default {
           }
         }
       },
-      'AssignmentExpression'(node: any) {
+      AssignmentExpression(node: any) {
         // Check for assignments like store.property = value or store.$state.property = value
         if (node.left && node.left.type === 'MemberExpression') {
           const left = node.left
-          
+
           // Check if it's store.something = ... or store.$state.something = ...
           if (
             left.object &&
@@ -74,7 +75,7 @@ export default {
             // Check if we're outside a store definition
             let current: any = node
             let inStore = false
-            
+
             while (current && current.type !== 'Program') {
               if (storeScopes.has(current)) {
                 inStore = true
@@ -82,7 +83,7 @@ export default {
               }
               current = current.parent
             }
-            
+
             if (!inStore) {
               context.report({
                 node,
@@ -100,7 +101,7 @@ export default {
             // Only warn if it looks like a store variable
             let current: any = node
             let inStore = false
-            
+
             while (current && current.type !== 'Program') {
               if (storeScopes.has(current)) {
                 inStore = true
@@ -108,14 +109,14 @@ export default {
               }
               current = current.parent
             }
-            
+
             // Check if we're in an action (function inside store)
             if (!inStore) {
               // Conservative: only warn if it's clearly a store pattern
-              const isStorePattern = 
+              const isStorePattern =
                 left.object.name.includes('Store') ||
-                left.object.name.startsWith('use') && left.object.name.endsWith('Store')
-              
+                (left.object.name.startsWith('use') && left.object.name.endsWith('Store'))
+
               if (isStorePattern) {
                 context.report({
                   node,

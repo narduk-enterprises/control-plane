@@ -22,7 +22,10 @@ export function getD1CacheDB(event: H3Event): D1Database | null {
   return (event.context.cloudflare?.env as { DB?: D1Database })?.DB ?? null
 }
 
-export async function getCached(db: D1Database, key: string): Promise<{ value: string; expiresAt: number } | null> {
+export async function getCached(
+  db: D1Database,
+  key: string,
+): Promise<{ value: string; expiresAt: number } | null> {
   const row = await db
     .prepare('SELECT value, expires_at FROM kv_cache WHERE key = ?')
     .bind(key)
@@ -30,7 +33,12 @@ export async function getCached(db: D1Database, key: string): Promise<{ value: s
   return row ? { value: row.value, expiresAt: row.expires_at } : null
 }
 
-async function setCache(db: D1Database, key: string, value: string, ttlSeconds: number): Promise<void> {
+async function setCache(
+  db: D1Database,
+  key: string,
+  value: string,
+  ttlSeconds: number,
+): Promise<void> {
   const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds
   await db
     .prepare('INSERT OR REPLACE INTO kv_cache (key, value, expires_at) VALUES (?, ?, ?)')
@@ -149,9 +157,6 @@ export async function cleanExpiredCache(event: H3Event): Promise<number> {
   const d1 = getD1CacheDB(event)
   if (!d1) return 0
   const nowSec = Math.floor(Date.now() / 1000)
-  const result = await d1
-    .prepare('DELETE FROM kv_cache WHERE expires_at < ?')
-    .bind(nowSec)
-    .run()
+  const result = await d1.prepare('DELETE FROM kv_cache WHERE expires_at < ?').bind(nowSec).run()
   return result.meta?.changes ?? 0
 }

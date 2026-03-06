@@ -18,7 +18,8 @@ export default {
     },
     schema: [],
     messages: {
-      mapAsync: '.map(async ...) in server code often causes N+1 queries. Prefer batched queries (e.g. .in("id", ids)).',
+      mapAsync:
+        '.map(async ...) in server code often causes N+1 queries. Prefer batched queries (e.g. .in("id", ids)).',
     },
   },
   create(context: Rule.RuleContext): Rule.RuleListener {
@@ -35,7 +36,11 @@ export default {
         const args = node.arguments
         if (args.length === 0) return
         const first = args[0]
-        if (!first || (first.type !== 'ArrowFunctionExpression' && first.type !== 'FunctionExpression')) return
+        if (
+          !first ||
+          (first.type !== 'ArrowFunctionExpression' && first.type !== 'FunctionExpression')
+        )
+          return
         if (first.async) {
           context.report({
             node: callee.property,

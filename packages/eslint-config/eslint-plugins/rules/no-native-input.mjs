@@ -22,8 +22,7 @@ export default {
       category: 'ATX Design System',
     },
     messages: {
-      noNativeInput:
-        'Use <{{ replacement }}> instead of native <{{ element }}>.',
+      noNativeInput: 'Use <{{ replacement }}> instead of native <{{ element }}>.',
     },
     schema: [],
   },

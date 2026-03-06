@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/prefer-shallow-watch
- * 
+ *
  * Warns against deep watches for performance
  */
 
@@ -28,18 +28,19 @@ export default {
       },
     ],
     messages: {
-      preferShallowWatch: 'Avoid deep watches when possible for performance. Use /* vue-official allow-deep-watch */ to suppress. See: {{url}}',
+      preferShallowWatch:
+        'Avoid deep watches when possible for performance. Use /* vue-official allow-deep-watch */ to suppress. See: {{url}}',
     },
   },
   create(context: RuleContext<string, any[]>): RuleListener {
     const parserServices = (context.sourceCode?.parserServices ?? context.parserServices) as any
     const options = context.options[0] || {}
     const strict = options.strict !== false // Default: true
-    
+
     if (!parserServices || !parserServices.defineTemplateBodyVisitor) {
       return {}
     }
-    
+
     const checkForDeepWatch = (node: any) => {
       // Check for watch() or watchEffect() calls
       if (
@@ -50,25 +51,22 @@ export default {
       ) {
         // Check for options with deep: true
         const optionsArg = node.arguments[node.arguments.length - 1]
-        
-        if (
-          optionsArg &&
-          optionsArg.type === 'ObjectExpression'
-        ) {
+
+        if (optionsArg && optionsArg.type === 'ObjectExpression') {
           const hasDeep = optionsArg.properties.some((prop: any) => {
             const key = prop.key?.name || prop.key?.value
             return key === 'deep' && prop.value?.value === true
           })
-          
+
           if (hasDeep) {
             // Check for suppression comment
             const sourceCode = context.sourceCode ?? (context as any).getSourceCode()
             const comments = sourceCode.getCommentsBefore(node)
-            
+
             const hasSuppression = comments.some((comment: any) =>
-              comment.value.includes('vue-official allow-deep-watch')
+              comment.value.includes('vue-official allow-deep-watch'),
             )
-            
+
             if (!hasSuppression && strict) {
               context.report({
                 node,
@@ -80,12 +78,12 @@ export default {
         }
       }
     }
-    
+
     return parserServices.defineTemplateBodyVisitor(
       {},
       {
-        'CallExpression': checkForDeepWatch,
-      }
+        CallExpression: checkForDeepWatch,
+      },
     )
   },
 }

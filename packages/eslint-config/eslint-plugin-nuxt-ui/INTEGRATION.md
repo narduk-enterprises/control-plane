@@ -17,6 +17,7 @@ npm run gen:spec
 ```
 
 Or if installed locally in your project:
+
 ```bash
 npm run gen:spec --prefix node_modules/eslint-plugin-nuxt-ui
 ```
@@ -38,7 +39,7 @@ export default withNuxt(
     rules: {
       // Use recommended config
       ...nuxtUI.configs.recommended.rules,
-      
+
       // Or configure individually
       'nuxt-ui/no-unknown-component-prop': 'error',
       'nuxt-ui/no-deprecated-prop': 'error',
@@ -46,7 +47,7 @@ export default withNuxt(
       'nuxt-ui/no-deprecated-event': 'error',
       'nuxt-ui/require-valid-variant-values': 'error',
     },
-  }
+  },
 )
 ```
 
@@ -61,12 +62,14 @@ You should see errors for any invalid Nuxt UI component usage!
 ## Example Errors
 
 ### Unknown Prop
+
 ```vue
 <!-- ❌ Error -->
 <UButton oldProp="value">Click</UButton>
 ```
 
 ### Deprecated Prop
+
 ```vue
 <!-- ❌ Error with autofix -->
 <UButton oldName="value">Click</UButton>
@@ -75,6 +78,7 @@ You should see errors for any invalid Nuxt UI component usage!
 ```
 
 ### Invalid Variant
+
 ```vue
 <!-- ❌ Error -->
 <UButton variant="invalid">Click</UButton>

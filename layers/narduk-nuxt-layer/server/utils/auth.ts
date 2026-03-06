@@ -5,14 +5,15 @@ import type { User } from '../database/schema'
 import { sessions, users, apiKeys } from '../database/schema'
 
 /**
- * Session & authentication utilities for D1-backed auth.
+ * Session & authentication utilities.
  *
- * Supports two authentication methods:
- * 1. Session cookie (browser-based, default)
- * 2. API key via Authorization: Bearer nk_... header (CLI/machine-to-machine)
+ * Primary session: nuxt-auth-utils (sealed cookie). requireAuth / requireAdmin
+ * check that first, then fall back to API key.
  *
- * Uses PBKDF2-hashed passwords (see ./password.ts) and D1 session storage.
- * Cookie name defaults to 'app_session' — override via runtimeConfig.sessionCookieName.
+ * Optional D1 session helpers (createSession, getSessionUser, destroySession) are
+ * for apps that want server-side session listing/revocation in addition to sealed cookies.
+ *
+ * API key auth (Authorization: Bearer nk_...) remains D1-backed for CLI/machine use.
  */
 
 const DEFAULT_SESSION_COOKIE = 'app_session'
@@ -47,6 +48,7 @@ async function hashApiKey(rawKey: string): Promise<string> {
 
 /**
  * Create a D1-backed session for a user and set the session cookie.
+ * @optional Use when you need server-side session listing/revocation alongside nuxt-auth-utils.
  */
 export async function createSession(event: H3Event, userId: string): Promise<string> {
   const db = useDatabase(event)
@@ -76,8 +78,9 @@ export async function createSession(event: H3Event, userId: string): Promise<str
 }
 
 /**
- * Get the current user from the session cookie.
+ * Get the current user from the D1 session cookie (app_session).
  * Returns null if the cookie is missing, session is expired, or the user doesn't exist.
+ * @optional Use when you need server-side session resolution alongside nuxt-auth-utils.
  */
 export async function getSessionUser(event: H3Event): Promise<User | null> {
   const cookieName = getSessionCookieName(event)
@@ -165,7 +168,8 @@ export async function authenticateApiKey(event: H3Event): Promise<User | null> {
 }
 
 /**
- * Destroy the current session and clear the cookie.
+ * Destroy the current D1 session and clear the app_session cookie.
+ * @optional Use when you need server-side session revocation alongside nuxt-auth-utils.
  */
 export async function destroySession(event: H3Event): Promise<void> {
   const cookieName = getSessionCookieName(event)
@@ -179,18 +183,26 @@ export async function destroySession(event: H3Event): Promise<void> {
   deleteCookie(event, cookieName, { path: '/' })
 }
 
-/**
- * Get the current user from session or API key. Throws 401 if not authenticated.
- * Fallback chain: session cookie → API key → 401.
- */
-export async function requireAuth(event: H3Event): Promise<User> {
-  // Try session cookie first
-  const sessionUser = await getSessionUser(event)
-  if (sessionUser) return sessionUser
+/** User shape returned by requireAuth (session or API key). */
+export type AuthUser = { id: string; email: string; name: string | null; isAdmin: boolean | null }
 
-  // Fall back to API key
+/**
+ * Get the current user from nuxt-auth-utils session or API key. Throws 401 if not authenticated.
+ * Fallback chain: sealed session (nuxt-auth-utils) → API key → 401.
+ */
+export async function requireAuth(event: H3Event): Promise<AuthUser> {
+  const session = await getUserSession(event)
+  if (session?.user) return session.user as unknown as AuthUser
+
   const apiKeyUser = await authenticateApiKey(event)
-  if (apiKeyUser) return apiKeyUser
+  if (apiKeyUser) {
+    return {
+      id: apiKeyUser.id,
+      email: apiKeyUser.email,
+      name: apiKeyUser.name,
+      isAdmin: apiKeyUser.isAdmin,
+    }
+  }
 
   throw createError({
     statusCode: 401,
@@ -201,7 +213,7 @@ export async function requireAuth(event: H3Event): Promise<User> {
 /**
  * Require admin authentication. Throws 401 if not authenticated, 403 if not admin.
  */
-export async function requireAdmin(event: H3Event): Promise<User> {
+export async function requireAdmin(event: H3Event): Promise<AuthUser> {
   const user = await requireAuth(event)
   if (!user.isAdmin) {
     throw createError({

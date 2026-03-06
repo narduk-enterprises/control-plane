@@ -33,7 +33,7 @@ ruleTester.run('no-tailwind-v3-deprecated', rule, {
     },
     {
       filename: 'test.vue',
-      code: '<template><div :class="[\'shrink\', \'bg-linear-to-tr\']" /></template>',
+      code: "<template><div :class=\"['shrink', 'bg-linear-to-tr']\" /></template>",
     },
   ],
   invalid: [

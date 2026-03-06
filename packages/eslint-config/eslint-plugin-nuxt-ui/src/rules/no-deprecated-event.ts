@@ -1,6 +1,6 @@
 /**
  * Rule: nuxt-ui/no-deprecated-event
- * 
+ *
  * Error if using @event that is not in v4 spec or is deprecated.
  */
 
@@ -59,14 +59,16 @@ export interface RuleContext {
     node: AST.Node
     messageId: string
     data?: Record<string, string>
-    fix?: (_fixer: { replaceTextRange: (_range: [number, number], _text: string) => unknown }) => unknown
+    fix?: (_fixer: {
+      replaceTextRange: (_range: [number, number], _text: string) => unknown
+    }) => unknown
   }) => void
   getSourceCode: () => { getText: (_node?: AST.Node) => string }
   sourceCode: {
     parserServices?: {
       defineTemplateBodyVisitor: (
         visitor: Record<string, (node: AST.Node) => void>,
-        scriptVisitor?: Record<string, (node: AST.Node) => void>
+        scriptVisitor?: Record<string, (node: AST.Node) => void>,
       ) => Record<string, (node: AST.Node) => void>
     }
   }
@@ -120,7 +122,7 @@ export default {
     }
 
     return parserServices.defineTemplateBodyVisitor({
-      'VElement'(node: AST.Node) {
+      VElement(node: AST.Node) {
         const vElement = node as AST.VElement
         const componentName = vElement.name
         if (!isNuxtUIComponent(componentName, prefixes, allowedComponents)) {
@@ -159,7 +161,8 @@ export default {
               if (deprecated) {
                 const replacement = deprecated.replacedBy
                   ? `Use "@${deprecated.replacedBy}" instead`
-                  : 'See https://ui.nuxt.com/docs/components/' + normalizedName.toLowerCase().replace(/^u/, '')
+                  : 'See https://ui.nuxt.com/docs/components/' +
+                    normalizedName.toLowerCase().replace(/^u/, '')
 
                 context.report({
                   node: attr,
@@ -169,11 +172,12 @@ export default {
                     componentName: normalizedName,
                     replacement,
                   },
-                  fix: deprecated.replacedBy && eventName.range
-                    ? (fixer) => {
-                        return fixer.replaceTextRange(eventName.range!, deprecated.replacedBy!)
-                      }
-                    : undefined,
+                  fix:
+                    deprecated.replacedBy && eventName.range
+                      ? (fixer) => {
+                          return fixer.replaceTextRange(eventName.range!, deprecated.replacedBy!)
+                        }
+                      : undefined,
                 })
                 continue
               }

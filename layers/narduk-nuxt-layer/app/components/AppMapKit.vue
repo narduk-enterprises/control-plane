@@ -1,6 +1,5 @@
 <!-- eslint-disable atx/no-fetch-in-component -- $fetch is used to load Texas outline GeoJSON for mask overlay -->
 <script lang="ts">
- 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const mapkit: any
 </script>
@@ -179,7 +178,12 @@ function getTexasMaskColor(): string {
 /**
  * Scale a ring of MapKit Coordinates from a centroid by the given factor.
  */
-function scaleRing(ring: InstanceType<typeof mapkit.Coordinate>[], scale: number, cLat: number, cLng: number): InstanceType<typeof mapkit.Coordinate>[] {
+function scaleRing(
+  ring: InstanceType<typeof mapkit.Coordinate>[],
+  scale: number,
+  cLat: number,
+  cLng: number,
+): InstanceType<typeof mapkit.Coordinate>[] {
   return ring.map((c: InstanceType<typeof mapkit.Coordinate>) => {
     const lat = cLat + (c.latitude - cLat) * scale
     const lng = cLng + (c.longitude - cLng) * scale
@@ -192,10 +196,17 @@ function scaleRing(ring: InstanceType<typeof mapkit.Coordinate>[], scale: number
  * Removes vertices closer than `tolerance` degrees to the line
  * between their neighbors — smooths jagged edges for outer layers.
  */
-function simplifyRing(ring: InstanceType<typeof mapkit.Coordinate>[], tolerance: number): InstanceType<typeof mapkit.Coordinate>[] {
+function simplifyRing(
+  ring: InstanceType<typeof mapkit.Coordinate>[],
+  tolerance: number,
+): InstanceType<typeof mapkit.Coordinate>[] {
   if (ring.length <= 4) return ring
 
-  function perpDist(p: InstanceType<typeof mapkit.Coordinate>, a: InstanceType<typeof mapkit.Coordinate>, b: InstanceType<typeof mapkit.Coordinate>): number {
+  function perpDist(
+    p: InstanceType<typeof mapkit.Coordinate>,
+    a: InstanceType<typeof mapkit.Coordinate>,
+    b: InstanceType<typeof mapkit.Coordinate>,
+  ): number {
     const dx = b.longitude - a.longitude
     const dy = b.latitude - a.latitude
     const lenSq = dx * dx + dy * dy
@@ -210,7 +221,10 @@ function simplifyRing(ring: InstanceType<typeof mapkit.Coordinate>[], tolerance:
     return Math.sqrt((p.longitude - projX) ** 2 + (p.latitude - projY) ** 2)
   }
 
-  function dp(points: InstanceType<typeof mapkit.Coordinate>[], tol: number): InstanceType<typeof mapkit.Coordinate>[] {
+  function dp(
+    points: InstanceType<typeof mapkit.Coordinate>[],
+    tol: number,
+  ): InstanceType<typeof mapkit.Coordinate>[] {
     if (points.length <= 2) return points
     let maxDist = 0
     let maxIdx = 0
@@ -418,7 +432,9 @@ function defaultOverlayStyle(): OverlayStyle {
   /* eslint-enable atx/no-inline-hex */
 }
 
-function buildPolygonRings(geometry: GeoJSONGeometry): Array<InstanceType<typeof mapkit.Coordinate>[]> {
+function buildPolygonRings(
+  geometry: GeoJSONGeometry,
+): Array<InstanceType<typeof mapkit.Coordinate>[]> {
   const coords = geometry.coordinates
   if (!Array.isArray(coords)) return []
 
@@ -449,12 +465,21 @@ function buildPolygonRings(geometry: GeoJSONGeometry): Array<InstanceType<typeof
 
 // ── Map initialization ───────────────────────────────────────
 
-function buildClusterElement(cluster: { coordinate: unknown; memberAnnotations: unknown[] }): HTMLElement {
+function buildClusterElement(cluster: {
+  coordinate: unknown
+  memberAnnotations: unknown[]
+}): HTMLElement {
   const count = cluster.memberAnnotations?.length ?? 0
 
   if (!import.meta.client) {
-    // @ts-expect-error - MapKit JS expects an HTMLElement, but during SSR we return a dummy
-    return { className: 'mapkit-cluster', innerHTML: '', setAttribute: () => {}, style: {}, addEventListener: () => {} }
+    // SSR mock
+    return {
+      className: 'mapkit-cluster',
+      innerHTML: '',
+      setAttribute: () => {},
+      style: {},
+      addEventListener: () => {},
+    } as unknown as HTMLElement
   }
 
   let el: HTMLElement
@@ -500,9 +525,7 @@ function initMap() {
     showsMapTypeControl: false,
     showsZoomControl: props.isZoomEnabled,
     showsScale: mapkit.FeatureVisibility.Adaptive,
-    colorScheme: isDark
-      ? mapkit.Map.ColorSchemes.Dark
-      : mapkit.Map.ColorSchemes.Light,
+    colorScheme: isDark ? mapkit.Map.ColorSchemes.Dark : mapkit.Map.ColorSchemes.Light,
     padding: new mapkit.Padding(10, 10, 10, 10),
     isZoomEnabled: props.isZoomEnabled,
     isScrollEnabled: props.isScrollEnabled,
@@ -515,7 +538,10 @@ function initMap() {
 
   // Register cluster annotation factory when clustering is enabled
   if (props.clusteringIdentifier) {
-    mapOpts.annotationForCluster = (cluster: { coordinate: unknown; memberAnnotations: unknown[] }) => {
+    mapOpts.annotationForCluster = (cluster: {
+      coordinate: unknown
+      memberAnnotations: unknown[]
+    }) => {
       return new mapkit.Annotation(cluster.coordinate, () => buildClusterElement(cluster), {
         anchorOffset: new DOMPoint(0, 0),
         size: { width: 44, height: 44 },
@@ -878,17 +904,27 @@ defineExpose({ scrollIntoView, setRegion, zoomToFit })
 
 <template>
   <div class="mapkit-wrapper relative isolate overflow-hidden">
-    <div v-if="mapkitError" class="mapkit-status absolute inset-0 flex flex-col items-center justify-center z-10 bg-muted/20 backdrop-blur-sm">
+    <div
+      v-if="mapkitError"
+      class="mapkit-status absolute inset-0 flex flex-col items-center justify-center z-10 bg-muted/20 backdrop-blur-sm"
+    >
       <UIcon name="i-lucide-map-off" class="size-10 text-warning mb-3" />
       <h3 class="text-lg font-bold font-display mb-1">Map Unavailable</h3>
       <p class="text-sm text-muted">{{ mapkitError }}</p>
     </div>
 
-    <div v-else-if="!mapkitReady" class="mapkit-status absolute inset-0 flex flex-col items-center justify-center z-10 bg-muted/20 backdrop-blur-sm">
+    <div
+      v-else-if="!mapkitReady"
+      class="mapkit-status absolute inset-0 flex flex-col items-center justify-center z-10 bg-muted/20 backdrop-blur-sm"
+    >
       <UIcon name="i-lucide-loader-2" class="size-8 text-primary animate-spin" />
       <p class="text-sm text-muted mt-3">Loading map…</p>
     </div>
 
-    <div ref="mapContainer" class="mapkit-canvas absolute inset-0 w-full h-full transition-opacity duration-500 ease-out" :class="{ 'opacity-0': !mapkitReady, 'opacity-100': mapkitReady }" />
+    <div
+      ref="mapContainer"
+      class="mapkit-canvas absolute inset-0 w-full h-full transition-opacity duration-500 ease-out"
+      :class="{ 'opacity-0': !mapkitReady, 'opacity-100': mapkitReady }"
+    />
   </div>
 </template>

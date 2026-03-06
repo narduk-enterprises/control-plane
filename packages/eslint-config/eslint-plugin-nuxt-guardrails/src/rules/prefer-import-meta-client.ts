@@ -1,6 +1,6 @@
 /**
  * Rule: nuxt-guardrails/prefer-import-meta-client
- * 
+ *
  * Detects process.client/process.server and recommends import.meta.client/server
  */
 
@@ -30,18 +30,20 @@ export default {
       },
     ],
     messages: {
-      preferImportMetaClient: 'Use import.meta.client instead of process.client. See: https://nuxt.com/docs/4.x/guide/concepts/rendering',
-      preferImportMetaServer: 'Use import.meta.server instead of process.server. See: https://nuxt.com/docs/4.x/guide/concepts/rendering',
+      preferImportMetaClient:
+        'Use import.meta.client instead of process.client. See: https://nuxt.com/docs/4.x/guide/concepts/rendering',
+      preferImportMetaServer:
+        'Use import.meta.server instead of process.server. See: https://nuxt.com/docs/4.x/guide/concepts/rendering',
     },
   },
   create(context: Rule.RuleContext): Rule.RuleListener {
     const options = context.options[0] || {}
     const allowProcessClientServer = options.allowProcessClientServer || false
-    
+
     if (allowProcessClientServer) {
       return {}
     }
-    
+
     return {
       MemberExpression(node: any) {
         if (isProcessClient(node)) {

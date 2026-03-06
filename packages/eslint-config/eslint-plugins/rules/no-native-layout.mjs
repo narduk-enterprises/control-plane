@@ -25,8 +25,7 @@ export default {
       category: 'ATX Design System',
     },
     messages: {
-      noNativeLayout:
-        'Consider using {{ suggestion }} instead of native <{{ element }}>.',
+      noNativeLayout: 'Consider using {{ suggestion }} instead of native <{{ element }}>.',
     },
     schema: [],
   },
@@ -36,7 +35,7 @@ export default {
 
     return defineTemplateBodyVisitor(context, {
       'VElement[name="header"], VElement[name="footer"], VElement[name="main"], VElement[name="nav"]'(
-        node
+        node,
       ) {
         const el = node.name
         context.report({

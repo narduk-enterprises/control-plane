@@ -1,6 +1,7 @@
 # eslint-plugin-nuxt-ui
 
-ESLint plugin to validate Nuxt UI v4 component usage in Nuxt 4 projects. Flags common mistakes and deprecated syntax.
+ESLint plugin to validate Nuxt UI v4 component usage in Nuxt 4 projects. Flags
+common mistakes and deprecated syntax.
 
 ## Installation
 
@@ -28,7 +29,8 @@ npm run gen:spec
 pnpm gen:spec
 ```
 
-This fetches the spec from `https://ui.nuxt.com/llms-full.txt` and generates `src/spec/nuxt-ui-v4.json`.
+This fetches the spec from `https://ui.nuxt.com/llms-full.txt` and generates
+`src/spec/nuxt-ui-v4.json`.
 
 ### 2. Configure ESLint
 
@@ -51,7 +53,7 @@ export default withNuxt(
       'nuxt-ui/no-deprecated-prop': 'error',
       'nuxt-ui/require-valid-variant-values': 'error',
     },
-  }
+  },
 )
 ```
 
@@ -62,6 +64,7 @@ export default withNuxt(
 Flags props that don't exist in Nuxt UI v4 spec.
 
 **Example:**
+
 ```vue
 <!-- ❌ Error: Unknown prop "oldProp" on UButton -->
 <UButton oldProp="value">Click</UButton>
@@ -75,6 +78,7 @@ Flags props that don't exist in Nuxt UI v4 spec.
 Flags deprecated props and provides autofix when a replacement exists.
 
 **Example:**
+
 ```vue
 <!-- ❌ Error: Prop "oldName" is deprecated. Use "newName" instead -->
 <UButton oldName="value">Click</UButton>
@@ -85,9 +89,11 @@ Flags deprecated props and provides autofix when a replacement exists.
 
 ### `nuxt-ui/require-valid-variant-values`
 
-Validates enum prop values (like `variant`, `size`, `color`) against documented options.
+Validates enum prop values (like `variant`, `size`, `color`) against documented
+options.
 
 **Example:**
+
 ```vue
 <!-- ❌ Error: Invalid value "wrong" for prop "variant". Allowed values: solid, soft, ghost, ... -->
 <UButton variant="wrong">Click</UButton>
@@ -115,11 +121,14 @@ Validates enum prop values (like `variant`, `size`, `color`) against documented 
 The plugin validates these Nuxt UI v4 components:
 
 **Most Used (Priority):**
-- UButton, UCard, UIcon, UInput, UForm, UFormField, UModal, UBadge, UAvatar, USkeleton
+
+- UButton, UCard, UIcon, UInput, UForm, UFormField, UModal, UBadge, UAvatar,
+  USkeleton
 - USelect, UTable, UTabs, UContainer, UAlert, UPagination, USeparator, UCheckbox
 - UTextarea, UInputMenu, USwitch, UDropdown, UPopover, UTooltip, USlideover
 
 **Additional:**
+
 - UEmpty, UProgress, UToggle, UKbd, UCollapsible, UFormGroup
 - UDropdownMenu, USelectMenu, UNavigationMenu
 - UDashboardSidebar, UDashboardPanel, UDashboardGroup, UApp, UUser
@@ -163,7 +172,9 @@ npm run dev
 
 ## How It Works
 
-1. **Spec Generation**: The `gen-spec.ts` script fetches `llms-full.txt` from `https://ui.nuxt.com/llms-full.txt` and extracts component specifications into a JSON file.
+1. **Spec Generation**: The `gen-spec.ts` script fetches `llms-full.txt` from
+   `https://ui.nuxt.com/llms-full.txt` and extracts component specifications
+   into a JSON file.
 
 2. **Linting**: During ESLint runs, the plugin:
    - Loads the JSON spec (cached after first load)
@@ -172,17 +183,20 @@ npm run dev
    - Validates props/slots/events against the spec
    - Reports errors with helpful messages
 
-3. **Autofixes**: When a deprecated prop/slot/event has a `replacedBy` value, ESLint can automatically fix simple renames.
+3. **Autofixes**: When a deprecated prop/slot/event has a `replacedBy` value,
+   ESLint can automatically fix simple renames.
 
 ## Limitations
 
-- Only validates static prop values (string literals). Dynamic props with expressions are skipped.
+- Only validates static prop values (string literals). Dynamic props with
+  expressions are skipped.
 - Spec must be generated before linting (no network requests during lint).
 - Autofixes are only available for simple prop renames.
 
 ## Contributing
 
 Contributions welcome! Please ensure:
+
 1. Run `npm run gen:spec` to update the spec
 2. Add tests for new rules
 3. Update README with new features

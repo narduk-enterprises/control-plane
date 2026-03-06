@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/prefer-typed-defineprops
- * 
+ *
  * Encourages typed defineProps in TypeScript
  */
 
@@ -24,19 +24,19 @@ export default {
   create(context: RuleContext<string, any[]>): RuleListener {
     const parserServices = (context.sourceCode?.parserServices ?? context.parserServices) as any
     const filename = context.filename ?? context.getFilename?.()
-    
+
     // Only apply to TypeScript files
     const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.vue')
-    
+
     if (!isTypeScript) {
       return {}
     }
-    
+
     if (!parserServices || !parserServices.defineTemplateBodyVisitor) {
       // For .ts files, check directly
       if (filename.endsWith('.ts')) {
         return {
-          'CallExpression'(node: any) {
+          CallExpression(node: any) {
             if (
               node.callee &&
               node.callee.type === 'Identifier' &&
@@ -57,11 +57,11 @@ export default {
       }
       return {}
     }
-    
+
     return parserServices.defineTemplateBodyVisitor(
       {},
       {
-        'CallExpression'(node: any) {
+        CallExpression(node: any) {
           // Check for defineProps() without type parameter
           if (
             node.callee &&
@@ -93,7 +93,7 @@ export default {
             }
           }
         },
-      }
+      },
     )
   },
 }

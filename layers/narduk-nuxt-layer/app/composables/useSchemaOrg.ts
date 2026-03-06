@@ -30,7 +30,14 @@
 interface WebPageOptions {
   name?: string
   description?: string
-  type?: 'WebPage' | 'AboutPage' | 'ContactPage' | 'CollectionPage' | 'FAQPage' | 'ItemPage' | 'SearchResultsPage'
+  type?:
+    | 'WebPage'
+    | 'AboutPage'
+    | 'ContactPage'
+    | 'CollectionPage'
+    | 'FAQPage'
+    | 'ItemPage'
+    | 'SearchResultsPage'
 }
 
 export function useWebPageSchema(options: WebPageOptions = {}) {
@@ -62,7 +69,8 @@ interface ArticleOptions {
 }
 
 export function useArticleSchema(options: ArticleOptions) {
-  const { headline, description, datePublished, dateModified, author, section, image, tags } = options
+  const { headline, description, datePublished, dateModified, author, section, image, tags } =
+    options
 
   const authors = Array.isArray(author) ? author : [author]
 
@@ -72,7 +80,7 @@ export function useArticleSchema(options: ArticleOptions) {
     description,
     datePublished,
     dateModified: dateModified || datePublished,
-    author: authors.map(a => ({
+    author: authors.map((a) => ({
       name: a.name,
       url: a.url,
     })),
@@ -102,7 +110,22 @@ interface ProductOptions {
 }
 
 export function useProductSchema(options: ProductOptions) {
-  const { name, description, image, brand, sku, mpn, price, priceCurrency = 'USD', availability, itemCondition, url, seller, ratingValue, reviewCount } = options
+  const {
+    name,
+    description,
+    image,
+    brand,
+    sku,
+    mpn,
+    price,
+    priceCurrency = 'USD',
+    availability,
+    itemCondition,
+    url,
+    seller,
+    ratingValue,
+    reviewCount,
+  } = options
 
   useSchemaOrg([
     defineProduct({
@@ -114,7 +137,9 @@ export function useProductSchema(options: ProductOptions) {
       ...(sku && { sku }),
       ...(mpn && { mpn }),
       ...(itemCondition && { itemCondition: `https://schema.org/${itemCondition}` }),
-      ...(seller && { seller: { '@type': 'Organization' as const, name: seller.name, url: seller.url } }),
+      ...(seller && {
+        seller: { '@type': 'Organization' as const, name: seller.name, url: seller.url },
+      }),
       ...(price !== undefined && {
         offers: {
           '@type': 'Offer' as const,
@@ -123,13 +148,14 @@ export function useProductSchema(options: ProductOptions) {
           ...(availability && { availability: `https://schema.org/${availability}` }),
         },
       }),
-      ...(ratingValue !== undefined && reviewCount !== undefined && {
-        aggregateRating: {
-          '@type': 'AggregateRating' as const,
-          ratingValue,
-          reviewCount,
-        },
-      }),
+      ...(ratingValue !== undefined &&
+        reviewCount !== undefined && {
+          aggregateRating: {
+            '@type': 'AggregateRating' as const,
+            ratingValue,
+            reviewCount,
+          },
+        }),
     }),
   ])
 }
@@ -144,7 +170,7 @@ export function useFAQSchema(items: FAQItem[]) {
   useSchemaOrg([
     {
       '@type': 'FAQPage',
-      mainEntity: items.map(item => ({
+      mainEntity: items.map((item) => ({
         '@type': 'Question' as const,
         name: item.question,
         acceptedAnswer: {
@@ -180,7 +206,18 @@ interface LocalBusinessOptions {
 }
 
 export function useLocalBusinessSchema(options: LocalBusinessOptions) {
-  const { name, description, image, telephone, email, address, geo, openingHours, priceRange, url } = options
+  const {
+    name,
+    description,
+    image,
+    telephone,
+    email,
+    address,
+    geo,
+    openingHours,
+    priceRange,
+    url,
+  } = options
 
   useSchemaOrg([
     {

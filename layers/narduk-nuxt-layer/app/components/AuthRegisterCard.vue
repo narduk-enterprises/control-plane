@@ -20,24 +20,27 @@ import { z } from 'zod'
  * </AuthRegisterCard>
  */
 
-const props = withDefaults(defineProps<{
-  /** Card heading */
-  title?: string
-  /** Card subheading */
-  subtitle?: string
-  /** Show link to login page */
-  showLoginLink?: boolean
-  /** Path for the login link */
-  loginPath?: string
-  /** Where to redirect after successful registration */
-  redirectPath?: string
-}>(), {
-  title: 'Create an account',
-  subtitle: 'Get started with a free account',
-  showLoginLink: true,
-  loginPath: '/login',
-  redirectPath: '/dashboard/',
-})
+const props = withDefaults(
+  defineProps<{
+    /** Card heading */
+    title?: string
+    /** Card subheading */
+    subtitle?: string
+    /** Show link to login page */
+    showLoginLink?: boolean
+    /** Path for the login link */
+    loginPath?: string
+    /** Where to redirect after successful registration */
+    redirectPath?: string
+  }>(),
+  {
+    title: 'Create an account',
+    subtitle: 'Get started with a free account',
+    showLoginLink: true,
+    loginPath: '/login',
+    redirectPath: '/dashboard/',
+  },
+)
 
 const emit = defineEmits<{
   /** Emitted after a successful registration with the new user object */
@@ -75,12 +78,10 @@ async function onSubmit() {
     await fetchSession()
     emit('success', result.user)
     await navigateTo(props.redirectPath, { replace: true })
-  }
-  catch (err: unknown) {
+  } catch (err: unknown) {
     const error = err as { data?: { message?: string }; statusMessage?: string }
     errorMsg.value = error.data?.message || error.statusMessage || 'Failed to create account'
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }
@@ -103,7 +104,14 @@ async function onSubmit() {
       </div>
     </template>
 
-    <UAlert v-if="errorMsg" color="error" variant="subtle" title="Error" :description="errorMsg" class="mb-4" />
+    <UAlert
+      v-if="errorMsg"
+      color="error"
+      variant="subtle"
+      title="Error"
+      :description="errorMsg"
+      class="mb-4"
+    />
 
     <!-- Extra content above the form -->
     <slot name="before-form" />
@@ -121,7 +129,14 @@ async function onSubmit() {
         <UInput v-model="state.password" type="password" placeholder="••••••••" class="w-full" />
       </UFormField>
 
-      <UButton type="button" color="primary" class="w-full" :loading="loading" block @click="onSubmit">
+      <UButton
+        type="button"
+        color="primary"
+        class="w-full"
+        :loading="loading"
+        block
+        @click="onSubmit"
+      >
         Create Account
       </UButton>
     </UForm>
@@ -132,9 +147,7 @@ async function onSubmit() {
     <template v-if="showLoginLink" #footer>
       <p class="text-center text-sm text-muted">
         Already have an account?
-        <ULink :to="loginPath" class="text-primary font-medium hover:underline">
-          Sign in
-        </ULink>
+        <ULink :to="loginPath" class="text-primary font-medium hover:underline"> Sign in </ULink>
       </p>
     </template>
   </UCard>

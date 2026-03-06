@@ -49,14 +49,14 @@ function getCachePath(url: string): string {
  */
 async function fetchWithCache(url: string): Promise<string> {
   const cachePath = getCachePath(url)
-  
+
   // Check cache first
   if (existsSync(cachePath)) {
     const cached = readFileSync(cachePath, 'utf-8')
     // For now, always use cache if available (can add TTL later)
     return cached
   }
-  
+
   // Fetch from network
   try {
     const response = await fetch(url)
@@ -64,11 +64,11 @@ async function fetchWithCache(url: string): Promise<string> {
       throw new Error(`Failed to fetch ${url}: ${response.status}`)
     }
     const content = await response.text()
-    
+
     // Cache it
     mkdirSync(CACHE_DIR, { recursive: true })
     writeFileSync(cachePath, content, 'utf-8')
-    
+
     return content
   } catch (error) {
     console.warn(`Failed to fetch ${url}:`, error)
@@ -81,29 +81,37 @@ async function fetchWithCache(url: string): Promise<string> {
  */
 function extractApiNames(content: string): string[] {
   const apis: string[] = []
-  
+
   // Match composables: useAsyncData, useFetch, etc.
   const composableRegex = /`(use[A-Z]\w+)`/g
   let match
   while ((match = composableRegex.exec(content)) !== null) {
     apis.push(match[1])
   }
-  
+
   // Match macros: definePageMeta, defineNuxtConfig, etc.
   const macroRegex = /`(define[A-Z]\w+)`/g
   while ((match = macroRegex.exec(content)) !== null) {
     apis.push(match[1])
   }
-  
+
   return [...new Set(apis)] // Deduplicate
 }
 
 /**
  * Extract deprecation signals from content
  */
-function extractDeprecations(content: string, docUrl: string): Array<{ pattern: string; message: string; replacement: string; docUrl: string }> {
-  const deprecations: Array<{ pattern: string; message: string; replacement: string; docUrl: string }> = []
-  
+function extractDeprecations(
+  content: string,
+  docUrl: string,
+): Array<{ pattern: string; message: string; replacement: string; docUrl: string }> {
+  const deprecations: Array<{
+    pattern: string
+    message: string
+    replacement: string
+    docUrl: string
+  }> = []
+
   // Look for deprecation patterns
   const deprecationPatterns = [
     {
@@ -143,7 +151,7 @@ function extractDeprecations(content: string, docUrl: string): Array<{ pattern: 
       }),
     },
   ]
-  
+
   for (const { regex, extract } of deprecationPatterns) {
     let match
     while ((match = regex.exec(content)) !== null) {
@@ -153,7 +161,7 @@ function extractDeprecations(content: string, docUrl: string): Array<{ pattern: 
       }
     }
   }
-  
+
   return deprecations
 }
 
@@ -162,17 +170,17 @@ function extractDeprecations(content: string, docUrl: string): Array<{ pattern: 
  */
 function extractUsage(content: string): string[] {
   const usage: string[] = []
-  
+
   // Look for usage sections
   const usageSection = content.match(/##\s+Usage[\s\S]*?(?=##|$)/i)
   if (usageSection) {
     // Extract bullet points
     const bullets = usageSection[0].match(/^[-*]\s+(.+)$/gm)
     if (bullets) {
-      usage.push(...bullets.map(b => b.replace(/^[-*]\s+/, '').trim()).filter(Boolean))
+      usage.push(...bullets.map((b) => b.replace(/^[-*]\s+/, '').trim()).filter(Boolean))
     }
   }
-  
+
   return usage.slice(0, 5) // Limit to 5 most relevant
 }
 
@@ -181,28 +189,32 @@ function extractUsage(content: string): string[] {
  */
 function extractOptionEnums(content: string): Record<string, { enum?: string[] }> {
   const options: Record<string, { enum?: string[] }> = {}
-  
+
   // Look for TypeScript interface definitions
-  const interfaceMatch = content.match(/```ts[\s\S]*?interface\s+\w+Options\s*\{([\s\S]*?)\}[\s\S]*?```/i)
+  const interfaceMatch = content.match(
+    /```ts[\s\S]*?interface\s+\w+Options\s*\{([\s\S]*?)\}[\s\S]*?```/i,
+  )
   if (interfaceMatch) {
     const propsContent = interfaceMatch[1]
-    
+
     // Match enum-like union types: `server: true | false`
     const enumRegex = /(\w+)\??\s*:\s*([^;]+);/g
     let match
     while ((match = enumRegex.exec(propsContent)) !== null) {
       const propName = match[1]
       const typeDef = match[2]
-      
+
       // Check if it's a union of literals
-      const literalMatch = typeDef.match(/(?:true|false|"[^"]+"|'[^']+'|\d+)(?:\s*\|\s*(?:true|false|"[^"]+"|'[^']+'|\d+))+/)
+      const literalMatch = typeDef.match(
+        /(?:true|false|"[^"]+"|'[^']+'|\d+)(?:\s*\|\s*(?:true|false|"[^"]+"|'[^']+'|\d+))+/,
+      )
       if (literalMatch) {
-        const values = literalMatch[0].split(/\s*\|\s*/).map(v => v.trim().replace(/['"]/g, ''))
+        const values = literalMatch[0].split(/\s*\|\s*/).map((v) => v.trim().replace(/['"]/g, ''))
         options[propName] = { enum: values }
       }
     }
   }
-  
+
   return options
 }
 
@@ -215,14 +227,14 @@ async function processDocPage(path: string): Promise<{
 }> {
   const url = `${BASE_URL}${path}`
   const content = await fetchWithCache(url)
-  
+
   if (!content) {
     return { apis: {}, deprecations: {} }
   }
-  
+
   const apis: Record<string, ApiSpec> = {}
   const deprecations: Record<string, DeprecationSpec> = {}
-  
+
   // Extract API names
   const apiNames = extractApiNames(content)
   for (const apiName of apiNames) {
@@ -235,7 +247,7 @@ async function processDocPage(path: string): Promise<{
       }
     }
   }
-  
+
   // Extract deprecations
   const pageDeprecations = extractDeprecations(content, url)
   for (const dep of pageDeprecations) {
@@ -245,7 +257,7 @@ async function processDocPage(path: string): Promise<{
       docUrl: dep.docUrl,
     }
   }
-  
+
   return { apis, deprecations }
 }
 
@@ -255,16 +267,16 @@ async function processDocPage(path: string): Promise<{
 async function fetchIndex(): Promise<string[]> {
   const indexUrl = `${BASE_URL}/llms.txt`
   const content = await fetchWithCache(indexUrl)
-  
+
   if (!content) {
     console.warn('Failed to fetch llms.txt, using default allowlist')
     return DEFAULT_ALLOWLIST
   }
-  
+
   // Extract URLs from the index
   const urls: string[] = []
   const lines = content.split('\n')
-  
+
   for (const line of lines) {
     // Look for markdown links: [text](url)
     const linkMatch = line.match(/\[([^\]]+)\]\(([^)]+)\)/)
@@ -277,7 +289,7 @@ async function fetchIndex(): Promise<string[]> {
         urls.push(path)
       }
     }
-    
+
     // Also look for plain URLs
     const urlMatch = line.match(/https?:\/\/nuxt\.com(\/docs\/[^\s]+)/)
     if (urlMatch) {
@@ -287,7 +299,7 @@ async function fetchIndex(): Promise<string[]> {
       }
     }
   }
-  
+
   return [...new Set(urls)] // Deduplicate
 }
 
@@ -295,39 +307,36 @@ async function fetchIndex(): Promise<string[]> {
  * Main generator function
  */
 async function generateSpec() {
-   
   console.log('Fetching Nuxt docs index...')
-  
+
   // Get allowlist from env or use default
   const envAllowlist = process.env.NUXT_DOCS_ALLOWLIST
   let paths: string[]
-  
+
   if (envAllowlist) {
-    paths = envAllowlist.split(',').map(p => p.trim())
+    paths = envAllowlist.split(',').map((p) => p.trim())
   } else {
     // Fetch index and filter
     const allPaths = await fetchIndex()
-    
+
     // Filter to default allowlist + any matching paths
-    const matchingPaths = allPaths.filter(p => 
-      DEFAULT_ALLOWLIST.some(defaultPath => p.includes(defaultPath))
+    const matchingPaths = allPaths.filter((p) =>
+      DEFAULT_ALLOWLIST.some((defaultPath) => p.includes(defaultPath)),
     )
-    
+
     paths = [...new Set([...DEFAULT_ALLOWLIST, ...matchingPaths])]
   }
-  
-   
+
   console.log(`Processing ${paths.length} doc pages...`)
-  
+
   const allApis: Record<string, ApiSpec> = {}
   const allDeprecations: Record<string, DeprecationSpec> = {}
-  
+
   // Process each page
   for (const path of paths) {
-     
     console.log(`  Processing ${path}...`)
     const { apis, deprecations } = await processDocPage(path)
-    
+
     // Merge APIs (prefer existing if duplicate)
     for (const [name, spec] of Object.entries(apis)) {
       if (!allApis[name]) {
@@ -338,11 +347,11 @@ async function generateSpec() {
         allApis[name].options = { ...allApis[name].options, ...spec.options }
       }
     }
-    
+
     // Merge deprecations
     Object.assign(allDeprecations, deprecations)
   }
-  
+
   // Create spec object
   const spec = {
     version: '4.2.2',
@@ -350,18 +359,17 @@ async function generateSpec() {
     apis: allApis,
     deprecations: allDeprecations,
   }
-  
+
   // Ensure output directory exists
   mkdirSync(join(__dirname, '../src/spec'), { recursive: true })
-  
+
   // Write spec
   writeFileSync(SPEC_OUTPUT, JSON.stringify(spec, null, 2), 'utf-8')
-  
-   
+
   console.log(`\n✓ Generated spec at ${SPEC_OUTPUT}`)
-   
+
   console.log(`  Extracted ${Object.keys(allApis).length} APIs`)
-   
+
   console.log(`  Found ${Object.keys(allDeprecations).length} deprecations`)
 }
 

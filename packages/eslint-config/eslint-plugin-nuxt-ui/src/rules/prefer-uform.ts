@@ -1,6 +1,6 @@
 /**
  * Rule: nuxt-ui/prefer-uform
- * 
+ *
  * Warns when using native <form> element instead of <UForm>
  * UForm provides validation, loading-auto, and better integration
  */
@@ -18,7 +18,7 @@ interface RuleContext {
     parserServices?: {
       defineTemplateBodyVisitor: (
         visitor: Record<string, (node: AST.Node) => void>,
-        scriptVisitor?: Record<string, (node: AST.Node) => void>
+        scriptVisitor?: Record<string, (node: AST.Node) => void>,
       ) => Record<string, (node: AST.Node) => void>
     }
     getText: (_node?: AST.Node) => string
@@ -36,7 +36,8 @@ export default {
     fixable: 'code' as const,
     schema: [],
     messages: {
-      preferUForm: 'Use <UForm> instead of native <form> for validation and loading-auto support. See: https://ui.nuxt.com/components/form',
+      preferUForm:
+        'Use <UForm> instead of native <form> for validation and loading-auto support. See: https://ui.nuxt.com/components/form',
     },
   },
   create(context: RuleContext) {
@@ -48,7 +49,7 @@ export default {
     return parserServices.defineTemplateBodyVisitor({
       VElement(node: AST.Node) {
         const vElement = node as AST.VElement
-        
+
         // Check if it's a native form element
         if (vElement.name === 'form') {
           context.report({

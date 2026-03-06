@@ -46,19 +46,28 @@ ruleTester.run('no-deprecated-component', rule, {
     {
       filename: 'test.vue',
       code: '<template><UDivider /></template>',
-      errors: [{ messageId: 'deprecatedComponent', data: { name: 'UDivider', replacement: 'USeparator' } }],
+      errors: [
+        { messageId: 'deprecatedComponent', data: { name: 'UDivider', replacement: 'USeparator' } },
+      ],
       output: '<template><USeparator /></template>',
     },
     {
       filename: 'test.vue',
       code: '<template><u-divider /></template>',
-      errors: [{ messageId: 'deprecatedComponent', data: { name: 'UDivider', replacement: 'USeparator' } }],
+      errors: [
+        { messageId: 'deprecatedComponent', data: { name: 'UDivider', replacement: 'USeparator' } },
+      ],
       output: '<template><u-separator /></template>',
     },
     {
       filename: 'test.vue',
       code: '<template><UDropdown>Dropdown</UDropdown></template>',
-      errors: [{ messageId: 'deprecatedComponent', data: { name: 'UDropdown', replacement: 'UDropdownMenu' } }],
+      errors: [
+        {
+          messageId: 'deprecatedComponent',
+          data: { name: 'UDropdown', replacement: 'UDropdownMenu' },
+        },
+      ],
       output: '<template><UDropdownMenu>Dropdown</UDropdownMenu></template>',
     },
   ],

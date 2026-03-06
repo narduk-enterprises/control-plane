@@ -16,13 +16,13 @@ export default {
   semi: false, // No trailing semicolons (Nuxt/Vue ecosystem convention)
   singleQuote: true, // 'single' over "double" for JS/TS strings
   jsxSingleQuote: false, // JSX keeps double quotes (HTML attribute convention)
-  trailingComma: "all", // Trailing commas everywhere ES5+ supports them
+  trailingComma: 'all', // Trailing commas everywhere ES5+ supports them
   printWidth: 100, // Generous line width for modern monitors
   tabWidth: 2, // 2-space indent
   useTabs: false, // Spaces, not tabs
 
   // ── End of line ────────────────────────────────────────────────────────────
-  endOfLine: "lf", // Always LF — consistent across macOS/Linux/CI
+  endOfLine: 'lf', // Always LF — consistent across macOS/Linux/CI
 
   // ── Bracket style ──────────────────────────────────────────────────────────
   bracketSpacing: true, // { foo } over {foo}
@@ -35,26 +35,26 @@ export default {
   overrides: [
     {
       // JSON / JSONC (tsconfig, package.json, etc.)
-      files: ["*.json", "*.jsonc", "*.json5"],
+      files: ['*.json', '*.jsonc', '*.json5'],
       options: {
-        trailingComma: "none", // JSON spec forbids trailing commas
+        trailingComma: 'none', // JSON spec forbids trailing commas
       },
     },
     {
       // Markdown — prose wrap keeps diffs clean
-      files: ["*.md", "*.mdx"],
+      files: ['*.md', '*.mdx'],
       options: {
-        proseWrap: "always",
+        proseWrap: 'always',
         printWidth: 80,
       },
     },
     {
       // YAML — no trailing commas, preserve quotes
-      files: ["*.yaml", "*.yml"],
+      files: ['*.yaml', '*.yml'],
       options: {
         singleQuote: false,
-        trailingComma: "none",
+        trailingComma: 'none',
       },
     },
   ],
-};
+}

@@ -27,16 +27,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'SITE_URL not configured' })
   }
 
-  const body = await readBody<{ urls?: string[] }>(event).catch(() => ({} as { urls?: string[] }))
+  const body = await readBody<{ urls?: string[] }>(event).catch(() => ({}) as { urls?: string[] })
   let urls = body?.urls ?? []
 
   // Default: submit the homepage + sitemap URL if no URLs provided
   if (!urls.length) {
     const base = siteUrl.replace(/\/$/, '')
-    urls = [
-      base + '/',
-      base + '/sitemap.xml',
-    ]
+    urls = [base + '/', base + '/sitemap.xml']
   }
 
   const host = new URL(siteUrl).host
@@ -53,9 +50,7 @@ export default defineEventHandler(async (event) => {
   const results: { engine: string; status: number; ok: boolean }[] = []
 
   // Bing is the primary IndexNow endpoint; it shares with Yandex, Seznam, Naver
-  const engines = [
-    'https://api.indexnow.org/indexnow',
-  ]
+  const engines = ['https://api.indexnow.org/indexnow']
 
   for (const engine of engines) {
     try {

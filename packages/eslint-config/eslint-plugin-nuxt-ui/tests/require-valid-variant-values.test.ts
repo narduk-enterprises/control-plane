@@ -53,7 +53,7 @@ ruleTester.run('require-valid-variant-values', rule, {
     // Expression values (should not be checked)
     {
       filename: 'test.vue',
-      code: '<template><UButton :variant="isActive ? \'solid\' : \'outline\'">Click</UButton></template>',
+      code: "<template><UButton :variant=\"isActive ? 'solid' : 'outline'\">Click</UButton></template>",
       options: [{ specPath: path.resolve(__dirname, 'mock-spec.json') }],
     },
   ],

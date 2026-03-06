@@ -19,7 +19,8 @@ export default {
     },
     schema: [],
     messages: {
-      preferUseSeo: 'Use useSeo() instead of {{ name }}() for consistent SEO. See template SEO docs.',
+      preferUseSeo:
+        'Use useSeo() instead of {{ name }}() for consistent SEO. See template SEO docs.',
     },
   },
   create(context: Rule.RuleContext): Rule.RuleListener {

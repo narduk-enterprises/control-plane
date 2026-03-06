@@ -20,8 +20,7 @@ export default {
   meta: {
     type: 'suggestion',
     docs: {
-      description:
-        'Disallow useFetch / $fetch in Vue files — extract to a composable',
+      description: 'Disallow useFetch / $fetch in Vue files — extract to a composable',
       category: 'ATX Architecture',
     },
     messages: {
@@ -52,7 +51,7 @@ export default {
       {}, // no template visitors needed
       {
         CallExpression: checkCall,
-      }
+      },
     )
   },
 }

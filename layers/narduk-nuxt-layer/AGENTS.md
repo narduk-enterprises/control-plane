@@ -2,19 +2,26 @@
 
 > **🚨 CRITICAL: THIS IS A NUXT LAYER 🚨**
 >
-> You are working inside **`narduk-enterprises/narduk-nuxt-layer`**. This is NOT an application that gets deployed to production directly.
-> This is a shared library/layer that downstream applications extend using `extends: ['@narduk-enterprises/narduk-nuxt-template-layer']` in their `nuxt.config.ts`.
+> You are working inside **`narduk-enterprises/narduk-nuxt-layer`**. This is NOT
+> an application that gets deployed to production directly. This is a shared
+> library/layer that downstream applications extend using
+> `extends: ['@narduk-enterprises/narduk-nuxt-template-layer']` in their
+> `nuxt.config.ts`.
 >
 > **When to edit files here:**
 >
-> - When you are creating a generic, reusable component that should be available to ALL Narduk applications.
-> - When you are updating core ESLint toolings, base Nitro API endpoints, or database schema primitives.
+> - When you are creating a generic, reusable component that should be available
+>   to ALL Narduk applications.
+> - When you are updating core ESLint toolings, base Nitro API endpoints, or
+>   database schema primitives.
 >
 > **When NOT to edit files here:**
 >
-> - If you are building a feature specific to one app, you must make that change in the downstream app, NOT here.
+> - If you are building a feature specific to one app, you must make that change
+>   in the downstream app, NOT here.
 
-This layer provides a **minimal Nuxt 4 + Nuxt UI 4** foundation deployed to **Cloudflare Workers** with **D1 SQLite** (Drizzle ORM).
+This layer provides a **minimal Nuxt 4 + Nuxt UI 4** foundation deployed to
+**Cloudflare Workers** with **D1 SQLite** (Drizzle ORM).
 
 ## Project Structure
 
@@ -72,24 +79,32 @@ useSeo({
   title: '...',
   description: '...',
   ogImage: { title: '...', description: '...', icon: '🎯' },
-});
-useWebPageSchema({ name: '...', description: '...' }); // or useArticleSchema, useProductSchema, etc.
+})
+useWebPageSchema({ name: '...', description: '...' }) // or useArticleSchema, useProductSchema, etc.
 ```
 
-Sitemap and robots.txt are automatic. OG image templates live in `app/components/OgImage/`.
+Sitemap and robots.txt are automatic. OG image templates live in
+`app/components/OgImage/`.
 
 ## Architecture Patterns
 
-- **Thin Components, Thick Composables** — components subscribe to composables, pass props down, emit events up. No inline fetch or complex logic in templates.
-- **SSR-safe state** — use `useState()` or Pinia stores. Never use bare `ref()` at module scope (causes cross-request leaks).
-- **Data fetching** — always use `useAsyncData` or `useFetch`, never raw `$fetch` in `<script setup>`.
-- **Client-only code** — wrap `window`/`document` access in `onMounted` or `<ClientOnly>`.
+- **Thin Components, Thick Composables** — components subscribe to composables,
+  pass props down, emit events up. No inline fetch or complex logic in
+  templates.
+- **SSR-safe state** — use `useState()` or Pinia stores. Never use bare `ref()`
+  at module scope (causes cross-request leaks).
+- **Data fetching** — always use `useAsyncData` or `useFetch`, never raw
+  `$fetch` in `<script setup>`.
+- **Client-only code** — wrap `window`/`document` access in `onMounted` or
+  `<ClientOnly>`.
 
 ## Integrating this Layer into a New Project
 
-If you are an agent tasked with adding this layer to a new or existing Nuxt application, run the `/migrate-to-monorepo` workflow.
+If you are an agent tasked with adding this layer to a new or existing Nuxt
+application, run the `/migrate-to-monorepo` workflow.
 
-Do **NOT** clone `narduk-nuxt-layer` directly to start a project. Start with `narduk-nuxt-template` instead.
+Do **NOT** clone `narduk-nuxt-layer` directly to start a project. Start with
+`narduk-nuxt-template` instead.
 
 ## Quality Audit Workflows
 
@@ -113,7 +128,8 @@ Run these during development (Antigravity slash-commands):
 
 ## ESLint Plugins (Automated Enforcement)
 
-These workspace-local ESLint plugins enforce patterns at lint time. Run `pnpm run build:plugins` after cloning to build the TypeScript plugins.
+These workspace-local ESLint plugins enforce patterns at lint time. Run
+`pnpm run build:plugins` after cloning to build the TypeScript plugins.
 
 | Plugin                                      | Rules | What It Enforces                                                                                                                                                                                                                                                                                                                |
 | ------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -122,11 +138,13 @@ These workspace-local ESLint plugins enforce patterns at lint time. Run `pnpm ru
 | `eslint-plugin-atx`                         | 30    | Design system: UButton/ULink, no inline hex, Lucide icons, no Tailwind v3 deprecated (fixable), no invalid Nuxt UI tokens, Zod validation; **hydration:** ClientOnly for USwitch/UNavigationMenu/UColorMode\*; no @apply in scoped style; **architecture:** no module-scope ref in composables/utils, no inline types in stores |
 | `eslint-plugin-vue-official-best-practices` | 13    | Composition API, Pinia patterns, typed defineProps, `use` prefix                                                                                                                                                                                                                                                                |
 
-**Build:** `pnpm run build:plugins` (ATX plugin is plain `.mjs` — no build needed).
+**Build:** `pnpm run build:plugins` (ATX plugin is plain `.mjs` — no build
+needed).
 
 ## Layer nuxt.config Defaults
 
-The following settings are provided by this layer's `nuxt.config.ts`. Downstream apps **inherit these automatically** and do not need to repeat them:
+The following settings are provided by this layer's `nuxt.config.ts`. Downstream
+apps **inherit these automatically** and do not need to repeat them:
 
 | Setting                        | Value                                                                   |
 | ------------------------------ | ----------------------------------------------------------------------- |
@@ -149,20 +167,25 @@ The following settings are provided by this layer's `nuxt.config.ts`. Downstream
 - `app/app.vue` — `<UApp>` shell with `<NuxtLayout>` + `<NuxtPage>`
 - `app/app.config.ts` — Nuxt UI color tokens (primary/neutral)
 - `app/error.vue` — Branded error page (404/500)
-- `app/assets/css/main.css` — Tailwind v4 `@theme` tokens, glass/card utility classes
+- `app/assets/css/main.css` — Tailwind v4 `@theme` tokens, glass/card utility
+  classes
 - `app/composables/useSeo.ts`, `useSchemaOrg.ts`
 - `app/plugins/gtag.client.ts`, `posthog.client.ts`, `fetch.client.ts`
 - `app/types/api.ts`, `runtime-config.d.ts`
 
-**Public assets** (default favicons — apps override by placing their own in `public/`):
+**Public assets** (default favicons — apps override by placing their own in
+`public/`):
 
-- `public/favicon.svg`, `apple-touch-icon.png`, `favicon-32x32.png`, `favicon-16x16.png`, `favicon.ico`, `site.webmanifest`
+- `public/favicon.svg`, `apple-touch-icon.png`, `favicon-32x32.png`,
+  `favicon-16x16.png`, `favicon.ico`, `site.webmanifest`
 
 **Server files:**
 
 - `server/middleware/` — cors, csrf, d1, indexnow, securityHeaders
 - `server/utils/` — auth, database, google, kv, r2, rateLimit
-- `server/api/` — health.get, indexnow/submit.post, admin/indexing/* (batch.post, publish.post, status.get), admin/ga/overview.get, admin/gsc/performance.get
+- `server/api/` — health.get, indexnow/submit.post, admin/indexing/\*
+  (batch.post, publish.post, status.get), admin/ga/overview.get,
+  admin/gsc/performance.get
 - `server/database/schema.ts` — Base Drizzle schema
 - `server/routes/cdn-cgi/image/[...path].ts` — Image transform proxy
 
@@ -170,6 +193,8 @@ The following settings are provided by this layer's `nuxt.config.ts`. Downstream
 
 # 📖 Application Recipes
 
-The opt-in feature recipes (Auth, Analytics, Content, Testing, UI Components, Forms) are application-level concerns.
+The opt-in feature recipes (Auth, Analytics, Content, Testing, UI Components,
+Forms) are application-level concerns.
 
-For full instructions on how to implement them, please refer to the **[Workspace Root AGENTS.md](../../AGENTS.md)**.
+For full instructions on how to implement them, please refer to the
+**[Workspace Root AGENTS.md](../../AGENTS.md)**.

@@ -16,8 +16,7 @@ export default {
       category: 'ATX Design System',
     },
     messages: {
-      noNativeButton:
-        'Use <UButton> instead of native <button>.',
+      noNativeButton: 'Use <UButton> instead of native <button>.',
     },
     schema: [],
   },

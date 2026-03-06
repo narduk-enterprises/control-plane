@@ -12,6 +12,9 @@ vi.stubGlobal('useRuntimeConfig', () => ({
   sessionCookieName: 'test_session',
 }))
 
+// requireAuth checks nuxt-auth-utils session first; stub to return no session
+vi.stubGlobal('getUserSession', vi.fn().mockResolvedValue(null))
+
 // Mock useDatabase
 const mockDb = {
   select: vi.fn(),
@@ -37,7 +40,16 @@ vi.mock('drizzle-orm', () => ({
 }))
 
 vi.mock('../../server/database/schema', () => ({
-  users: { id: 'id', email: 'email', name: 'name', passwordHash: 'password_hash', appleId: 'apple_id', isAdmin: 'is_admin', createdAt: 'created_at', updatedAt: 'updated_at' },
+  users: {
+    id: 'id',
+    email: 'email',
+    name: 'name',
+    passwordHash: 'password_hash',
+    appleId: 'apple_id',
+    isAdmin: 'is_admin',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+  },
   sessions: { id: 'id', userId: 'user_id', expiresAt: 'expires_at', createdAt: 'created_at' },
 }))
 

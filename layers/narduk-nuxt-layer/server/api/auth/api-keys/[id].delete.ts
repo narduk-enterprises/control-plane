@@ -7,6 +7,8 @@ import { eq, and } from 'drizzle-orm'
  * Revoke (delete) an API key. Users can only delete their own keys.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'auth-api-keys', 10, 60_000)
+
   const user = await requireAuth(event)
   const id = getRouterParam(event, 'id')
 

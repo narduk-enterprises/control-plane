@@ -28,8 +28,7 @@ export default {
   meta: {
     type: 'suggestion' as const,
     docs: {
-      description:
-        'routes under CSRF-exempt prefixes should validate a shared secret or signature',
+      description: 'routes under CSRF-exempt prefixes should validate a shared secret or signature',
       category: 'Security',
       recommended: true,
     },
@@ -65,10 +64,7 @@ export default {
         const callee = node.callee
         if (!callee) return
 
-        const name =
-          callee.type === 'Identifier'
-            ? callee.name
-            : null
+        const name = callee.type === 'Identifier' ? callee.name : null
 
         if (name === 'readBody') hasReadBody = true
         if (name === 'getHeader') hasGetHeader = true

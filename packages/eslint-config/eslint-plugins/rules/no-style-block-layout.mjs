@@ -48,7 +48,7 @@ export default {
       return sourceCode.parserServices.defineDocumentVisitor({
         'VElement[name="style"]'(node) {
           const hasScoped = node.startTag.attributes.some(
-            attr => attr.key && attr.key.name === 'scoped'
+            (attr) => attr.key && attr.key.name === 'scoped',
           )
           if (!hasScoped) return
 

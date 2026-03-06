@@ -1,27 +1,28 @@
 /**
  * Rule: nuxt-ui/require-valid-variant-values
- * 
+ *
  * For props that have documented enums (e.g., size/color/variant), error on invalid literal values.
  */
 
 // Note: Using basic ESLint types for compatibility
 import type { AST } from 'vue-eslint-parser'
-import { normalizeComponentName, normalizePropName, isNuxtUIComponent, getStaticStringValue } from '../utils/component-utils'
+import {
+  normalizeComponentName,
+  normalizePropName,
+  isNuxtUIComponent,
+  getStaticStringValue,
+} from '../utils/component-utils'
 import { getComponentSpec } from '../utils/spec-loader'
 import type { PluginOptions } from '../types'
 
 export interface RuleContext {
   options: [PluginOptions?]
-  report: (_options: {
-    node: AST.Node
-    messageId: string
-    data?: Record<string, string>
-  }) => void
+  report: (_options: { node: AST.Node; messageId: string; data?: Record<string, string> }) => void
   sourceCode: {
     parserServices?: {
       defineTemplateBodyVisitor: (
         visitor: Record<string, (node: AST.Node) => void>,
-        scriptVisitor?: Record<string, (node: AST.Node) => void>
+        scriptVisitor?: Record<string, (node: AST.Node) => void>,
       ) => Record<string, (node: AST.Node) => void>
     }
   }
@@ -57,7 +58,8 @@ export default {
       },
     ],
     messages: {
-      invalidVariant: 'Invalid value "{{value}}" for prop "{{propName}}" on {{componentName}}. Allowed values: {{allowedValues}}',
+      invalidVariant:
+        'Invalid value "{{value}}" for prop "{{propName}}" on {{componentName}}. Allowed values: {{allowedValues}}',
     },
   },
   create(context: RuleContext) {
@@ -74,7 +76,7 @@ export default {
     }
 
     return parserServices.defineTemplateBodyVisitor({
-      'VElement'(node: AST.Node) {
+      VElement(node: AST.Node) {
         const vElement = node as AST.VElement
         const componentName = vElement.name
         if (!isNuxtUIComponent(componentName, prefixes, allowedComponents)) {

@@ -21,8 +21,7 @@ export default {
       category: 'ATX Design System',
     },
     messages: {
-      noNativeDetails:
-        'Use {{ replacement }} instead of native <{{ element }}>.',
+      noNativeDetails: 'Use {{ replacement }} instead of native <{{ element }}>.',
     },
     schema: [],
   },

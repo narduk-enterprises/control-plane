@@ -164,7 +164,7 @@ export interface RuleContext {
     parserServices?: {
       defineTemplateBodyVisitor: (
         visitor: Record<string, (node: AST.Node) => void>,
-        scriptVisitor?: Record<string, (node: AST.Node) => void>
+        scriptVisitor?: Record<string, (node: AST.Node) => void>,
       ) => Record<string, (node: AST.Node) => void>
     }
   }
@@ -245,7 +245,7 @@ export default {
 
         const validProps = new Set(spec.props.map((p) => p.name.toLowerCase()))
         const validPropsCamel = new Set(
-          spec.props.map((p) => normalizePropName(p.name).toLowerCase())
+          spec.props.map((p) => normalizePropName(p.name).toLowerCase()),
         )
 
         // Check all attributes

@@ -28,7 +28,11 @@ vi.stubGlobal('createError', mockCreateError)
 // Now safe to import
 const { default: handler } = await import('../../server/middleware/csrf')
 
-function createMockEvent(method: string, path: string, headers: Record<string, string> = {}): MockEvent {
+function createMockEvent(
+  method: string,
+  path: string,
+  headers: Record<string, string> = {},
+): MockEvent {
   return {
     method,
     path,

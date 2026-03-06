@@ -2,31 +2,25 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { users } from '../../database/schema'
 import { verifyUserPassword, hashUserPassword } from '../../utils/password'
-import { requireAuth } from '../../utils/auth'
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8),
 })
 
-/**
- * POST /api/auth/change-password
- *
- * Requires authentication. Verifies the current password,
- * then hashes and stores the new one.
- */
 export default defineEventHandler(async (event) => {
-  const userSession = await requireAuth(event)
+  await enforceRateLimit(event, 'auth-change-password', 5, 60_000)
+
+  const user = await requireAuth(event)
   const body = await readValidatedBody(event, changePasswordSchema.parse)
 
   const db = useDatabase(event)
-
-  const dbUser = await db.select().from(users).where(eq(users.id, userSession.id)).get()
+  const dbUser = await db.select().from(users).where(eq(users.id, user.id)).get()
 
   if (!dbUser || !dbUser.passwordHash) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Unauthorized - invalid user state',
+      statusMessage: 'Unauthorized — invalid user state',
     })
   }
 
@@ -46,7 +40,7 @@ export default defineEventHandler(async (event) => {
       passwordHash: hashedNewPassword,
       updatedAt: new Date().toISOString(),
     })
-    .where(eq(users.id, userSession.id))
+    .where(eq(users.id, user.id))
     .run()
 
   return { success: true }

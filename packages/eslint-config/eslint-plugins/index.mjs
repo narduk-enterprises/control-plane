@@ -83,7 +83,11 @@ const plugin = {
     recommended: [
       {
         name: 'atx/recommended',
-        plugins: { get atx() { return plugin } },
+        plugins: {
+          get atx() {
+            return plugin
+          },
+        },
         files: ['**/*.vue'],
         rules: {
           'atx/no-raw-tailwind-colors': 'error',
@@ -117,7 +121,11 @@ const plugin = {
     app: [
       {
         name: 'atx/app',
-        plugins: { get atx() { return plugin } },
+        plugins: {
+          get atx() {
+            return plugin
+          },
+        },
         files: ['app/composables/**/*.ts', 'app/utils/**/*.ts', 'app/stores/**/*.ts'],
         rules: {
           'atx/no-module-scope-ref': 'warn',
@@ -128,7 +136,11 @@ const plugin = {
     server: [
       {
         name: 'atx/server',
-        plugins: { get atx() { return plugin } },
+        plugins: {
+          get atx() {
+            return plugin
+          },
+        },
         files: ['server/**/*.ts'],
         rules: {
           'atx/require-validated-body': 'error',

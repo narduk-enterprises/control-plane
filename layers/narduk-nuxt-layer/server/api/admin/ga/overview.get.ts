@@ -17,13 +17,17 @@ export default defineEventHandler(async (event) => {
 
   const query = await getValidatedQuery(event, querySchema.parse)
 
-  const endDate = query.endDate ? String(query.endDate) : (new Date().toISOString().split('T')[0] ?? '')
+  const endDate = query.endDate
+    ? String(query.endDate)
+    : (new Date().toISOString().split('T')[0] ?? '')
   const start = new Date(endDate)
   start.setDate(start.getDate() - 30)
-  const startDate = query.startDate ? String(query.startDate) : (start.toISOString().split('T')[0] ?? '')
+  const startDate = query.startDate
+    ? String(query.startDate)
+    : (start.toISOString().split('T')[0] ?? '')
 
   try {
-    const data = await googleApiFetch(
+    const data = (await googleApiFetch(
       `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
       GA_SCOPES,
       {
@@ -40,7 +44,7 @@ export default defineEventHandler(async (event) => {
           dimensions: [{ name: 'date' }],
         }),
       },
-    ) as Record<string, unknown>
+    )) as Record<string, unknown>
 
     const totals = data.totals as Array<{ metricValues?: Array<{ value: string }> }> | undefined
     const rows = data.rows as Array<Record<string, unknown>> | undefined

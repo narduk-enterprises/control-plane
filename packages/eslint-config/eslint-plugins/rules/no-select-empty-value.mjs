@@ -11,7 +11,8 @@ export default {
     fixable: 'code',
     schema: [],
     messages: {
-      noEmptyStringValue: 'USelect options cannot have an empty string "" as a value. Use `undefined`, `null`, or a distinct value.',
+      noEmptyStringValue:
+        'USelect options cannot have an empty string "" as a value. Use `undefined`, `null`, or a distinct value.',
     },
   },
   create(context) {
@@ -21,7 +22,7 @@ export default {
      */
     function checkObjectExpression(node) {
       const properties = node.properties || []
-      
+
       let hasLabel = false
       let valueProp = null
 
@@ -37,28 +38,35 @@ export default {
         }
       }
 
-      if (hasLabel && valueProp && valueProp.value.type === 'Literal' && valueProp.value.value === '') {
+      if (
+        hasLabel &&
+        valueProp &&
+        valueProp.value.type === 'Literal' &&
+        valueProp.value.value === ''
+      ) {
         context.report({
           node: valueProp.value,
           messageId: 'noEmptyStringValue',
           fix(fixer) {
-            // Suggest replacing "" with undefined or null? 
+            // Suggest replacing "" with undefined or null?
             // undefined is safer for "no selection" state in many cases
             return fixer.replaceText(valueProp.value, 'undefined')
-          }
+          },
         })
       }
     }
 
-    return defineTemplateBodyVisitor(context, 
+    return defineTemplateBodyVisitor(
+      context,
       // Template visitor
       {
-        "VElement[name='USelect'] VAttribute[key.argument.name='items'] VExpressionContainer ArrayExpression ObjectExpression": checkObjectExpression
+        "VElement[name='USelect'] VAttribute[key.argument.name='items'] VExpressionContainer ArrayExpression ObjectExpression":
+          checkObjectExpression,
       },
       // Script visitor
       {
-        "ArrayExpression > ObjectExpression": checkObjectExpression
-      }
+        'ArrayExpression > ObjectExpression': checkObjectExpression,
+      },
     )
   },
 }

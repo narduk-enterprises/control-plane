@@ -11,18 +11,21 @@
     primaryColor – accent color hex (default: sky-blue #0ea5e9)
 -->
 <script setup lang="ts">
-withDefaults(defineProps<{
-  title?: string
-  description?: string
-  category?: string
-  /** Brand color hex — defaults to sky-blue. Override to match your app's primary color. */
-  primaryColor?: string
-}>(), {
-  title: 'Article Title',
-  description: 'This OG image is generated for article-type pages.',
-  category: 'Article',
-  primaryColor: '#0ea5e9', // eslint-disable-line atx/no-inline-hex
-})
+withDefaults(
+  defineProps<{
+    title?: string
+    description?: string
+    category?: string
+    /** Brand color hex — defaults to sky-blue. Override to match your app's primary color. */
+    primaryColor?: string
+  }>(),
+  {
+    title: 'Article Title',
+    description: 'This OG image is generated for article-type pages.',
+    category: 'Article',
+    primaryColor: '#0ea5e9', // eslint-disable-line atx/no-inline-hex
+  },
+)
 </script>
 
 <template>
@@ -57,20 +60,35 @@ withDefaults(defineProps<{
     </div>
 
     <div :style="{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '970px' }">
-      <div :style="{ fontSize: '64px', lineHeight: '1.1', letterSpacing: '-0.03em', fontWeight: '700' }">
+      <div
+        :style="{
+          fontSize: '64px',
+          lineHeight: '1.1',
+          letterSpacing: '-0.03em',
+          fontWeight: '700',
+        }"
+      >
         {{ title }}
       </div>
       <div
-        :style="{ fontSize: '30px',
-                   // eslint-disable-next-line atx/no-inline-hex
-                   color: '#cbd5e1', lineHeight: '1.35' }"
+        :style="{
+          fontSize: '30px',
+          // eslint-disable-next-line atx/no-inline-hex
+          color: '#cbd5e1',
+          lineHeight: '1.35',
+        }"
       >
         {{ description }}
       </div>
     </div>
 
     <div
-      :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '20px' }"
+      :style="{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: '20px',
+      }"
     >
       <div
         :style="{

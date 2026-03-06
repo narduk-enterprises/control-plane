@@ -73,6 +73,6 @@ ruleTester.run('no-deprecated-event', rule, {
         },
       ],
       output: '<template><USelectMenu @update:model-value="onUpdate"></USelectMenu></template>',
-    }
+    },
   ],
 })

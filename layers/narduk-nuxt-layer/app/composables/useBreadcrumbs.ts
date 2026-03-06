@@ -32,7 +32,7 @@ export function useBreadcrumbs(options: UseBreadcrumbsOptions = {}) {
   const route = useRoute()
   const runtimeConfig = useRuntimeConfig()
   const { resolveLabel, homeIcon = 'i-lucide-house' } = options
-  const siteUrl = (runtimeConfig.public?.siteUrl as string || '').replace(/\/$/, '')
+  const siteUrl = ((runtimeConfig.public?.siteUrl as string) || '').replace(/\/$/, '')
 
   const items = computed<BreadcrumbItem[]>(() => {
     const segments = route.path.replace(/\/$/, '').split('/').filter(Boolean)

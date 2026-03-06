@@ -13,12 +13,12 @@ export const recommended = {
     'vue-official/no-template-complex-expressions': 'warn',
     'vue-official/consistent-defineprops-emits': 'error',
     'vue-official/prefer-typed-defineprops': 'warn',
-    
+
     // Composable rules
     'vue-official/require-use-prefix-for-composables': 'warn',
     'vue-official/no-composable-conditional-hooks': 'warn',
     'vue-official/no-composable-dom-access-without-client-guard': 'error',
-    
+
     // Store rules
     'vue-official/pinia-require-defineStore-id': 'error',
     'vue-official/pinia-no-direct-state-mutation-outside-actions': 'warn',
@@ -37,12 +37,12 @@ export const strict = {
     'vue-official/no-template-complex-expressions': 'error',
     'vue-official/consistent-defineprops-emits': 'error',
     'vue-official/prefer-typed-defineprops': 'error',
-    
+
     // Composable rules - all errors
     'vue-official/require-use-prefix-for-composables': 'error',
     'vue-official/no-composable-conditional-hooks': 'error',
     'vue-official/no-composable-dom-access-without-client-guard': 'error',
-    
+
     // Store rules - all errors
     'vue-official/pinia-require-defineStore-id': 'error',
     'vue-official/pinia-no-direct-state-mutation-outside-actions': 'error',

@@ -14,8 +14,8 @@ RuleTester.afterAll = afterAll
 const ruleTester = new RuleTester({
   languageOptions: {
     parserOptions: {
-    ecmaVersion: 2022,
-    sourceType: 'module',
+      ecmaVersion: 2022,
+      sourceType: 'module',
     },
   },
 })

@@ -21,18 +21,22 @@ export default {
     return defineTemplateBodyVisitor(context, {
       'VDirectiveKey[name.name="on"]'(node) {
         const attribute = node.parent
-        if (attribute.value && attribute.value.type === 'VExpressionContainer' && attribute.value.expression) {
+        if (
+          attribute.value &&
+          attribute.value.type === 'VExpressionContainer' &&
+          attribute.value.expression
+        ) {
           const expression = attribute.value.expression
-          
+
           // Check if it's a SequenceExpression (e.g., a, b) or if there are multiple statements
           // vue-eslint-parser usually parses inline handlers as a list of statements if they are multiline or semicolon-separated
           if (expression.type === 'VOnExpression') {
-             if (expression.body.length > 1) {
-                context.report({
-                  node: attribute.value,
-                  messageId: 'noMultiStatement',
-                })
-             }
+            if (expression.body.length > 1) {
+              context.report({
+                node: attribute.value,
+                messageId: 'noMultiStatement',
+              })
+            }
           }
         }
       },

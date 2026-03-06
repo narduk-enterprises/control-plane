@@ -17,8 +17,7 @@ export default {
   meta: {
     type: 'suggestion',
     docs: {
-      description:
-        'Disallow hardcoded hex color literals — use Tailwind tokens or CSS variables',
+      description: 'Disallow hardcoded hex color literals — use Tailwind tokens or CSS variables',
       category: 'ATX Design System',
     },
     messages: {
@@ -83,7 +82,7 @@ export default {
           TemplateLiteral(node) {
             checkTemplateLiteral(node)
           },
-        }
+        },
       )
     }
 

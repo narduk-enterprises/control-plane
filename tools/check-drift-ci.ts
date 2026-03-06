@@ -25,17 +25,38 @@ const args = process.argv.slice(2)
 const strict = args.includes('--strict')
 
 const CRITICAL_FILES = [
-  '.github/workflows/ci.yml',
-  'tools/init.ts',
-  'tools/validate.ts',
+  // Tooling
   'tools/update-layer.ts',
   'tools/check-drift-ci.ts',
+  'tools/generate-favicons.ts',
+  'tools/check-setup.cjs',
+  'tools/validate.ts',
+  'tools/init.ts',
+  'tools/tail.ts',
+
+  // CI/CD
+  '.github/workflows/weekly-drift-check.yml',
+
+  // Build orchestration
   'turbo.json',
-  'pnpm-workspace.yaml',
+
+  // Renovate
   'renovate.json',
+
+  // Copilot/agent infra
+  '.github/copilot-instructions.md',
+
+  // ESLint
+  'apps/web/eslint.config.mjs',
   'packages/eslint-config/eslint.config.mjs',
   'packages/eslint-config/package.json',
   'packages/eslint-config/eslint-plugins/index.mjs',
+
+  // Formatting
+  'prettier.config.mjs',
+  '.editorconfig',
+  '.vscode/settings.json',
+  '.vscode/extensions.json',
 ]
 
 const STALE_FILES = [
@@ -57,8 +78,11 @@ function run(cmd: string): string {
 
 function isTemplateRepo(): boolean {
   try {
-    const pkg = JSON.parse(readFileSync(join(ROOT_DIR, 'package.json'), 'utf-8'))
-    return pkg.name === 'narduk-nuxt-template'
+    const url = execSync('git config --get remote.origin.url', {
+      encoding: 'utf-8',
+      cwd: ROOT_DIR,
+    }).trim()
+    return url.includes('narduk-enterprises/narduk-nuxt-template')
   } catch {
     return false
   }
@@ -117,7 +141,7 @@ async function main() {
   const missing: string[] = []
 
   for (const file of CRITICAL_FILES) {
-    const templateContent = getFileAtRef('template/main', file)
+    const templateContent = getFileAtRef(ref, file)
     if (!templateContent) continue
 
     const localContent = getLocalFile(file)

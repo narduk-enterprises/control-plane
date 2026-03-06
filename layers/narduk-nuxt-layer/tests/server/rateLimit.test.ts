@@ -36,7 +36,6 @@ function createMockEvent(ip = '1.2.3.4'): MockEvent {
 beforeEach(() => {
   vi.mocked(getHeader).mockImplementation((event: never, name: string) => {
     if (name === 'cf-connecting-ip') return (event as unknown as MockEvent)._ip
-  
   })
   vi.mocked(setResponseHeader).mockClear()
 })
@@ -55,7 +54,9 @@ describe('enforceRateLimit', () => {
       await enforceRateLimit(event as never, 'test-exceed', 3, 60_000)
     }
     // The 4th request should fail
-    await expect(enforceRateLimit(event as never, 'test-exceed', 3, 60_000)).rejects.toThrow('Too many requests')
+    await expect(enforceRateLimit(event as never, 'test-exceed', 3, 60_000)).rejects.toThrow(
+      'Too many requests',
+    )
   })
 
   it('tracks different namespaces independently', async () => {

@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/require-use-prefix-for-composables
- * 
+ *
  * Enforces composable functions are named with "use" prefix
  */
 
@@ -31,45 +31,45 @@ export default {
       },
     ],
     messages: {
-      requireUsePrefix: 'Composable functions should be named with "use" prefix (e.g., useXxx). See: {{url}}',
+      requireUsePrefix:
+        'Composable functions should be named with "use" prefix (e.g., useXxx). See: {{url}}',
     },
   },
   create(context: RuleContext<string, any[]>): RuleListener {
     const filename = context.filename ?? context.getFilename?.()
     const options = context.options[0] || {}
     const paths = options.paths || DEFAULT_COMPOSABLE_PATHS
-    
+
     // Check if file matches composable paths
     const isComposableFile = paths.some((pattern: string) => {
       return filename.includes('composable') || filename.includes('use')
     })
-    
+
     if (!isComposableFile) {
       return {}
     }
-    
+
     // Track function declarations to avoid false positives on type/constant exports
     const functionNames = new Set<string>()
-    
+
     return {
       // Track function declarations and expressions
-      'FunctionDeclaration'(node: any) {
+      FunctionDeclaration(node: any) {
         if (node.id?.name) {
           functionNames.add(node.id.name)
         }
       },
-      'VariableDeclarator'(node: any) {
+      VariableDeclarator(node: any) {
         // Track variable declarations that are functions
         if (
           node.id?.name &&
           node.init &&
-          (node.init.type === 'FunctionExpression' ||
-            node.init.type === 'ArrowFunctionExpression')
+          (node.init.type === 'FunctionExpression' || node.init.type === 'ArrowFunctionExpression')
         ) {
           functionNames.add(node.id.name)
         }
       },
-      'ExportDefaultDeclaration'(node: any) {
+      ExportDefaultDeclaration(node: any) {
         // Check default export function name
         if (
           node.declaration &&
@@ -77,10 +77,10 @@ export default {
             node.declaration.type === 'FunctionExpression' ||
             node.declaration.type === 'ArrowFunctionExpression')
         ) {
-          const funcName = 
+          const funcName =
             node.declaration.id?.name ||
             (node.declaration.type === 'FunctionExpression' && node.declaration.id?.name)
-          
+
           if (funcName && !funcName.startsWith('use')) {
             context.report({
               node: node.declaration.id || node,
@@ -90,7 +90,7 @@ export default {
           }
         }
       },
-      'ExportNamedDeclaration'(node: any) {
+      ExportNamedDeclaration(node: any) {
         // Check named export function declarations
         if (node.declaration && node.declaration.type === 'FunctionDeclaration') {
           const funcName = node.declaration.id?.name
@@ -102,7 +102,7 @@ export default {
             })
           }
         }
-        
+
         // Check named export variable declarations that are functions
         if (node.declaration && node.declaration.type === 'VariableDeclaration') {
           node.declaration.declarations.forEach((decl: any) => {
@@ -121,7 +121,7 @@ export default {
             }
           })
         }
-        
+
         // Check named exports in specifiers - only report if it's a known function
         if (node.specifiers) {
           node.specifiers.forEach((spec: any) => {

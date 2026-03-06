@@ -26,7 +26,9 @@ export default defineEventHandler((event) => {
 
   // Read allowed origins from runtime config
   const config = useRuntimeConfig(event)
-  const allowedOriginsRaw = (config as Record<string, unknown>).corsAllowedOrigins as string | undefined
+  const allowedOriginsRaw = (config as Record<string, unknown>).corsAllowedOrigins as
+    | string
+    | undefined
 
   // Default: no CORS allowed (same-origin only)
   if (!allowedOriginsRaw) return
@@ -45,7 +47,7 @@ export default defineEventHandler((event) => {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
     'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
+    Vary: 'Origin',
   })
 
   // Handle preflight

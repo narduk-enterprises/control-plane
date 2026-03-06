@@ -9,23 +9,30 @@ import { fileURLToPath } from 'node:url'
  * Pulls the latest layers/narduk-nuxt-layer from the template repository.
  *
  * Usage:
- *   pnpm run update-layer                # fetch and apply layer update
- *   pnpm run update-layer -- --dry-run   # show what would change without applying
+ *   pnpm run update-layer                                  # fetch from GitHub
+ *   pnpm run update-layer -- --dry-run                     # show what would change
+ *   pnpm run update-layer -- --from ~/new-code/narduk-nuxt-template  # use local template
  *
  * Options:
  *   --dry-run            Show diff without applying changes
  *   --no-rewrite-repo    Skip rewriting layers/narduk-nuxt-layer/package.json's repository.url
+ *   --skip-quality       Skip the quality gate (lint + typecheck). Useful for fleet batch syncs.
+ *   --from <path>        Use a local template directory instead of fetching from GitHub.
+ *                         Sets the git remote to a local path so no push is required.
  */
 
 const args = process.argv.slice(2)
 const skipRewrite = args.includes('--no-rewrite-repo')
+const skipQuality = args.includes('--skip-quality')
 const dryRun = args.includes('--dry-run')
+const fromIdx = args.indexOf('--from')
+const localTemplatePath = fromIdx !== -1 ? args[fromIdx + 1]?.replace(/^~/, process.env.HOME || '') : ''
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 const LAYER_PKG_PATH = path.join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'package.json')
 
-const TEMPLATE_URL = 'https://github.com/narduk-enterprises/narduk-nuxt-template.git'
+const GITHUB_TEMPLATE_URL = 'https://github.com/narduk-enterprises/narduk-nuxt-template.git'
 
 function run(cmd: string) {
   console.log(`> ${cmd}`)
@@ -41,22 +48,28 @@ function getOutput(cmd: string): string {
 }
 
 async function main() {
-  console.log('🔄 Updating Layer from Template...')
+  const templateUrl = localTemplatePath || GITHUB_TEMPLATE_URL
+  const isLocal = !!localTemplatePath
+
+  if (isLocal) {
+    console.log(`🔄 Updating Layer from local template: ${localTemplatePath}`)
+  } else {
+    console.log('🔄 Updating Layer from Template (GitHub)...')
+  }
 
   // 1. Check/Add remote
   const remotes = getOutput('git remote -v')
-  const hasTemplate = remotes
+  const hasCorrectRemote = remotes
     .split('\n')
-    .some((line) => line.startsWith('template\t') && line.includes(TEMPLATE_URL))
+    .some((line) => line.startsWith('template\t') && line.includes(templateUrl))
 
-  if (!hasTemplate) {
+  if (!hasCorrectRemote) {
     if (remotes.includes('template\t')) {
-      // remote 'template' exists but URL is different, set it
-      console.log('  Updating "template" remote URL...')
-      run(`git remote set-url template ${TEMPLATE_URL}`)
+      console.log(`  Updating "template" remote URL to ${isLocal ? 'local path' : 'GitHub'}...`)
+      run(`git remote set-url template ${templateUrl}`)
     } else {
-      console.log('  Adding "template" remote...')
-      run(`git remote add template ${TEMPLATE_URL}`)
+      console.log(`  Adding "template" remote (${isLocal ? 'local' : 'GitHub'})...`)
+      run(`git remote add template ${templateUrl}`)
     }
   }
 
@@ -135,7 +148,7 @@ async function main() {
       const versionContent = [
         `sha=${templateSha}`,
         `template=narduk-nuxt-template`,
-        `updated=${new Date().toISOString()}`,
+        `synced=${new Date().toISOString()}`,
         '',
       ].join('\n')
       await fs.readFile(path.join(ROOT_DIR, '.template-version'), 'utf-8').catch(() => '')
@@ -176,19 +189,23 @@ async function main() {
   run('git add pnpm-lock.yaml')
 
   // 7. Quality gate
-  console.log('\n🛡️ Running quality gate...')
-  try {
-    run('pnpm run quality')
-    console.log('  ✅ Quality gate passed.')
-  } catch (e: any) {
-    console.error('\n❌ Quality gate failed.')
-    console.error(
-      '  ⚠️ Layer update received but it causes TypeScript or ESLint errors in this application.',
-    )
-    console.error(
-      '  ⚠️ Please fix the issues locally or revert the update using `git checkout HEAD . && git clean -fd`.',
-    )
-    process.exit(1)
+  if (skipQuality) {
+    console.log('\n⏭ Skipping quality gate (--skip-quality)')
+  } else {
+    console.log('\n🛡️ Running quality gate...')
+    try {
+      run('pnpm run quality')
+      console.log('  ✅ Quality gate passed.')
+    } catch (e: any) {
+      console.error('\n❌ Quality gate failed.')
+      console.error(
+        '  ⚠️ Layer update received but it causes TypeScript or ESLint errors in this application.',
+      )
+      console.error(
+        '  ⚠️ Please fix the issues locally or revert the update using `git checkout HEAD . && git clean -fd`.',
+      )
+      process.exit(1)
+    }
   }
 
   console.log('\n🎉 Layer update complete!')

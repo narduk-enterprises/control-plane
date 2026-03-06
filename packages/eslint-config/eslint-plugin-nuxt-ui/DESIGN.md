@@ -3,6 +3,7 @@
 ## Architecture
 
 ### File Structure
+
 ```
 eslint-plugin-nuxt-ui/
 ├── src/
@@ -31,31 +32,37 @@ eslint-plugin-nuxt-ui/
 ## Key Design Decisions
 
 ### 1. Spec Generation
+
 - **Why JSON?** Avoids network requests during linting, faster execution
 - **Versioned spec** allows future support for multiple Nuxt UI versions
 - **Generator script** can be re-run when docs update
 
 ### 2. Component Name Normalization
+
 - Handles both `<UButton>` and `<u-button>` (PascalCase and kebab-case)
 - Supports custom prefixes via configuration
 - Normalizes to PascalCase internally for spec lookup
 
 ### 3. Prop Name Handling
+
 - Vue automatically converts kebab-case to camelCase
 - Rules check both formats to avoid false positives
 - Handles `:prop="..."` (dynamic) vs `prop="literal"` (static)
 
 ### 4. Static Analysis Only
+
 - Only validates string literals, not dynamic expressions
 - Skips `v-bind="obj"` spreads (can't statically analyze)
 - This prevents false positives but means some invalid usage won't be caught
 
 ### 5. Autofix Strategy
+
 - Only provides fixes for mechanical renames (prop/slot/event names)
 - Doesn't fix complex transformations (would require AST manipulation)
 - Fixes are safe and predictable
 
 ### 6. Rule Severity
+
 - Default: `error` for unknown/deprecated usage
 - Can be configured per-rule or globally
 - Recommended config enables all rules as errors
@@ -63,6 +70,7 @@ eslint-plugin-nuxt-ui/
 ## Template AST Traversal
 
 Uses `vue-eslint-parser`'s template AST:
+
 - `VElement` nodes represent component tags
 - `VAttribute` nodes represent props/attributes
 - `VDirectiveKey` for `v-on`, `v-slot`, etc.
@@ -101,12 +109,17 @@ Uses `vue-eslint-parser`'s template AST:
 ## Limitations & Future Work
 
 ### Current Limitations
-1. **Spec parsing** is basic - relies on regex patterns. Could be improved with proper markdown parsing
+
+1. **Spec parsing** is basic - relies on regex patterns. Could be improved with
+   proper markdown parsing
 2. **Dynamic props** are skipped - can't validate `:prop="dynamicValue"`
-3. **Tailwind class validation** in `ui` prop is not implemented (would require Tailwind parser)
-4. **UApp wrapper detection** is not implemented (requires full app tree analysis)
+3. **Tailwind class validation** in `ui` prop is not implemented (would require
+   Tailwind parser)
+4. **UApp wrapper detection** is not implemented (requires full app tree
+   analysis)
 
 ### Future Enhancements
+
 1. Better spec parsing from llms-full.txt (use proper markdown parser)
 2. Type-aware validation (if TypeScript types are available)
 3. Integration with eslint-plugin-tailwindcss for `ui` prop validation

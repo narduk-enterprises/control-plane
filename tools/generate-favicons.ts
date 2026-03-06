@@ -43,29 +43,35 @@ const ROOT_DIR = resolve(__dirname, '..')
 // --- Argument parsing ---
 
 const args = Object.fromEntries(
-  process.argv.slice(2).map(arg => {
+  process.argv.slice(2).map((arg) => {
     const match = arg.match(/^--([^=]+)=?(.*)$/)
     if (match) return [match[1], match[2] || true]
     return [arg, true]
-  })
+  }),
 ) as Record<string, string | true>
 
-const targetDir = resolve(ROOT_DIR, typeof args.target === 'string' ? args.target : 'layers/narduk-nuxt-layer/public')
+const targetDir = resolve(
+  ROOT_DIR,
+  typeof args.target === 'string' ? args.target : 'layers/narduk-nuxt-layer/public',
+)
 const appName = typeof args.name === 'string' ? args.name : 'Nuxt 4 App'
 const shortName = typeof args['short-name'] === 'string' ? args['short-name'] : appName.slice(0, 12)
 const themeColor = typeof args.color === 'string' ? args.color : '#10b981'
 const bgColor = typeof args.bg === 'string' ? args.bg : '#0B1120'
 
 // Source SVG — defaults to <target>/favicon.svg
-const sourcePath = typeof args.source === 'string'
-  ? resolve(ROOT_DIR, args.source)
-  : resolve(targetDir, 'favicon.svg')
+const sourcePath =
+  typeof args.source === 'string'
+    ? resolve(ROOT_DIR, args.source)
+    : resolve(targetDir, 'favicon.svg')
 
 // --- Validation ---
 
 if (!existsSync(sourcePath)) {
   console.error(`❌ Source SVG not found: ${sourcePath}`)
-  console.error('   Create a favicon.svg in the target directory first, or specify --source=path/to/your.svg')
+  console.error(
+    '   Create a favicon.svg in the target directory first, or specify --source=path/to/your.svg',
+  )
   process.exit(1)
 }
 
@@ -87,31 +93,19 @@ async function generate() {
   console.log(`   → Target: ${targetDir}\n`)
 
   // Apple Touch Icon (180×180)
-  await sharp(svgBuffer)
-    .resize(180, 180)
-    .png()
-    .toFile(resolve(targetDir, 'apple-touch-icon.png'))
+  await sharp(svgBuffer).resize(180, 180).png().toFile(resolve(targetDir, 'apple-touch-icon.png'))
   console.log('  ✅ apple-touch-icon.png (180×180)')
 
   // Favicon 32×32
-  await sharp(svgBuffer)
-    .resize(32, 32)
-    .png()
-    .toFile(resolve(targetDir, 'favicon-32x32.png'))
+  await sharp(svgBuffer).resize(32, 32).png().toFile(resolve(targetDir, 'favicon-32x32.png'))
   console.log('  ✅ favicon-32x32.png (32×32)')
 
   // Favicon 16×16
-  await sharp(svgBuffer)
-    .resize(16, 16)
-    .png()
-    .toFile(resolve(targetDir, 'favicon-16x16.png'))
+  await sharp(svgBuffer).resize(16, 16).png().toFile(resolve(targetDir, 'favicon-16x16.png'))
   console.log('  ✅ favicon-16x16.png (16×16)')
 
   // favicon.ico (32×32 PNG — modern browsers handle this fine)
-  await sharp(svgBuffer)
-    .resize(32, 32)
-    .png()
-    .toFile(resolve(targetDir, 'favicon.ico'))
+  await sharp(svgBuffer).resize(32, 32).png().toFile(resolve(targetDir, 'favicon.ico'))
   console.log('  ✅ favicon.ico (32×32)')
 
   // site.webmanifest

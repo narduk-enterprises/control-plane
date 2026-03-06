@@ -1,12 +1,12 @@
 # Quick Setup
 
-The plugin is now integrated directly into the project - no separate install needed!
+The plugin is now integrated directly into the project - no separate install
+needed!
 
 ## Current Status
 
-✅ Plugin code is in `eslint-plugin-nuxt-ui/`
-✅ ESLint config imports it directly
-✅ Ready to use once spec is generated
+✅ Plugin code is in `eslint-plugin-nuxt-ui/` ✅ ESLint config imports it
+directly ✅ Ready to use once spec is generated
 
 ## Generate Spec (First Time)
 
@@ -14,7 +14,9 @@ The plugin is now integrated directly into the project - no separate install nee
 npm run lint:nuxt-ui:gen-spec
 ```
 
-**Note**: The current spec generator uses basic regex parsing and may not extract all components perfectly. The spec file will be created at:
+**Note**: The current spec generator uses basic regex parsing and may not
+extract all components perfectly. The spec file will be created at:
+
 ```
 eslint-plugin-nuxt-ui/src/spec/nuxt-ui-v4.json
 ```
@@ -29,7 +31,8 @@ npm run lint
 
 ## If Spec Generation Fails
 
-The plugin will work with an empty spec (won't error, just won't validate). To improve the spec generator:
+The plugin will work with an empty spec (won't error, just won't validate). To
+improve the spec generator:
 
 1. The regex patterns in `scripts/gen-spec.ts` need refinement
 2. Consider using a proper markdown parser

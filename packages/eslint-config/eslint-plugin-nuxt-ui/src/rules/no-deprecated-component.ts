@@ -57,7 +57,10 @@ export default {
         if (!startTag?.range) return
 
         const replaceName = rawName.includes('-')
-          ? replacement.replace(/([A-Z])/g, '-$1').slice(1).toLowerCase()
+          ? replacement
+              .replace(/([A-Z])/g, '-$1')
+              .slice(1)
+              .toLowerCase()
           : replacement
 
         context.report({
@@ -72,18 +75,15 @@ export default {
               fixes.push(
                 fixer.replaceTextRange(
                   [startTag.range[0] + 1, startTag.range[0] + 1 + nameInStart.length],
-                  replaceName
-                )
+                  replaceName,
+                ),
               )
             if (endTag?.range) {
               const endText = sourceCode.getText(endTag)
               const nameInEnd = endText.slice(2, -1)
               if (nameInEnd)
                 fixes.push(
-                  fixer.replaceTextRange(
-                    [endTag.range[0] + 2, endTag.range[1] - 1],
-                    replaceName
-                  )
+                  fixer.replaceTextRange([endTag.range[0] + 2, endTag.range[1] - 1], replaceName),
                 )
             }
             return fixes

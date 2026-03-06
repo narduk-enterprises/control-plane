@@ -128,7 +128,10 @@ export function useFormHandler<T extends Record<string, unknown>>(options: FormH
 
       if (onSuccess) await onSuccess(result)
     } catch (err: unknown) {
-      const message = (err as { data?: { message?: string }; message?: string })?.data?.message ?? (err as Error)?.message ?? errorMessage
+      const message =
+        (err as { data?: { message?: string }; message?: string })?.data?.message ??
+        (err as Error)?.message ??
+        errorMessage
       toast.add({
         title: 'Error',
         description: message,

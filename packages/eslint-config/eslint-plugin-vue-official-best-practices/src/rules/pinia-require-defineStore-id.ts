@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/pinia-require-defineStore-id
- * 
+ *
  * Requires defineStore to have a string literal id
  */
 
@@ -24,7 +24,7 @@ export default {
   },
   create(context: RuleContext<string, any[]>): RuleListener {
     return {
-      'CallExpression'(node: any) {
+      CallExpression(node: any) {
         if (
           node.callee &&
           node.callee.type === 'Identifier' &&
@@ -39,11 +39,15 @@ export default {
             })
             return
           }
-          
+
           const firstArg = node.arguments[0]
-          
+
           // Must be a string literal
-          if (!isLiteral(firstArg) || firstArg.type !== 'Literal' || typeof firstArg.value !== 'string') {
+          if (
+            !isLiteral(firstArg) ||
+            firstArg.type !== 'Literal' ||
+            typeof firstArg.value !== 'string'
+          ) {
             context.report({
               node: firstArg || node,
               messageId: 'requireStoreId',

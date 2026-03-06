@@ -18,7 +18,7 @@ declare module 'eslint' {
     parserServices?: any
     settings?: any
   }
-  
+
   export interface RuleListener {
     [key: string]: ((node: any) => void) | undefined
   }

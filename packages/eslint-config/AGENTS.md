@@ -1,13 +1,18 @@
 # AGENTS.md — packages/eslint-config
 
-This workspace package contains **custom ESLint plugins** that enforce project-specific patterns at lint time.
+This workspace package contains **custom ESLint plugins** that enforce
+project-specific patterns at lint time.
 
 ## Key Rules
 
-- After modifying any plugin source code, **always rebuild**: `pnpm run build:plugins`
-- The ATX plugin (`eslint-plugin-atx`) is plain `.mjs` and does NOT need building.
-- These plugins run in Node.js (not on Cloudflare Workers) — Node.js APIs are allowed here.
-- See the ESLint Plugins table in the root [AGENTS.md](../../AGENTS.md) for the full rule inventory.
+- After modifying any plugin source code, **always rebuild**:
+  `pnpm run build:plugins`
+- The ATX plugin (`eslint-plugin-atx`) is plain `.mjs` and does NOT need
+  building.
+- These plugins run in Node.js (not on Cloudflare Workers) — Node.js APIs are
+  allowed here.
+- See the ESLint Plugins table in the root [AGENTS.md](../../AGENTS.md) for the
+  full rule inventory.
 
 ## Plugins
 

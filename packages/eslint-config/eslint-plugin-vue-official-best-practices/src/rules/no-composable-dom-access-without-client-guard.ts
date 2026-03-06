@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/no-composable-dom-access-without-client-guard
- * 
+ *
  * Requires client guards for DOM access in composables
  */
 
@@ -29,34 +29,34 @@ export default {
       },
     ],
     messages: {
-      noClientGuard: 'DOM access (window/document/localStorage) in composable requires client guard. Use if (import.meta.client) or onMounted(). See: {{url}}',
+      noClientGuard:
+        'DOM access (window/document/localStorage) in composable requires client guard. Use if (import.meta.client) or onMounted(). See: {{url}}',
     },
   },
   create(context: RuleContext<string, any[]>): RuleListener {
     const filename = context.filename ?? context.getFilename?.()
     const options = context.options[0] || {}
     const allowProcessClient = options.allowProcessClient === true
-    
+
     // Only apply to composable files
-    const isComposableFile = filename.includes('composables/') || 
-                            filename.includes('composable')
-    
+    const isComposableFile = filename.includes('composables/') || filename.includes('composable')
+
     if (!isComposableFile) {
       return {}
     }
-    
+
     const checkDomAccess = (node: any) => {
       const domAccess = isDomAccess(node)
-      
+
       if (!domAccess.type) {
         return
       }
-      
+
       // Check if it's in a client context
       if (isInClientContext(node, context)) {
         return
       }
-      
+
       // Check for process.client guard (if allowed)
       if (allowProcessClient) {
         let current: any = node.parent
@@ -76,7 +76,7 @@ export default {
           current = current.parent
         }
       }
-      
+
       // Report if no guard found
       context.report({
         node,
@@ -84,13 +84,17 @@ export default {
         data: { url: VUE_SSR_GUIDE },
       })
     }
-    
+
     return {
-      'MemberExpression': checkDomAccess,
-      'Identifier'(node: any) {
+      MemberExpression: checkDomAccess,
+      Identifier(node: any) {
         // Check for direct window/document/localStorage identifiers
         if (['window', 'document', 'localStorage'].includes(node.name)) {
-          if (node.parent && node.parent.type === 'MemberExpression' && node.parent.object === node) {
+          if (
+            node.parent &&
+            node.parent.type === 'MemberExpression' &&
+            node.parent.object === node
+          ) {
             return // Will be handled by MemberExpression visitor
           }
           checkDomAccess(node)

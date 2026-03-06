@@ -14,8 +14,7 @@ export default {
   meta: {
     type: 'problem',
     docs: {
-      description:
-        'Require Zod validation after getQuery() — use .parse() or .safeParse()',
+      description: 'Require Zod validation after getQuery() — use .parse() or .safeParse()',
       category: 'ATX Server Safety',
     },
     messages: {

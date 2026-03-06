@@ -65,7 +65,7 @@ export default {
           ? (fixer) =>
               fixer.replaceText(
                 targetNode,
-                isStaticAttr ? `"${fixed}"` : `'${fixed.replace(/'/g, "\\'")}'`
+                isStaticAttr ? `"${fixed}"` : `'${fixed.replace(/'/g, "\\'")}'`,
               )
           : undefined,
       })

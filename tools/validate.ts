@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
  * ----------------------------------------------------------------
  * Confirms that the necessary infrastructure and configurations have been successfully
  * provisioned for the current project.
- * 
+ *
  * Usage:
  *   npm run validate
  */
@@ -46,7 +46,7 @@ async function main() {
   try {
     const appsDir = path.join(ROOT_DIR, 'apps')
     const entries = await fs.readdir(appsDir, { withFileTypes: true })
-    const appDirs = entries.filter(e => e.isDirectory()).map(e => e.name)
+    const appDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name)
     let checkedAny = false
 
     for (const appDir of appDirs) {
@@ -58,11 +58,12 @@ async function main() {
           const dbName = parsedWrangler.d1_databases[0].database_name
           if (dbName) {
             checkedAny = true
-            allGood = checkCommand(
-              `npx wrangler d1 info ${dbName}`,
-              `Database ${dbName} exists (apps/${appDir}).`,
-              `Database ${dbName} not found (apps/${appDir})`
-            ) && allGood
+            allGood =
+              checkCommand(
+                `npx wrangler d1 info ${dbName}`,
+                `Database ${dbName} exists (apps/${appDir}).`,
+                `Database ${dbName} not found (apps/${appDir})`,
+              ) && allGood
           }
         }
       } catch {
@@ -82,7 +83,7 @@ async function main() {
   try {
     const appsDir = path.join(ROOT_DIR, 'apps')
     const entries = await fs.readdir(appsDir, { withFileTypes: true })
-    const appDirs = entries.filter(e => e.isDirectory()).map(e => e.name)
+    const appDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name)
     let foundAny = false
 
     for (const appDir of appDirs) {
@@ -122,7 +123,7 @@ async function main() {
   dopplerOk = checkCommand(
     `doppler projects get ${APP_NAME}`,
     `Doppler project ${APP_NAME} exists.`,
-    `Doppler project ${APP_NAME} not found`
+    `Doppler project ${APP_NAME} not found`,
   )
   if (!dopplerOk) allGood = false
 
@@ -130,12 +131,17 @@ async function main() {
     try {
       const output = execSync(
         `doppler secrets --project ${APP_NAME} --config prd --only-names --plain`,
-        { encoding: 'utf-8', stdio: 'pipe' }
+        { encoding: 'utf-8', stdio: 'pipe' },
       )
       const existing = new Set(output.trim().split('\n').filter(Boolean))
-      const requiredSecrets = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'APP_NAME', 'SITE_URL']
+      const requiredSecrets = [
+        'CLOUDFLARE_API_TOKEN',
+        'CLOUDFLARE_ACCOUNT_ID',
+        'APP_NAME',
+        'SITE_URL',
+      ]
 
-      const missing = requiredSecrets.filter(s => !existing.has(s))
+      const missing = requiredSecrets.filter((s) => !existing.has(s))
       if (missing.length === 0) {
         console.log(`  ✅ Core Doppler secrets are present.`)
       } else {
@@ -153,7 +159,7 @@ async function main() {
   if (!dopplerOk) {
     console.log('  ⏭ Skipping (Doppler project not found).')
   } else {
-    const hubChecks: Array<{ key: string, hub: string, config: string }> = [
+    const hubChecks: Array<{ key: string; hub: string; config: string }> = [
       { key: 'CLOUDFLARE_API_TOKEN', hub: 'narduk-nuxt-template', config: 'prd' },
       { key: 'CLOUDFLARE_ACCOUNT_ID', hub: 'narduk-nuxt-template', config: 'prd' },
       { key: 'POSTHOG_PUBLIC_KEY', hub: 'narduk-nuxt-template', config: 'prd' },
@@ -163,13 +169,13 @@ async function main() {
       try {
         const hubJson = execSync(
           `doppler secrets get ${key} --project ${hub} --config ${config} --json`,
-          { encoding: 'utf-8', stdio: 'pipe' }
+          { encoding: 'utf-8', stdio: 'pipe' },
         )
         const hubValue = JSON.parse(hubJson)[key]?.computed || ''
 
         const spokeJson = execSync(
           `doppler secrets get ${key} --project ${APP_NAME} --config prd --json`,
-          { encoding: 'utf-8', stdio: 'pipe' }
+          { encoding: 'utf-8', stdio: 'pipe' },
         )
         const spokeValue = JSON.parse(spokeJson)[key]?.computed || ''
 
@@ -179,7 +185,9 @@ async function main() {
         } else if (spokeValue === hubValue) {
           console.log(`  ✅ ${key} — matches hub (${hub})`)
         } else {
-          console.error(`  ❌ ${key} — STALE: does not match hub (${hub}). Run sync-template to fix.`)
+          console.error(
+            `  ❌ ${key} — STALE: does not match hub (${hub}). Run sync-template to fix.`,
+          )
           allGood = false
         }
       } catch {
@@ -194,10 +202,15 @@ async function main() {
   try {
     const remotesOutput = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' })
     const remotes = remotesOutput.split('\n').filter(Boolean)
-    const targetRemoteLine = remotes.find(line => !line.includes('narduk-nuxt-template') && line.includes('(push)'))
+    const targetRemoteLine = remotes.find(
+      (line) => !line.includes('narduk-nuxt-template') && line.includes('(push)'),
+    )
     if (targetRemoteLine) {
       let url = targetRemoteLine.split(/\s+/)[1]
-      url = url.replace(/^(https?:\/\/|git@)/, '').replace(/^github\.com[:/]/, '').replace(/\.git$/, '')
+      url = url
+        .replace(/^(https?:\/\/|git@)/, '')
+        .replace(/^github\.com[:/]/, '')
+        .replace(/\.git$/, '')
       if (url) {
         targetRepoFlag = `--repo "${url}"`
         console.log(`  🎯 Checking secrets for repository: ${url}`)
@@ -208,7 +221,10 @@ async function main() {
   }
 
   try {
-    const ghOutput = execSync(`gh secret list ${targetRepoFlag}`, { encoding: 'utf-8', stdio: 'pipe' })
+    const ghOutput = execSync(`gh secret list ${targetRepoFlag}`, {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    })
     if (ghOutput.includes('DOPPLER_TOKEN')) {
       console.log(`  ✅ DOPPLER_TOKEN is set in GitHub repository.`)
     } else {
@@ -251,7 +267,9 @@ async function main() {
     // Ensure db:migrate doesn't still reference the template database name
     const migrateScript = webPkg.scripts?.['db:migrate'] || ''
     if (migrateScript.includes('narduk-nuxt-template')) {
-      console.error(`  ❌ db:migrate script still references 'narduk-nuxt-template' — run setup with --repair`)
+      console.error(
+        `  ❌ db:migrate script still references 'narduk-nuxt-template' — run setup with --repair`,
+      )
       allGood = false
     } else if (migrateScript) {
       console.log('  ✅ db:migrate script references correct database name')
@@ -265,12 +283,14 @@ async function main() {
   if (allGood) {
     console.log('🎉 All infrastructure checks passed successfully! Your project is ready.')
   } else {
-    console.error('⚠️ Some checks failed. Please review the errors above and fix the issues, or rerun init.')
+    console.error(
+      '⚠️ Some checks failed. Please review the errors above and fix the issues, or rerun init.',
+    )
     process.exit(1)
   }
 }
 
-main().catch(e => {
+main().catch((e) => {
   console.error(e)
   process.exit(1)
 })

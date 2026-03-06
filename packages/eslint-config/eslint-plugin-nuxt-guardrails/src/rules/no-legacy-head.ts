@@ -1,6 +1,6 @@
 /**
  * Rule: nuxt-guardrails/no-legacy-head
- * 
+ *
  * Detects Vue Options API head() method or head: {} option
  * and guides toward useHead() composable
  */
@@ -26,15 +26,15 @@ export default {
   },
   create(context: Rule.RuleContext): Rule.RuleListener {
     const parserServices = context.sourceCode?.parserServices as any
-    
+
     // Only process Vue files
     if (!parserServices || !parserServices.defineTemplateBodyVisitor) {
       return {}
     }
-    
+
     const useHeadSpec = getApiSpec('useHead')
     const docUrl = useHeadSpec?.docUrl || 'https://nuxt.com/docs/api/composables/use-head'
-    
+
     return parserServices.defineTemplateBodyVisitor(
       {},
       {
@@ -48,14 +48,14 @@ export default {
               statement.declaration.type === 'ObjectExpression'
             ) {
               const obj = statement.declaration
-              
+
               // Check for head: {} option
               for (const prop of obj.properties) {
                 if (
                   prop.type === 'Property' &&
                   prop.key &&
                   ((prop.key.type === 'Identifier' && prop.key.name === 'head') ||
-                   (prop.key.type === 'Literal' && prop.key.value === 'head'))
+                    (prop.key.type === 'Literal' && prop.key.value === 'head'))
                 ) {
                   if (prop.method) continue
                   context.report({
@@ -68,10 +68,14 @@ export default {
             }
           }
         },
-        
+
         // Check for head() method
         'Property[key.name="head"]'(node: any) {
-          if (node.method && node.parent?.type === 'ObjectExpression' && node.parent.parent?.type === 'ExportDefaultDeclaration') {
+          if (
+            node.method &&
+            node.parent?.type === 'ObjectExpression' &&
+            node.parent.parent?.type === 'ExportDefaultDeclaration'
+          ) {
             context.report({
               node,
               messageId: 'legacyHeadMethod',
@@ -79,7 +83,7 @@ export default {
             })
           }
         },
-      }
+      },
     )
   },
 }

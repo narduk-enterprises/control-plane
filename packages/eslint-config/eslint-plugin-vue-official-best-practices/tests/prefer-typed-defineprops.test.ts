@@ -16,9 +16,9 @@ const ruleTester = new RuleTester({
   languageOptions: {
     parser: vueParser,
     parserOptions: {
-    ecmaVersion: 2022,
-    sourceType: 'module',
-    parser: tsParser,
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      parser: tsParser,
     },
   },
 })

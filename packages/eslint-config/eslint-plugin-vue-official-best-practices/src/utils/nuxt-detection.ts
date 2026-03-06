@@ -15,28 +15,24 @@ let cacheKey: string | null = null
  */
 export function isNuxtMode(context: RuleContext<string, any[]>): boolean {
   const cwd = context.cwd ?? (context as any).getCwd?.()
-  
+
   // Use cache if same directory
   if (cacheKey === cwd && nuxtCache !== null) {
     return nuxtCache
   }
-  
+
   cacheKey = cwd
-  
+
   // Check for nuxt.config.* files
-  const nuxtConfigFiles = [
-    'nuxt.config.ts',
-    'nuxt.config.js',
-    'nuxt.config.mjs',
-  ]
-  
+  const nuxtConfigFiles = ['nuxt.config.ts', 'nuxt.config.js', 'nuxt.config.mjs']
+
   for (const configFile of nuxtConfigFiles) {
     if (existsSync(join(cwd, configFile))) {
       nuxtCache = true
       return true
     }
   }
-  
+
   // Check package.json for nuxt dependency
   try {
     const packageJsonPath = join(cwd, 'package.json')
@@ -46,7 +42,7 @@ export function isNuxtMode(context: RuleContext<string, any[]>): boolean {
         ...packageJson.dependencies,
         ...packageJson.devDependencies,
       }
-      
+
       if (deps.nuxt || deps['@nuxt/core'] || deps['@nuxt/kit']) {
         nuxtCache = true
         return true
@@ -55,7 +51,7 @@ export function isNuxtMode(context: RuleContext<string, any[]>): boolean {
   } catch {
     // Ignore errors reading package.json
   }
-  
+
   nuxtCache = false
   return false
 }
@@ -79,6 +75,6 @@ export function isAllowedNuxtComposable(name: string): boolean {
     'useRequestEvent',
     'useRequestURL',
   ]
-  
+
   return allowedComposables.includes(name)
 }

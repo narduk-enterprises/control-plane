@@ -50,7 +50,7 @@ export function loadSpec(specPath?: string): Nuxt4Spec {
       break
     }
   }
-  
+
   if (!path) {
     // Return empty spec if file doesn't exist
     return {
@@ -60,7 +60,7 @@ export function loadSpec(specPath?: string): Nuxt4Spec {
       deprecations: {},
     }
   }
-  
+
   const content = readFileSync(path, 'utf-8')
   cachedSpec = JSON.parse(content) as Nuxt4Spec
 
@@ -70,10 +70,7 @@ export function loadSpec(specPath?: string): Nuxt4Spec {
 /**
  * Get spec for a specific API
  */
-export function getApiSpec(
-  apiName: string,
-  specPath?: string
-): import('../types').ApiSpec | null {
+export function getApiSpec(apiName: string, specPath?: string): import('../types').ApiSpec | null {
   const spec = loadSpec(specPath)
   return spec.apis[apiName] || null
 }
@@ -83,7 +80,7 @@ export function getApiSpec(
  */
 export function getDeprecation(
   pattern: string,
-  specPath?: string
+  specPath?: string,
 ): import('../types').DeprecationSpec | null {
   const spec = loadSpec(specPath)
   return spec.deprecations[pattern] || null

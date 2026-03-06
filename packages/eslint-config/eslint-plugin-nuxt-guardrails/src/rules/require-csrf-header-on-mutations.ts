@@ -24,7 +24,11 @@ function isMutationMethod(node: any): boolean {
     return MUTATION_METHODS.has(node.value.toUpperCase())
   }
   // Template literal with no expressions: `POST`
-  if (node.type === 'TemplateLiteral' && node.expressions.length === 0 && node.quasis.length === 1) {
+  if (
+    node.type === 'TemplateLiteral' &&
+    node.expressions.length === 0 &&
+    node.quasis.length === 1
+  ) {
     return MUTATION_METHODS.has(node.quasis[0].value.raw.toUpperCase())
   }
   return false
@@ -38,11 +42,7 @@ function hasXRequestedWithHeader(headersNode: any): boolean {
       if (prop.type !== 'Property') return false
       const key = prop.key
       const keyName =
-        key.type === 'Identifier'
-          ? key.name
-          : key.type === 'Literal'
-            ? key.value
-            : null
+        key.type === 'Identifier' ? key.name : key.type === 'Literal' ? key.value : null
       return keyName === 'X-Requested-With'
     })
   }
@@ -75,7 +75,7 @@ export default {
     ],
     messages: {
       missingCsrf:
-        'Mutation $fetch calls in composables must include { headers: { \'X-Requested-With\': \'XMLHttpRequest\' } } for CSRF protection, or use useNuxtApp().$csrfFetch.',
+        "Mutation $fetch calls in composables must include { headers: { 'X-Requested-With': 'XMLHttpRequest' } } for CSRF protection, or use useNuxtApp().$csrfFetch.",
     },
   },
   create(context: Rule.RuleContext): Rule.RuleListener {
@@ -95,10 +95,7 @@ export default {
         if (!callee) return
 
         // Match $fetch(...) calls
-        const name =
-          callee.type === 'Identifier'
-            ? callee.name
-            : null
+        const name = callee.type === 'Identifier' ? callee.name : null
         if (name !== '$fetch') return
 
         // Need at least 2 args: url + options

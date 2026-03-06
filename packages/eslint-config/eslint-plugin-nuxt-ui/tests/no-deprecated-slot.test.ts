@@ -80,6 +80,6 @@ ruleTester.run('no-deprecated-slot', rule, {
         },
       ],
       output: '<template><UTabs><template #content>Content</template></UTabs></template>',
-    }
+    },
   ],
 })

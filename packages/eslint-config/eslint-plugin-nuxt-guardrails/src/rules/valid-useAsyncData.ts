@@ -1,6 +1,6 @@
 /**
  * Rule: nuxt-guardrails/valid-useAsyncData
- * 
+ *
  * Validates useAsyncData usage patterns
  */
 
@@ -22,7 +22,7 @@ function isValidAsyncDataKey(node: any): boolean {
   if (isLiteral(node)) {
     return true
   }
-  
+
   // Arrow function that returns a string (getter function)
   if (node.type === 'ArrowFunctionExpression') {
     const body = node.body
@@ -42,7 +42,7 @@ function isValidAsyncDataKey(node: any): boolean {
     }
     return false
   }
-  
+
   // Function expression that returns a string
   if (node.type === 'FunctionExpression') {
     const body = node.body
@@ -57,13 +57,13 @@ function isValidAsyncDataKey(node: any): boolean {
     }
     return false
   }
-  
+
   // Identifier - computed ref or variable
   // By default, asyncData requires stable keys, so Identifiers should be rejected
   if (node.type === 'Identifier') {
     return false
   }
-  
+
   return false
 }
 
@@ -88,19 +88,22 @@ export default {
       },
     ],
     messages: {
-      missingCallback: 'useAsyncData requires a callback function as second argument. See: {{docUrl}}',
+      missingCallback:
+        'useAsyncData requires a callback function as second argument. See: {{docUrl}}',
       missingKey: 'useAsyncData requires a key as first argument. See: {{docUrl}}',
-      keyNotLiteral: 'useAsyncData key should be a string literal for stable caching. See: {{docUrl}}',
+      keyNotLiteral:
+        'useAsyncData key should be a string literal for stable caching. See: {{docUrl}}',
       callbackReturnsNothing: 'useAsyncData callback should return a value. See: {{docUrl}}',
     },
   },
   create(context: Rule.RuleContext): Rule.RuleListener {
     const options = context.options[0] || {}
     const requireStableKeys = options.requireStableAsyncDataKeys !== false
-    
+
     const useAsyncDataSpec = getApiSpec('useAsyncData')
-    const docUrl = useAsyncDataSpec?.docUrl || 'https://nuxt.com/docs/api/composables/use-async-data'
-    
+    const docUrl =
+      useAsyncDataSpec?.docUrl || 'https://nuxt.com/docs/api/composables/use-async-data'
+
     return {
       CallExpression(node: any) {
         if (
@@ -108,14 +111,14 @@ export default {
           (node.callee.type !== 'Identifier' && node.callee.type !== 'MemberExpression') ||
           (node.callee.type === 'Identifier' && node.callee.name !== 'useAsyncData') ||
           (node.callee.type === 'MemberExpression' &&
-           node.callee.property &&
-           node.callee.property.name !== 'useAsyncData')
+            node.callee.property &&
+            node.callee.property.name !== 'useAsyncData')
         ) {
           return
         }
-        
+
         const args = node.arguments || []
-        
+
         // Check for key (first arg)
         if (args.length === 0) {
           context.report({
@@ -125,7 +128,7 @@ export default {
           })
           return
         }
-        
+
         // Check if key is literal or a getter function (if required)
         // Valid patterns:
         // - String literal: 'my-key'
@@ -138,7 +141,7 @@ export default {
             data: { docUrl },
           })
         }
-        
+
         // Check for callback (second arg)
         if (args.length < 2) {
           context.report({
@@ -148,14 +151,11 @@ export default {
           })
           return
         }
-        
+
         const callback = args[1]
-        
+
         // Check if callback is a function
-        if (
-          callback.type !== 'ArrowFunctionExpression' &&
-          callback.type !== 'FunctionExpression'
-        ) {
+        if (callback.type !== 'ArrowFunctionExpression' && callback.type !== 'FunctionExpression') {
           context.report({
             node: callback,
             messageId: 'missingCallback',
@@ -163,7 +163,7 @@ export default {
           })
           return
         }
-        
+
         // Check if callback returns something (basic check)
         // This is a heuristic - we can't always determine if a function returns a value
         // But we can check for explicit return statements
@@ -184,12 +184,9 @@ export default {
             // Arrow function with expression body always returns
             return body.type !== 'BlockStatement'
           }
-          
+
           // Only warn if it's a block statement with no return
-          if (
-            callback.body.type === 'BlockStatement' &&
-            !hasReturn(callback.body)
-          ) {
+          if (callback.body.type === 'BlockStatement' && !hasReturn(callback.body)) {
             // This is a warning, not an error, since async functions might return promises
             // We'll skip this check to avoid false positives
           }

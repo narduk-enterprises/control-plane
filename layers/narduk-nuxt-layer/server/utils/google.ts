@@ -1,20 +1,12 @@
 import { SignJWT, importPKCS8 } from 'jose'
 
-export const GA_SCOPES = [
-  'https://www.googleapis.com/auth/analytics.readonly',
-]
+export const GA_SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
 
-export const GSC_SCOPES = [
-  'https://www.googleapis.com/auth/webmasters.readonly',
-]
+export const GSC_SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly']
 
-export const GSC_WRITE_SCOPES = [
-  'https://www.googleapis.com/auth/webmasters',
-]
+export const GSC_WRITE_SCOPES = ['https://www.googleapis.com/auth/webmasters']
 
-export const INDEXING_SCOPES = [
-  'https://www.googleapis.com/auth/indexing',
-]
+export const INDEXING_SCOPES = ['https://www.googleapis.com/auth/indexing']
 
 /**
  * Structured error for Google API failures.
@@ -46,7 +38,7 @@ const cachedTokens: Record<string, { token: string; expiry: number }> = {}
 async function getAccessToken(scopes: string[]): Promise<string> {
   const scopeKey = scopes.join(' ')
   const cached = cachedTokens[scopeKey]
-  
+
   if (cached && cached.expiry > Date.now() + 60_000) {
     return cached.token
   }
@@ -54,13 +46,13 @@ async function getAccessToken(scopes: string[]): Promise<string> {
   const config = useRuntimeConfig()
   const saKeyJson = config.googleServiceAccountKey
   if (!saKeyJson) {
-    throw new Error('GSC_SERVICE_ACCOUNT_JSON not configured — set googleServiceAccountKey in runtimeConfig')
+    throw new Error(
+      'GSC_SERVICE_ACCOUNT_JSON not configured — set googleServiceAccountKey in runtimeConfig',
+    )
   }
 
   // Doppler may store the service account JSON as base64-encoded
-  const decoded = saKeyJson.trim().startsWith('{')
-    ? saKeyJson
-    : atob(saKeyJson)
+  const decoded = saKeyJson.trim().startsWith('{') ? saKeyJson : atob(saKeyJson)
   const sa = JSON.parse(decoded) as { client_email: string; private_key: string }
   const privateKey = await importPKCS8(sa.private_key, 'RS256')
 
@@ -90,7 +82,7 @@ async function getAccessToken(scopes: string[]): Promise<string> {
     throw new Error(`Google token exchange failed (${tokenResponse.status}): ${errorText}`)
   }
 
-  const tokenData = await tokenResponse.json() as { access_token: string; expires_in: number }
+  const tokenData = (await tokenResponse.json()) as { access_token: string; expires_in: number }
   cachedTokens[scopeKey] = {
     token: tokenData.access_token,
     expiry: Date.now() + tokenData.expires_in * 1000,
@@ -114,7 +106,11 @@ export async function googleApiFetch(url: string, scopes: string[], options: Req
 
   if (!response.ok) {
     let body: unknown
-    try { body = await response.json() } catch { body = await response.text().catch(() => null) }
+    try {
+      body = await response.json()
+    } catch {
+      body = await response.text().catch(() => null)
+    }
     throw new GoogleApiError(
       `Google API error: ${response.status} ${response.statusText}`,
       response.status,
@@ -132,11 +128,7 @@ export async function googleApiFetch(url: string, scopes: string[], options: Req
  * Each part is a complete HTTP request as per Google's batch API spec:
  * https://developers.google.com/search/apis/indexing-api/v3/using-api#batching
  */
-export function buildBatchBody(
-  urls: string[],
-  type: string,
-  boundary: string,
-): string {
+export function buildBatchBody(urls: string[], type: string, boundary: string): string {
   const parts = urls.map((url, index) => {
     const payload = JSON.stringify({ url, type })
     return [

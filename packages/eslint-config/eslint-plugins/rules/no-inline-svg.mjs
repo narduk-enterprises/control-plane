@@ -16,8 +16,7 @@ export default {
       category: 'ATX Design System',
     },
     messages: {
-      noInlineSvg:
-        'Use <UIcon name="i-lucide-*"> instead of inline <svg>.',
+      noInlineSvg: 'Use <UIcon name="i-lucide-*"> instead of inline <svg>.',
     },
     schema: [],
   },

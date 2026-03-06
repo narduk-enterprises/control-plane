@@ -8,12 +8,9 @@ import type { Rule } from 'eslint'
 /**
  * Check if a node is in a client-only context
  */
-export function isInClientContext(
-  node: any,
-  _context: Rule.RuleContext
-): boolean {
+export function isInClientContext(node: any, _context: Rule.RuleContext): boolean {
   let current: any = node.parent
-  
+
   while (current) {
     // Check for import.meta.client guard
     if (
@@ -23,7 +20,7 @@ export function isInClientContext(
     ) {
       return isImportMetaClient(current.test)
     }
-    
+
     // Check for early return pattern: if (!import.meta.client) return ...; window...
     if (
       current.type === 'IfStatement' &&
@@ -35,23 +32,23 @@ export function isInClientContext(
       // This is a guard that returns early if NOT client, so the code after is client-only
       return true
     }
-    
+
     // Check for lifecycle hooks (client-only)
     if (
       current.type === 'CallExpression' &&
       current.callee &&
       (current.callee.name === 'onMounted' ||
-       current.callee.name === 'onUnmounted' ||
-       current.callee.name === 'onBeforeUnmount' ||
-       current.callee.name === 'onUpdated' ||
-       current.callee.name === 'onBeforeUpdate')
+        current.callee.name === 'onUnmounted' ||
+        current.callee.name === 'onBeforeUnmount' ||
+        current.callee.name === 'onUpdated' ||
+        current.callee.name === 'onBeforeUpdate')
     ) {
       return true
     }
-    
+
     current = current.parent
   }
-  
+
   return false
 }
 
@@ -128,44 +125,35 @@ export function isProcessServer(node: any): boolean {
 /**
  * Check if a node accesses window, document, or localStorage
  */
-export function isDomAccess(node: any): { type: 'window' | 'document' | 'localStorage' | null; member: string | null } {
+export function isDomAccess(node: any): {
+  type: 'window' | 'document' | 'localStorage' | null
+  member: string | null
+} {
   if (node.type !== 'MemberExpression') {
     return { type: null, member: null }
   }
-  
-  if (
-    node.object &&
-    node.object.type === 'Identifier' &&
-    node.object.name === 'window'
-  ) {
+
+  if (node.object && node.object.type === 'Identifier' && node.object.name === 'window') {
     return {
       type: 'window',
       member: node.property && node.property.name ? node.property.name : null,
     }
   }
-  
-  if (
-    node.object &&
-    node.object.type === 'Identifier' &&
-    node.object.name === 'document'
-  ) {
+
+  if (node.object && node.object.type === 'Identifier' && node.object.name === 'document') {
     return {
       type: 'document',
       member: node.property && node.property.name ? node.property.name : null,
     }
   }
-  
-  if (
-    node.object &&
-    node.object.type === 'Identifier' &&
-    node.object.name === 'localStorage'
-  ) {
+
+  if (node.object && node.object.type === 'Identifier' && node.object.name === 'localStorage') {
     return {
       type: 'localStorage',
       member: node.property && node.property.name ? node.property.name : null,
     }
   }
-  
+
   return { type: null, member: null }
 }
 
@@ -180,7 +168,7 @@ export function getScriptAST(ast: AST.ESLintProgram): any {
       return ast
     }
   }
-  
+
   return ast
 }
 
@@ -188,8 +176,5 @@ export function getScriptAST(ast: AST.ESLintProgram): any {
  * Check if a string is a literal value (including template literals)
  */
 export function isLiteral(node: any): boolean {
-  return (
-    node.type === 'Literal' ||
-    node.type === 'TemplateLiteral'
-  )
+  return node.type === 'Literal' || node.type === 'TemplateLiteral'
 }

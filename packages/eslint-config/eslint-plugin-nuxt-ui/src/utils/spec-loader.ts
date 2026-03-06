@@ -50,7 +50,6 @@ export function loadSpec(specPath?: string): NuxtUISpec {
       break
     }
   }
-  
 
   if (!path) {
     // Return empty spec if file doesn't exist (spec not generated yet)
@@ -59,7 +58,7 @@ export function loadSpec(specPath?: string): NuxtUISpec {
       components: {},
     }
   }
-  
+
   const content = readFileSync(path, 'utf-8')
   cachedSpec = JSON.parse(content) as NuxtUISpec
 
@@ -71,13 +70,13 @@ export function loadSpec(specPath?: string): NuxtUISpec {
  */
 export function getComponentSpec(
   componentName: string,
-  specPath?: string
+  specPath?: string,
 ): import('../types').ComponentSpec | null {
   const spec = loadSpec(specPath)
   if (spec.components[componentName]) {
     return spec.components[componentName]
   }
-  
+
   // Try case-insensitive lookup for improperly normalized names (e.g. USelectmenu vs USelectMenu)
   const lowerName = componentName.toLowerCase()
   for (const key of Object.keys(spec.components)) {
@@ -85,6 +84,6 @@ export function getComponentSpec(
       return spec.components[key]
     }
   }
-  
+
   return null
 }

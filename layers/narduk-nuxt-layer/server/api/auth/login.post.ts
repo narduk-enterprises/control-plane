@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { verifyUserPassword } from '../../utils/password'
-import { createSession } from '../../utils/auth'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -10,6 +9,8 @@ const loginSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'auth-login', 10, 60_000)
+
   const body = await readValidatedBody(event, loginSchema.parse)
   const db = useDatabase(event)
   const normalizedEmail = body.email.toLowerCase()
@@ -31,9 +32,15 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { passwordHash: _passwordHash, ...cleanUser } = user
+  const { passwordHash: _passwordHash, ...rest } = user
+  const cleanUser = {
+    id: rest.id,
+    email: rest.email,
+    name: rest.name,
+    isAdmin: rest.isAdmin,
+  }
 
-  await createSession(event, user.id)
+  await setUserSession(event, { user: cleanUser })
 
   return { user: cleanUser }
 })

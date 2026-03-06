@@ -19,7 +19,7 @@ export default defineConfig({
     if (existsSync(specSource)) {
       mkdirSync(join(__dirname, 'dist/spec'), { recursive: true })
       copyFileSync(specSource, specDest)
-       
+
       console.log('✓ Copied spec file to dist')
     }
   },

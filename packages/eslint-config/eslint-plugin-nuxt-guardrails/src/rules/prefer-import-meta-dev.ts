@@ -36,7 +36,12 @@ export default {
     const filename = context.filename ?? (context as any).getFilename?.() ?? ''
     const normalized = filename.replace(/\\/g, '/')
 
-    if (!testMode && normalized && !normalized.includes('/server/') && !normalized.includes('/app/')) {
+    if (
+      !testMode &&
+      normalized &&
+      !normalized.includes('/server/') &&
+      !normalized.includes('/app/')
+    ) {
       return {}
     }
 

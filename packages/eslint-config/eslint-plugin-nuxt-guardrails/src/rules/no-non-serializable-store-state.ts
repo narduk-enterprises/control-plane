@@ -12,7 +12,8 @@ export default {
   meta: {
     type: 'problem' as const,
     docs: {
-      description: 'disallow ref<Map>/ref<Set>/new Map()/new Set() in app/stores for SSR serialization',
+      description:
+        'disallow ref<Map>/ref<Set>/new Map()/new Set() in app/stores for SSR serialization',
       category: 'Best Practices',
       recommended: true,
     },

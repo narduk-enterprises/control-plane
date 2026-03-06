@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/no-composable-conditional-hooks
- * 
+ *
  * Warns against conditionally calling Vue composables in composables
  */
 
@@ -40,20 +40,20 @@ export default {
     },
     schema: [],
     messages: {
-      conditionalHook: 'Vue composables (ref, computed, watchEffect, etc.) should be called unconditionally in composables. See: {{url}}',
+      conditionalHook:
+        'Vue composables (ref, computed, watchEffect, etc.) should be called unconditionally in composables. See: {{url}}',
     },
   },
   create(context: RuleContext<string, any[]>): RuleListener {
     const filename = context.filename ?? context.getFilename?.()
-    
+
     // Only apply to composable files (heuristic)
-    const isComposableFile = filename.includes('composables/') || 
-                            filename.includes('composable')
-    
+    const isComposableFile = filename.includes('composables/') || filename.includes('composable')
+
     if (!isComposableFile) {
       return {}
     }
-    
+
     const checkConditionalHook = (node: any, parent: any) => {
       // Check if this is a Vue composable call
       if (
@@ -81,7 +81,7 @@ export default {
             })
             return
           }
-          
+
           // Stop when we reach the function boundary where the composable resides
           if (
             current.type === 'FunctionDeclaration' ||
@@ -90,14 +90,14 @@ export default {
           ) {
             break
           }
-          
+
           current = current.parent
         }
       }
     }
-    
+
     return {
-      'CallExpression'(node: any) {
+      CallExpression(node: any) {
         checkConditionalHook(node, node.parent)
       },
     }

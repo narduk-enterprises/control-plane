@@ -22,13 +22,7 @@
     { "pattern": "./packages/*" },
     { "pattern": "./plugins/*" }
   ],
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact",
-    "vue"
-  ],
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact", "vue"],
 
   // ── Per-language formatter overrides ────────────────────────────────────────
   "[vue]": {

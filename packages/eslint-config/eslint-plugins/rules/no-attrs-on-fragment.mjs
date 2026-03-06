@@ -24,11 +24,7 @@ import { defineTemplateBodyVisitor } from '../utils.mjs'
  * Tag names that Vue treats as non-inheritable root nodes.
  * These cannot receive fallthrough attributes even when used alone.
  */
-const UNINHERITABLE_ROOT_TAGS = new Set([
-  'teleport',
-  'Teleport',
-  'template',
-])
+const UNINHERITABLE_ROOT_TAGS = new Set(['teleport', 'Teleport', 'template'])
 
 /** @type {import('eslint').Rule.RuleModule} */
 export default {
@@ -80,9 +76,7 @@ export default {
       },
 
       // Match: export default { inheritAttrs: false }
-      'ExportDefaultDeclaration > ObjectExpression > Property[key.name="inheritAttrs"]'(
-        node
-      ) {
+      'ExportDefaultDeclaration > ObjectExpression > Property[key.name="inheritAttrs"]'(node) {
         if (node.value.type === 'Literal' && node.value.value === false) {
           hasInheritAttrsFalse = true
         }
@@ -101,7 +95,7 @@ export default {
           const rootChildren = node.children.filter(
             (child) =>
               child.type === 'VElement' ||
-              (child.type === 'VText' && child.value.trim().length > 0)
+              (child.type === 'VText' && child.value.trim().length > 0),
           )
 
           if (hasInheritAttrsFalse) return
@@ -130,10 +124,7 @@ export default {
           }
 
           // Case 3: Only text nodes at root (no elements)
-          if (
-            rootChildren.length > 0 &&
-            rootChildren.every((c) => c.type === 'VText')
-          ) {
+          if (rootChildren.length > 0 && rootChildren.every((c) => c.type === 'VText')) {
             context.report({
               node: node.startTag || node,
               messageId: 'textOnlyRootNeedsInheritAttrs',
@@ -141,7 +132,7 @@ export default {
           }
         },
       },
-      scriptVisitor
+      scriptVisitor,
     )
   },
 }

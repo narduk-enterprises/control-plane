@@ -1,6 +1,6 @@
 /**
  * Rule: vue-official/no-async-computed-getter
- * 
+ *
  * Prevents async computed properties (anti-pattern)
  */
 
@@ -18,20 +18,21 @@ export default {
     },
     schema: [],
     messages: {
-      noAsyncComputed: 'Computed properties should not be async. Use watchEffect/watch + ref, or useFetch/useAsyncData for data fetching. See: {{url}}',
+      noAsyncComputed:
+        'Computed properties should not be async. Use watchEffect/watch + ref, or useFetch/useAsyncData for data fetching. See: {{url}}',
     },
   },
   create(context: RuleContext<string, any[]>): RuleListener {
     const parserServices = (context.sourceCode?.parserServices ?? context.parserServices) as any
-    
+
     if (!parserServices || !parserServices.defineTemplateBodyVisitor) {
       return {}
     }
-    
+
     return parserServices.defineTemplateBodyVisitor(
       {},
       {
-        'CallExpression'(node: any) {
+        CallExpression(node: any) {
           // Check for computed(async () => ...)
           if (
             node.callee &&
@@ -40,12 +41,9 @@ export default {
             node.arguments.length > 0
           ) {
             const firstArg = node.arguments[0]
-            
+
             // Check if first argument is async function
-            if (
-              firstArg.type === 'ArrowFunctionExpression' &&
-              firstArg.async === true
-            ) {
+            if (firstArg.type === 'ArrowFunctionExpression' && firstArg.async === true) {
               context.report({
                 node,
                 messageId: 'noAsyncComputed',
@@ -53,11 +51,10 @@ export default {
               })
               return
             }
-            
+
             // Check if first argument is async function expression
             if (
-              (firstArg.type === 'FunctionExpression' ||
-                firstArg.type === 'FunctionDeclaration') &&
+              (firstArg.type === 'FunctionExpression' || firstArg.type === 'FunctionDeclaration') &&
               firstArg.async === true
             ) {
               context.report({
@@ -68,7 +65,7 @@ export default {
             }
           }
         },
-      }
+      },
     )
   },
 }

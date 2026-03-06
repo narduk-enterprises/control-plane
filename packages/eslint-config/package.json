@@ -12,7 +12,8 @@
     "build:guardrails": "cd eslint-plugin-nuxt-guardrails && pnpm run build",
     "build:vue-official": "cd eslint-plugin-vue-official-best-practices && pnpm run build",
     "test": "vitest run",
-    "test:plugins": "vitest run eslint-plugins/tests"
+    "test:plugins": "vitest run eslint-plugins/tests",
+    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path ../../.gitignore"
   },
   "dependencies": {
     "eslint-config-prettier": "^10.1.8",

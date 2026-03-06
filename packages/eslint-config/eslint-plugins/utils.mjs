@@ -20,10 +20,7 @@ export function defineTemplateBodyVisitor(context, templateVisitor, scriptVisito
     sourceCode.parserServices &&
     typeof sourceCode.parserServices.defineTemplateBodyVisitor === 'function'
   ) {
-    return sourceCode.parserServices.defineTemplateBodyVisitor(
-      templateVisitor,
-      scriptVisitor
-    )
+    return sourceCode.parserServices.defineTemplateBodyVisitor(templateVisitor, scriptVisitor)
   }
   // Fallback: not a Vue file or parser services unavailable
   return scriptVisitor || {}

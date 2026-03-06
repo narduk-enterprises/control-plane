@@ -33,7 +33,14 @@
     {
       "description": "Group test tooling (Vitest, Playwright, test-utils)",
       "groupName": "testing",
-      "matchPackagePatterns": ["^vitest", "^@playwright/", "^playwright$", "^happy-dom", "^@nuxt/test-utils", "^@vue/test-utils"],
+      "matchPackagePatterns": [
+        "^vitest",
+        "^@playwright/",
+        "^playwright$",
+        "^happy-dom",
+        "^@nuxt/test-utils",
+        "^@vue/test-utils"
+      ],
       "automerge": true,
       "automergeType": "pr"
     },
@@ -50,10 +57,14 @@
       "automerge": true,
       "automergeType": "pr",
       "excludePackagePatterns": [
-        "^nuxt", "^@nuxt/", "^@nuxtjs/",
-        "^wrangler", "^@cloudflare/",
+        "^nuxt",
+        "^@nuxt/",
+        "^@nuxtjs/",
+        "^wrangler",
+        "^@cloudflare/",
         "^drizzle-",
-        "^tailwindcss", "^@tailwindcss/"
+        "^tailwindcss",
+        "^@tailwindcss/"
       ]
     },
     {

@@ -32,25 +32,29 @@ import { fileURLToPath } from 'node:url'
 // --- 1. Argument Parsing ---
 
 const args = Object.fromEntries(
-  process.argv.slice(2).map(arg => {
+  process.argv.slice(2).map((arg) => {
     const match = arg.match(/^--([^=]+)=?(.*)$/)
     if (match) return [match[1], match[2] || true]
     return [arg, true]
-  })
+  }),
 ) as Record<string, string | true>
 
 const requiredArgs = ['name', 'display', 'url']
-const missingArgs = requiredArgs.filter(arg => !args[arg] || typeof args[arg] !== 'string')
+const missingArgs = requiredArgs.filter((arg) => !args[arg] || typeof args[arg] !== 'string')
 
 if (missingArgs.length > 0) {
   console.error()
   console.error('❌ Missing arguments!')
   console.error()
   console.error('Usage example:')
-  console.error('  pnpm run setup -- --name="narduk-enterprises" --display="Narduk Enterprises" --url="https://nard.uk"')
+  console.error(
+    '  pnpm run setup -- --name="narduk-enterprises" --display="Narduk Enterprises" --url="https://nard.uk"',
+  )
   console.error()
   console.error('Re-run (repair infra only):')
-  console.error('  pnpm run setup -- --name="narduk-enterprises" --display="Narduk Enterprises" --url="https://nard.uk" --repair')
+  console.error(
+    '  pnpm run setup -- --name="narduk-enterprises" --display="Narduk Enterprises" --url="https://nard.uk" --repair',
+  )
   console.error()
   console.error('Please provide: --name, --display, and --url')
   process.exit(1)
@@ -63,7 +67,9 @@ let REPAIR_MODE = !!args.repair
 
 // Validate APP_NAME to prevent shell injection
 if (!/^[a-z0-9][a-z0-9-]*$/.test(APP_NAME)) {
-  console.error('❌ Invalid --name: must match /^[a-z0-9][a-z0-9-]*$/ (lowercase alphanumeric + hyphens).')
+  console.error(
+    '❌ Invalid --name: must match /^[a-z0-9][a-z0-9-]*$/ (lowercase alphanumeric + hyphens).',
+  )
   process.exit(1)
 }
 
@@ -106,7 +112,10 @@ const REPLACEMENTS = [
   { from: /Nuxt 4 Template/g, to: DISPLAY_NAME },
   { from: /Nuxt 4 Demo/g, to: DISPLAY_NAME },
   // Template-specific site description — replace with a generic one the agent can customize.
-  { from: /A production-ready demo template showcasing Nuxt 4, Nuxt UI 4, Tailwind CSS 4, and Cloudflare Workers with D1 database\./g, to: `${DISPLAY_NAME} — powered by Nuxt 4 and Cloudflare Workers.` },
+  {
+    from: /A production-ready demo template showcasing Nuxt 4, Nuxt UI 4, Tailwind CSS 4, and Cloudflare Workers with D1 database\./g,
+    to: `${DISPLAY_NAME} — powered by Nuxt 4 and Cloudflare Workers.`,
+  },
 
   // 3. Restore the protected layer package name
   { from: new RegExp(LAYER_PACKAGE_PLACEHOLDER, 'g'), to: LAYER_PACKAGE },
@@ -118,7 +127,16 @@ const ROOT_DIR = path.resolve(__dirname, '..')
 // --- Helper Functions ---
 
 async function walkDir(dir: string): Promise<string[]> {
-  const omitDirs = new Set(['node_modules', '.git', '.nuxt', '.output', 'dist', 'playwright-report', 'test-results', '.DS_Store'])
+  const omitDirs = new Set([
+    'node_modules',
+    '.git',
+    '.nuxt',
+    '.output',
+    'dist',
+    'playwright-report',
+    'test-results',
+    '.DS_Store',
+  ])
   const files: string[] = []
 
   const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -128,7 +146,7 @@ async function walkDir(dir: string): Promise<string[]> {
 
     const fullPath = path.join(dir, entry.name)
     if (entry.isDirectory()) {
-      files.push(...await walkDir(fullPath))
+      files.push(...(await walkDir(fullPath)))
     } else {
       // Exclude binary formats and images
       if (!entry.name.match(/\.(png|jpe?g|gif|webp|svg|ico|ttf|woff2?|sqlite|db)$/i)) {
@@ -144,7 +162,7 @@ function getDopplerSecretNames(project: string, config: string): Set<string> {
   try {
     const output = execSync(
       `doppler secrets --project ${project} --config ${config} --only-names --plain`,
-      { encoding: 'utf-8', stdio: 'pipe' }
+      { encoding: 'utf-8', stdio: 'pipe' },
     )
     return new Set(output.trim().split('\n').filter(Boolean))
   } catch {
@@ -169,9 +187,12 @@ async function main() {
   let hasGitRemote = false
   try {
     const remotesCheck = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' }).trim()
-    hasGitRemote = remotesCheck.split('\n').some(line => !line.includes('narduk-nuxt-template') && line.includes('(push)'))
-  } catch { /* no git or no remotes */ }
-
+    hasGitRemote = remotesCheck
+      .split('\n')
+      .some((line) => !line.includes('narduk-nuxt-template') && line.includes('(push)'))
+  } catch {
+    /* no git or no remotes */
+  }
 
   // Pre-flight check: Ensure git is initialized and remote is set properly.
   // The template remote check is FATAL (pushing to the template repo is dangerous).
@@ -181,7 +202,9 @@ async function main() {
       const remotesCheck = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' }).trim()
       if (remotesCheck.includes('narduk-nuxt-template')) {
         console.error('\n❌ CRITICAL: Template repository detected.')
-        console.error('You must clear the template history and link to your own repository before running setup.')
+        console.error(
+          'You must clear the template history and link to your own repository before running setup.',
+        )
         console.error('\nPlease run the following commands:')
         console.error('  rm -rf .git')
         console.error('  git init')
@@ -190,12 +213,16 @@ async function main() {
         process.exit(1)
       }
     } catch {
-      console.warn('\n⚠️  No git remote detected — GitHub secret and fleet registration steps will be skipped.')
+      console.warn(
+        '\n⚠️  No git remote detected — GitHub secret and fleet registration steps will be skipped.',
+      )
       console.warn('   After adding a remote, re-run with --repair to complete those steps.\n')
     }
   }
 
-  console.log(`\n🚀 Initializing: ${DISPLAY_NAME} (${APP_NAME})${REPAIR_MODE ? ' [REPAIR MODE]' : ''}`)
+  console.log(
+    `\n🚀 Initializing: ${DISPLAY_NAME} (${APP_NAME})${REPAIR_MODE ? ' [REPAIR MODE]' : ''}`,
+  )
 
   // Step result tracking for structured summary
   const completed: string[] = []
@@ -209,9 +236,12 @@ async function main() {
     // Even in repair mode, ensure wrangler.json name and database_name are correct.
     // These are critical for deployment — if they still say "narduk-nuxt-template",
     // the worker deploys to the wrong name.
-    const appsForWrangler = await fs.readdir(path.join(ROOT_DIR, 'apps'), { withFileTypes: true }).catch(() => [])
+    const appsForWrangler = await fs
+      .readdir(path.join(ROOT_DIR, 'apps'), { withFileTypes: true })
+      .catch(() => [])
     for (const entry of appsForWrangler) {
-      if (!entry.isDirectory() || entry.name.startsWith('example-') || entry.name === 'showcase') continue
+      if (!entry.isDirectory() || entry.name.startsWith('example-') || entry.name === 'showcase')
+        continue
       const wranglerPath = path.join(ROOT_DIR, 'apps', entry.name, 'wrangler.json')
       try {
         const content = await fs.readFile(wranglerPath, 'utf-8')
@@ -224,14 +254,19 @@ async function main() {
         }
         // Replace database name
         if (parsed.d1_databases?.[0]?.database_name?.includes('narduk-nuxt-template')) {
-          parsed.d1_databases[0].database_name = parsed.d1_databases[0].database_name.replace('narduk-nuxt-template', APP_NAME)
+          parsed.d1_databases[0].database_name = parsed.d1_databases[0].database_name.replace(
+            'narduk-nuxt-template',
+            APP_NAME,
+          )
           changed = true
         }
         if (changed) {
           await fs.writeFile(wranglerPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8')
           console.log(`  ✅ Fixed wrangler.json for apps/${entry.name} (name → ${parsed.name})`)
         }
-      } catch { /* no wrangler.json */ }
+      } catch {
+        /* no wrangler.json */
+      }
     }
   } else {
     console.log('\nStep 1/10: Replacing boilerplate strings...')
@@ -254,7 +289,9 @@ async function main() {
       if (isLayerPkg) {
         try {
           preservedName = JSON.parse(original).name
-        } catch { /* not valid JSON, skip preservation */ }
+        } catch {
+          /* not valid JSON, skip preservation */
+        }
       }
 
       for (const r of REPLACEMENTS) {
@@ -267,7 +304,9 @@ async function main() {
           const parsed = JSON.parse(content)
           parsed.name = preservedName
           content = JSON.stringify(parsed, null, 2) + '\n'
-        } catch { /* not valid JSON after replacement, skip */ }
+        } catch {
+          /* not valid JSON after replacement, skip */
+        }
       }
 
       if (original !== content) {
@@ -283,14 +322,14 @@ async function main() {
     //   - Root README.md (overwritten in Step 4)
     //   - layers/ .md files (reference the layer's published package identity)
     //   - .agents/workflows/ .md files (instructional references to the template)
-    const mdFiles = (await walkDir(ROOT_DIR))
-      .filter(f =>
-        f.endsWith('.md')
-        && !f.endsWith('AGENTS.md')
-        && f !== path.join(ROOT_DIR, 'README.md')
-        && !f.includes(`${path.sep}layers${path.sep}`)
-        && !f.includes(`${path.sep}.agents${path.sep}`)
-      )
+    const mdFiles = (await walkDir(ROOT_DIR)).filter(
+      (f) =>
+        f.endsWith('.md') &&
+        !f.endsWith('AGENTS.md') &&
+        f !== path.join(ROOT_DIR, 'README.md') &&
+        !f.includes(`${path.sep}layers${path.sep}`) &&
+        !f.includes(`${path.sep}.agents${path.sep}`),
+    )
     let mdChanged = 0
     for (const file of mdFiles) {
       const original = await fs.readFile(file, 'utf-8')
@@ -337,7 +376,7 @@ async function main() {
     try {
       const infoOutput = execSync(`npx wrangler d1 info ${name} --json`, {
         encoding: 'utf-8',
-        stdio: 'pipe'
+        stdio: 'pipe',
       })
       const info = JSON.parse(infoOutput)
       const dbId = info.uuid || info.database_id
@@ -359,9 +398,9 @@ async function main() {
     const entries = await fs.readdir(appsDir, { withFileTypes: true })
     // Only provision databases for actual production apps, not examples.
     appDirs = entries
-      .filter(e => e.isDirectory())
-      .map(e => e.name)
-      .filter(name => name !== 'showcase' && !name.startsWith('example-'))
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .filter((name) => name !== 'showcase' && !name.startsWith('example-'))
   } catch {
     appDirs = []
   }
@@ -399,12 +438,16 @@ async function main() {
         try {
           const urlObj = new URL(SITE_URL)
           if (urlObj.hostname.endsWith('.workers.dev')) {
-            console.log(`  ⏭ Skipping custom domain — ${urlObj.hostname} is a workers.dev subdomain.`)
+            console.log(
+              `  ⏭ Skipping custom domain — ${urlObj.hostname} is a workers.dev subdomain.`,
+            )
           } else {
             if (!parsedWrangler.routes) {
               parsedWrangler.routes = []
             }
-            const existingRoute = parsedWrangler.routes.find((r: any) => r.pattern === urlObj.hostname)
+            const existingRoute = parsedWrangler.routes.find(
+              (r: any) => r.pattern === urlObj.hostname,
+            )
             if (!existingRoute) {
               parsedWrangler.routes.push({ pattern: urlObj.hostname, custom_domain: true })
             }
@@ -460,7 +503,10 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
   } else {
     console.log(`  Running: doppler projects create ${APP_NAME}`)
     try {
-      execSync(`doppler projects create ${APP_NAME} --description "${DISPLAY_NAME} auto-provisioned"`, { encoding: 'utf-8', stdio: 'pipe' })
+      execSync(
+        `doppler projects create ${APP_NAME} --description "${DISPLAY_NAME} auto-provisioned"`,
+        { encoding: 'utf-8', stdio: 'pipe' },
+      )
       console.log(`  ✅ Doppler project created: ${APP_NAME}`)
     } catch (error: any) {
       const stderr = error.stderr || ''
@@ -505,7 +551,9 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
           { encoding: 'utf-8', stdio: 'pipe' },
         )
         hubToken = JSON.parse(hubJson).CLOUDFLARE_API_TOKEN?.computed || ''
-      } catch { /* hub unavailable */ }
+      } catch {
+        /* hub unavailable */
+      }
 
       const toSet: string[] = []
 
@@ -517,7 +565,9 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
             { encoding: 'utf-8', stdio: 'pipe' },
           )
           spokeToken = JSON.parse(spokeJson).CLOUDFLARE_API_TOKEN?.computed || ''
-        } catch { /* not set */ }
+        } catch {
+          /* not set */
+        }
 
         if (spokeToken !== hubToken) {
           // Stale or missing — force all hub refs
@@ -550,8 +600,12 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
       }
 
       if (toSet.length > 0) {
-        execSync(`doppler secrets set ${toSet.join(' ')} --project ${APP_NAME} --config prd`, { stdio: 'pipe' })
-        console.log(`  ✅ Synced ${toSet.length} credentials: ${toSet.map(s => s.split('=')[0]).join(', ')}`)
+        execSync(`doppler secrets set ${toSet.join(' ')} --project ${APP_NAME} --config prd`, {
+          stdio: 'pipe',
+        })
+        console.log(
+          `  ✅ Synced ${toSet.length} credentials: ${toSet.map((s) => s.split('=')[0]).join(', ')}`,
+        )
       } else {
         console.log(`  ⏭ All credentials correctly configured (hub references verified).`)
       }
@@ -569,7 +623,9 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     if (!hasGitRemote) {
       console.log('  ⏭ No git remote found (expected for fresh scaffolds).')
       console.log('    After adding a remote, re-run with --repair to set the GitHub secret.')
-      console.log('    ⚠️  Deploy will fail on push to main until DOPPLER_TOKEN is set; run setup with --repair after adding your remote.')
+      console.log(
+        '    ⚠️  Deploy will fail on push to main until DOPPLER_TOKEN is set; run setup with --repair after adding your remote.',
+      )
     } else {
       try {
         // Check if ci-deploy token already exists
@@ -577,7 +633,7 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         try {
           const tokensOutput = execSync(
             `doppler configs tokens --project ${APP_NAME} --config prd --plain`,
-            { encoding: 'utf-8', stdio: 'pipe' }
+            { encoding: 'utf-8', stdio: 'pipe' },
           )
           tokenExists = tokensOutput.includes('ci-deploy')
         } catch {
@@ -585,11 +641,13 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         }
 
         if (tokenExists) {
-          console.log(`  ⏭ ci-deploy token already exists. Skipping to avoid invalidating active CI token.`)
+          console.log(
+            `  ⏭ ci-deploy token already exists. Skipping to avoid invalidating active CI token.`,
+          )
         } else {
           const dopplerToken = execSync(
             `doppler configs tokens create ci-deploy --project ${APP_NAME} --config prd --plain`,
-            { encoding: 'utf-8', stdio: 'pipe' }
+            { encoding: 'utf-8', stdio: 'pipe' },
           ).trim()
 
           if (!dopplerToken) {
@@ -601,7 +659,9 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
           try {
             const remotesOutput = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' })
             const remotes = remotesOutput.split('\n').filter(Boolean)
-            const targetRemoteLine = remotes.find(line => !line.includes('narduk-nuxt-template') && line.includes('(push)'))
+            const targetRemoteLine = remotes.find(
+              (line) => !line.includes('narduk-nuxt-template') && line.includes('(push)'),
+            )
             if (targetRemoteLine) {
               let url = targetRemoteLine.split(/\s+/)[1]
               if (url) {
@@ -619,7 +679,10 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
           }
 
           // Upload to GitHub as a repository secret via gh CLI
-          execSync(`gh secret set DOPPLER_TOKEN ${targetRepoFlag} --body "${dopplerToken}"`, { encoding: 'utf-8', stdio: 'pipe' })
+          execSync(`gh secret set DOPPLER_TOKEN ${targetRepoFlag} --body "${dopplerToken}"`, {
+            encoding: 'utf-8',
+            stdio: 'pipe',
+          })
           console.log(`  ✅ DOPPLER_TOKEN set as GitHub Actions secret.`)
         }
       } catch (error: any) {
@@ -641,10 +704,10 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
   // Note: this file is gitignored and must be recreated by each developer.
   const dopplerYamlPath = path.join(ROOT_DIR, 'doppler.yaml')
   try {
-    await fs.writeFile(dopplerYamlPath, \`setup:\\n  project: \${APP_NAME}\\n  config: dev\\n\`, 'utf-8')
-    console.log(\`  ✅ Created doppler.yaml (project=\${APP_NAME}, config=dev)\`)
+    await fs.writeFile(dopplerYamlPath, `setup:\n  project: ${APP_NAME}\n  config: dev\n`, 'utf-8')
+    console.log(`  ✅ Created doppler.yaml (project=${APP_NAME}, config=dev)`)
   } catch (error: any) {
-    console.warn(\`  ⚠️ Failed to explicitly write doppler.yaml: \${error.message}\`)
+    console.warn(`  ⚠️ Failed to explicitly write doppler.yaml: ${error.message}`)
   }
 
   if (!DOPPLER_AVAILABLE) {
@@ -653,11 +716,14 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     console.log('  ⏭ Running in CI; skipping local Doppler setup command.')
   } else {
     try {
-      execSync(\`doppler setup --project \${APP_NAME} --config dev\`, { encoding: 'utf-8', stdio: 'pipe' })
-      console.log(\`  ✅ Local Doppler environment configured for project: \${APP_NAME} (dev config)\`)
+      execSync(`doppler setup --project ${APP_NAME} --config dev`, {
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      })
+      console.log(`  ✅ Local Doppler environment configured for project: ${APP_NAME} (dev config)`)
     } catch (error: any) {
       const stderr = error.stderr || error.message || ''
-      console.warn(\`  ⚠️ Failed to configure local Doppler environment: \${stderr}\`)
+      console.warn(`  ⚠️ Failed to configure local Doppler environment: ${stderr}`)
     }
   }
 
@@ -675,27 +741,35 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         // analytics script hard-exit with process.exit(1).
         const analyticsSecrets = getDopplerSecretNames(APP_NAME, 'prd')
         const requiredAnalyticsKeys = ['GA_ACCOUNT_ID', 'SITE_URL', 'GSC_SERVICE_ACCOUNT_JSON']
-        const missingAnalytics = requiredAnalyticsKeys.filter(k => !analyticsSecrets.has(k))
+        const missingAnalytics = requiredAnalyticsKeys.filter((k) => !analyticsSecrets.has(k))
 
         if (missingAnalytics.length > 0) {
           console.log('  ⏭ Deferring analytics setup — missing Doppler secrets:')
-          missingAnalytics.forEach(k => console.log(`    • ${k}`))
-          console.log(`  Once set, run: doppler run --project ${APP_NAME} --config prd -- npx jiti tools/setup-analytics.ts all`)
+          missingAnalytics.forEach((k) => console.log(`    • ${k}`))
+          console.log(
+            `  Once set, run: doppler run --project ${APP_NAME} --config prd -- npx jiti tools/setup-analytics.ts all`,
+          )
         } else {
           console.log('  Installing ephemeral dependencies (googleapis, google-auth-library)...')
-          execSync('pnpm add -w --save-dev googleapis google-auth-library', { encoding: 'utf-8', stdio: 'pipe' })
+          execSync('pnpm add -w --save-dev googleapis google-auth-library', {
+            encoding: 'utf-8',
+            stdio: 'pipe',
+          })
 
           console.log('  Executing Narduk Analytics provisioning pipeline...')
           // Run against the app's own Doppler project (prd config) so SITE_URL, GSC creds,
           // and hub references all resolve correctly. Command is `all`, not `setup:all`.
-          execSync(`doppler run --project ${APP_NAME} --config prd -- npx jiti tools/setup-analytics.ts all`, {
-            stdio: 'inherit',
-            env: {
-              ...process.env,
-              APP_NAME,
-              GSC_USER_EMAIL: process.env.GSC_USER_EMAIL || ''
-            }
-          })
+          execSync(
+            `doppler run --project ${APP_NAME} --config prd -- npx jiti tools/setup-analytics.ts all`,
+            {
+              stdio: 'inherit',
+              env: {
+                ...process.env,
+                APP_NAME,
+                GSC_USER_EMAIL: process.env.GSC_USER_EMAIL || '',
+              },
+            },
+          )
           console.log(`  ✅ Analytics & Search Console setup successful.`)
         }
       } else {
@@ -711,13 +785,18 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
   try {
     const webPublicDir = path.join(ROOT_DIR, 'apps', 'web', 'public')
     const webFaviconSvg = path.join(webPublicDir, 'favicon.svg')
-    if (await fs.stat(webFaviconSvg).then(() => true).catch(() => false)) {
+    if (
+      await fs
+        .stat(webFaviconSvg)
+        .then(() => true)
+        .catch(() => false)
+    ) {
       console.log('  Installing ephemeral dependencies (sharp)...')
       execSync('pnpm add -w --save-dev sharp', { encoding: 'utf-8', stdio: 'pipe' })
 
       execSync(
         `npx tsx tools/generate-favicons.ts --target=apps/web/public --name="${DISPLAY_NAME}" --short-name="${DISPLAY_NAME.slice(0, 12)}"`,
-        { stdio: 'inherit', cwd: ROOT_DIR }
+        { stdio: 'inherit', cwd: ROOT_DIR },
       )
       console.log('  ✅ Favicon assets generated for apps/web.')
     } else {
@@ -736,11 +815,11 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
   // 9a: Always run — delete example apps and template-only workflows (idempotent via force: true)
   try {
     const rmOptions = { recursive: true, force: true }
-    const dirsToRemove = [
-      path.join(ROOT_DIR, 'apps', 'showcase'),
-    ]
+    const dirsToRemove = [path.join(ROOT_DIR, 'apps', 'showcase')]
 
-    const appsContent = await fs.readdir(path.join(ROOT_DIR, 'apps'), { withFileTypes: true }).catch(() => [])
+    const appsContent = await fs
+      .readdir(path.join(ROOT_DIR, 'apps'), { withFileTypes: true })
+      .catch(() => [])
     for (const entry of appsContent) {
       if (entry.isDirectory() && entry.name.startsWith('example-')) {
         dirsToRemove.push(path.join(ROOT_DIR, 'apps', entry.name))
@@ -790,15 +869,16 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
       const rootPkgContent = await fs.readFile(rootPkgPath, 'utf-8')
       const rootPkg = JSON.parse(rootPkgContent)
       if (rootPkg.scripts) {
-        const scriptsToRemove = Object.keys(rootPkg.scripts).filter(s =>
-          s.includes('showcase') ||
-          s.includes('auth') ||
-          s.includes('blog') ||
-          s.includes('marketing') ||
-          s.includes('og-image') ||
-          s.includes('apple-maps') ||
-          s === 'dev:all' ||
-          s === 'db:ready:all'
+        const scriptsToRemove = Object.keys(rootPkg.scripts).filter(
+          (s) =>
+            s.includes('showcase') ||
+            s.includes('auth') ||
+            s.includes('blog') ||
+            s.includes('marketing') ||
+            s.includes('og-image') ||
+            s.includes('apple-maps') ||
+            s === 'dev:all' ||
+            s === 'db:ready:all',
         )
         for (const script of scriptsToRemove) {
           delete rootPkg.scripts[script]
@@ -823,8 +903,11 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
 
         // Ensure critical deps survive setup (agents need these for typecheck).
         // Uses ||= so existing version pins are not overwritten.
-        const criticalDeps: Record<string, string> = { 'drizzle-orm': '^0.45.1', 'zod': '^4.3.6' }
-        const criticalDevDeps: Record<string, string> = { '@cloudflare/workers-types': '^4.20250303.0', '@iconify-json/lucide': '^1.2.94' }
+        const criticalDeps: Record<string, string> = { 'drizzle-orm': '^0.45.1', zod: '^4.3.6' }
+        const criticalDevDeps: Record<string, string> = {
+          '@cloudflare/workers-types': '^4.20250303.0',
+          '@iconify-json/lucide': '^1.2.94',
+        }
         webPkg.dependencies = webPkg.dependencies || {}
         webPkg.devDependencies = webPkg.devDependencies || {}
         for (const [dep, ver] of Object.entries(criticalDeps)) {
@@ -837,30 +920,57 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         // Ensure db:migrate and db:seed scripts reference the correct database name
         // (guards against partial string-replacement in Step 1)
         if (webPkg.scripts?.['db:migrate']) {
-          webPkg.scripts['db:migrate'] = webPkg.scripts['db:migrate'].replace(/narduk-nuxt-template-db/g, `${APP_NAME}-db`)
+          webPkg.scripts['db:migrate'] = webPkg.scripts['db:migrate'].replace(
+            /narduk-nuxt-template-db/g,
+            `${APP_NAME}-db`,
+          )
         }
         if (webPkg.scripts?.['db:seed']) {
-          webPkg.scripts['db:seed'] = webPkg.scripts['db:seed'].replace(/narduk-nuxt-template-db/g, `${APP_NAME}-db`)
+          webPkg.scripts['db:seed'] = webPkg.scripts['db:seed'].replace(
+            /narduk-nuxt-template-db/g,
+            `${APP_NAME}-db`,
+          )
         }
 
         await fs.writeFile(webPkgPath, JSON.stringify(webPkg, null, 2) + '\n', 'utf-8')
         console.log(`  ✅ Updated apps/web/package.json (name, deps, scripts)`)
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       // Strip test and quality scripts from all eslint packages so implementing repositories
       // don't run internal template tests or lint the linters.
       const eslintPkgPaths = [
         path.join(ROOT_DIR, 'packages', 'eslint-config', 'package.json'),
-        path.join(ROOT_DIR, 'packages', 'eslint-config', 'eslint-plugin-nuxt-guardrails', 'package.json'),
+        path.join(
+          ROOT_DIR,
+          'packages',
+          'eslint-config',
+          'eslint-plugin-nuxt-guardrails',
+          'package.json',
+        ),
         path.join(ROOT_DIR, 'packages', 'eslint-config', 'eslint-plugin-nuxt-ui', 'package.json'),
-        path.join(ROOT_DIR, 'packages', 'eslint-config', 'eslint-plugin-vue-official-best-practices', 'package.json'),
+        path.join(
+          ROOT_DIR,
+          'packages',
+          'eslint-config',
+          'eslint-plugin-vue-official-best-practices',
+          'package.json',
+        ),
       ]
       for (const pkgPath of eslintPkgPaths) {
         try {
           const pkgContent = await fs.readFile(pkgPath, 'utf-8')
           const pkg = JSON.parse(pkgContent)
           if (pkg.scripts) {
-            const scriptsToRemove = ['quality', 'test', 'test:watch', 'test:plugins', 'lint', 'typecheck']
+            const scriptsToRemove = [
+              'quality',
+              'test',
+              'test:watch',
+              'test:plugins',
+              'lint',
+              'typecheck',
+            ]
             for (const script of scriptsToRemove) {
               delete pkg.scripts[script]
             }
@@ -955,33 +1065,45 @@ export default defineConfig({
 
   // 9.5. Register with control plane fleet registry
   console.log('\nStep 9.5/10: Registering with control plane fleet registry...')
-  const CONTROL_PLANE_URL = 'https://control-plane.nard.uk'
-  try {
-    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: APP_NAME,
-        url: SITE_URL,
-        dopplerProject: APP_NAME,
-        githubRepo: `narduk-enterprises/${APP_NAME}`,
-        gaPropertyId: null,
-        posthogAppName: null,
-      }),
-    })
-    if (res.ok) {
-      console.log(`  ✅ Registered ${APP_NAME} with control plane fleet registry.`)
-    } else if (res.status === 409) {
-      console.log(`  ⏭ ${APP_NAME} already registered in fleet registry.`)
-    } else {
-      const text = await res.text().catch(() => '')
-      console.warn(`  ⚠️ Fleet registration returned ${res.status}: ${text}`)
+  const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
+  const controlPlaneApiKey = process.env.CONTROL_PLANE_API_KEY?.trim()
+  if (!controlPlaneApiKey) {
+    console.log('  ⏭ CONTROL_PLANE_API_KEY not set; skipping automatic registration.')
+    console.log(`     Register manually at ${CONTROL_PLANE_URL}/fleet/manage`)
+  } else {
+    try {
+      const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${controlPlaneApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: APP_NAME,
+          url: SITE_URL,
+          dopplerProject: APP_NAME,
+          githubRepo: `narduk-enterprises/${APP_NAME}`,
+          gaPropertyId: null,
+          posthogAppName: null,
+        }),
+      })
+      if (res.ok) {
+        console.log(`  ✅ Registered ${APP_NAME} with control plane fleet registry.`)
+      } else if (res.status === 409) {
+        console.log(`  ⏭ ${APP_NAME} already registered in fleet registry.`)
+      } else {
+        const text = await res.text().catch(() => '')
+        console.warn(`  ⚠️ Fleet registration returned ${res.status}: ${text}`)
+        console.warn(`     Register manually at ${CONTROL_PLANE_URL}/fleet/manage`)
+      }
+    } catch (err: any) {
+      console.warn(`  ⚠️ Could not register with control plane: ${err.message}`)
       console.warn(`     Register manually at ${CONTROL_PLANE_URL}/fleet/manage`)
     }
-  } catch (err: any) {
-    console.warn(`  ⚠️ Could not register with control plane: ${err.message}`)
-    console.warn(`     Register manually at ${CONTROL_PLANE_URL}/fleet/manage`)
   }
+  console.log(
+    '     If this repo should receive fleet sync PRs, also add it to control-plane/apps/web/server/data/managed-repos.ts.',
+  )
 
   // Build ESLint plugins to ensure dist/ exists (required for linting)
   // .gitignore excludes dist/, so this must run after every fresh clone/init.
@@ -996,13 +1118,23 @@ export default defineConfig({
 
   // 10. Done (script is kept for re-runs)
   // Write the bootstrap sentinel so pre* hooks allow dev/build/deploy
-  await fs.writeFile(path.join(ROOT_DIR, '.setup-complete'), `initialized=${new Date().toISOString()}\napp=${APP_NAME}\n`, 'utf-8')
+  await fs.writeFile(
+    path.join(ROOT_DIR, '.setup-complete'),
+    `initialized=${new Date().toISOString()}\napp=${APP_NAME}\n`,
+    'utf-8',
+  )
 
   // Record the template SHA this app was spawned from (used by drift detection in CI)
   let templateSha = ''
   try {
-    templateSha = execSync('git rev-parse HEAD', { encoding: 'utf-8', stdio: 'pipe', cwd: ROOT_DIR }).trim()
-  } catch { /* pre-init state — no commits yet */ }
+    templateSha = execSync('git rev-parse HEAD', {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+      cwd: ROOT_DIR,
+    }).trim()
+  } catch {
+    /* pre-init state — no commits yet */
+  }
 
   const templateVersionContent = [
     `sha=${templateSha || 'unknown'}`,
@@ -1029,7 +1161,9 @@ export default defineConfig({
     if (hasGitRemote) {
       completed.push('GitHub DOPPLER_TOKEN secret')
     } else {
-      deferred.push('GitHub DOPPLER_TOKEN secret (no git remote — re-run with --repair after adding remote)')
+      deferred.push(
+        'GitHub DOPPLER_TOKEN secret (no git remote — re-run with --repair after adding remote)',
+      )
     }
     completed.push('Local Doppler environment')
   } else {
@@ -1049,14 +1183,14 @@ export default defineConfig({
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('  SETUP SUMMARY')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  completed.forEach(s => console.log(`  ✅ ${s}`))
+  completed.forEach((s) => console.log(`  ✅ ${s}`))
   if (deferred.length > 0) {
     console.log()
-    deferred.forEach(s => console.log(`  ⏭  ${s}`))
+    deferred.forEach((s) => console.log(`  ⏭  ${s}`))
   }
   if (failed.length > 0) {
     console.log()
-    failed.forEach(s => console.log(`  ❌ ${s}`))
+    failed.forEach((s) => console.log(`  ❌ ${s}`))
   }
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
@@ -1074,12 +1208,14 @@ export default defineConfig({
   console.log(`  3. doppler run -- pnpm dev   # Start dev server`)
   if (!hasGitRemote) {
     console.log(`\n  ⚠️  DEPLOYMENT BLOCKED: Add a git remote and re-run with --repair:`)
-    console.log(`     pnpm run setup -- --name="${APP_NAME}" --display="${DISPLAY_NAME}" --url="${SITE_URL}" --repair`)
+    console.log(
+      `     pnpm run setup -- --name="${APP_NAME}" --display="${DISPLAY_NAME}" --url="${SITE_URL}" --repair`,
+    )
   }
   console.log()
 }
 
-main().catch(e => {
+main().catch((e) => {
   console.error(e)
   process.exit(1)
 })

@@ -4,123 +4,113 @@
  * Exported as plain functions for tree-shaking, and aliased in `useFormat()` for composable usage.
  */
 
-
-const DEFAULT_LOCALE = 'en-US';
+const DEFAULT_LOCALE = 'en-US'
 
 export function formatCents(
   cents: number,
-  options?: { locale?: string; currency?: string }
+  options?: { locale?: string; currency?: string },
 ): string {
-  const locale = options?.locale || DEFAULT_LOCALE;
-  const currency = options?.currency || 'USD';
+  const locale = options?.locale || DEFAULT_LOCALE
+  const currency = options?.currency || 'USD'
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-  }).format(cents / 100);
+  }).format(cents / 100)
 }
 
 export function formatCurrency(
   amount: number,
-  options?: { locale?: string; currency?: string }
+  options?: { locale?: string; currency?: string },
 ): string {
-  const locale = options?.locale || DEFAULT_LOCALE;
-  const currency = options?.currency || 'USD';
+  const locale = options?.locale || DEFAULT_LOCALE
+  const currency = options?.currency || 'USD'
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
-  }).format(amount);
+  }).format(amount)
 }
 
 export function formatDate(
   date: Date | number | string,
-  options?: { locale?: string; dateStyle?: 'short' | 'medium' | 'long' | 'full' }
+  options?: { locale?: string; dateStyle?: 'short' | 'medium' | 'long' | 'full' },
 ): string {
-  const locale = options?.locale || DEFAULT_LOCALE;
-  const dateStyle = options?.dateStyle || 'medium';
+  const locale = options?.locale || DEFAULT_LOCALE
+  const dateStyle = options?.dateStyle || 'medium'
   return new Intl.DateTimeFormat(locale, {
     dateStyle,
-  }).format(new Date(date));
+  }).format(new Date(date))
 }
 
 export function formatDateTime(
   date: Date | number | string,
-  options?: { locale?: string }
+  options?: { locale?: string },
 ): string {
-  const locale = options?.locale || DEFAULT_LOCALE;
+  const locale = options?.locale || DEFAULT_LOCALE
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(date));
+  }).format(new Date(date))
 }
 
-export function formatRelative(
-  date: Date | number | string,
-  base?: Date
-): string {
-  const locale = DEFAULT_LOCALE;
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  const timeMs = new Date(date).getTime();
-  const baseMs = (base || new Date()).getTime();
-  const diffMs = timeMs - baseMs;
+export function formatRelative(date: Date | number | string, base?: Date): string {
+  const locale = DEFAULT_LOCALE
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  const timeMs = new Date(date).getTime()
+  const baseMs = (base || new Date()).getTime()
+  const diffMs = timeMs - baseMs
 
-  const diffSec = Math.round(diffMs / 1000);
-  const diffMin = Math.round(diffSec / 60);
-  const diffHour = Math.round(diffMin / 60);
-  const diffDay = Math.round(diffHour / 24);
-  const diffMonth = Math.round(diffDay / 30);
-  const diffYear = Math.round(diffDay / 365);
+  const diffSec = Math.round(diffMs / 1000)
+  const diffMin = Math.round(diffSec / 60)
+  const diffHour = Math.round(diffMin / 60)
+  const diffDay = Math.round(diffHour / 24)
+  const diffMonth = Math.round(diffDay / 30)
+  const diffYear = Math.round(diffDay / 365)
 
-  if (Math.abs(diffSec) < 60) return rtf.format(diffSec, 'second');
-  if (Math.abs(diffMin) < 60) return rtf.format(diffMin, 'minute');
-  if (Math.abs(diffHour) < 24) return rtf.format(diffHour, 'hour');
-  if (Math.abs(diffDay) < 30) return rtf.format(diffDay, 'day');
-  if (Math.abs(diffMonth) < 12) return rtf.format(diffMonth, 'month');
-  return rtf.format(diffYear, 'year');
+  if (Math.abs(diffSec) < 60) return rtf.format(diffSec, 'second')
+  if (Math.abs(diffMin) < 60) return rtf.format(diffMin, 'minute')
+  if (Math.abs(diffHour) < 24) return rtf.format(diffHour, 'hour')
+  if (Math.abs(diffDay) < 30) return rtf.format(diffDay, 'day')
+  if (Math.abs(diffMonth) < 12) return rtf.format(diffMonth, 'month')
+  return rtf.format(diffYear, 'year')
 }
 
 export function formatNumber(
   value: number,
-  options?: { locale?: string; minimumFractionDigits?: number; maximumFractionDigits?: number }
+  options?: { locale?: string; minimumFractionDigits?: number; maximumFractionDigits?: number },
 ): string {
-  const locale = options?.locale || DEFAULT_LOCALE;
+  const locale = options?.locale || DEFAULT_LOCALE
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: options?.minimumFractionDigits,
     maximumFractionDigits: options?.maximumFractionDigits,
-  }).format(value);
+  }).format(value)
 }
 
-export function formatInteger(
-  value: number,
-  options?: { locale?: string }
-): string {
-  const locale = options?.locale || DEFAULT_LOCALE;
+export function formatInteger(value: number, options?: { locale?: string }): string {
+  const locale = options?.locale || DEFAULT_LOCALE
   return new Intl.NumberFormat(locale, {
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value)
 }
 
 export function formatPercent(
   value: number,
-  options?: { locale?: string; decimals?: number }
+  options?: { locale?: string; decimals?: number },
 ): string {
-  const locale = options?.locale || DEFAULT_LOCALE;
-  const decimals = options?.decimals ?? 1;
+  const locale = options?.locale || DEFAULT_LOCALE
+  const decimals = options?.decimals ?? 1
   return new Intl.NumberFormat(locale, {
     style: 'percent',
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  }).format(value);
+  }).format(value)
 }
 
-export function formatCompact(
-  value: number,
-  options?: { locale?: string }
-): string {
-  const locale = options?.locale || DEFAULT_LOCALE;
+export function formatCompact(value: number, options?: { locale?: string }): string {
+  const locale = options?.locale || DEFAULT_LOCALE
   return new Intl.NumberFormat(locale, {
     notation: 'compact',
     compactDisplay: 'short',
-  }).format(value);
+  }).format(value)
 }
 
 export default function useFormat() {
@@ -134,5 +124,5 @@ export default function useFormat() {
     formatInteger,
     formatPercent,
     formatCompact,
-  };
+  }
 }

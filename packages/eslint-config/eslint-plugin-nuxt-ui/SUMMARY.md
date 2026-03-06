@@ -2,7 +2,9 @@
 
 ## Overview
 
-This ESLint plugin validates Nuxt UI v4 component usage in Nuxt 4 projects, flagging:
+This ESLint plugin validates Nuxt UI v4 component usage in Nuxt 4 projects,
+flagging:
+
 - Unknown props/slots/events
 - Deprecated syntax from older Nuxt UI versions
 - Invalid variant/enum values
@@ -38,21 +40,25 @@ eslint-plugin-nuxt-ui/
 ## Key Design Decisions
 
 ### 1. Spec as JSON
+
 - **Why**: Fast, no network during lint, versioned
 - **How**: Generator script parses `llms-full.txt` → JSON
 - **When**: Run `npm run gen:spec` before linting
 
 ### 2. Component Name Normalization
+
 - Handles `<UButton>` and `<u-button>` → `UButton`
 - Supports custom prefixes: `['U', 'Nuxt']`
 - Case-insensitive matching
 
 ### 3. Static Analysis Only
+
 - Validates string literals: `variant="solid"` ✅
 - Skips dynamic: `:variant="dynamic"` ⏭️
 - Skips spreads: `v-bind="obj"` ⏭️
 
 ### 4. Autofix Strategy
+
 - Only for mechanical renames
 - Example: `oldProp` → `newProp`
 - Safe and predictable
@@ -60,26 +66,31 @@ eslint-plugin-nuxt-ui/
 ## Rules Implemented
 
 ### 1. `no-unknown-component-prop`
+
 - **What**: Flags props not in v4 spec
 - **Example**: `<UButton unknownProp="value">`
 - **Fix**: None (manual fix required)
 
 ### 2. `no-deprecated-prop`
+
 - **What**: Flags deprecated props
 - **Example**: `<UButton oldName="value">`
 - **Fix**: Auto-renames if `replacedBy` exists
 
 ### 3. `no-deprecated-slot`
+
 - **What**: Flags deprecated/unknown slots
 - **Example**: `<template #oldSlot>`
 - **Fix**: Auto-renames if `replacedBy` exists
 
 ### 4. `no-deprecated-event`
+
 - **What**: Flags deprecated/unknown events
 - **Example**: `@oldEvent="handler"`
 - **Fix**: Auto-renames if `replacedBy` exists
 
 ### 5. `require-valid-variant-values`
+
 - **What**: Validates enum prop values
 - **Example**: `<UButton variant="invalid">`
 - **Fix**: None (shows allowed values)
@@ -87,35 +98,37 @@ eslint-plugin-nuxt-ui/
 ## Installation & Setup
 
 ### Step 1: Install
+
 ```bash
 npm install --save-dev eslint-plugin-nuxt-ui
 ```
 
 ### Step 2: Generate Spec
+
 ```bash
 cd node_modules/eslint-plugin-nuxt-ui
 npm run gen:spec
 ```
 
 ### Step 3: Configure ESLint
+
 ```js
 // eslint.config.mjs
 import withNuxt from './.nuxt/eslint.config.mjs'
 import nuxtUI from 'eslint-plugin-nuxt-ui'
 
-export default withNuxt(
-  {
-    plugins: {
-      'nuxt-ui': nuxtUI,
-    },
-    rules: {
-      ...nuxtUI.configs.recommended.rules,
-    },
-  }
-)
+export default withNuxt({
+  plugins: {
+    'nuxt-ui': nuxtUI,
+  },
+  rules: {
+    ...nuxtUI.configs.recommended.rules,
+  },
+})
 ```
 
 ### Step 4: Run Lint
+
 ```bash
 npm run lint
 ```
@@ -123,6 +136,7 @@ npm run lint
 ## Spec Generator Details
 
 The `gen-spec.ts` script:
+
 1. Fetches `https://ui.nuxt.com/llms-full.txt`
 2. Parses markdown sections for each component
 3. Extracts:
@@ -131,15 +145,19 @@ The `gen-spec.ts` script:
    - Events (name, deprecated, replacedBy)
 4. Outputs JSON to `src/spec/nuxt-ui-v4.json`
 
-**Note**: Current parsing is regex-based and basic. Could be improved with a proper markdown parser.
+**Note**: Current parsing is regex-based and basic. Could be improved with a
+proper markdown parser.
 
 ## Supported Components (39 total)
 
-**Priority (Most Used):**
-UButton, UCard, UIcon, UInput, UForm, UFormField, UModal, UBadge, UAvatar, USkeleton, USelect, UTable, UTabs, UContainer, UAlert, UPagination, USeparator, UCheckbox, UTextarea, UInputMenu, USwitch, UDropdown, UPopover, UTooltip, USlideover
+**Priority (Most Used):** UButton, UCard, UIcon, UInput, UForm, UFormField,
+UModal, UBadge, UAvatar, USkeleton, USelect, UTable, UTabs, UContainer, UAlert,
+UPagination, USeparator, UCheckbox, UTextarea, UInputMenu, USwitch, UDropdown,
+UPopover, UTooltip, USlideover
 
-**Additional:**
-UEmpty, UProgress, UToggle, UKbd, UCollapsible, UFormGroup, UDropdownMenu, USelectMenu, UNavigationMenu, UDashboardSidebar, UDashboardPanel, UDashboardGroup, UApp, UUser
+**Additional:** UEmpty, UProgress, UToggle, UKbd, UCollapsible, UFormGroup,
+UDropdownMenu, USelectMenu, UNavigationMenu, UDashboardSidebar, UDashboardPanel,
+UDashboardGroup, UApp, UUser
 
 ## Configuration Options
 
@@ -175,6 +193,7 @@ UEmpty, UProgress, UToggle, UKbd, UCollapsible, UFormGroup, UDropdownMenu, USele
 ## Testing
 
 Uses ESLint's RuleTester:
+
 - Tests PascalCase and kebab-case
 - Tests static and dynamic values
 - Tests autofixes

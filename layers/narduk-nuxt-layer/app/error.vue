@@ -59,13 +59,7 @@ useSeo({
 
       <!-- Actions -->
       <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-        <UButton
-          size="lg"
-          icon="i-lucide-home"
-          @click="handleError"
-        >
-          Go Home
-        </UButton>
+        <UButton size="lg" icon="i-lucide-home" @click="handleError"> Go Home </UButton>
         <UButton
           size="lg"
           variant="ghost"

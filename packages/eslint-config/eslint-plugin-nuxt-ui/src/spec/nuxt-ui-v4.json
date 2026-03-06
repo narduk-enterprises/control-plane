@@ -17,10 +17,7 @@
           "type": "\"vertical\" | \"horizontal\" | undefined",
           "required": false,
           "description": "The orientation between the content and the actions.",
-          "enum": [
-            "vertical",
-            "horizontal"
-          ],
+          "enum": ["vertical", "horizontal"],
           "deprecated": false
         },
         {
@@ -51,27 +48,14 @@
           "name": "color",
           "type": "\"error\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "error",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "neutral"
-          ],
+          "enum": ["error", "primary", "secondary", "success", "info", "warning", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"solid\" | \"outline\" | \"soft\" | \"subtle\" | undefined",
           "required": false,
-          "enum": [
-            "solid",
-            "outline",
-            "soft",
-            "subtle"
-          ],
+          "enum": ["solid", "outline", "soft", "subtle"],
           "deprecated": false
         }
       ],
@@ -194,17 +178,7 @@
           "name": "size",
           "type": "\"md\" | \"xs\" | \"sm\" | \"lg\" | \"xl\" | \"3xs\" | \"2xs\" | \"2xl\" | \"3xl\" | undefined",
           "required": false,
-          "enum": [
-            "md",
-            "xs",
-            "sm",
-            "lg",
-            "xl",
-            "3xs",
-            "2xs",
-            "2xl",
-            "3xl"
-          ],
+          "enum": ["md", "xs", "sm", "lg", "xl", "3xs", "2xs", "2xl", "3xl"],
           "deprecated": false
         },
         {
@@ -251,40 +225,21 @@
           "name": "color",
           "type": "\"error\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "error",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "neutral"
-          ],
+          "enum": ["error", "primary", "secondary", "success", "info", "warning", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"solid\" | \"outline\" | \"soft\" | \"subtle\" | undefined",
           "required": false,
-          "enum": [
-            "solid",
-            "outline",
-            "soft",
-            "subtle"
-          ],
+          "enum": ["solid", "outline", "soft", "subtle"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"xs\" | \"sm\" | \"md\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "xs",
-            "sm",
-            "md",
-            "lg",
-            "xl"
-          ],
+          "enum": ["xs", "sm", "md", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -342,71 +297,35 @@
           "name": "color",
           "type": "\"error\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "error",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "neutral"
-          ],
+          "enum": ["error", "primary", "secondary", "success", "info", "warning", "neutral"],
           "deprecated": false
         },
         {
           "name": "activeColor",
           "type": "\"error\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "error",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "neutral"
-          ],
+          "enum": ["error", "primary", "secondary", "success", "info", "warning", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"solid\" | \"outline\" | \"soft\" | \"subtle\" | \"ghost\" | \"link\" | undefined",
           "required": false,
-          "enum": [
-            "solid",
-            "outline",
-            "soft",
-            "subtle",
-            "ghost",
-            "link"
-          ],
+          "enum": ["solid", "outline", "soft", "subtle", "ghost", "link"],
           "deprecated": false
         },
         {
           "name": "activeVariant",
           "type": "\"solid\" | \"outline\" | \"soft\" | \"subtle\" | \"ghost\" | \"link\" | undefined",
           "required": false,
-          "enum": [
-            "solid",
-            "outline",
-            "soft",
-            "subtle",
-            "ghost",
-            "link"
-          ],
+          "enum": ["solid", "outline", "soft", "subtle", "ghost", "link"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"xs\" | \"sm\" | \"md\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "xs",
-            "sm",
-            "md",
-            "lg",
-            "xl"
-          ],
+          "enum": ["xs", "sm", "md", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -450,12 +369,7 @@
           "name": "variant",
           "type": "\"solid\" | \"outline\" | \"soft\" | \"subtle\" | undefined",
           "required": false,
-          "enum": [
-            "solid",
-            "outline",
-            "soft",
-            "subtle"
-          ],
+          "enum": ["solid", "outline", "soft", "subtle"],
           "deprecated": false
         },
         {
@@ -494,11 +408,7 @@
           "type": "\"start\" | \"end\" | \"hidden\" | undefined",
           "required": false,
           "description": "Position of the indicator.",
-          "enum": [
-            "start",
-            "end",
-            "hidden"
-          ],
+          "enum": ["start", "end", "hidden"],
           "deprecated": false
         },
         {
@@ -531,38 +441,21 @@
           "name": "color",
           "type": "\"error\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "error",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "neutral"
-          ],
+          "enum": ["error", "primary", "secondary", "success", "info", "warning", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"card\" | \"list\" | undefined",
           "required": false,
-          "enum": [
-            "card",
-            "list"
-          ],
+          "enum": ["card", "list"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"md\" | \"xs\" | \"sm\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "md",
-            "xs",
-            "sm",
-            "lg",
-            "xl"
-          ],
+          "enum": ["md", "xs", "sm", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -656,10 +549,7 @@
           "type": "\"cookie\" | \"local\" | undefined",
           "required": false,
           "description": "The storage to use for the size.",
-          "enum": [
-            "cookie",
-            "local"
-          ],
+          "enum": ["cookie", "local"],
           "deprecated": true,
           "replacedBy": "for"
         },
@@ -682,11 +572,7 @@
           "type": "\"%\" | \"rem\" | \"px\" | undefined",
           "required": false,
           "description": "The unit to use for size values.",
-          "enum": [
-            "%",
-            "rem",
-            "px"
-          ],
+          "enum": ["%", "rem", "px"],
           "deprecated": true,
           "replacedBy": "for"
         }
@@ -799,11 +685,7 @@
           "type": "(Omit<DropdownMenuContentProps, \"as\" | \"asChild\" | \"forceMount\"> & Partial<EmitsToProps<MenuContentEmits>>) | undefined",
           "required": false,
           "description": "The content of the menu.",
-          "enum": [
-            "as",
-            "asChild",
-            "forceMount"
-          ],
+          "enum": ["as", "asChild", "forceMount"],
           "deprecated": false
         },
         {
@@ -811,10 +693,7 @@
           "type": "boolean | Omit<DropdownMenuArrowProps, \"as\" | \"asChild\"> | undefined",
           "required": false,
           "description": "Display an arrow alongside the menu.",
-          "enum": [
-            "as",
-            "asChild"
-          ],
+          "enum": ["as", "asChild"],
           "deprecated": false
         },
         {
@@ -842,13 +721,7 @@
           "name": "size",
           "type": "\"sm\" | \"md\" | \"xs\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "sm",
-            "md",
-            "xs",
-            "lg",
-            "xl"
-          ],
+          "enum": ["sm", "md", "xs", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -949,26 +822,14 @@
           "name": "variant",
           "type": "\"outline\" | \"solid\" | \"soft\" | \"subtle\" | \"naked\" | undefined",
           "required": false,
-          "enum": [
-            "outline",
-            "solid",
-            "soft",
-            "subtle",
-            "naked"
-          ],
+          "enum": ["outline", "solid", "soft", "subtle", "naked"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"md\" | \"xs\" | \"sm\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "md",
-            "xs",
-            "sm",
-            "lg",
-            "xl"
-          ],
+          "enum": ["md", "xs", "sm", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -1191,10 +1052,7 @@
           "type": "\"vertical\" | \"horizontal\" | undefined",
           "required": false,
           "description": "The orientation of the form field.",
-          "enum": [
-            "vertical",
-            "horizontal"
-          ],
+          "enum": ["vertical", "horizontal"],
           "deprecated": false
         },
         {
@@ -1225,13 +1083,7 @@
           "name": "size",
           "type": "\"md\" | \"xs\" | \"sm\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "md",
-            "xs",
-            "sm",
-            "lg",
-            "xl"
-          ],
+          "enum": ["md", "xs", "sm", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -1283,10 +1135,7 @@
           "name": "mode",
           "type": "\"svg\" | \"css\" | undefined",
           "required": false,
-          "enum": [
-            "svg",
-            "css"
-          ],
+          "enum": ["svg", "css"],
           "deprecated": false
         },
         {
@@ -1364,41 +1213,21 @@
           "name": "color",
           "type": "\"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"error\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "error",
-            "neutral"
-          ],
+          "enum": ["primary", "secondary", "success", "info", "warning", "error", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"outline\" | \"soft\" | \"subtle\" | \"ghost\" | \"none\" | undefined",
           "required": false,
-          "enum": [
-            "outline",
-            "soft",
-            "subtle",
-            "ghost",
-            "none"
-          ],
+          "enum": ["outline", "soft", "subtle", "ghost", "none"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"xs\" | \"sm\" | \"md\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "xs",
-            "sm",
-            "md",
-            "lg",
-            "xl"
-          ],
+          "enum": ["xs", "sm", "md", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -1537,11 +1366,7 @@
           "type": "(Omit<ComboboxContentProps, \"asChild\" | \"as\" | \"forceMount\"> & Partial<EmitsToProps<DismissableLayerEmits>>) | undefined",
           "required": false,
           "description": "The content of the menu.",
-          "enum": [
-            "asChild",
-            "as",
-            "forceMount"
-          ],
+          "enum": ["asChild", "as", "forceMount"],
           "deprecated": false
         },
         {
@@ -1549,10 +1374,7 @@
           "type": "boolean | Omit<ComboboxArrowProps, \"asChild\" | \"as\"> | undefined",
           "required": false,
           "description": "Display an arrow alongside the menu.",
-          "enum": [
-            "asChild",
-            "as"
-          ],
+          "enum": ["asChild", "as"],
           "deprecated": false
         },
         {
@@ -1579,41 +1401,21 @@
           "name": "color",
           "type": "\"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"error\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "error",
-            "neutral"
-          ],
+          "enum": ["primary", "secondary", "success", "info", "warning", "error", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"soft\" | \"outline\" | \"subtle\" | \"ghost\" | \"none\" | undefined",
           "required": false,
-          "enum": [
-            "soft",
-            "outline",
-            "subtle",
-            "ghost",
-            "none"
-          ],
+          "enum": ["soft", "outline", "subtle", "ghost", "none"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"sm\" | \"md\" | \"xs\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "sm",
-            "md",
-            "xs",
-            "lg",
-            "xl"
-          ],
+          "enum": ["sm", "md", "xs", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -1712,38 +1514,21 @@
           "name": "color",
           "type": "\"error\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "error",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "neutral"
-          ],
+          "enum": ["error", "primary", "secondary", "success", "info", "warning", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"outline\" | \"soft\" | \"subtle\" | \"solid\" | undefined",
           "required": false,
-          "enum": [
-            "outline",
-            "soft",
-            "subtle",
-            "solid"
-          ],
+          "enum": ["outline", "soft", "subtle", "solid"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"sm\" | \"md\" | \"lg\" | undefined",
           "required": false,
-          "enum": [
-            "sm",
-            "md",
-            "lg"
-          ],
+          "enum": ["sm", "md", "lg"],
           "deprecated": false
         }
       ],
@@ -1763,11 +1548,7 @@
           "type": "(Omit<DialogContentProps, \"as\" | \"asChild\" | \"forceMount\"> & Partial<EmitsToProps<DialogContentImplEmits>>) | undefined",
           "required": false,
           "description": "The content of the modal.",
-          "enum": [
-            "as",
-            "asChild",
-            "forceMount"
-          ],
+          "enum": ["as", "asChild", "forceMount"],
           "deprecated": false
         },
         {
@@ -1941,25 +1722,14 @@
           "name": "color",
           "type": "\"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"error\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "error",
-            "neutral"
-          ],
+          "enum": ["primary", "secondary", "success", "info", "warning", "error", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"pill\" | \"link\" | undefined",
           "required": false,
-          "enum": [
-            "pill",
-            "link"
-          ],
+          "enum": ["pill", "link"],
           "deprecated": false
         }
       ],
@@ -2048,15 +1818,7 @@
           "type": "\"error\" | \"neutral\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | undefined",
           "required": false,
           "description": "The color of the pagination controls.",
-          "enum": [
-            "error",
-            "neutral",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning"
-          ],
+          "enum": ["error", "neutral", "primary", "secondary", "success", "info", "warning"],
           "deprecated": false
         },
         {
@@ -2064,14 +1826,7 @@
           "type": "\"outline\" | \"solid\" | \"soft\" | \"subtle\" | \"ghost\" | \"link\" | undefined",
           "required": false,
           "description": "The variant of the pagination controls.",
-          "enum": [
-            "outline",
-            "solid",
-            "soft",
-            "subtle",
-            "ghost",
-            "link"
-          ],
+          "enum": ["outline", "solid", "soft", "subtle", "ghost", "link"],
           "deprecated": false
         },
         {
@@ -2079,15 +1834,7 @@
           "type": "\"error\" | \"neutral\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | undefined",
           "required": false,
           "description": "The color of the active pagination control.",
-          "enum": [
-            "error",
-            "neutral",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning"
-          ],
+          "enum": ["error", "neutral", "primary", "secondary", "success", "info", "warning"],
           "deprecated": false
         },
         {
@@ -2095,14 +1842,7 @@
           "type": "\"outline\" | \"solid\" | \"soft\" | \"subtle\" | \"ghost\" | \"link\" | undefined",
           "required": false,
           "description": "The variant of the active pagination control.",
-          "enum": [
-            "outline",
-            "solid",
-            "soft",
-            "subtle",
-            "ghost",
-            "link"
-          ],
+          "enum": ["outline", "solid", "soft", "subtle", "ghost", "link"],
           "deprecated": false
         },
         {
@@ -2123,13 +1863,7 @@
           "name": "size",
           "type": "\"xs\" | \"sm\" | \"md\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "xs",
-            "sm",
-            "md",
-            "lg",
-            "xl"
-          ],
+          "enum": ["xs", "sm", "md", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -2181,11 +1915,7 @@
           "type": "(Omit<PopoverContentProps, \"as\" | \"asChild\" | \"forceMount\"> & Partial<EmitsToProps<PopoverContentImplEmits>>) | undefined",
           "required": false,
           "description": "The content of the popover.",
-          "enum": [
-            "as",
-            "asChild",
-            "forceMount"
-          ],
+          "enum": ["as", "asChild", "forceMount"],
           "deprecated": false
         },
         {
@@ -2193,10 +1923,7 @@
           "type": "boolean | Omit<PopoverArrowProps, \"as\" | \"asChild\"> | undefined",
           "required": false,
           "description": "Display an arrow alongside the popover.",
-          "enum": [
-            "as",
-            "asChild"
-          ],
+          "enum": ["as", "asChild"],
           "deprecated": false
         },
         {
@@ -2285,10 +2012,7 @@
           "type": "\"horizontal\" | \"vertical\" | undefined",
           "required": false,
           "description": "The orientation of the progress bar.",
-          "enum": [
-            "horizontal",
-            "vertical"
-          ],
+          "enum": ["horizontal", "vertical"],
           "deprecated": false
         },
         {
@@ -2296,42 +2020,21 @@
           "type": "\"carousel\" | \"carousel-inverse\" | \"swing\" | \"elastic\" | undefined",
           "required": false,
           "description": "The animation of the progress bar.",
-          "enum": [
-            "carousel",
-            "carousel-inverse",
-            "swing",
-            "elastic"
-          ],
+          "enum": ["carousel", "carousel-inverse", "swing", "elastic"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"2xs\" | \"xs\" | \"sm\" | \"md\" | \"lg\" | \"xl\" | \"2xl\" | undefined",
           "required": false,
-          "enum": [
-            "2xs",
-            "xs",
-            "sm",
-            "md",
-            "lg",
-            "xl",
-            "2xl"
-          ],
+          "enum": ["2xs", "xs", "sm", "md", "lg", "xl", "2xl"],
           "deprecated": false
         },
         {
           "name": "color",
           "type": "\"error\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "error",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "neutral"
-          ],
+          "enum": ["error", "primary", "secondary", "success", "info", "warning", "neutral"],
           "deprecated": false
         },
         {
@@ -2385,11 +2088,7 @@
           "type": "(Omit<SelectContentProps, \"asChild\" | \"as\" | \"forceMount\"> & Partial<EmitsToProps<SelectContentImplEmits>>) | undefined",
           "required": false,
           "description": "The content of the menu.",
-          "enum": [
-            "asChild",
-            "as",
-            "forceMount"
-          ],
+          "enum": ["asChild", "as", "forceMount"],
           "deprecated": false
         },
         {
@@ -2397,10 +2096,7 @@
           "type": "boolean | Omit<SelectArrowProps, \"asChild\" | \"as\"> | undefined",
           "required": false,
           "description": "Display an arrow alongside the menu.",
-          "enum": [
-            "asChild",
-            "as"
-          ],
+          "enum": ["asChild", "as"],
           "deprecated": false
         },
         {
@@ -2479,41 +2175,21 @@
           "name": "color",
           "type": "\"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"error\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "error",
-            "neutral"
-          ],
+          "enum": ["primary", "secondary", "success", "info", "warning", "error", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"outline\" | \"soft\" | \"subtle\" | \"ghost\" | \"none\" | undefined",
           "required": false,
-          "enum": [
-            "outline",
-            "soft",
-            "subtle",
-            "ghost",
-            "none"
-          ],
+          "enum": ["outline", "soft", "subtle", "ghost", "none"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"sm\" | \"md\" | \"xs\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "sm",
-            "md",
-            "xs",
-            "lg",
-            "xl"
-          ],
+          "enum": ["sm", "md", "xs", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -2526,9 +2202,7 @@
           "name": "modelModifiers",
           "type": "Omit<ModelModifiers<GetModelValue<T, VK, M>>, \"lazy\"> | undefined",
           "required": false,
-          "enum": [
-            "lazy"
-          ],
+          "enum": ["lazy"],
           "deprecated": false
         },
         {
@@ -2708,49 +2382,28 @@
           "type": "\"horizontal\" | \"vertical\" | undefined",
           "required": false,
           "description": "The orientation of the separator.",
-          "enum": [
-            "horizontal",
-            "vertical"
-          ],
+          "enum": ["horizontal", "vertical"],
           "deprecated": false
         },
         {
           "name": "color",
           "type": "\"error\" | \"neutral\" | \"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | undefined",
           "required": false,
-          "enum": [
-            "error",
-            "neutral",
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning"
-          ],
+          "enum": ["error", "neutral", "primary", "secondary", "success", "info", "warning"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"xs\" | \"sm\" | \"md\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "xs",
-            "sm",
-            "md",
-            "lg",
-            "xl"
-          ],
+          "enum": ["xs", "sm", "md", "lg", "xl"],
           "deprecated": false
         },
         {
           "name": "type",
           "type": "\"solid\" | \"dashed\" | \"dotted\" | undefined",
           "required": false,
-          "enum": [
-            "solid",
-            "dashed",
-            "dotted"
-          ],
+          "enum": ["solid", "dashed", "dotted"],
           "deprecated": false
         },
         {
@@ -2795,11 +2448,7 @@
           "type": "(Omit<DialogContentProps, \"as\" | \"asChild\" | \"forceMount\"> & Partial<EmitsToProps<DialogContentImplEmits>>) | undefined",
           "required": false,
           "description": "The content of the slideover.",
-          "enum": [
-            "as",
-            "asChild",
-            "forceMount"
-          ],
+          "enum": ["as", "asChild", "forceMount"],
           "deprecated": false
         },
         {
@@ -2821,12 +2470,7 @@
           "type": "\"right\" | \"top\" | \"bottom\" | \"left\" | undefined",
           "required": false,
           "description": "The side of the slideover.",
-          "enum": [
-            "right",
-            "top",
-            "bottom",
-            "left"
-          ],
+          "enum": ["right", "top", "bottom", "left"],
           "deprecated": false
         },
         {
@@ -2943,28 +2587,14 @@
           "name": "color",
           "type": "\"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"error\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "error",
-            "neutral"
-          ],
+          "enum": ["primary", "secondary", "success", "info", "warning", "error", "neutral"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"xs\" | \"sm\" | \"md\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "xs",
-            "sm",
-            "md",
-            "lg",
-            "xl"
-          ],
+          "enum": ["xs", "sm", "md", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -3026,12 +2656,7 @@
           "type": "boolean | (Partial<Omit<VirtualizerOptions<Element, Element>, \"getScrollElement\" | \"count\" | \"estimateSize\" | \"overscan\">> & { overscan?: number | undefined",
           "required": false,
           "description": "Enable virtualization for large datasets.",
-          "enum": [
-            "getScrollElement",
-            "count",
-            "estimateSize",
-            "overscan"
-          ],
+          "enum": ["getScrollElement", "count", "estimateSize", "overscan"],
           "deprecated": false
         },
         {
@@ -3091,10 +2716,7 @@
           "type": "\"horizontal\" | \"vertical\" | undefined",
           "required": false,
           "description": "The orientation of the tabs.",
-          "enum": [
-            "horizontal",
-            "vertical"
-          ],
+          "enum": ["horizontal", "vertical"],
           "deprecated": false
         },
         {
@@ -3128,38 +2750,21 @@
           "name": "color",
           "type": "\"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"error\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "error",
-            "neutral"
-          ],
+          "enum": ["primary", "secondary", "success", "info", "warning", "error", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"pill\" | \"link\" | undefined",
           "required": false,
-          "enum": [
-            "pill",
-            "link"
-          ],
+          "enum": ["pill", "link"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"sm\" | \"xs\" | \"md\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "sm",
-            "xs",
-            "md",
-            "lg",
-            "xl"
-          ],
+          "enum": ["sm", "xs", "md", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -3260,41 +2865,21 @@
           "name": "color",
           "type": "\"primary\" | \"secondary\" | \"success\" | \"info\" | \"warning\" | \"error\" | \"neutral\" | undefined",
           "required": false,
-          "enum": [
-            "primary",
-            "secondary",
-            "success",
-            "info",
-            "warning",
-            "error",
-            "neutral"
-          ],
+          "enum": ["primary", "secondary", "success", "info", "warning", "error", "neutral"],
           "deprecated": false
         },
         {
           "name": "variant",
           "type": "\"outline\" | \"soft\" | \"subtle\" | \"ghost\" | \"none\" | undefined",
           "required": false,
-          "enum": [
-            "outline",
-            "soft",
-            "subtle",
-            "ghost",
-            "none"
-          ],
+          "enum": ["outline", "soft", "subtle", "ghost", "none"],
           "deprecated": false
         },
         {
           "name": "size",
           "type": "\"xs\" | \"sm\" | \"md\" | \"lg\" | \"xl\" | undefined",
           "required": false,
-          "enum": [
-            "xs",
-            "sm",
-            "md",
-            "lg",
-            "xl"
-          ],
+          "enum": ["xs", "sm", "md", "lg", "xl"],
           "deprecated": false
         },
         {
@@ -3392,10 +2977,7 @@
           "type": "(Omit<TooltipContentProps, \"as\" | \"asChild\"> & Partial<EmitsToProps<TooltipContentImplEmits>>) | undefined",
           "required": false,
           "description": "The content of the tooltip.",
-          "enum": [
-            "as",
-            "asChild"
-          ],
+          "enum": ["as", "asChild"],
           "deprecated": false
         },
         {
@@ -3403,10 +2985,7 @@
           "type": "boolean | Omit<TooltipArrowProps, \"as\" | \"asChild\"> | undefined",
           "required": false,
           "description": "Display an arrow alongside the tooltip.",
-          "enum": [
-            "as",
-            "asChild"
-          ],
+          "enum": ["as", "asChild"],
           "deprecated": false
         },
         {
@@ -3472,9 +3051,7 @@
           "name": "avatar",
           "type": "(Omit<AvatarProps, \"size\"> & { [key: string]: any",
           "required": false,
-          "enum": [
-            "size"
-          ],
+          "enum": ["size"],
           "deprecated": false
         }
       ],

@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {
     'Content-Type': contentType,
     'Cache-Control': 'public, max-age=31536000, immutable',
-    'ETag': object.httpEtag,
+    ETag: object.httpEtag,
   })
 
   return object.body

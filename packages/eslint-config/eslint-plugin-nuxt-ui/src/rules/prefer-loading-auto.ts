@@ -1,6 +1,6 @@
 /**
  * Rule: nuxt-ui/prefer-loading-auto
- * 
+ *
  * Warns when using manual :loading prop on UButton type="submit"
  * instead of the loading-auto prop which handles loading state automatically
  */
@@ -18,7 +18,7 @@ interface RuleContext {
     parserServices?: {
       defineTemplateBodyVisitor: (
         visitor: Record<string, (node: AST.Node) => void>,
-        scriptVisitor?: Record<string, (node: AST.Node) => void>
+        scriptVisitor?: Record<string, (node: AST.Node) => void>,
       ) => Record<string, (node: AST.Node) => void>
     }
     getText: (_node?: AST.Node) => string
@@ -35,8 +35,10 @@ export default {
     },
     schema: [],
     messages: {
-      preferLoadingAuto: 'Use loading-auto instead of :loading on submit buttons for automatic loading state. See: https://ui.nuxt.com/components/button#loading-auto',
-      preferLoadingAutoOnClick: 'Consider using loading-auto with async @click handler instead of manual :loading state',
+      preferLoadingAuto:
+        'Use loading-auto instead of :loading on submit buttons for automatic loading state. See: https://ui.nuxt.com/components/button#loading-auto',
+      preferLoadingAutoOnClick:
+        'Consider using loading-auto with async @click handler instead of manual :loading state',
     },
   },
   create(context: RuleContext) {
@@ -48,14 +50,14 @@ export default {
     return parserServices.defineTemplateBodyVisitor({
       VElement(node: AST.Node) {
         const vElement = node as AST.VElement
-        
+
         // Only check UButton components
         if (vElement.name.toLowerCase() !== 'ubutton') {
           return
         }
 
         const attributes = vElement.startTag.attributes
-        
+
         // Check for attributes
         let hasLoading = false
         let hasLoadingAuto = false
@@ -65,7 +67,11 @@ export default {
         for (const attr of attributes) {
           if (attr.type === 'VAttribute') {
             // Check for type="submit"
-            if (attr.key.name === 'type' && attr.value?.type === 'VLiteral' && attr.value.value === 'submit') {
+            if (
+              attr.key.name === 'type' &&
+              attr.value?.type === 'VLiteral' &&
+              attr.value.value === 'submit'
+            ) {
               isSubmitButton = true
             }
             // Check for loading-auto

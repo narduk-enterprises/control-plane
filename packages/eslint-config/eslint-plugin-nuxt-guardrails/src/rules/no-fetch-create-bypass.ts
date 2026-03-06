@@ -32,7 +32,7 @@ export default {
     ],
     messages: {
       fetchCreateBypass:
-        '$fetch.create() bypasses the layer\'s CSRF header injection. Use useNuxtApp().$csrfFetch or the globally patched $fetch instead.',
+        "$fetch.create() bypasses the layer's CSRF header injection. Use useNuxtApp().$csrfFetch or the globally patched $fetch instead.",
     },
   },
   create(context: Rule.RuleContext): Rule.RuleListener {
@@ -47,7 +47,12 @@ export default {
       // Exclude the legitimate fetch.client.ts plugin
       if (normalized.includes('plugins/fetch.client.')) return {}
       // Exclude test files
-      if (normalized.includes('.test.') || normalized.includes('.spec.') || normalized.includes('e2e/')) return {}
+      if (
+        normalized.includes('.test.') ||
+        normalized.includes('.spec.') ||
+        normalized.includes('e2e/')
+      )
+        return {}
     }
 
     return {
