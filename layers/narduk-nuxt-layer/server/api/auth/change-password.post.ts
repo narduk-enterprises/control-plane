@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { users } from '../../database/schema'
-import { verifyPassword, hashPassword } from '../../utils/password'
+import { verifyUserPassword, hashUserPassword } from '../../utils/password'
 import { requireAuth } from '../../utils/auth'
 
 const changePasswordSchema = z.object({
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const isValid = await verifyPassword(body.currentPassword, dbUser.passwordHash)
+  const isValid = await verifyUserPassword(body.currentPassword, dbUser.passwordHash)
   if (!isValid) {
     throw createError({
       statusCode: 400,
@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const hashedNewPassword = await hashPassword(body.newPassword)
+  const hashedNewPassword = await hashUserPassword(body.newPassword)
 
   await db
     .update(users)

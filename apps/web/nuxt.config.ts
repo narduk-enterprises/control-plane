@@ -25,6 +25,11 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    session: {
+      password:
+        process.env.NUXT_SESSION_PASSWORD ||
+        (import.meta.dev ? 'control-plane-dev-session-secret-min-32-chars' : ''),
+    },
     cronSecret: process.env.CRON_SECRET || '',
     githubToken: process.env.GITHUB_TOKEN || '',
     googleServiceAccountKey: process.env.GSC_SERVICE_ACCOUNT_JSON || '',
