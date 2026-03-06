@@ -76,23 +76,19 @@ export default defineEventHandler(async (event) => {
           : 'No posthogPublicKey found in serialized runtime config',
       })
 
-      // 3. Check PostHog app identity — the plugin calls posthog.register({ app: appName })
-      // where appName comes from runtimeConfig.public.appName.
-      // If posthog_app_name is set in the registry, enforce an exact match.
-      // Otherwise just verify appName is present (display names differ from registry names).
+      // 3. Check PostHog app identity — informational only.
+      // Since PostHog now uses $host for filtering (not appName), we only verify
+      // that appName is present in the runtime config. Display-name vs slug
+      // mismatches (e.g. "Enigma Box" vs "enigma-box") are not actionable.
       const actualAppName = html.match(/appName["']?\s*[:=]\s*["']([^"']+)["']/i)?.[1] ?? null
-      const expectedPhAppName = app.posthogAppName ?? app.name
-      const phNameMatch = actualAppName === expectedPhAppName
       checks.push({
         name: 'PostHog App Name',
-        status: phNameMatch ? 'pass' : actualAppName ? 'warning' : 'warning',
-        expected: expectedPhAppName,
+        status: actualAppName ? 'pass' : 'warning',
+        expected: null,
         actual: actualAppName,
-        message: phNameMatch
-          ? `appName matches registry ("${expectedPhAppName}")`
-          : actualAppName
-            ? `Mismatch: expected "${expectedPhAppName}", got "${actualAppName}"`
-            : 'appName not found in serialized runtime config',
+        message: actualAppName
+          ? `appName: "${actualAppName}"`
+          : 'appName not found in serialized runtime config',
       })
 
       // 4. Extract GA Measurement ID (G-XXXXXXXX) and compare to ga_measurement_id in registry.
