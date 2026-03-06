@@ -362,20 +362,30 @@ export async function geocodeAppleMaps(
 /**
  * Search Apple Maps for neighborhood/sub-locality addresses.
  * Uses resultTypeFilter=Address for area-level results.
+ *
+ * @param name - Neighborhood or sub-locality name to search
+ * @param options - Optional search region and location context
+ * @param options.locationContext - City/region qualifier appended to the query (e.g. "Austin, TX").
+ *                                  Defaults to empty string so results aren't pinned to a specific city.
+ * @param options.limitToCountries - ISO 3166-1 alpha-2 country code (defaults to 'US')
  */
 export async function searchAppleMapsNeighborhood(
   name: string,
   options?: {
     searchRegion?: string
+    locationContext?: string
+    limitToCountries?: string
   },
 ): Promise<AppleSearchResult> {
   const accessToken = await getAppleMapsAccessToken()
 
+  const query = options?.locationContext ? `${name}, ${options.locationContext}` : name
+
   const params = new URLSearchParams({
-    q: `${name}, Austin, TX`,
+    q: query,
     resultTypeFilter: 'Address',
     includeAddressCategories: 'SubLocality',
-    limitToCountries: 'US',
+    limitToCountries: options?.limitToCountries ?? 'US',
   })
 
   if (options?.searchRegion) {

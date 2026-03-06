@@ -128,20 +128,19 @@ These workspace-local ESLint plugins enforce patterns at lint time. Run `pnpm ru
 
 The following settings are provided by this layer's `nuxt.config.ts`. Downstream apps **inherit these automatically** and do not need to repeat them:
 
-| Setting                            | Value                                                                            |
-| ---------------------------------- | -------------------------------------------------------------------------------- |
-| `modules`                          | `@nuxt/ui`, `@nuxt/fonts`, `@nuxt/image`, `@nuxtjs/seo`, `@nuxt/eslint`          |
-| `nitro.preset`                     | `cloudflare-module`                                                              |
-| `nitro.esbuild.options.target`     | `esnext`                                                                         |
-| `nitro.externals.inline`           | `['drizzle-orm']`                                                                |
-| `future.compatibilityVersion`      | `4`                                                                              |
-| `ui.colorMode`                     | `true`                                                                           |
-| `colorMode.preference`             | `system`                                                                         |
-| `ogImage.defaults.component`       | `OgImageDefaultTakumi`                                                           |
-| `image.provider`                   | `cloudflare`                                                                     |
-| `runtimeConfig.public.posthogHost` | `POSTHOG_HOST` env var, fallback `https://p.nard.uk` (self-hosted reverse proxy) |
-| `app.head.link`                    | Favicon SVG, PNG 32/16, apple-touch-icon, site.webmanifest                       |
-| `css`                              | Layer's `app/assets/css/main.css`                                                |
+| Setting                        | Value                                                                   |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| `modules`                      | `@nuxt/ui`, `@nuxt/fonts`, `@nuxt/image`, `@nuxtjs/seo`, `@nuxt/eslint` |
+| `nitro.preset`                 | `cloudflare-module`                                                     |
+| `nitro.esbuild.options.target` | `esnext`                                                                |
+| `nitro.externals.inline`       | `['drizzle-orm']`                                                       |
+| `future.compatibilityVersion`  | `4`                                                                     |
+| `ui.colorMode`                 | `true`                                                                  |
+| `colorMode.preference`         | `system`                                                                |
+| `ogImage.defaults.component`   | `OgImageDefaultTakumi`                                                  |
+| `image.provider`               | `cloudflare`                                                            |
+| `app.head.link`                | Favicon SVG, PNG 32/16, apple-touch-icon, site.webmanifest              |
+| `css`                          | Layer's `app/assets/css/main.css`                                       |
 
 ## Files Provided by This Layer (DO NOT Duplicate)
 
@@ -152,7 +151,7 @@ The following settings are provided by this layer's `nuxt.config.ts`. Downstream
 - `app/error.vue` — Branded error page (404/500)
 - `app/assets/css/main.css` — Tailwind v4 `@theme` tokens, glass/card utility classes
 - `app/composables/useSeo.ts`, `useSchemaOrg.ts`
-- `app/plugins/gtag.client.ts`, `posthog.client.ts` (PostHog routed via `https://p.nard.uk` reverse proxy — set `POSTHOG_HOST` in Doppler; default is `https://p.nard.uk`), `fetch.client.ts`
+- `app/plugins/gtag.client.ts`, `posthog.client.ts`, `fetch.client.ts`
 - `app/types/api.ts`, `runtime-config.d.ts`
 
 **Public assets** (default favicons — apps override by placing their own in `public/`):
@@ -163,7 +162,7 @@ The following settings are provided by this layer's `nuxt.config.ts`. Downstream
 
 - `server/middleware/` — cors, csrf, d1, indexnow, securityHeaders
 - `server/utils/` — auth, database, google, kv, r2, rateLimit
-- `server/api/` — health.get, indexnow/submit.post, admin/indexing/\* (batch.post, publish.post, status.get), admin/ga/overview.get, admin/gsc/performance.get
+- `server/api/` — health.get, indexnow/submit.post, admin/indexing/* (batch.post, publish.post, status.get), admin/ga/overview.get, admin/gsc/performance.get
 - `server/database/schema.ts` — Base Drizzle schema
 - `server/routes/cdn-cgi/image/[...path].ts` — Image transform proxy
 

@@ -1,11 +1,18 @@
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'node:url'
 
 export default defineNuxtConfig({
   alias: {
     '#layer': fileURLToPath(new URL('./', import.meta.url)),
   },
 
-  modules: ['@nuxt/ui', '@nuxt/fonts', '@nuxt/image', '@nuxtjs/seo', '@nuxt/eslint'],
+  modules: [
+    '@nuxt/ui',
+    '@nuxt/fonts',
+    '@nuxt/image',
+    '@nuxtjs/seo',
+    '@nuxt/eslint',
+    'nuxt-auth-utils',
+  ],
   css: [fileURLToPath(new URL('./app/assets/css/main.css', import.meta.url))],
 
   app: {
@@ -32,7 +39,7 @@ export default defineNuxtConfig({
       buildVersion: process.env.GITHUB_SHA || process.env.CF_PAGES_COMMIT_SHA || '',
       buildTime: new Date().toISOString(),
       gaMeasurementId: process.env.GA_MEASUREMENT_ID || '',
-      posthogHost: process.env.POSTHOG_HOST || 'https://p.nard.uk',
+      posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
       cspScriptSrc: process.env.CSP_SCRIPT_SRC || '',
       cspConnectSrc: process.env.CSP_CONNECT_SRC || '',
     },
@@ -44,20 +51,20 @@ export default defineNuxtConfig({
     description: 'A Nuxt 4 application deployed on Cloudflare Workers.',
   },
 
-  compatibilityDate: '2026-03-06',
+  compatibilityDate: '2026-03-03',
 
   hooks: {
     // Workaround for nuxt/ui#6118: @nuxt/ui@4.5.0 auto-import scanner
     // incorrectly registers 'options' (a parameter name) as an export from useResizable.js
     'imports:extend'(imports) {
       for (let i = imports.length - 1; i >= 0; i--) {
-        const entry = imports[i];
+        const entry = imports[i]
         if (
           entry?.name === 'options' &&
           typeof entry.from === 'string' &&
           entry.from.includes('useResizable')
         ) {
-          imports.splice(i, 1);
+          imports.splice(i, 1)
         }
       }
     },
@@ -110,4 +117,4 @@ export default defineNuxtConfig({
   components: [
     { path: fileURLToPath(new URL('./app/components', import.meta.url)), pathPrefix: false },
   ],
-});
+})
