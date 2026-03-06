@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
         try {
           const u = new URL(app.url)
           hostToAppMap.set(u.hostname, app.name)
-        } catch (err) {
+        } catch (_err) {
           console.warn('[PostHog Summary] Invalid app URL parsing host:', app.url)
         }
       }
