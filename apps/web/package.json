@@ -2,7 +2,7 @@
   "name": "web",
   "type": "module",
   "private": true,
-  "version": "1.32.4",
+  "version": "1.32.5",
   "scripts": {
     "build": "nuxt build",
     "predev": "wrangler d1 execute control-plane-db --local --file=drizzle/migrations.sql",
