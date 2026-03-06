@@ -5,8 +5,8 @@ import { verifyPassword, hashPassword } from '../../utils/password'
 import { requireAuth } from '../../utils/auth'
 
 const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
 })
 
 /**
@@ -16,32 +16,38 @@ const changePasswordSchema = z.object({
  * then hashes and stores the new one.
  */
 export default defineEventHandler(async (event) => {
-  const user = await requireAuth(event)
+  const userSession = await requireAuth(event)
   const body = await readValidatedBody(event, changePasswordSchema.parse)
 
-  // Verify current password
-  if (!user.passwordHash) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Account does not have a password set',
-    })
-  }
+  const db = useDatabase(event)
 
-  const isValid = await verifyPassword(body.currentPassword, user.passwordHash)
-  if (!isValid) {
+  const dbUser = await db.select().from(users).where(eq(users.id, userSession.id)).get()
+
+  if (!dbUser || !dbUser.passwordHash) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Current password is incorrect',
+      statusMessage: 'Unauthorized - invalid user state',
     })
   }
 
-  // Hash new password and update
-  const newHash = await hashPassword(body.newPassword)
-  const db = useDatabase(event)
-  await db.update(users).set({
-    passwordHash: newHash,
-    updatedAt: new Date().toISOString(),
-  }).where(eq(users.id, user.id))
+  const isValid = await verifyPassword(body.currentPassword, dbUser.passwordHash)
+  if (!isValid) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Invalid current password',
+    })
+  }
+
+  const hashedNewPassword = await hashPassword(body.newPassword)
+
+  await db
+    .update(users)
+    .set({
+      passwordHash: hashedNewPassword,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(users.id, userSession.id))
+    .run()
 
   return { success: true }
 })
