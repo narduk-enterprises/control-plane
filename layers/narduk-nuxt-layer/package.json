@@ -22,7 +22,7 @@
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
     "test:unit": "vitest run",
-    "quality": "pnpm run prelint && pnpm run lint && pnpm run typecheck && pnpm run test:unit",
+    "quality": "pnpm run test:unit",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path ../../.gitignore"

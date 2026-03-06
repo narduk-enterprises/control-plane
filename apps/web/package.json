@@ -18,7 +18,8 @@
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
     "test:hydration": "node scripts/hydration-smoke.mjs",
-    "test:integration": "vitest run --config vitest.config.ts"
+    "test:integration": "vitest run --config vitest.config.ts",
+    "quality": "echo 'Turbo dependsOn handles lint + typecheck + format:check'"
   },
   "dependencies": {
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
