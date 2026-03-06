@@ -8,7 +8,7 @@
     "dev": "doppler run -p control-plane -c dev -- pnpm --filter web dev",
     "prebuild": "node tools/check-setup.cjs",
     "build": "doppler run -- pnpm -r build",
-    "preship": "node tools/check-setup.cjs && pnpm run quality",
+    "preship": "node tools/check-setup.cjs && pnpm install --frozen-lockfile && npx tsx tools/check-drift-ci.ts && npx tsx tools/check-sync-health.ts && pnpm run quality",
     "ship": "git add -A && git diff --cached --quiet || git commit -m \"chore: ship $(date -u +%Y-%m-%dT%H:%M:%SZ)\" && git fetch && (git merge-base --is-ancestor @{u} HEAD || (echo '\\\\n❌ Remote has changes not in local branch. Run: git pull --rebase && pnpm ship\\\\n' && false)) && git push && doppler run -- pnpm --filter web run deploy",
     "ship:fleet": "npx tsx tools/ship-fleet.ts",
     "postinstall": "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  Run pnpm run setup before doing anything else! See AGENTS.md.\\n')\"",
@@ -35,7 +35,8 @@
     "predeploy": "node tools/check-setup.cjs",
     "format": "prettier --write \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore",
     "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore",
-    "tail": "npx tsx tools/tail.ts"
+    "tail": "npx tsx tools/tail.ts",
+    "check:sync-health": "npx tsx tools/check-sync-health.ts"
   },
   "pnpm": {
     "overrides": {
