@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { apiFetch, anonFetch, assertNot500, requireTestAuth } from './helpers'
+import { apiFetch, anonFetch, assertNot500 } from './helpers'
 
 describe('Auth, GitHub & Users', () => {
   // ── GitHub Repos ───────────────────────────────────────────────────

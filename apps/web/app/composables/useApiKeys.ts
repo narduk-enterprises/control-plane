@@ -29,13 +29,17 @@ export function useApiKeys() {
     const result = await $fetch<{ rawKey: string }>('/api/auth/api-keys', {
       method: 'POST',
       body: { name },
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
     })
     await fetchKeys()
     return result.rawKey
   }
 
   async function deleteKey(id: string) {
-    await $fetch(`/api/auth/api-keys/${id}`, { method: 'DELETE' })
+    await $fetch(`/api/auth/api-keys/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
     await fetchKeys()
   }
 

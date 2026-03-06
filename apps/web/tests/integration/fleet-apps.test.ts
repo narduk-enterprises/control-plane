@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { apiFetch, anonFetch, authIt, TEST_APP } from './helpers'
+import { apiFetch, anonFetch, authIt } from './helpers'
 
 describe('Fleet Apps CRUD — /api/fleet/apps', () => {
   const TEST_NEW_APP = `vitest-crud-${Date.now()}`
