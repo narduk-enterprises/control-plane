@@ -9,7 +9,7 @@
     "prebuild": "node tools/check-setup.cjs",
     "build": "doppler run -- pnpm -r build",
     "preship": "node tools/check-setup.cjs && pnpm run quality",
-    "ship": "git add -A && git diff --cached --quiet || git commit -m \"chore: ship $(date -u +%Y-%m-%dT%H:%M:%SZ)\" && git push && doppler run -- pnpm --filter web run deploy",
+    "ship": "git add -A && git diff --cached --quiet || git commit -m \"chore: ship $(date -u +%Y-%m-%dT%H:%M:%SZ)\" && git fetch && (git merge-base --is-ancestor @{u} HEAD || (echo '\\\\n❌ Remote has changes not in local branch. Run: git pull --rebase && pnpm ship\\\\n' && false)) && git push && doppler run -- pnpm --filter web run deploy",
     "postinstall": "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  Run pnpm run setup before doing anything else! See AGENTS.md.\\n')\"",
     "build:plugins": "pnpm --filter @narduk/eslint-config build",
     "prelint": "pnpm run build:plugins",
@@ -30,7 +30,9 @@
     "dev:kill": "sh scripts/dev-kill.sh",
     "test:e2e": "playwright test",
     "generate:favicons": "npx tsx tools/generate-favicons.ts",
-    "predeploy": "node tools/check-setup.cjs"
+    "predeploy": "node tools/check-setup.cjs",
+    "format": "prettier --write \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore"
   },
   "pnpm": {
     "overrides": {
@@ -63,7 +65,8 @@
     "playwright": "^1.58.2",
     "sharp": "^0.34.5",
     "tsx": "^4.21.0",
-    "turbo": "^2.8.12"
+    "turbo": "^2.8.12",
+    "prettier": "^3.8.1"
   },
   "dependencies": {
     "google-auth-library": "^10.6.1",

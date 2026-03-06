@@ -487,6 +487,8 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         APPLE_KEY_ID: '${narduk-nuxt-template.prd.APPLE_KEY_ID}',
         APPLE_SECRET_KEY: '${narduk-nuxt-template.prd.APPLE_SECRET_KEY}',
         APPLE_TEAM_ID: '${narduk-nuxt-template.prd.APPLE_TEAM_ID}',
+        CSP_SCRIPT_SRC: '${narduk-nuxt-template.prd.CSP_SCRIPT_SRC}',
+        CSP_CONNECT_SRC: '${narduk-nuxt-template.prd.CSP_CONNECT_SRC}',
       }
 
       // Per-app secrets (only set if missing — don't overwrite app-specific values)
@@ -1062,7 +1064,8 @@ export default defineConfig({
 
   console.log('\nNext steps:')
   console.log(`  1. pnpm run validate        # Confirm infrastructure`)
-  console.log(`  2. doppler run -- pnpm dev   # Start dev server (migrations run automatically)`)
+  console.log(`  2. pnpm run db:migrate      # Apply base schema to local D1`)
+  console.log(`  3. doppler run -- pnpm dev   # Start dev server`)
   if (!hasGitRemote) {
     console.log(`\n  ⚠️  DEPLOYMENT BLOCKED: Add a git remote and re-run with --repair:`)
     console.log(`     pnpm run setup -- --name="${APP_NAME}" --display="${DISPLAY_NAME}" --url="${SITE_URL}" --repair`)

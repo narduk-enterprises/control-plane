@@ -2,17 +2,13 @@ name: CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# CI is disabled (workflow_dispatch only) to conserve GitHub Actions minutes.
 # Deploy is done locally via `pnpm run deploy` (wrangler deploy).
-# CI is quality-only to conserve GitHub Actions minutes.
 # See .agents/workflows/deploy.md for the local deploy workflow.
 
 jobs:
