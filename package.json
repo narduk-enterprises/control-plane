@@ -32,7 +32,8 @@
     "generate:favicons": "npx tsx tools/generate-favicons.ts",
     "predeploy": "node tools/check-setup.cjs",
     "format": "prettier --write \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore",
-    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore"
+    "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore",
+    "tail": "npx tsx tools/tail.ts"
   },
   "pnpm": {
     "overrides": {
