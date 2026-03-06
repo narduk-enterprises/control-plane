@@ -36,11 +36,13 @@ export function useFleet(options?: { includeInactive?: boolean }) {
     server: false,
   })
 
+  const posthogForce = ref(false)
   const {
     data: rawPosthog,
     refresh: refreshPosthog,
     status: posthogStatus,
   } = useFetch<PosthogSummaryMap>('/api/fleet/posthog/summary', {
+    query: computed(() => (posthogForce.value ? { force: 'true' } : {})),
     default: () => ({}),
     server: false,
     lazy: true,
@@ -95,7 +97,9 @@ export function useFleet(options?: { includeInactive?: boolean }) {
 
   // 4. Force refresh all data (busts D1 caches)
   async function forceRefreshAll() {
+    posthogForce.value = true
     await Promise.all([refreshApps(), refreshStatusesRaw(), refreshPosthog()])
+    posthogForce.value = false
   }
 
   // 5. Global Load State
