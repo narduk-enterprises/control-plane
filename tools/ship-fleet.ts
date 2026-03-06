@@ -134,9 +134,13 @@ function readDopplerSetup(repoDir: string): DopplerSetup {
 
 function ensureDopplerYaml(repo: ManagedRepo, repoDir: string, dryRun: boolean) {
   const setup = readDopplerSetup(repoDir)
-  const resolvedProject = setup.project || repo.dopplerProject
+  const resolvedProject = repo.dopplerProject
+  const needsRepair =
+    !setup.exists ||
+    setup.project !== resolvedProject ||
+    setup.config !== FLEET_DOPPLER_CONFIG
 
-  if (!setup.exists || !setup.project || !setup.config) {
+  if (needsRepair) {
     const nextContent = `setup:\n  project: ${resolvedProject}\n  config: ${FLEET_DOPPLER_CONFIG}\n`
     const action = setup.exists ? 'REPAIR' : 'ADD'
     console.log(
@@ -150,12 +154,6 @@ function ensureDopplerYaml(repo: ManagedRepo, repoDir: string, dryRun: boolean) 
     console.log(
       `[${repo.name}] doppler.yaml present (project=${setup.project}, config=${setup.config})`,
     )
-
-    if (setup.config !== FLEET_DOPPLER_CONFIG) {
-      console.log(
-        `[${repo.name}] Fleet ship will override Doppler config to ${FLEET_DOPPLER_CONFIG}.`,
-      )
-    }
   }
 
   return {
