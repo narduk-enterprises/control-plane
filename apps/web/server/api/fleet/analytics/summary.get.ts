@@ -1,8 +1,7 @@
 import { z } from 'zod'
-import { getRequestURL, getRequestHeaders } from 'h3'
+import { getRequestHeaders } from 'h3'
 import { getFleetApps } from '#server/data/fleet-registry'
 import { withD1Cache } from '#layer/server/utils/d1Cache'
-
 
 const querySchema = z.object({
   startDate: z.string().optional(),
@@ -58,7 +57,8 @@ export default defineEventHandler(async (event) => {
     TTL,
     async () => {
       const apps = await getFleetApps(event)
-      const baseURL = getRequestURL(event).origin
+      // Use forwarded auth headers so Nitro's in-process $fetch passes them
+      // to sub-endpoint handlers (requireAdmin reads cookies from the internal request).
       const headers = getRequestHeaders(event)
       const authHeaders: Record<string, string> = {}
       if (headers.cookie) authHeaders.cookie = headers.cookie
@@ -75,44 +75,76 @@ export default defineEventHandler(async (event) => {
           // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server -- intentional: batched with Promise.allSettled and deadline
           batch.map(async (app) => {
             const [gaRes, gscRes, posthogRes] = await Promise.allSettled([
-              $fetch<{ summary?: unknown; deltas?: unknown; timeSeries?: { date: string; value: number }[] }>(
-                `/api/fleet/ga/${encodeURIComponent(app.name)}`,
-                {
-                  baseURL,
-                  headers: authHeaders,
-                  query: { startDate, endDate },
-                },
-              ).catch(() => null),
-              $fetch<{ totals?: unknown; rows?: unknown[] }>(`/api/fleet/gsc/${encodeURIComponent(app.name)}`, {
-                baseURL,
+              $fetch<{
+                summary?: unknown
+                deltas?: unknown
+                timeSeries?: { date: string; value: number }[]
+              }>(`/api/fleet/ga/${encodeURIComponent(app.name)}`, {
                 headers: authHeaders,
-                query: { startDate, endDate, dimension: 'query' },
-              }).catch(() => null),
-              $fetch<{ summary?: Record<string, number>; timeSeries?: { date: string; value: number }[] }>(
-                `/api/fleet/posthog/${encodeURIComponent(app.name)}`,
+                query: { startDate, endDate },
+              }).catch((err: unknown) => {
+                console.error(
+                  `[Fleet Analytics] GA failed for ${app.name}:`,
+                  (err as Error).message ?? err,
+                )
+                return null
+              }),
+              $fetch<{ totals?: unknown; rows?: unknown[] }>(
+                `/api/fleet/gsc/${encodeURIComponent(app.name)}`,
                 {
-                  baseURL,
                   headers: authHeaders,
-                  query: { startDate, endDate },
+                  query: { startDate, endDate, dimension: 'query' },
                 },
-              ).catch(() => null),
+              ).catch((err: unknown) => {
+                console.error(
+                  `[Fleet Analytics] GSC failed for ${app.name}:`,
+                  (err as Error).message ?? err,
+                )
+                return null
+              }),
+              $fetch<{
+                summary?: Record<string, number>
+                timeSeries?: { date: string; value: number }[]
+              }>(`/api/fleet/posthog/${encodeURIComponent(app.name)}`, {
+                headers: authHeaders,
+                query: { startDate, endDate },
+              }).catch((err: unknown) => {
+                console.error(
+                  `[Fleet Analytics] PostHog failed for ${app.name}:`,
+                  (err as Error).message ?? err,
+                )
+                return null
+              }),
             ])
 
             const ga = gaRes.status === 'fulfilled' && gaRes.value ? gaRes.value : null
             const gsc = gscRes.status === 'fulfilled' && gscRes.value ? gscRes.value : null
-            const posthog = posthogRes.status === 'fulfilled' && posthogRes.value ? posthogRes.value : null
+            const posthog =
+              posthogRes.status === 'fulfilled' && posthogRes.value ? posthogRes.value : null
 
             const out: FleetAppAnalyticsSummary = {
               ga: ga
                 ? {
-                    summary: ga.summary as FleetAppAnalyticsSummary['ga'] extends { summary: infer S } ? S : never,
-                    deltas: (ga.deltas ?? null) as FleetAppAnalyticsSummary['ga'] extends { deltas: infer D } ? D : null,
+                    summary: ga.summary as FleetAppAnalyticsSummary['ga'] extends {
+                      summary: infer S
+                    }
+                      ? S
+                      : never,
+                    deltas: (ga.deltas ?? null) as FleetAppAnalyticsSummary['ga'] extends {
+                      deltas: infer D
+                    }
+                      ? D
+                      : null,
                     timeSeries: ga.timeSeries ?? [],
                   }
                 : null,
               gsc: gsc
                 ? {
-                    totals: (gsc.totals ?? null) as FleetAppAnalyticsSummary['gsc'] extends { totals: infer T } ? T : null,
+                    totals: (gsc.totals ?? null) as FleetAppAnalyticsSummary['gsc'] extends {
+                      totals: infer T
+                    }
+                      ? T
+                      : null,
                     rowsCount: gsc.rows?.length ?? 0,
                   }
                 : null,
