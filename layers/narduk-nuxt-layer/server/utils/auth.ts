@@ -2,10 +2,14 @@ import type { H3Event } from 'h3'
 import { getCookie, setCookie, deleteCookie, getRequestHeader } from 'h3'
 import { eq, and, gt } from 'drizzle-orm'
 import type { User } from '../database/schema'
-import { sessions, users } from '../database/schema'
+import { sessions, users, apiKeys } from '../database/schema'
 
 /**
  * Session & authentication utilities for D1-backed auth.
+ *
+ * Supports two authentication methods:
+ * 1. Session cookie (browser-based, default)
+ * 2. API key via Authorization: Bearer nk_... header (CLI/machine-to-machine)
  *
  * Uses PBKDF2-hashed passwords (see ./password.ts) and D1 session storage.
  * Cookie name defaults to 'app_session' — override via runtimeConfig.sessionCookieName.
@@ -13,11 +17,14 @@ import { sessions, users } from '../database/schema'
 
 const DEFAULT_SESSION_COOKIE = 'app_session'
 const SESSION_DAYS = 30
+const API_KEY_PREFIX = 'nk_'
 
 function getSessionCookieName(event: H3Event): string {
   try {
     const config = useRuntimeConfig(event)
-    return (config as Record<string, unknown>).sessionCookieName as string || DEFAULT_SESSION_COOKIE
+    return (
+      ((config as Record<string, unknown>).sessionCookieName as string) || DEFAULT_SESSION_COOKIE
+    )
   } catch {
     return DEFAULT_SESSION_COOKIE
   }
@@ -25,6 +32,16 @@ function getSessionCookieName(event: H3Event): string {
 
 function nowSec(): number {
   return Math.floor(Date.now() / 1000)
+}
+
+/**
+ * Hash a raw API key using SHA-256 (Web Crypto, edge-compatible).
+ */
+async function hashApiKey(rawKey: string): Promise<string> {
+  const data = new TextEncoder().encode(rawKey)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 /**
@@ -89,6 +106,64 @@ export async function getSessionUser(event: H3Event): Promise<User | null> {
 }
 
 /**
+ * Authenticate via API key (Authorization: Bearer nk_...).
+ * Returns the user associated with the key, or null if invalid/expired.
+ * Updates last_used_at on successful authentication.
+ */
+export async function authenticateApiKey(event: H3Event): Promise<User | null> {
+  const authHeader = getRequestHeader(event, 'authorization')
+  if (!authHeader?.startsWith('Bearer ')) return null
+
+  const rawKey = authHeader.slice(7).trim()
+  if (!rawKey.startsWith(API_KEY_PREFIX)) return null
+
+  const db = useDatabase(event)
+  const keyHash = await hashApiKey(rawKey)
+
+  const rows = await db
+    .select({
+      keyId: apiKeys.id,
+      keyExpiresAt: apiKeys.expiresAt,
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      passwordHash: users.passwordHash,
+      appleId: users.appleId,
+      isAdmin: users.isAdmin,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
+    .from(apiKeys)
+    .innerJoin(users, eq(apiKeys.userId, users.id))
+    .where(eq(apiKeys.keyHash, keyHash))
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
+
+  // Check expiration
+  if (row.keyExpiresAt && row.keyExpiresAt < nowSec()) return null
+
+  // Update last_used_at (fire-and-forget, don't block the response)
+  db.update(apiKeys)
+    .set({ lastUsedAt: new Date().toISOString() })
+    .where(eq(apiKeys.id, row.keyId))
+    .run()
+    .catch(() => {}) // silently ignore update failures
+
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    passwordHash: row.passwordHash,
+    appleId: row.appleId,
+    isAdmin: row.isAdmin,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  } as User
+}
+
+/**
  * Destroy the current session and clear the cookie.
  */
 export async function destroySession(event: H3Event): Promise<void> {
@@ -104,17 +179,22 @@ export async function destroySession(event: H3Event): Promise<void> {
 }
 
 /**
- * Get the current user from the session. Throws 401 if not authenticated.
+ * Get the current user from session or API key. Throws 401 if not authenticated.
+ * Fallback chain: session cookie → API key → 401.
  */
 export async function requireAuth(event: H3Event): Promise<User> {
-  const user = await getSessionUser(event)
-  if (!user) {
-    throw createError({
-      statusCode: 401,
-      message: 'Unauthorized',
-    })
-  }
-  return user
+  // Try session cookie first
+  const sessionUser = await getSessionUser(event)
+  if (sessionUser) return sessionUser
+
+  // Fall back to API key
+  const apiKeyUser = await authenticateApiKey(event)
+  if (apiKeyUser) return apiKeyUser
+
+  throw createError({
+    statusCode: 401,
+    message: 'Unauthorized',
+  })
 }
 
 /**
@@ -129,4 +209,24 @@ export async function requireAdmin(event: H3Event): Promise<User> {
     })
   }
   return user
+}
+
+/**
+ * Generate a new API key. Returns the raw key (show once) and the metadata to store.
+ */
+export async function generateApiKey(): Promise<{
+  rawKey: string
+  keyHash: string
+  keyPrefix: string
+}> {
+  const randomBytes = new Uint8Array(32)
+  crypto.getRandomValues(randomBytes)
+  const hex = Array.from(randomBytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  const rawKey = `${API_KEY_PREFIX}${hex}`
+  const keyHash = await hashApiKey(rawKey)
+  const keyPrefix = rawKey.slice(0, 11) // "nk_" + 8 chars
+
+  return { rawKey, keyHash, keyPrefix }
 }

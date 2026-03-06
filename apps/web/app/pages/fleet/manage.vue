@@ -264,6 +264,17 @@ function formatUrl(url: string) {
             </div>
           </div>
           <div class="flex items-center gap-1 shrink-0">
+            <UButton
+              v-if="app.isActive === false"
+              icon="i-lucide-power"
+              size="xs"
+              variant="soft"
+              color="success"
+              class="cursor-pointer"
+              @click="toggleActive(app)"
+            >
+              Activate
+            </UButton>
             <UTooltip text="Edit">
               <UButton
                 icon="i-lucide-pencil"
@@ -274,12 +285,12 @@ function formatUrl(url: string) {
                 @click="openEditModal(app)"
               />
             </UTooltip>
-            <UTooltip :text="app.isActive === false ? 'Activate' : 'Deactivate'">
+            <UTooltip v-if="app.isActive !== false" text="Deactivate">
               <UButton
-                :icon="app.isActive === false ? 'i-lucide-eye' : 'i-lucide-eye-off'"
+                icon="i-lucide-eye-off"
                 size="xs"
                 variant="ghost"
-                :color="app.isActive === false ? 'success' : 'warning'"
+                color="warning"
                 class="cursor-pointer"
                 @click="toggleActive(app)"
               />

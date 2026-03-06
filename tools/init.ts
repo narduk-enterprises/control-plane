@@ -9,13 +9,13 @@ import { fileURLToPath } from 'node:url'
  * ----------------------------------------------------------------
  * Automates the transformation of a fresh `narduk-nuxt-template` clone into a ready-to-deploy app.
  * Safe to re-run — all steps check for existing state before making changes.
- * 
+ *
  * Usage:
  *   pnpm run setup -- --name="my-app" --display="My App Name" --url="https://myapp.com"
- * 
+ *
  * Re-run (repair mode — skip string replacement and README):
  *   pnpm run setup -- --name="my-app" --display="My App Name" --url="https://myapp.com" --repair
- * 
+ *
  * What this does:
  * 1. Safely finds and replaces all boilerplate strings (skipped in --repair mode)
  * 2. Provisions the Cloudflare D1 database (skips if exists)
@@ -628,7 +628,7 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
 
   // 6.5. Local Doppler Setup (skip if in CI)
   console.log('\nStep 6.5/10: Configuring local Doppler environment...')
-  
+
   // Write doppler.yaml for local development convenience.
   // Note: this file is gitignored and must be recreated by each developer.
   const dopplerYamlPath = path.join(ROOT_DIR, 'doppler.yaml')
@@ -795,14 +795,14 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         for (const script of scriptsToRemove) {
           delete rootPkg.scripts[script]
         }
-        
+
         // Update web filter scripts to target APP_NAME
         for (const [key, value] of Object.entries(rootPkg.scripts)) {
           if (typeof value === 'string') {
             rootPkg.scripts[key] = value.replace(/--filter web\b/g, `--filter ${APP_NAME}`)
           }
         }
-        
+
         await fs.writeFile(rootPkgPath, JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8')
       }
 
@@ -1062,8 +1062,7 @@ export default defineConfig({
 
   console.log('\nNext steps:')
   console.log(`  1. pnpm run validate        # Confirm infrastructure`)
-  console.log(`  2. pnpm run db:migrate      # Apply base schema to local D1`)
-  console.log(`  3. doppler run -- pnpm dev   # Start dev server`)
+  console.log(`  2. doppler run -- pnpm dev   # Start dev server (migrations run automatically)`)
   if (!hasGitRemote) {
     console.log(`\n  ⚠️  DEPLOYMENT BLOCKED: Add a git remote and re-run with --repair:`)
     console.log(`     pnpm run setup -- --name="${APP_NAME}" --display="${DISPLAY_NAME}" --url="${SITE_URL}" --repair`)

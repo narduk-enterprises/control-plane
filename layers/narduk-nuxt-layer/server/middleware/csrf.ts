@@ -22,14 +22,18 @@ export default defineEventHandler((event) => {
   // and for internal Nuxt Content query API (SSR has no browser header)
   const path = event.path
   if (
-    path.startsWith('/api/webhooks/')
-    || path.startsWith('/api/cron/')
-    || path.startsWith('/api/callbacks/')
-    || path.startsWith('/api/_auth/')
-    || path.startsWith('/__nuxt_content/')
+    path.startsWith('/api/webhooks/') ||
+    path.startsWith('/api/cron/') ||
+    path.startsWith('/api/callbacks/') ||
+    path.startsWith('/api/_auth/') ||
+    path.startsWith('/__nuxt_content/')
   ) {
     return
   }
+
+  // Skip CSRF for API key bearer auth — not browser-based, not CSRF-vulnerable
+  const authHeader = getHeader(event, 'authorization')
+  if (authHeader?.startsWith('Bearer nk_')) return
 
   const xRequestedWith = getHeader(event, 'x-requested-with')
 

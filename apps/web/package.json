@@ -5,8 +5,9 @@
   "version": "1.32.3",
   "scripts": {
     "build": "nuxt build",
+    "predev": "wrangler d1 execute control-plane-db --local --file=drizzle/migrations.sql",
     "dev": "nuxt dev",
-    "db:migrate": "wrangler d1 execute control-plane-db --local --file=drizzle/0000_initial_schema.sql && wrangler d1 execute control-plane-db --local --file=drizzle/0001_add_app_status.sql && wrangler d1 execute control-plane-db --local --file=drizzle/0002_add_kv_cache.sql && wrangler d1 execute control-plane-db --local --file=drizzle/0002_add_indexnow_tracking.sql && wrangler d1 execute control-plane-db --local --file=drizzle/0003_fleet_apps.sql",
+    "db:migrate": "wrangler d1 execute control-plane-db --local --file=drizzle/migrations.sql",
     "db:seed": "wrangler d1 execute control-plane-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql",
     "db:seed:fleet": "wrangler d1 execute control-plane-db --local --file=../../tools/seed-fleet-apps.sql",
     "db:studio": "drizzle-kit studio",
@@ -16,7 +17,8 @@
     "deploy": "nuxt build && wrangler deploy",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
-    "test:hydration": "node scripts/hydration-smoke.mjs"
+    "test:hydration": "node scripts/hydration-smoke.mjs",
+    "test:integration": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
