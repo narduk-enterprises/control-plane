@@ -1,9 +1,9 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
-import { getManagedRepos } from '../apps/web/server/data/managed-repos'
+import { type ManagedRepo, getManagedRepos } from '../apps/web/server/data/managed-repos'
 
 interface CliOptions {
   appsDir: string
@@ -15,6 +15,15 @@ interface CliOptions {
   repos: string[]
   exclude: Set<string>
 }
+
+interface DopplerSetup {
+  path: string
+  exists: boolean
+  project: string | null
+  config: string | null
+}
+
+const FLEET_DOPPLER_CONFIG = 'prd'
 
 function parseListArg(name: string): string[] {
   const value = process.argv
@@ -68,21 +77,23 @@ function usage(): never {
   process.exit(1)
 }
 
-function resolveTargets(options: CliOptions): string[] {
+function resolveTargets(options: CliOptions): ManagedRepo[] {
   const available = getManagedRepos()
     .filter((repo) => options.includeInactive || repo.isActive)
-    .map((repo) => repo.name)
+    .filter((repo) => repo.syncManaged)
 
-  const requested = options.repos.length > 0 ? options.repos : available
-  const unknown = requested.filter((repo) => !available.includes(repo))
+  const requested = options.repos.length > 0 ? options.repos : available.map((repo) => repo.name)
+  const unknown = requested.filter((repoName) => !available.some((repo) => repo.name === repoName))
   if (unknown.length > 0) {
     console.error(`Unknown fleet repos: ${unknown.join(', ')}`)
     process.exit(1)
   }
 
-  let targets = requested.filter((repo) => !options.exclude.has(repo))
+  let targets = available.filter(
+    (repo) => requested.includes(repo.name) && !options.exclude.has(repo.name),
+  )
   if (options.fromRepo) {
-    const startIndex = targets.indexOf(options.fromRepo)
+    const startIndex = targets.findIndex((repo) => repo.name === options.fromRepo)
     if (startIndex === -1) {
       console.error(`--from repo not found in target set: ${options.fromRepo}`)
       process.exit(1)
@@ -98,6 +109,61 @@ function resolveTargets(options: CliOptions): string[] {
   return targets
 }
 
+function readDopplerSetup(repoDir: string): DopplerSetup {
+  const dopplerYamlPath = join(repoDir, 'doppler.yaml')
+  if (!existsSync(dopplerYamlPath)) {
+    return {
+      path: dopplerYamlPath,
+      exists: false,
+      project: null,
+      config: null,
+    }
+  }
+
+  const content = readFileSync(dopplerYamlPath, 'utf8')
+  const project = content.match(/^\s*project:\s*(.+)\s*$/m)?.[1]?.trim() || null
+  const config = content.match(/^\s*config:\s*(.+)\s*$/m)?.[1]?.trim() || null
+
+  return {
+    path: dopplerYamlPath,
+    exists: true,
+    project,
+    config,
+  }
+}
+
+function ensureDopplerYaml(repo: ManagedRepo, repoDir: string, dryRun: boolean) {
+  const setup = readDopplerSetup(repoDir)
+  const resolvedProject = setup.project || repo.dopplerProject
+
+  if (!setup.exists || !setup.project || !setup.config) {
+    const nextContent = `setup:\n  project: ${resolvedProject}\n  config: ${FLEET_DOPPLER_CONFIG}\n`
+    const action = setup.exists ? 'REPAIR' : 'ADD'
+    console.log(
+      `[${repo.name}] ${action}: doppler.yaml (project=${resolvedProject}, config=${FLEET_DOPPLER_CONFIG})`,
+    )
+
+    if (!dryRun) {
+      writeFileSync(setup.path, nextContent, 'utf8')
+    }
+  } else {
+    console.log(
+      `[${repo.name}] doppler.yaml present (project=${setup.project}, config=${setup.config})`,
+    )
+
+    if (setup.config !== FLEET_DOPPLER_CONFIG) {
+      console.log(
+        `[${repo.name}] Fleet ship will override Doppler config to ${FLEET_DOPPLER_CONFIG}.`,
+      )
+    }
+  }
+
+  return {
+    project: resolvedProject,
+    config: FLEET_DOPPLER_CONFIG,
+  }
+}
+
 function prefixStream(
   repoName: string,
   stream: NodeJS.ReadableStream | null,
@@ -109,22 +175,26 @@ function prefixStream(
   reader.on('line', (line) => writer(`[${repoName}] ${line}`))
 }
 
-function runShip(repoName: string, repoDir: string, dryRun: boolean): Promise<number> {
-  console.log(`\n=== ${repoName} ===`)
-  console.log(`[${repoName}] dir: ${repoDir}`)
+function runShip(repo: ManagedRepo, repoDir: string, dryRun: boolean): Promise<number> {
+  console.log(`\n=== ${repo.name} ===`)
+  console.log(`[${repo.name}] dir: ${repoDir}`)
 
   if (!existsSync(repoDir)) {
-    console.error(`[${repoName}] Missing local clone.`)
+    console.error(`[${repo.name}] Missing local clone.`)
     return Promise.resolve(2)
   }
 
   if (!existsSync(join(repoDir, 'package.json'))) {
-    console.error(`[${repoName}] Missing package.json.`)
+    console.error(`[${repo.name}] Missing package.json.`)
     return Promise.resolve(2)
   }
 
+  const doppler = ensureDopplerYaml(repo, repoDir, dryRun)
+
   if (dryRun) {
-    console.log(`[${repoName}] DRY RUN: pnpm ship`)
+    console.log(
+      `[${repo.name}] DRY RUN: DOPPLER_PROJECT=${doppler.project} DOPPLER_CONFIG=${doppler.config} pnpm ship`,
+    )
     return Promise.resolve(0)
   }
 
@@ -133,23 +203,25 @@ function runShip(repoName: string, repoDir: string, dryRun: boolean): Promise<nu
       cwd: repoDir,
       env: {
         ...process.env,
+        DOPPLER_CONFIG: doppler.config,
+        DOPPLER_PROJECT: doppler.project,
         FORCE_COLOR: process.env.FORCE_COLOR ?? '1',
       },
       shell: process.platform === 'win32',
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
-    prefixStream(repoName, child.stdout, console.log)
-    prefixStream(repoName, child.stderr, console.error)
+    prefixStream(repo.name, child.stdout, console.log)
+    prefixStream(repo.name, child.stderr, console.error)
 
     child.on('error', (error) => {
-      console.error(`[${repoName}] Failed to start pnpm ship: ${error.message}`)
+      console.error(`[${repo.name}] Failed to start pnpm ship: ${error.message}`)
       resolveExitCode(1)
     })
 
     child.on('close', (code, signal) => {
       if (signal) {
-        console.error(`[${repoName}] pnpm ship exited from signal ${signal}`)
+        console.error(`[${repo.name}] pnpm ship exited from signal ${signal}`)
         resolveExitCode(1)
         return
       }
@@ -159,7 +231,7 @@ function runShip(repoName: string, repoDir: string, dryRun: boolean): Promise<nu
   })
 }
 
-async function runTargets(targets: string[], options: CliOptions) {
+async function runTargets(targets: ManagedRepo[], options: CliOptions) {
   const succeeded = new Set<string>()
   const failed = new Set<string>()
   const concurrency = Math.min(options.concurrency, targets.length)
@@ -170,21 +242,21 @@ async function runTargets(targets: string[], options: CliOptions) {
     while (true) {
       if (stopScheduling && !options.continueOnError) return
 
-      const repoName = targets[nextIndex]
+      const repo = targets[nextIndex]
       nextIndex += 1
 
-      if (!repoName) return
+      if (!repo) return
 
-      const repoDir = join(options.appsDir, repoName)
-      const exitCode = await runShip(repoName, repoDir, options.dryRun)
+      const repoDir = join(options.appsDir, repo.name)
+      const exitCode = await runShip(repo, repoDir, options.dryRun)
 
       if (exitCode === 0) {
-        succeeded.add(repoName)
+        succeeded.add(repo.name)
         continue
       }
 
-      failed.add(repoName)
-      console.error(`Failed: ${repoName} (exit ${exitCode})`)
+      failed.add(repo.name)
+      console.error(`Failed: ${repo.name} (exit ${exitCode})`)
       if (!options.continueOnError) {
         stopScheduling = true
       }
@@ -194,8 +266,8 @@ async function runTargets(targets: string[], options: CliOptions) {
   await Promise.all(Array.from({ length: concurrency }, () => worker()))
 
   return {
-    succeeded: targets.filter((repoName) => succeeded.has(repoName)),
-    failed: targets.filter((repoName) => failed.has(repoName)),
+    succeeded: targets.map((repo) => repo.name).filter((repoName) => succeeded.has(repoName)),
+    failed: targets.map((repo) => repo.name).filter((repoName) => failed.has(repoName)),
   }
 }
 
@@ -209,7 +281,7 @@ async function main() {
   console.log('Fleet Ship')
   console.log('══════════════════════════════════════════════════════════════')
   console.log(`Apps dir: ${options.appsDir}`)
-  console.log(`Targets:  ${targets.join(', ')}`)
+  console.log(`Targets:  ${targets.map((repo) => repo.name).join(', ')}`)
   console.log(`Parallel: ${Math.min(options.concurrency, targets.length)}`)
   if (options.dryRun) console.log('Mode:     dry run')
   if (options.continueOnError) console.log('Policy:   continue on error')
