@@ -20,27 +20,30 @@ import { z } from 'zod'
  * </AuthLoginCard>
  */
 
-const props = withDefaults(defineProps<{
-  /** Card heading */
-  title?: string
-  /** Card subheading */
-  subtitle?: string
-  /** Show link to register page */
-  showRegisterLink?: boolean
-  /** Path for the register link */
-  registerPath?: string
-  /** Where to redirect after successful login */
-  redirectPath?: string
-  /** Show the demo/test-user button */
-  showDemoLogin?: boolean
-}>(), {
-  title: 'Welcome back',
-  subtitle: 'Sign in to your account',
-  showRegisterLink: true,
-  registerPath: '/register',
-  redirectPath: '/dashboard/',
-  showDemoLogin: false,
-})
+const props = withDefaults(
+  defineProps<{
+    /** Card heading */
+    title?: string
+    /** Card subheading */
+    subtitle?: string
+    /** Show link to register page */
+    showRegisterLink?: boolean
+    /** Path for the register link */
+    registerPath?: string
+    /** Where to redirect after successful login */
+    redirectPath?: string
+    /** Show the demo/test-user button */
+    showDemoLogin?: boolean
+  }>(),
+  {
+    title: 'Welcome back',
+    subtitle: 'Sign in to your account',
+    showRegisterLink: true,
+    registerPath: '/register',
+    redirectPath: '/dashboard/',
+    showDemoLogin: false,
+  },
+)
 
 const emit = defineEmits<{
   /** Emitted after a successful login with the logged-in user object */
@@ -57,7 +60,7 @@ const state = reactive({
   password: '',
 })
 
-const { login } = useAuthApi()
+const { login, loginAsTestUser } = useAuthApi()
 const { fetch: fetchSession } = useUserSession()
 const errorMsg = ref('')
 const loading = ref(false)
@@ -77,12 +80,19 @@ async function onSubmit() {
     await fetchSession()
     emit('success', result.user)
     await navigateTo(props.redirectPath, { replace: true })
-  }
-  catch (err: unknown) {
-    const error = err as { data?: { statusMessage?: string; message?: string }; statusMessage?: string; message?: string }
-    errorMsg.value = error.data?.statusMessage || error.data?.message || error.statusMessage || error.message || 'Invalid credentials'
-  }
-  finally {
+  } catch (err: unknown) {
+    const error = err as {
+      data?: { statusMessage?: string; message?: string }
+      statusMessage?: string
+      message?: string
+    }
+    errorMsg.value =
+      error.data?.statusMessage ||
+      error.data?.message ||
+      error.statusMessage ||
+      error.message ||
+      'Invalid credentials'
+  } finally {
     loading.value = false
   }
 }
@@ -92,19 +102,14 @@ async function onDemoLogin() {
   demoLoading.value = true
 
   try {
-    const result = await $fetch<{ user: { id: string; name: string; email: string } }>('/api/auth/login-test', {
-      method: 'POST',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
+    const result = await loginAsTestUser()
     await fetchSession()
     emit('success', result.user)
     await navigateTo(props.redirectPath, { replace: true })
-  }
-  catch (err: unknown) {
+  } catch (err: unknown) {
     const error = err as { data?: { message?: string } }
     errorMsg.value = error.data?.message || 'Unable to sign in with demo user'
-  }
-  finally {
+  } finally {
     demoLoading.value = false
   }
 }
@@ -127,7 +132,14 @@ async function onDemoLogin() {
       </div>
     </template>
 
-    <UAlert v-if="errorMsg" color="error" variant="subtle" title="Error" :description="errorMsg" class="mb-4" />
+    <UAlert
+      v-if="errorMsg"
+      color="error"
+      variant="subtle"
+      title="Error"
+      :description="errorMsg"
+      class="mb-4"
+    />
 
     <!-- Extra content above the form -->
     <slot name="before-form" />
@@ -141,7 +153,14 @@ async function onDemoLogin() {
         <UInput v-model="state.password" type="password" placeholder="••••••••" class="w-full" />
       </UFormField>
 
-      <UButton type="button" color="primary" class="w-full" :loading="loading" block @click="onSubmit">
+      <UButton
+        type="button"
+        color="primary"
+        class="w-full"
+        :loading="loading"
+        block
+        @click="onSubmit"
+      >
         Sign In
       </UButton>
 
@@ -165,9 +184,7 @@ async function onDemoLogin() {
     <template v-if="showRegisterLink" #footer>
       <p class="text-center text-sm text-muted">
         Don't have an account?
-        <ULink :to="registerPath" class="text-primary font-medium hover:underline">
-          Sign up
-        </ULink>
+        <ULink :to="registerPath" class="text-primary font-medium hover:underline"> Sign up </ULink>
       </p>
     </template>
   </UCard>

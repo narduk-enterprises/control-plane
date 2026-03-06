@@ -37,5 +37,13 @@ export function useAuthApi() {
     })
   }
 
-  return { login, register, logout, loginAsTestUser }
+  async function changePassword(payload: { currentPassword: string; newPassword: string }) {
+    return $fetch<{ success: boolean }>('/api/auth/change-password', {
+      method: 'POST',
+      body: payload,
+      headers: csrfHeaders,
+    })
+  }
+
+  return { login, register, logout, loginAsTestUser, changePassword }
 }

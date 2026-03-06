@@ -49,7 +49,7 @@ describe('auth', () => {
   describe('getSessionUser', () => {
     it('returns null when no session cookie is present', async () => {
       const { getCookie } = await import('h3')
-      vi.mocked(getCookie).mockReturnValue(undefined)
+      vi.mocked(getCookie).mockReturnValue()
 
       const event = { context: {} } as never
       const result = await getSessionUser(event)
@@ -60,7 +60,7 @@ describe('auth', () => {
   describe('requireAuth', () => {
     it('throws 401 when no session exists', async () => {
       const { getCookie } = await import('h3')
-      vi.mocked(getCookie).mockReturnValue(undefined)
+      vi.mocked(getCookie).mockReturnValue()
 
       const event = { context: {} } as never
       await expect(requireAuth(event)).rejects.toThrow('Unauthorized')
@@ -70,7 +70,7 @@ describe('auth', () => {
   describe('requireAdmin', () => {
     it('throws 401 when no session exists (via requireAuth)', async () => {
       const { getCookie } = await import('h3')
-      vi.mocked(getCookie).mockReturnValue(undefined)
+      vi.mocked(getCookie).mockReturnValue()
 
       const event = { context: {} } as never
       await expect(requireAdmin(event)).rejects.toThrow('Unauthorized')

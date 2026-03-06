@@ -14,14 +14,11 @@ export default defineNuxtPlugin(() => {
     capture_pageleave: true,
 
     // --- Prevent sendBeacon 64KB payload limit ---
-    // Flush more frequently so less accumulates for the unload beacon
-    flush_interval: 5000, // default 10000ms
-    flush_batch_size: 10, // default 50 — smaller batches = less queued at unload
-
     // Disable session recording — biggest payload contributor
     disable_session_recording: true,
 
     // Use XHR instead of sendBeacon on page unload (avoids 64KB cap entirely)
+    // @ts-expect-error: transport exists in modern versions but is sometimes absent from Partial<PostHogConfig> types
     transport: 'XHR',
 
     loaded: (ph) => {

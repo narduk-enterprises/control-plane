@@ -124,9 +124,7 @@ export async function withD1Cache<T>(
     } catch (err) {
       console.error(`[D1 Cache GET Error] ${cacheKey}`, err)
     }
-  } else if (!d1) {
-    if (import.meta.dev) console.warn(`[D1 Cache] DB binding not found for ${cacheKey}`)
-  }
+  } else if (!d1 && import.meta.dev) console.warn(`[D1 Cache] DB binding not found for ${cacheKey}`)
 
   // Execute the actual logic
   const result = await fetcher()
