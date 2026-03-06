@@ -25,7 +25,8 @@ function getSessionCookieName(event: H3Event): string {
     return (
       ((config as Record<string, unknown>).sessionCookieName as string) || DEFAULT_SESSION_COOKIE
     )
-  } catch {
+  } catch (err) {
+    console.warn('[Auth] Failed to read sessionCookieName from runtimeConfig', err)
     return DEFAULT_SESSION_COOKIE
   }
 }
@@ -149,7 +150,7 @@ export async function authenticateApiKey(event: H3Event): Promise<User | null> {
     .set({ lastUsedAt: new Date().toISOString() })
     .where(eq(apiKeys.id, row.keyId))
     .run()
-    .catch(() => {}) // silently ignore update failures
+    .catch((err) => console.warn('[Auth] Failed to update API key last_used_at', err))
 
   return {
     id: row.id,

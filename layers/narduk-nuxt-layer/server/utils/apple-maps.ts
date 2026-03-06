@@ -47,7 +47,8 @@ function decodeJwtPayload(token: string) {
     }
 
     return JSON.parse(Buffer.from(normalized, 'base64').toString('utf8')) as Record<string, unknown>
-  } catch {
+  } catch (err) {
+    console.warn('[AppleMaps] Failed to decode JWT payload', err)
     return null
   }
 }
@@ -75,8 +76,8 @@ export async function getDeveloperToken(config: AppleMapsCreds) {
 
   const now = Date.now()
   if (
-    cachedDeveloperToken
-    && cachedDeveloperTokenExpiresAt > now + DEVELOPER_TOKEN_REFRESH_WINDOW_MS
+    cachedDeveloperToken &&
+    cachedDeveloperTokenExpiresAt > now + DEVELOPER_TOKEN_REFRESH_WINDOW_MS
   ) {
     return cachedDeveloperToken
   }
@@ -109,10 +110,7 @@ export async function getDeveloperToken(config: AppleMapsCreds) {
 
 export async function getAccessToken(developerToken: string) {
   const now = Date.now()
-  if (
-    cachedAccessToken
-    && cachedAccessTokenExpiresAt > now + ACCESS_TOKEN_REFRESH_WINDOW_MS
-  ) {
+  if (cachedAccessToken && cachedAccessTokenExpiresAt > now + ACCESS_TOKEN_REFRESH_WINDOW_MS) {
     return cachedAccessToken
   }
 
@@ -173,8 +171,8 @@ interface AppleMapsSearchResponse {
 
 export interface SearchOptions {
   query: string
-  searchLocation?: { lat: number, lng: number }
-  searchRegion?: { north: number, east: number, south: number, west: number }
+  searchLocation?: { lat: number; lng: number }
+  searchRegion?: { north: number; east: number; south: number; west: number }
   includePoiCategories?: string
   limit?: number
 }
@@ -194,7 +192,10 @@ export async function searchPlaces(
   }
 
   if (options.searchLocation) {
-    url.searchParams.set('searchLocation', `${options.searchLocation.lat},${options.searchLocation.lng}`)
+    url.searchParams.set(
+      'searchLocation',
+      `${options.searchLocation.lat},${options.searchLocation.lng}`,
+    )
   }
 
   if (options.searchRegion) {

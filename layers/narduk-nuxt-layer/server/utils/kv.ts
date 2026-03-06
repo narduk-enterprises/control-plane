@@ -55,13 +55,18 @@ export function useKV(event: H3Event, bindingName = 'KV'): KVNamespace {
 /**
  * Get a JSON-parsed value from KV.
  */
-export async function kvGet<T = unknown>(event: H3Event, key: string, bindingName = 'KV'): Promise<T | null> {
+export async function kvGet<T = unknown>(
+  event: H3Event,
+  key: string,
+  bindingName = 'KV',
+): Promise<T | null> {
   const kv = useKV(event, bindingName)
   const raw = await kv.get(key)
   if (!raw) return null
   try {
     return JSON.parse(raw) as T
-  } catch {
+  } catch (err) {
+    console.warn(`[KV] Failed to parse JSON for key`, err)
     return raw as unknown as T
   }
 }
