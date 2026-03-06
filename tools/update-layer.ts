@@ -7,11 +7,11 @@ import { fileURLToPath } from 'node:url'
  * UPDATE-LAYER.TS
  * ----------------------------------------------------------------
  * Pulls the latest layers/narduk-nuxt-layer from the template repository.
- * 
+ *
  * Usage:
  *   pnpm run update-layer                # fetch and apply layer update
  *   pnpm run update-layer -- --dry-run   # show what would change without applying
- * 
+ *
  * Options:
  *   --dry-run            Show diff without applying changes
  *   --no-rewrite-repo    Skip rewriting layers/narduk-nuxt-layer/package.json's repository.url
@@ -45,7 +45,9 @@ async function main() {
 
   // 1. Check/Add remote
   const remotes = getOutput('git remote -v')
-  const hasTemplate = remotes.split('\n').some(line => line.startsWith('template\t') && line.includes(TEMPLATE_URL))
+  const hasTemplate = remotes
+    .split('\n')
+    .some((line) => line.startsWith('template\t') && line.includes(TEMPLATE_URL))
 
   if (!hasTemplate) {
     if (remotes.includes('template\t')) {
@@ -65,9 +67,13 @@ async function main() {
   // 2.5. Dry-run: show diff and exit without modifying anything
   if (dryRun) {
     console.log('\n📋 Dry-run mode — showing what would change:\n')
-    const currentSha = getOutput('git rev-parse HEAD:layers/narduk-nuxt-layer 2>/dev/null || echo none')
+    const currentSha = getOutput(
+      'git rev-parse HEAD:layers/narduk-nuxt-layer 2>/dev/null || echo none',
+    )
     const templateSha = getOutput('git rev-parse template/main')
-    const templateLayerSha = getOutput('git rev-parse template/main:layers/narduk-nuxt-layer 2>/dev/null || echo none')
+    const templateLayerSha = getOutput(
+      'git rev-parse template/main:layers/narduk-nuxt-layer 2>/dev/null || echo none',
+    )
 
     console.log(`  Current layer tree:  ${currentSha.slice(0, 12)}`)
     console.log(`  Template layer tree: ${templateLayerSha.slice(0, 12)}`)
@@ -77,7 +83,9 @@ async function main() {
       console.log('\n  ✅ Layer is already up to date — no changes needed.')
     } else {
       console.log('\n  Changed files:\n')
-      const diffAgainstTemplate = getOutput('git diff HEAD:layers/narduk-nuxt-layer template/main:layers/narduk-nuxt-layer --stat 2>/dev/null || echo "  (unable to compute stat diff)"')
+      const diffAgainstTemplate = getOutput(
+        'git diff HEAD:layers/narduk-nuxt-layer template/main:layers/narduk-nuxt-layer --stat 2>/dev/null || echo "  (unable to compute stat diff)"',
+      )
       console.log(diffAgainstTemplate || '  (no stat diff available)')
       console.log('\n  Run without --dry-run to apply these changes.')
     }
@@ -167,12 +175,30 @@ async function main() {
   run('pnpm install --no-frozen-lockfile')
   run('git add pnpm-lock.yaml')
 
+  // 7. Quality gate
+  console.log('\n🛡️ Running quality gate...')
+  try {
+    run('pnpm run quality')
+    console.log('  ✅ Quality gate passed.')
+  } catch (e: any) {
+    console.error('\n❌ Quality gate failed.')
+    console.error(
+      '  ⚠️ Layer update received but it causes TypeScript or ESLint errors in this application.',
+    )
+    console.error(
+      '  ⚠️ Please fix the issues locally or revert the update using `git checkout HEAD . && git clean -fd`.',
+    )
+    process.exit(1)
+  }
+
   console.log('\n🎉 Layer update complete!')
   console.log('⚠️  Note: Local layer customizations (if any) have been overwritten.')
-  console.log('    Layer changes are staged. Run `git diff --cached` to review, then `git commit` when ready.')
+  console.log(
+    '    Layer changes are staged. Run `git diff --cached` to review, then `git commit` when ready.',
+  )
 }
 
-main().catch(e => {
+main().catch((e) => {
   console.error('\n❌ Update failed:', e.message)
   process.exit(1)
 })
