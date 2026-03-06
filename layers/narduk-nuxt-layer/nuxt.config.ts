@@ -103,6 +103,11 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: 'cloudflare-module',
+    imports: {
+      // Prevent nuxt-auth-utils password.js from being server-auto-imported;
+      // the layer provides its own Web Crypto (PBKDF2) implementations.
+      exclude: [/nuxt-auth-utils\/dist\/runtime\/server\/utils\/password/],
+    },
     esbuild: {
       options: {
         target: 'esnext',
