@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getRequestHeaders } from 'h3'
+import { getRequestHeaders, getRequestURL } from 'h3'
 import { getFleetApps } from '#server/data/fleet-registry'
 import { withD1Cache } from '#layer/server/utils/d1Cache'
 
@@ -67,8 +67,29 @@ export default defineEventHandler(async (event) => {
       // Forward cron secret so sub-endpoints can bypass requireAdmin
       if (cronHeader) authHeaders['x-internal-cron'] = cronHeader
 
+      // Use the request origin for external fetch — internal $fetch on Cloudflare Workers
+      // does NOT propagate event.context.cloudflare (D1 bindings), causing 500s.
+      // External fetch goes through Workers runtime which injects bindings properly.
+      const origin = getRequestURL(event).origin
+
       const summaryMap: Record<string, FleetAppAnalyticsSummary> = {}
       const start = Date.now()
+
+      /** Helper: fetch a sub-endpoint via real HTTP and return parsed JSON or null. */
+      async function safeFetch<T>(path: string, query: Record<string, string>): Promise<T | null> {
+        try {
+          const qs = new URLSearchParams(query).toString()
+          const res = await fetch(`${origin}${path}?${qs}`, { headers: authHeaders })
+          if (!res.ok) {
+            console.error(`[Fleet Analytics] ${path} → ${res.status}`)
+            return null
+          }
+          return (await res.json()) as T
+        } catch (err) {
+          console.error(`[Fleet Analytics] ${path} error:`, (err as Error).message)
+          return null
+        }
+      }
 
       for (let i = 0; i < apps.length; i += BATCH_SIZE) {
         if (Date.now() - start > DEADLINE_MS) break
@@ -76,55 +97,21 @@ export default defineEventHandler(async (event) => {
         const settled = await Promise.allSettled(
           // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server -- intentional: batched with Promise.allSettled and deadline
           batch.map(async (app) => {
-            const [gaRes, gscRes, posthogRes] = await Promise.allSettled([
-              $fetch<{
+            const [ga, gsc, posthog] = await Promise.all([
+              safeFetch<{
                 summary?: unknown
                 deltas?: unknown
                 timeSeries?: { date: string; value: number }[]
-              }>(`/api/fleet/ga/${encodeURIComponent(app.name)}`, {
-                headers: authHeaders,
-                query: { startDate, endDate },
-              }).catch((err: unknown) => {
-                const msg = err instanceof Error ? err.message : JSON.stringify(err)
-                const status = (err as { statusCode?: number })?.statusCode ?? 'unknown'
-                console.error(
-                  `[Fleet Analytics] GA failed for ${app.name} (status=${status}):`,
-                  msg,
-                )
-                return null
-              }),
-              $fetch<{ totals?: unknown; rows?: unknown[] }>(
+              }>(`/api/fleet/ga/${encodeURIComponent(app.name)}`, { startDate, endDate }),
+              safeFetch<{ totals?: unknown; rows?: unknown[] }>(
                 `/api/fleet/gsc/${encodeURIComponent(app.name)}`,
-                {
-                  headers: authHeaders,
-                  query: { startDate, endDate, dimension: 'query' },
-                },
-              ).catch((err: unknown) => {
-                console.error(
-                  `[Fleet Analytics] GSC failed for ${app.name}:`,
-                  (err as Error).message ?? err,
-                )
-                return null
-              }),
-              $fetch<{
+                { startDate, endDate, dimension: 'query' },
+              ),
+              safeFetch<{
                 summary?: Record<string, number>
                 timeSeries?: { date: string; value: number }[]
-              }>(`/api/fleet/posthog/${encodeURIComponent(app.name)}`, {
-                headers: authHeaders,
-                query: { startDate, endDate },
-              }).catch((err: unknown) => {
-                console.error(
-                  `[Fleet Analytics] PostHog failed for ${app.name}:`,
-                  (err as Error).message ?? err,
-                )
-                return null
-              }),
+              }>(`/api/fleet/posthog/${encodeURIComponent(app.name)}`, { startDate, endDate }),
             ])
-
-            const ga = gaRes.status === 'fulfilled' && gaRes.value ? gaRes.value : null
-            const gsc = gscRes.status === 'fulfilled' && gscRes.value ? gscRes.value : null
-            const posthog =
-              posthogRes.status === 'fulfilled' && posthogRes.value ? posthogRes.value : null
 
             const out: FleetAppAnalyticsSummary = {
               ga: ga
