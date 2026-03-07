@@ -69,10 +69,14 @@ export default defineEventHandler(async (event) => {
 
         if (db) {
           try {
-            // GA cache key matches: ga-app-${appSlug}-${startDate}-${endDate}
+            // Try exact key first, fall back to most recent cache entry for this app.
+            // Date ranges vary by timezone/timing, so fuzzy matching prevents silent nulls.
             const gaCache = await getCached(db, `ga-app-${slug}-${startDate}-${endDate}`)
-            if (gaCache) {
-              const gaData = JSON.parse(gaCache.value)
+            const gaRow = gaCache
+              ?? await db.prepare(`SELECT value FROM kv_cache WHERE key LIKE ? ORDER BY expires_at DESC LIMIT 1`)
+                .bind(`ga-app-${slug}-%`).first<{ value: string }>()
+            if (gaRow) {
+              const gaData = JSON.parse('value' in gaRow ? gaRow.value : (gaRow as { value: string }).value)
               ga = {
                 summary: gaData.summary ?? null,
                 deltas: gaData.deltas ?? null,
@@ -84,10 +88,12 @@ export default defineEventHandler(async (event) => {
           }
 
           try {
-            // GSC cache key matches: gsc-app-${appSlug}-${startDate}-${endDate}-query
             const gscCache = await getCached(db, `gsc-app-${slug}-${startDate}-${endDate}-query`)
-            if (gscCache) {
-              const gscData = JSON.parse(gscCache.value)
+            const gscRow = gscCache
+              ?? await db.prepare(`SELECT value FROM kv_cache WHERE key LIKE ? ORDER BY expires_at DESC LIMIT 1`)
+                .bind(`gsc-app-${slug}-%`).first<{ value: string }>()
+            if (gscRow) {
+              const gscData = JSON.parse('value' in gscRow ? gscRow.value : (gscRow as { value: string }).value)
               gsc = {
                 totals: gscData.totals ?? null,
                 rowsCount: gscData.rows?.length ?? 0,
@@ -98,7 +104,6 @@ export default defineEventHandler(async (event) => {
           }
 
           try {
-            // PostHog uses ISO timestamp keys — scan for matching prefix
             const phRow = await db
               .prepare(
                 `SELECT value FROM kv_cache WHERE key LIKE ? ORDER BY expires_at DESC LIMIT 1`,
