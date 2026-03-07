@@ -85,9 +85,11 @@ export default defineEventHandler(async (event) => {
                 headers: authHeaders,
                 query: { startDate, endDate },
               }).catch((err: unknown) => {
+                const msg = err instanceof Error ? err.message : JSON.stringify(err)
+                const status = (err as { statusCode?: number })?.statusCode ?? 'unknown'
                 console.error(
-                  `[Fleet Analytics] GA failed for ${app.name}:`,
-                  (err as Error).message ?? err,
+                  `[Fleet Analytics] GA failed for ${app.name} (status=${status}):`,
+                  msg,
                 )
                 return null
               }),
