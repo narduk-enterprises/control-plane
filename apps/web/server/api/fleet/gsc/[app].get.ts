@@ -60,10 +60,10 @@ export default defineEventHandler(async (event) => {
 
   const parsed = querySchema.safeParse(getQuery(event))
   const query = parsed.success ? parsed.data : { dimension: 'query' as const }
-  let endDate = query.endDate ?? new Date().toISOString().split('T')[0] ?? ''
+  let endDate = (query.endDate ?? new Date().toISOString()).split('T')[0] ?? ''
   const startObj = new Date(endDate)
   startObj.setDate(startObj.getDate() - 30)
-  let startDate = query.startDate ?? startObj.toISOString().split('T')[0] ?? ''
+  let startDate = (query.startDate ?? startObj.toISOString()).split('T')[0] ?? ''
 
   // Prevent crashes from Vue reactivity tearing where start evaluates after end
   if (startDate > endDate) {

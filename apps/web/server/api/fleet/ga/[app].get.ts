@@ -35,8 +35,8 @@ export default defineEventHandler(async (event) => {
   const parsed = querySchema.safeParse(getQuery(event))
   const query = parsed.success ? parsed.data : {}
 
-  let endDate = query.endDate ?? new Date().toISOString().split('T')[0] ?? ''
-  let startDate = query.startDate ?? endDate // Default: today only
+  let endDate = (query.endDate ?? new Date().toISOString()).split('T')[0] ?? ''
+  let startDate = (query.startDate ?? endDate).split('T')[0] ?? '' // Default: today only
 
   // Prevent crashes from Vue reactivity rearing when evaluating start before end
   if (startDate > endDate) {

@@ -71,10 +71,10 @@ export default defineEventHandler(async (event) => {
 
   const parsed = querySchema.safeParse(getQuery(event))
   const query = parsed.success ? parsed.data : {}
-  let endDate = query.endDate ?? new Date().toISOString().split('T')[0] ?? ''
+  let endDate = (query.endDate ?? new Date().toISOString()).split('T')[0] ?? ''
   const startObj = new Date(endDate)
   startObj.setDate(startObj.getDate() - 30)
-  let startDate = query.startDate ?? startObj.toISOString().split('T')[0] ?? ''
+  let startDate = (query.startDate ?? startObj.toISOString()).split('T')[0] ?? ''
   if (startDate > endDate) {
     const temp = startDate
     startDate = endDate
