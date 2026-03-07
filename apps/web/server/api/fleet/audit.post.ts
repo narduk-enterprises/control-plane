@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
       if (expectedGaId) {
         checks.push({
           name: 'GA Measurement ID',
-          status: actualGaId === expectedGaId ? 'pass' : 'fail',
+          status: actualGaId === expectedGaId ? 'pass' : actualGaId ? 'fail' : 'warning',
           expected: expectedGaId,
           actual: actualGaId,
           message:
@@ -108,7 +108,7 @@ export default defineEventHandler(async (event) => {
               ? 'Matches fleet registry'
               : actualGaId
                 ? `Mismatch: expected "${expectedGaId}", got "${actualGaId}"`
-                : 'No gaMeasurementId found in serialized runtime config',
+                : `Expected "${expectedGaId}" but not found — redeploy app to pick up GA_MEASUREMENT_ID`,
         })
       } else {
         checks.push({
