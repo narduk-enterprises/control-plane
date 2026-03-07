@@ -16,7 +16,6 @@ export default defineEventHandler(async (event) => {
   const app = await getFleetAppByName(event, appSlug)
   if (!app) throw createError({ statusCode: 404, message: 'App not found' })
 
-  const config = useRuntimeConfig()
   const apiKey = config.posthogApiKey as string
   const projectId = config.posthogProjectId as string
   const host = (config.posthogHost as string) || 'https://us.i.posthog.com'
