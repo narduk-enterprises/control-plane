@@ -3,7 +3,11 @@ import { getFleetAppByName } from '#server/data/fleet-registry'
 import { withD1Cache } from '#layer/server/utils/d1Cache'
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  const config = useRuntimeConfig()
+  const cronHeader = getHeader(event, 'x-internal-cron')
+  if (!(config.cronSecret && cronHeader === config.cronSecret)) {
+    await requireAdmin(event)
+  }
   await enforceRateLimit(event, 'fleet-posthog', 100, 60_000)
 
   const appSlug = getRouterParam(event, 'app')

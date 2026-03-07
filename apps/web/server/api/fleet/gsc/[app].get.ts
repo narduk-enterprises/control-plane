@@ -3,7 +3,6 @@ import { GoogleApiError, googleApiFetch, GSC_SCOPES } from '#layer/server/utils/
 import { getFleetAppByName } from '#server/data/fleet-registry'
 import { withD1Cache } from '#layer/server/utils/d1Cache'
 
-
 const querySchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -46,7 +45,11 @@ async function tryGscQuery(siteUrl: string, startDate: string, endDate: string, 
 }
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  const config = useRuntimeConfig()
+  const cronHeader = getHeader(event, 'x-internal-cron')
+  if (!(config.cronSecret && cronHeader === config.cronSecret)) {
+    await requireAdmin(event)
+  }
   await enforceRateLimit(event, 'fleet-gsc', 30, 60_000)
 
   const appSlug = getRouterParam(event, 'app')
@@ -79,55 +82,65 @@ export default defineEventHandler(async (event) => {
   const TTL = 4 * 3600
   const staleWindow = 2 * 3600
 
-  return withD1Cache(event, cacheKey, TTL, async () => {
-    // Try sc-domain first, fall back to URL-prefix
-    let result = await tryGscQuery(scDomain, startDate, endDate, query.dimension)
-    const usedFallback = !result
-    if (!result) {
-      result = await tryGscQuery(urlPrefix, startDate, endDate, query.dimension)
-    }
+  return withD1Cache(
+    event,
+    cacheKey,
+    TTL,
+    async () => {
+      // Try sc-domain first, fall back to URL-prefix
+      let result = await tryGscQuery(scDomain, startDate, endDate, query.dimension)
+      const usedFallback = !result
+      if (!result) {
+        result = await tryGscQuery(urlPrefix, startDate, endDate, query.dimension)
+      }
 
-    if (!result) {
-      throw createError({
-        statusCode: 403,
-        message: `GSC: No access for '${scDomain}' or '${urlPrefix}'. Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com access in Google Search Console.`,
-      })
-    }
+      if (!result) {
+        throw createError({
+          statusCode: 403,
+          message: `GSC: No access for '${scDomain}' or '${urlPrefix}'. Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com access in Google Search Console.`,
+        })
+      }
 
-    const data = result.dimensionalData as Record<string, unknown>
-    const rows = (data.rows as Array<Record<string, unknown>>) ?? []
+      const data = result.dimensionalData as Record<string, unknown>
+      const rows = (data.rows as Array<Record<string, unknown>>) ?? []
 
-    const totalsObj = result.totalData as Record<string, unknown> | null
-    const totalsRow = (totalsObj?.rows as Array<Record<string, unknown>>)?.[0] || null
+      const totalsObj = result.totalData as Record<string, unknown> | null
+      const totalsRow = (totalsObj?.rows as Array<Record<string, unknown>>)?.[0] || null
 
-    // URL Inspection (best-effort, uses whichever siteUrl worked)
-    let inspectionResult: Record<string, unknown> | undefined
-    try {
-      const inspectionData = await googleApiFetch(
-        `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
-        GSC_SCOPES,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            inspectionUrl: app.url,
-            siteUrl: result.siteUrl,
-            languageCode: 'en-US',
-          }),
-        },
-      ) as Record<string, unknown>
-      inspectionResult = inspectionData.inspectionResult as Record<string, unknown> | undefined
-    } catch { /* best-effort */ }
+      // URL Inspection (best-effort, uses whichever siteUrl worked)
+      let inspectionResult: Record<string, unknown> | undefined
+      try {
+        const inspectionData = (await googleApiFetch(
+          `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
+          GSC_SCOPES,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              inspectionUrl: app.url,
+              siteUrl: result.siteUrl,
+              languageCode: 'en-US',
+            }),
+          },
+        )) as Record<string, unknown>
+        inspectionResult = inspectionData.inspectionResult as Record<string, unknown> | undefined
+      } catch {
+        /* best-effort */
+      }
 
-    return {
-      app: app.name,
-      rows,
-      totals: totalsRow,
-      inspection: inspectionResult,
-      startDate,
-      endDate,
-      dimension: query.dimension,
-      ...(usedFallback ? { gscSiteUrl: result.siteUrl, note: 'Used URL-prefix fallback (not sc-domain)' } : {}),
-    }
-  }, query.force === 'true', { staleWindowSeconds: staleWindow })
+      return {
+        app: app.name,
+        rows,
+        totals: totalsRow,
+        inspection: inspectionResult,
+        startDate,
+        endDate,
+        dimension: query.dimension,
+        ...(usedFallback
+          ? { gscSiteUrl: result.siteUrl, note: 'Used URL-prefix fallback (not sc-domain)' }
+          : {}),
+      }
+    },
+    query.force === 'true',
+    { staleWindowSeconds: staleWindow },
+  )
 })
-

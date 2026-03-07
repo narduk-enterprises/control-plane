@@ -64,6 +64,8 @@ export default defineEventHandler(async (event) => {
       if (headers.cookie) authHeaders.cookie = headers.cookie
       if (headers.authorization) authHeaders.authorization = headers.authorization
       if (headers['x-requested-with']) authHeaders['x-requested-with'] = headers['x-requested-with']
+      // Forward cron secret so sub-endpoints can bypass requireAdmin
+      if (cronHeader) authHeaders['x-internal-cron'] = cronHeader
 
       const summaryMap: Record<string, FleetAppAnalyticsSummary> = {}
       const start = Date.now()
