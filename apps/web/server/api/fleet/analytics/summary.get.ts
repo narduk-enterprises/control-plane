@@ -1,7 +1,6 @@
 import { z } from 'zod'
-import { getRequestHeaders, getRequestURL } from 'h3'
 import { getFleetApps } from '#server/data/fleet-registry'
-import { withD1Cache } from '#layer/server/utils/d1Cache'
+import { getD1CacheDB, getCached, withD1Cache } from '#layer/server/utils/d1Cache'
 
 const querySchema = z.object({
   startDate: z.string().optional(),
@@ -47,9 +46,6 @@ export default defineEventHandler(async (event) => {
 
   const cacheKey = `fleet-analytics-summary-${startDate}-${endDate}`
   const TTL = 30 * 60
-  /** Wall-clock deadline so we never exceed Cloudflare Worker limits (522). Return partial results when hit. */
-  const DEADLINE_MS = 22_000
-  const BATCH_SIZE = 4
 
   const result = await withD1Cache(
     event,
@@ -57,101 +53,71 @@ export default defineEventHandler(async (event) => {
     TTL,
     async () => {
       const apps = await getFleetApps(event)
-      // Use forwarded auth headers so Nitro's in-process $fetch passes them
-      // to sub-endpoint handlers (requireAdmin reads cookies from the internal request).
-      const headers = getRequestHeaders(event)
-      const authHeaders: Record<string, string> = {}
-      if (headers.cookie) authHeaders.cookie = headers.cookie
-      if (headers.authorization) authHeaders.authorization = headers.authorization
-      if (headers['x-requested-with']) authHeaders['x-requested-with'] = headers['x-requested-with']
-      // Forward cron secret so sub-endpoints can bypass requireAdmin
-      if (cronHeader) authHeaders['x-internal-cron'] = cronHeader
+      const db = getD1CacheDB(event)
 
-      // Use the request origin for external fetch — internal $fetch on Cloudflare Workers
-      // does NOT propagate event.context.cloudflare (D1 bindings), causing 500s.
-      // External fetch goes through Workers runtime which injects bindings properly.
-      const origin = getRequestURL(event).origin
-
+      // Read sub-endpoint cached data directly from D1 instead of internal $fetch.
+      // Cloudflare Workers internal $fetch does NOT propagate event.context.cloudflare
+      // (D1 bindings), causing 500s. External fetch to the same Worker domain also
+      // doesn't work due to Cloudflare's same-zone bypass restriction.
       const summaryMap: Record<string, FleetAppAnalyticsSummary> = {}
-      const start = Date.now()
 
-      /** Helper: fetch a sub-endpoint via real HTTP and return parsed JSON or null. */
-      async function safeFetch<T>(path: string, query: Record<string, string>): Promise<T | null> {
-        try {
-          const qs = new URLSearchParams(query).toString()
-          const res = await fetch(`${origin}${path}?${qs}`, { headers: authHeaders })
-          if (!res.ok) {
-            console.error(`[Fleet Analytics] ${path} → ${res.status}`)
-            return null
-          }
-          return (await res.json()) as T
-        } catch (err) {
-          console.error(`[Fleet Analytics] ${path} error:`, (err as Error).message)
-          return null
-        }
-      }
+      for (const app of apps) {
+        const slug = app.name
+        let ga: FleetAppAnalyticsSummary['ga'] = null
+        let gsc: FleetAppAnalyticsSummary['gsc'] = null
+        let posthog: FleetAppAnalyticsSummary['posthog'] = null
 
-      for (let i = 0; i < apps.length; i += BATCH_SIZE) {
-        if (Date.now() - start > DEADLINE_MS) break
-        const batch = apps.slice(i, i + BATCH_SIZE)
-        const settled = await Promise.allSettled(
-          // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server -- intentional: batched with Promise.allSettled and deadline
-          batch.map(async (app) => {
-            const [ga, gsc, posthog] = await Promise.all([
-              safeFetch<{
-                summary?: unknown
-                deltas?: unknown
-                timeSeries?: { date: string; value: number }[]
-              }>(`/api/fleet/ga/${encodeURIComponent(app.name)}`, { startDate, endDate }),
-              safeFetch<{ totals?: unknown; rows?: unknown[] }>(
-                `/api/fleet/gsc/${encodeURIComponent(app.name)}`,
-                { startDate, endDate, dimension: 'query' },
-              ),
-              safeFetch<{
-                summary?: Record<string, number>
-                timeSeries?: { date: string; value: number }[]
-              }>(`/api/fleet/posthog/${encodeURIComponent(app.name)}`, { startDate, endDate }),
-            ])
-
-            const out: FleetAppAnalyticsSummary = {
-              ga: ga
-                ? {
-                    summary: ga.summary as FleetAppAnalyticsSummary['ga'] extends {
-                      summary: infer S
-                    }
-                      ? S
-                      : never,
-                    deltas: (ga.deltas ?? null) as FleetAppAnalyticsSummary['ga'] extends {
-                      deltas: infer D
-                    }
-                      ? D
-                      : null,
-                    timeSeries: ga.timeSeries ?? [],
-                  }
-                : null,
-              gsc: gsc
-                ? {
-                    totals: (gsc.totals ?? null) as FleetAppAnalyticsSummary['gsc'] extends {
-                      totals: infer T
-                    }
-                      ? T
-                      : null,
-                    rowsCount: gsc.rows?.length ?? 0,
-                  }
-                : null,
-              posthog: posthog
-                ? { summary: posthog.summary ?? {}, timeSeries: posthog.timeSeries ?? [] }
-                : null,
+        if (db) {
+          try {
+            // GA cache key matches: ga-app-${appSlug}-${startDate}-${endDate}
+            const gaCache = await getCached(db, `ga-app-${slug}-${startDate}-${endDate}`)
+            if (gaCache) {
+              const gaData = JSON.parse(gaCache.value)
+              ga = {
+                summary: gaData.summary ?? null,
+                deltas: gaData.deltas ?? null,
+                timeSeries: gaData.timeSeries ?? [],
+              }
             }
-            return { appName: app.name, ...out }
-          }),
-        )
-        for (const p of settled) {
-          if (p.status === 'fulfilled' && p.value) {
-            const { appName, ga, gsc, posthog } = p.value
-            summaryMap[appName] = { ga, gsc, posthog }
+          } catch {
+            /* skip */
+          }
+
+          try {
+            // GSC cache key matches: gsc-app-${appSlug}-${startDate}-${endDate}-query
+            const gscCache = await getCached(db, `gsc-app-${slug}-${startDate}-${endDate}-query`)
+            if (gscCache) {
+              const gscData = JSON.parse(gscCache.value)
+              gsc = {
+                totals: gscData.totals ?? null,
+                rowsCount: gscData.rows?.length ?? 0,
+              }
+            }
+          } catch {
+            /* skip */
+          }
+
+          try {
+            // PostHog uses ISO timestamp keys — scan for matching prefix
+            const phRow = await db
+              .prepare(
+                `SELECT value FROM kv_cache WHERE key LIKE ? ORDER BY expires_at DESC LIMIT 1`,
+              )
+              .bind(`posthog-app-${slug}-%`)
+              .first<{ value: string }>()
+            if (phRow) {
+              const phData = JSON.parse(phRow.value)
+              posthog = {
+                summary: phData.summary ?? {},
+                timeSeries: phData.timeSeries ?? [],
+              }
+            }
+          } catch {
+            /* skip */
           }
         }
+
+        summaryMap[slug] = { ga, gsc, posthog }
       }
 
       return { apps: summaryMap, startDate, endDate }
