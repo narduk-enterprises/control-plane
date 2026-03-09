@@ -21,7 +21,7 @@ export default defineNuxtConfig({
   },
 
   future: {
-    compatibilityVersion: 4
+    compatibilityVersion: 4,
   },
 
   runtimeConfig: {
@@ -37,6 +37,8 @@ export default defineNuxtConfig({
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
     posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
     gaPropertyId: process.env.GA_PROPERTY_ID || '',
+    provisionApiKey: process.env.PROVISION_API_KEY || '',
+    controlPlaneGhServiceToken: process.env.CONTROL_PLANE_GH_SERVICE_TOKEN || '',
     public: {
       appVersion: pkg.version,
       buildDate: new Date().toISOString(),
@@ -54,7 +56,8 @@ export default defineNuxtConfig({
   site: {
     url: process.env.SITE_URL || 'https://control-plane.nard.uk',
     name: 'Narduk Control Plane',
-    description: 'Fleet dashboard for narduk-enterprises apps — GSC, PostHog, IndexNow, Google Indexing.',
+    description:
+      'Fleet dashboard for narduk-enterprises apps — GSC, PostHog, IndexNow, Google Indexing.',
     defaultLocale: 'en',
   },
 

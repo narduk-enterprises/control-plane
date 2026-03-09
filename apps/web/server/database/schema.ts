@@ -47,6 +47,26 @@ export const kvCache = sqliteTable('kv_cache', {
   expiresAt: integer('expires_at').notNull(),
 })
 
+// ─── Provision Jobs ─────────────────────────────────────────
+// Tracks async app provisioning pipeline (control plane → GitHub Action → callback)
+export const provisionJobs = sqliteTable('provision_jobs', {
+  id: text('id').primaryKey(),
+  appName: text('app_name').notNull(),
+  displayName: text('display_name').notNull(),
+  appUrl: text('app_url').notNull(),
+  githubRepo: text('github_repo').notNull(),
+  status: text('status').notNull().default('pending'), // pending → cloning → initializing → deploying → complete | failed
+  deployedUrl: text('deployed_url'),
+  gaPropertyId: text('ga_property_id'),
+  errorMessage: text('error_message'),
+  createdAt: text('created_at')
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  updatedAt: text('updated_at')
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+})
+
 // ─── Type helpers ───────────────────────────────────────────
 export type FleetApp = typeof fleetApps.$inferSelect
 export type NewFleetApp = typeof fleetApps.$inferInsert
@@ -54,3 +74,5 @@ export type AppStatus = typeof appStatus.$inferSelect
 export type NewAppStatus = typeof appStatus.$inferInsert
 export type KvCache = typeof kvCache.$inferSelect
 export type NewKvCache = typeof kvCache.$inferInsert
+export type ProvisionJob = typeof provisionJobs.$inferSelect
+export type NewProvisionJob = typeof provisionJobs.$inferInsert
