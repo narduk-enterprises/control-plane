@@ -15,7 +15,7 @@ const toast = useToast()
 
 const {
   rawApps: allApps,
-  refreshApps,
+  forceRefreshApps,
   isLoading,
   adminAddApp,
   adminEditApp,
@@ -71,7 +71,7 @@ async function addApp() {
     })
     showAddModal.value = false
     resetAddForm()
-    await refreshApps()
+    await forceRefreshApps()
   } catch (err) {
     const error = err as { data?: { message?: string }; message?: string }
     toast.add({
@@ -127,7 +127,7 @@ async function saveEdit() {
     })
     showEditModal.value = false
     editingApp.value = null
-    await refreshApps()
+    await forceRefreshApps()
   } catch (err) {
     const error = err as { data?: { message?: string }; message?: string }
     toast.add({
@@ -150,7 +150,7 @@ async function toggleActive(app: FleetApp) {
       description: `${app.name} is now ${newState ? 'active' : 'inactive'}.`,
       color: newState ? 'success' : 'warning',
     })
-    await refreshApps()
+    await forceRefreshApps()
   } catch (err) {
     const error = err as { data?: { message?: string }; message?: string }
     toast.add({
@@ -171,7 +171,7 @@ async function deleteApp(app: FleetApp) {
       description: `${app.name} has been removed from the fleet.`,
       color: 'success',
     })
-    await refreshApps()
+    await forceRefreshApps()
   } catch (err) {
     const error = err as { data?: { message?: string }; message?: string }
     toast.add({
@@ -210,7 +210,7 @@ function formatUrl(url: string) {
           icon="i-lucide-refresh-cw"
           class="cursor-pointer"
           :loading="isLoading"
-          @click="refreshApps()"
+          @click="forceRefreshApps()"
         >
           Refresh
         </UButton>

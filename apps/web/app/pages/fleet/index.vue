@@ -15,7 +15,13 @@ useWebPageSchema({
 
 type FleetApp = { name: string; url: string; dopplerProject: string }
 
-const { apps: fleetApps, getAppStatus: getStatus, refreshStatuses, refreshApps, isRefreshingStatus: isRefreshing } = useFleet()
+const {
+  apps: fleetApps,
+  getAppStatus: getStatus,
+  refreshStatuses,
+  forceRefreshApps,
+  isRefreshingStatus: isRefreshing,
+} = useFleet()
 const searchQuery = ref('')
 const filteredApps = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -35,26 +41,37 @@ const fleetColumns: TableColumn<FleetApp>[] = [
     header: 'App',
     cell: ({ row }) => {
       const app = row.original
-      return h(NuxtLink, {
-        to: `/fleet/${app.name}`,
-        class: 'font-medium text-primary hover:underline cursor-pointer',
-      }, () => app.name)
+      return h(
+        NuxtLink,
+        {
+          to: `/fleet/${app.name}`,
+          class: 'font-medium text-primary hover:underline cursor-pointer',
+        },
+        () => app.name,
+      )
     },
   },
   {
     accessorKey: 'url',
     header: 'URL',
-    meta: { class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate hidden md:table-cell' } },
+    meta: {
+      class: { th: 'hidden md:table-cell', td: 'max-w-[200px] truncate hidden md:table-cell' },
+    },
     cell: ({ row }) => {
-      return h('a', {
-        href: row.original.url,
-        target: '_blank',
-        rel: 'noopener',
-        class: 'text-muted hover:text-primary transition-colors hover:underline flex items-center gap-1',
-      }, [
-        row.original.url.replace(/^https?:\/\//, ''),
-        h('span', { class: 'i-lucide-external-link size-3 opacity-50' }),
-      ])
+      return h(
+        'a',
+        {
+          href: row.original.url,
+          target: '_blank',
+          rel: 'noopener',
+          class:
+            'text-muted hover:text-primary transition-colors hover:underline flex items-center gap-1',
+        },
+        [
+          row.original.url.replace(/^https?:\/\//, ''),
+          h('span', { class: 'i-lucide-external-link size-3 opacity-50' }),
+        ],
+      )
     },
   },
   {
@@ -70,13 +87,15 @@ const fleetColumns: TableColumn<FleetApp>[] = [
     header: 'IndexNow',
     cell: ({ row }) => {
       const status = getStatus(row.original.name)
-      if (!status?.indexnowLastSubmission) return h('span', { class: 'text-[10px] text-muted' }, '-')
-      
+      if (!status?.indexnowLastSubmission)
+        return h('span', { class: 'text-[10px] text-muted' }, '-')
+
       // hydration: Date.now() differs SSR vs CSR, render relative time client-only
       return h('ClientOnly', null, {
         default: () => {
           const lastDate = new Date(status.indexnowLastSubmission!)
-          if (Number.isNaN(lastDate.getTime())) return h('span', { class: 'text-[10px] text-muted' }, '-')
+          if (Number.isNaN(lastDate.getTime()))
+            return h('span', { class: 'text-[10px] text-muted' }, '-')
           const diffDays = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
           let label = ''
           if (diffDays === 0) label = 'Today'
@@ -111,7 +130,7 @@ const fleetColumns: TableColumn<FleetApp>[] = [
             icon: 'i-lucide-bar-chart-3',
             'aria-label': 'GSC',
             class: 'cursor-pointer',
-          })
+          }),
         ]),
         h(UTooltip, { text: 'Open App in Browser' }, () => [
           h(UButton, {
@@ -124,7 +143,7 @@ const fleetColumns: TableColumn<FleetApp>[] = [
             icon: 'i-lucide-external-link',
             'aria-label': 'Open app',
             class: 'cursor-pointer',
-          })
+          }),
         ]),
       ])
     },
@@ -137,10 +156,7 @@ const fleetCountLabel = computed(() => {
   return n === 1 ? '1 app' : `${n} apps`
 })
 
-const breadcrumbItems = computed(() => [
-  { label: 'Dashboard', to: '/' },
-  { label: 'Fleet' },
-])
+const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label: 'Fleet' }])
 
 // Cast for UTable columns prop (expects TanStack type from layer; we use local TableColumn)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
@@ -152,9 +168,7 @@ const fleetColumnsForTable = fleetColumns as any
     <AppBreadcrumbs :items="breadcrumbItems" />
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="font-display text-2xl font-semibold text-default">
-          Fleet
-        </h1>
+        <h1 class="font-display text-2xl font-semibold text-default">Fleet</h1>
         <p class="mt-1 text-sm text-muted">
           {{ fleetCountLabel }} — open GA4, GSC, PostHog, or IndexNow per app
         </p>
@@ -176,7 +190,7 @@ const fleetColumnsForTable = fleetColumns as any
           color="neutral"
           icon="i-lucide-refresh-cw"
           class="cursor-pointer"
-          @click="refreshApps()"
+          @click="forceRefreshApps()"
         >
           Refresh
         </UButton>
@@ -210,12 +224,12 @@ const fleetColumnsForTable = fleetColumns as any
         </div>
       </template>
       <div v-if="hasResults" class="overflow-x-auto">
-        <UTable
-          :data="filteredApps"
-          :columns="fleetColumnsForTable"
-        />
+        <UTable :data="filteredApps" :columns="fleetColumnsForTable" />
       </div>
-      <div v-else class="rounded-lg border border-dashed border-default p-8 text-center bg-elevated/50">
+      <div
+        v-else
+        class="rounded-lg border border-dashed border-default p-8 text-center bg-elevated/50"
+      >
         <UIcon name="i-lucide-search-x" class="mx-auto size-12 text-muted/50 mb-3" />
         <p class="text-base font-medium text-default">No matches for "{{ searchQuery }}"</p>
         <p class="mt-1 mb-4 text-sm text-muted">Try a different search term or clear the filter.</p>
@@ -229,7 +243,9 @@ const fleetColumnsForTable = fleetColumns as any
       <div class="rounded-lg border border-dashed border-default p-8 text-center">
         <UIcon name="i-lucide-inbox" class="mx-auto size-10 text-muted" />
         <p class="mt-2 text-sm font-medium text-default">No fleet apps</p>
-        <p class="mt-1 text-sm text-muted">Ensure you are authenticated. Fleet list comes from the registry.</p>
+        <p class="mt-1 text-sm text-muted">
+          Ensure you are authenticated. Fleet list comes from the registry.
+        </p>
       </div>
     </UCard>
   </div>

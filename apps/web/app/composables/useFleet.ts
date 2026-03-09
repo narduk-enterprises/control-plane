@@ -16,13 +16,17 @@ export interface FleetApp {
 type PosthogSummaryMap = Record<string, { eventCount: number; users: number }>
 
 export function useFleet(options?: { includeInactive?: boolean }) {
-  const query = options?.includeInactive ? { includeInactive: 'true' } : undefined
+  const appsForce = ref(false)
+  const appsQuery = computed(() => ({
+    ...(options?.includeInactive ? { includeInactive: 'true' } : {}),
+    ...(appsForce.value ? { force: 'true' } : {}),
+  }))
   const {
     data: rawApps,
     refresh: refreshApps,
     status: appsStatus,
   } = useFetch<FleetApp[]>('/api/fleet/apps', {
-    query,
+    query: appsQuery,
     default: () => [],
   })
 
@@ -96,9 +100,17 @@ export function useFleet(options?: { includeInactive?: boolean }) {
   }
 
   // 4. Force refresh all data (busts D1 caches)
+  async function forceRefreshApps() {
+    appsForce.value = true
+    await refreshApps()
+    appsForce.value = false
+  }
+
   async function forceRefreshAll() {
+    appsForce.value = true
     posthogForce.value = true
     await Promise.all([refreshApps(), refreshStatusesRaw(), refreshPosthog()])
+    appsForce.value = false
     posthogForce.value = false
   }
 
@@ -157,6 +169,7 @@ export function useFleet(options?: { includeInactive?: boolean }) {
     isRefreshingStatus,
 
     refreshApps,
+    forceRefreshApps,
     refreshPosthog,
     refreshStatusesRaw,
     forceRefreshAll,
