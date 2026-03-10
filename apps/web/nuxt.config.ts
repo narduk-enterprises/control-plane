@@ -37,8 +37,13 @@ export default defineNuxtConfig({
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
     posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
     gaPropertyId: process.env.GA_PROPERTY_ID || '',
+    gaAccountId: process.env.GA_ACCOUNT_ID || '',
     provisionApiKey: process.env.PROVISION_API_KEY || '',
     controlPlaneGhServiceToken: process.env.CONTROL_PLANE_GH_SERVICE_TOKEN || '',
+    cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN || '',
+    cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    dopplerApiToken: process.env.DOPPLER_API_TOKEN || '',
+    gscUserEmail: process.env.GSC_USER_EMAIL || '',
     public: {
       appVersion: pkg.version,
       buildDate: new Date().toISOString(),

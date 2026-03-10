@@ -28,6 +28,7 @@
     "chartjs-plugin-annotation": "^3.1.0",
     "chartjs-plugin-zoom": "^2.2.0",
     "drizzle-orm": "^0.45.1",
+    "libsodium-wrappers": "^0.8.2",
     "nuxt": "^4.3.1",
     "vue-chartjs": "^5.3.3",
     "zod": "^4.3.6"
