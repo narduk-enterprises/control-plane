@@ -56,6 +56,7 @@ export default defineEventHandler(async (event) => {
           headers: {
             Authorization: `Bearer ${ghToken}`,
             Accept: 'application/vnd.github+json',
+            'User-Agent': 'narduk-control-plane',
             'X-GitHub-Api-Version': '2022-11-28',
           },
         })

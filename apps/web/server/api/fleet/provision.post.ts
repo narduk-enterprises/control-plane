@@ -122,6 +122,7 @@ export default defineEventHandler(async (event) => {
         Authorization: `Bearer ${ghToken}`,
         Accept: 'application/vnd.github+json',
         'Content-Type': 'application/json',
+        'User-Agent': 'narduk-control-plane',
         'X-GitHub-Api-Version': '2022-11-28',
       },
       body: JSON.stringify({
@@ -146,7 +147,7 @@ export default defineEventHandler(async (event) => {
 
       throw createError({
         statusCode: 502,
-        message: `Failed to create GitHub repo: ${repoRes.status}`,
+        message: `Failed to create GitHub repo: ${repoRes.status} — ${errText}`,
       })
     }
   } catch (err: unknown) {
@@ -173,6 +174,7 @@ export default defineEventHandler(async (event) => {
           Authorization: `Bearer ${ghToken}`,
           Accept: 'application/vnd.github+json',
           'Content-Type': 'application/json',
+          'User-Agent': 'narduk-control-plane',
           'X-GitHub-Api-Version': '2022-11-28',
         },
         body: JSON.stringify({
