@@ -8,6 +8,9 @@
 export default defineEventHandler((event) => {
   const config = useRuntimeConfig(event)
   const isDev = import.meta.dev
+  const appVersion = config.public.appVersion || ''
+  const buildVersion = config.public.buildVersion || appVersion || ''
+  const buildTime = config.public.buildTime || ''
 
   // 1. Gather our baseline required sources
   const baseScriptSrc = [
@@ -65,6 +68,11 @@ export default defineEventHandler((event) => {
   const finalScriptSrc = `script-src ${Array.from(new Set(baseScriptSrc)).join(' ')}`
   const finalConnectSrc = `connect-src ${Array.from(new Set(baseConnectSrc)).join(' ')}`
 
+  const diagnosticHeaders: Record<string, string> = {}
+  if (appVersion) diagnosticHeaders['X-App-Version'] = appVersion
+  if (buildVersion) diagnosticHeaders['X-Build-Version'] = buildVersion
+  if (buildTime) diagnosticHeaders['X-Build-Time'] = buildTime
+
   setResponseHeaders(event, {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
@@ -80,5 +88,6 @@ export default defineEventHandler((event) => {
       finalConnectSrc,
       "frame-ancestors 'none'",
     ].join('; '),
+    ...diagnosticHeaders,
   })
 })

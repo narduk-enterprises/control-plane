@@ -21,13 +21,13 @@ doppler run -- pnpm run dev
 
 ## Common Commands
 
-| Command                  | What It Does                                      |
-| ------------------------ | ------------------------------------------------- |
-| `pnpm run dev`           | Start the app locally                             |
-| `pnpm run quality`       | Run lint, typecheck, and format checks            |
-| `pnpm run ship`          | Local deploy flow                                 |
-| `pnpm run validate`      | Infrastructure validation                         |
-| `pnpm run sync-template` | Pull current template infra + layer into this app |
+| Command                  | What It Does                                                      |
+| ------------------------ | ----------------------------------------------------------------- |
+| `pnpm run dev`           | Start the app locally                                             |
+| `pnpm run quality`       | Auto-fix lint/format, then run lint, typecheck, and format checks |
+| `pnpm run ship`          | Local deploy flow                                                 |
+| `pnpm run validate`      | Infrastructure validation                                         |
+| `pnpm run sync-template` | Pull current template infra + layer into this app                 |
 
 ## Working Rules
 
@@ -42,3 +42,4 @@ doppler run -- pnpm run dev
 - Root `AGENTS.md`
 - `apps/web/AGENTS.md`
 - `tools/AGENTS.md`
+- `.template-reference/build-visibility.md`

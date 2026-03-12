@@ -15,6 +15,7 @@ declare module 'nuxt/schema' {
   interface PublicRuntimeConfig {
     appUrl: string
     appName: string
+    appVersion: string
     posthogPublicKey: string
     posthogHost: string
     gaMeasurementId: string
@@ -25,6 +26,20 @@ declare module 'nuxt/schema' {
     buildVersion: string
     /** ISO string set at build time. */
     buildTime: string
+  }
+}
+
+declare global {
+  interface Window {
+    __NARDUK_BUILD__?:
+      | {
+          appName: string
+          appVersion: string
+          buildVersion: string
+          buildTime: string
+        }
+      | undefined
+    __NARDUK_BUILD_LOGGED__?: string | undefined
   }
 }
 

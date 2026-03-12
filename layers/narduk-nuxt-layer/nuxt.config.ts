@@ -1,4 +1,49 @@
+import { execSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+function readPackageVersion(): string {
+  const candidates = [
+    resolve(process.cwd(), 'apps/web/package.json'),
+    resolve(process.cwd(), 'package.json'),
+  ]
+
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue
+
+    try {
+      const parsed = JSON.parse(readFileSync(candidate, 'utf-8')) as { version?: string }
+      if (parsed.version) return parsed.version
+    } catch {
+      // Ignore malformed or unreadable package manifests and fall through.
+    }
+  }
+
+  return ''
+}
+
+function readGitSha(): string {
+  try {
+    return execSync('git rev-parse --short=12 HEAD', {
+      cwd: process.cwd(),
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch {
+    return ''
+  }
+}
+
+const appVersion =
+  process.env.APP_VERSION || process.env.npm_package_version || readPackageVersion()
+const buildVersion =
+  process.env.BUILD_VERSION ||
+  process.env.GITHUB_SHA?.slice(0, 12) ||
+  process.env.CF_PAGES_COMMIT_SHA?.slice(0, 12) ||
+  readGitSha() ||
+  appVersion
+const buildTime = process.env.BUILD_TIME || new Date().toISOString()
 
 export default defineNuxtConfig({
   alias: {
@@ -52,8 +97,9 @@ export default defineNuxtConfig({
     mapkitServerApiKey: process.env.MAPKIT_SERVER_API_KEY || '',
     public: {
       mapkitToken: process.env.MAPKIT_TOKEN || '',
-      buildVersion: process.env.GITHUB_SHA || process.env.CF_PAGES_COMMIT_SHA || '',
-      buildTime: new Date().toISOString(),
+      appVersion,
+      buildVersion,
+      buildTime,
       gaMeasurementId: process.env.GA_MEASUREMENT_ID || '',
       posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
       cspScriptSrc: process.env.CSP_SCRIPT_SRC || '',
