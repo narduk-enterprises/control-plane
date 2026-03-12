@@ -63,6 +63,7 @@ runAppSync({
   mode: 'layer',
   dryRun: args.includes('--dry-run'),
   skipQuality: args.includes('--skip-quality'),
+  allowDirtyApp: args.includes('--allow-dirty-app'),
   allowDirtyTemplate: args.includes('--allow-dirty-template'),
   skipRewriteRepo: args.includes('--no-rewrite-repo'),
 }).catch((error: unknown) => {

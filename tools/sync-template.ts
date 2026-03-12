@@ -13,7 +13,7 @@ const appDir = args[0]?.replace(/^~/, process.env.HOME || '')
 
 if (!appDir) {
   console.error(
-    'Usage: npx tsx tools/sync-template.ts <app-directory> [--dry-run] [--strict] [--skip-quality] [--allow-dirty-template]',
+    'Usage: npx tsx tools/sync-template.ts <app-directory> [--dry-run] [--strict] [--skip-quality] [--allow-dirty-app] [--allow-dirty-template]',
   )
   process.exit(1)
 }
@@ -31,6 +31,7 @@ runAppSync({
   dryRun: flags.has('--dry-run'),
   strict: flags.has('--strict'),
   skipQuality: flags.has('--skip-quality'),
+  allowDirtyApp: flags.has('--allow-dirty-app'),
   allowDirtyTemplate: flags.has('--allow-dirty-template'),
 }).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)
