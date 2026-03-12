@@ -111,6 +111,7 @@ const breadcrumbItems = computed(() => [
 const gscTopQueries = computed(() => (gscQueryData.value?.rows ?? []).slice(0, 10))
 const gscTopDevices = computed(() => (gscDeviceData.value?.rows ?? []).slice(0, 5))
 const sitemapUrlsPreview = computed(() => (sitemapData.value?.urls ?? []).slice(0, 50))
+const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
 </script>
 
 <template>
@@ -134,8 +135,7 @@ const sitemapUrlsPreview = computed(() => (sitemapData.value?.urls ?? []).slice(
             class="cursor-pointer p-0"
             icon="i-lucide-external-link"
           >
-            <!-- eslint-disable-next-line vue-official/no-template-complex-expressions -->
-            {{ appUrl.replace(/^https?:\/\//, '') }}
+            {{ displayUrl }}
           </UButton>
           <UBadge
             v-if="status"

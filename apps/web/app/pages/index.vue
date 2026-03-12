@@ -169,7 +169,7 @@ const dashboardColumns: TableColumn<EnrichedFleetApp>[] = [
   },
 ]
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
 const columnsForTable = dashboardColumns as any
 
 async function onRefresh() {
