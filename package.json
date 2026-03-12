@@ -19,7 +19,7 @@
     "quality": "turbo run quality --filter='./apps/*'",
     "setup": "npx tsx tools/init.ts",
     "update-layer": "npx tsx tools/update-layer.ts",
-    "sync-template": "npx tsx tools/sync-template.ts",
+    "sync-template": "npx tsx tools/sync-template.ts .",
     "migrate-to-org": "npx tsx tools/migrate-to-org.ts",
     "validate": "doppler run -- npx tsx tools/validate.ts",
     "check:reach": "npx tsx tools/check-apps-reachable.ts",
