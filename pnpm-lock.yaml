@@ -58,8 +58,8 @@ importers:
   apps/web:
     dependencies:
       '@narduk-enterprises/eslint-config':
-        specifier: ^1.0.11
-        version: 1.0.11(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-eslint-parser@10.4.0(eslint@10.0.2(jiti@2.6.1)))
+        specifier: ^1.0.12
+        version: 1.0.12(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-eslint-parser@10.4.0(eslint@10.0.2(jiti@2.6.1)))
       '@narduk-enterprises/narduk-nuxt-template-layer':
         specifier: workspace:*
         version: link:../../layers/narduk-nuxt-layer
@@ -171,8 +171,8 @@ importers:
         specifier: ^1.2.94
         version: 1.2.94
       '@narduk-enterprises/eslint-config':
-        specifier: ^1.0.11
-        version: 1.0.11(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-eslint-parser@10.4.0(eslint@10.0.2(jiti@2.6.1)))
+        specifier: ^1.0.12
+        version: 1.0.12(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-eslint-parser@10.4.0(eslint@10.0.2(jiti@2.6.1)))
       '@nuxt/test-utils':
         specifier: ^4.0.0
         version: 4.0.0(@playwright/test@1.58.2)(@vue/test-utils@2.4.6)(happy-dom@20.7.0)(magicast@0.5.2)(playwright-core@1.58.2)(typescript@5.9.3)(vite@7.3.1(@types/node@22.19.13)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -222,8 +222,8 @@ importers:
   packages/eslint-config:
     dependencies:
       '@narduk-enterprises/eslint-config':
-        specifier: ^1.0.11
-        version: 1.0.11(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-eslint-parser@10.4.0(eslint@10.0.2(jiti@2.6.1)))
+        specifier: ^1.0.12
+        version: 1.0.12(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-eslint-parser@10.4.0(eslint@10.0.2(jiti@2.6.1)))
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@10.0.2(jiti@2.6.1))
@@ -1154,8 +1154,8 @@ packages:
   '@napi-rs/wasm-runtime@1.1.1':
     resolution: {integrity: sha512-p64ah1M1ld8xjWv3qbvFwHiFVWrq1yFvV4f7w+mzaqiR4IlSgkqhcRdHwsGgomwzBH51sRY4NEowLxnaBjcW/A==}
 
-  '@narduk-enterprises/eslint-config@1.0.11':
-    resolution: {integrity: sha512-EGrwnwpcZ3TA9wcvRuOtnuL/04As6fUbbDEVlqalNbdbVRxfYRyB9+TyFKGyM+cdXyOTO0tSmheMviOXUuMylw==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/eslint-config/1.0.11/3647b8999c282e8437a809ebc8915287a13dcd3e}
+  '@narduk-enterprises/eslint-config@1.0.12':
+    resolution: {integrity: sha512-beWSikQfknAbKfslMbcCM3ReFdpuYlvxq8hAOfDWu6C0om2Ng30dVXHJfZUcC2OMwPOiMcvLJSPG9sapdhdeyA==, tarball: https://npm.pkg.github.com/download/@narduk-enterprises/eslint-config/1.0.12/cec15bf423ce52387d28d771ca9c2a716f400d93}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       eslint: '>=9.0.0'
@@ -8448,7 +8448,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@narduk-enterprises/eslint-config@1.0.11(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-eslint-parser@10.4.0(eslint@10.0.2(jiti@2.6.1)))':
+  '@narduk-enterprises/eslint-config@1.0.12(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.13)(happy-dom@20.7.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue-eslint-parser@10.4.0(eslint@10.0.2(jiti@2.6.1)))':
     dependencies:
       '@eslint-community/eslint-plugin-eslint-comments': 4.7.1(eslint@10.0.2(jiti@2.6.1))
       '@typescript-eslint/utils': 8.57.0(eslint@10.0.2(jiti@2.6.1))(typescript@5.9.3)

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { users } from '../../database/schema'
 import { eq } from 'drizzle-orm'
 import { hashUserPassword } from '../../utils/password'
+import { RATE_LIMIT_POLICIES, enforceRateLimitPolicy } from '../../utils/rateLimit'
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -11,7 +12,7 @@ const registerSchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Auth')
-  await enforceRateLimit(event, 'auth-register', 20, 60_000)
+  await enforceRateLimitPolicy(event, RATE_LIMIT_POLICIES.authRegister)
 
   const body = await readValidatedBody(event, registerSchema.parse)
   const db = useDatabase(event)

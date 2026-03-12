@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { RATE_LIMIT_POLICIES, enforceRateLimitPolicy } from '#layer/server/utils/rateLimit'
 
 const bodySchema = z.object({
   urls: z.array(z.string().url()).min(1).max(100),
@@ -19,7 +20,7 @@ const bodySchema = z.object({
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Indexing')
   await requireAdmin(event)
-  await enforceRateLimit(event, 'google-indexing-batch', 30, 60_000)
+  await enforceRateLimitPolicy(event, RATE_LIMIT_POLICIES.googleIndexingBatch)
 
   const body = await readBody<unknown>(event)
   const parsed = bodySchema.safeParse(body)

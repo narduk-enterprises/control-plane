@@ -12,12 +12,46 @@ import type { H3Event } from 'h3'
  * is NOT shared across isolates and is lost when the isolate is evicted.
  *
  * Usage:
- *   await enforceRateLimit(event, 'auth', 10, 60_000)
+ *   await enforceRateLimitPolicy(event, RATE_LIMIT_POLICIES.authLogin)
  */
 
 interface RateLimitEntry {
   timestamps: number[]
 }
+
+export interface RateLimitPolicy {
+  namespace: string
+  maxRequests: number
+  windowMs: number
+}
+
+const MINUTE = 60_000
+
+export const RATE_LIMIT_POLICIES = {
+  authLogin: { namespace: 'auth-login', maxRequests: 60, windowMs: MINUTE },
+  authRegister: { namespace: 'auth-register', maxRequests: 30, windowMs: MINUTE },
+  authChangePassword: { namespace: 'auth-change-password', maxRequests: 30, windowMs: MINUTE },
+  authApiKeys: { namespace: 'auth-api-keys', maxRequests: 60, windowMs: MINUTE },
+  upload: { namespace: 'upload', maxRequests: 60, windowMs: MINUTE },
+  indexNowSubmit: { namespace: 'indexnow', maxRequests: 60, windowMs: MINUTE },
+  googleIndexingBatch: {
+    namespace: 'google-indexing-batch',
+    maxRequests: 60,
+    windowMs: MINUTE,
+  },
+  googleIndexingPublish: {
+    namespace: 'google-indexing-publish',
+    maxRequests: 120,
+    windowMs: MINUTE,
+  },
+  googleIndexingStatus: {
+    namespace: 'google-indexing-status',
+    maxRequests: 240,
+    windowMs: MINUTE,
+  },
+  showcaseAuthLogin: { namespace: 'auth-login', maxRequests: 60, windowMs: MINUTE },
+  showcaseAuthLoginTest: { namespace: 'auth-login-test', maxRequests: 300, windowMs: MINUTE },
+} as const satisfies Record<string, RateLimitPolicy>
 
 const buckets = new Map<string, Map<string, RateLimitEntry>>()
 let cleanupCounter = 0
@@ -85,4 +119,11 @@ export async function enforceRateLimit(
       }
     }
   }
+}
+
+export async function enforceRateLimitPolicy(
+  event: H3Event,
+  policy: RateLimitPolicy,
+): Promise<void> {
+  await enforceRateLimit(event, policy.namespace, policy.maxRequests, policy.windowMs)
 }

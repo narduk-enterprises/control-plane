@@ -1,5 +1,6 @@
 import { requireAuth, generateApiKey } from '#layer/server/utils/auth'
 import { apiKeys } from '#layer/server/database/schema'
+import { RATE_LIMIT_POLICIES, enforceRateLimitPolicy } from '#layer/server/utils/rateLimit'
 import { z } from 'zod'
 
 const bodySchema = z.object({
@@ -12,7 +13,7 @@ const bodySchema = z.object({
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Auth')
-  await enforceRateLimit(event, 'auth-api-keys', 30, 60_000)
+  await enforceRateLimitPolicy(event, RATE_LIMIT_POLICIES.authApiKeys)
 
   const user = await requireAuth(event)
   const { name } = await readValidatedBody(event, bodySchema.parse)

@@ -1,5 +1,6 @@
 import { requireAuth } from '#layer/server/utils/auth'
 import { apiKeys } from '#layer/server/database/schema'
+import { RATE_LIMIT_POLICIES, enforceRateLimitPolicy } from '#layer/server/utils/rateLimit'
 import { eq, and } from 'drizzle-orm'
 
 /**
@@ -8,7 +9,7 @@ import { eq, and } from 'drizzle-orm'
  */
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Auth')
-  await enforceRateLimit(event, 'auth-api-keys', 30, 60_000)
+  await enforceRateLimitPolicy(event, RATE_LIMIT_POLICIES.authApiKeys)
 
   const user = await requireAuth(event)
   const id = getRouterParam(event, 'id')

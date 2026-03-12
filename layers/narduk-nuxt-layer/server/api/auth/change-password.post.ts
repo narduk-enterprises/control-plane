@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { users } from '../../database/schema'
 import { verifyUserPassword, hashUserPassword } from '../../utils/password'
+import { RATE_LIMIT_POLICIES, enforceRateLimitPolicy } from '../../utils/rateLimit'
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
@@ -10,7 +11,7 @@ const changePasswordSchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const log = useLogger(event).child('Auth')
-  await enforceRateLimit(event, 'auth-change-password', 20, 60_000)
+  await enforceRateLimitPolicy(event, RATE_LIMIT_POLICIES.authChangePassword)
 
   const user = await requireAuth(event)
   const body = await readValidatedBody(event, changePasswordSchema.parse)
