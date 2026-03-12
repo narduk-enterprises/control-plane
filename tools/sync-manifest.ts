@@ -51,6 +51,7 @@ export const STALE_SYNC_PATHS = [
   '.github/workflows/version-bump.yml',
   '.github/workflows/template-sync-bot.yml',
   '.github/workflows/sync-fleet.yml',
+  'tools/migrate-to-monorepo.ts',
   'tools/check-setup.js',
   '.cursor/.DS_Store',
   '.cursor/rules/nuxt-v4-template.mdc',

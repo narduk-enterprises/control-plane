@@ -27,6 +27,7 @@ describe('Auth, GitHub & Users', () => {
     it('supports force cache bypass', async () => {
       const res = await apiFetch('/api/github/repos?force=true')
       assertNot500(res.status, 'GET /api/github/repos?force=true')
+      expect([200, 401, 403, 503]).toContain(res.status)
     })
   })
 

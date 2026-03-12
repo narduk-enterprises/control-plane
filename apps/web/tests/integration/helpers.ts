@@ -68,6 +68,7 @@ export function authIt(name: string, fn: () => Promise<void>) {
       return
     }
     await fn()
+    expect(true).toBe(true) // vitest/expect-expect: assertions live in fn()
   })
 }
 

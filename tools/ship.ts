@@ -41,7 +41,7 @@ async function shipApp(appTarget: string) {
   // 1. Build Verification
   console.log(`\n🏗️ Building ${appTarget}...`)
   try {
-    run(`doppler run -- pnpm --filter ${appTarget} run build`, appDir)
+    run('doppler run -- pnpm run build', appDir)
   } catch (error) {
     console.error(`\n❌ Build failed for ${appTarget}. Aborting ship to prevent broken commit.`)
     process.exit(1)
@@ -90,7 +90,7 @@ async function shipApp(appTarget: string) {
   // 4. Deploy
   console.log(`\n☁️ Deploying ${appTarget} to Edge...`)
   try {
-    run(`doppler run -- pnpm --filter ${appTarget} run deploy`)
+    run('doppler run -- pnpm run deploy', appDir)
   } catch (error) {
     console.error(`\n❌ Deploy failed for ${appTarget}.`)
     process.exit(1)

@@ -104,9 +104,6 @@ Sitemap and robots.txt are automatic. OG image templates live in
 
 ## Integrating this Layer into a New Project
 
-If you are an agent tasked with adding this layer to a new or existing Nuxt
-application, run the `/migrate-to-monorepo` workflow.
-
 Do **NOT** clone `narduk-nuxt-layer` directly to start a project. Start with
 `narduk-nuxt-template` instead.
 
@@ -125,7 +122,6 @@ Run these during development (Antigravity slash-commands):
 | `/check-seo-compliance`       | Audits pages for useSeo, Schema.org, and OG images             |
 | `/check-ssr-hydration-safety` | SSR safety, window access, isHydrated, ClientOnly, DOM nesting |
 | `/check-ui-styling`           | Tailwind v4 CSS import order, token usage, Nuxt UI v4          |
-| `/migrate-to-monorepo`        | Migration workflow to convert legacy apps to this monorepo     |
 | `/review-cloudflare-layer`    | Full review of Nuxt layer + Cloudflare Workers setup           |
 | `/review-doppler-pattern`     | Audit Doppler secret management for completeness and security  |
 | `/score-repo`                 | Full repo audit — scores 19 categories out of 10               |
