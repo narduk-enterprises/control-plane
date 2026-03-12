@@ -331,150 +331,146 @@ function formatUrl(url: string) {
 
     <!-- Add App Modal -->
     <UModal v-model:open="showAddModal">
-      <template #content>
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <h3 class="font-semibold text-default">Add Fleet App</h3>
-              <UButton
-                icon="i-lucide-x"
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                class="cursor-pointer"
-                @click="showAddModal = false"
-              />
-            </div>
-          </template>
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-default">Add Fleet App</h3>
+          <UButton
+            icon="i-lucide-x"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            class="cursor-pointer"
+            @click="showAddModal = false"
+          />
+        </div>
+      </template>
 
-          <div class="flex flex-col gap-4">
-            <UFormField label="App Name" required>
-              <UInput v-model="addForm.name" placeholder="my-app-name" class="w-full" />
-            </UFormField>
-            <UFormField label="Production URL" required>
-              <UInput v-model="addForm.url" placeholder="https://my-app.nard.uk" class="w-full" />
-            </UFormField>
-            <UFormField label="Doppler Project" hint="Defaults to app name">
-              <UInput
-                v-model="addForm.dopplerProject"
-                :placeholder="addForm.name || 'my-app-name'"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="GA4 Property ID" hint="Numeric ID for Reporting API">
-              <UInput v-model="addForm.gaPropertyId" placeholder="526067189" class="w-full" />
-            </UFormField>
-            <UFormField label="GA Measurement ID" hint="G-XXXXXXXX from runtime config">
-              <UInput v-model="addForm.gaMeasurementId" placeholder="G-XXXXXXXXXX" class="w-full" />
-            </UFormField>
-            <UFormField label="PostHog App Name" hint="Only if different from app name">
-              <UInput v-model="addForm.posthogAppName" placeholder="My App Name" class="w-full" />
-            </UFormField>
-            <UFormField label="GitHub Repo">
-              <UInput
-                v-model="addForm.githubRepo"
-                placeholder="narduk-enterprises/my-app-name"
-                class="w-full"
-              />
-            </UFormField>
-          </div>
+      <template #body>
+        <div class="flex flex-col gap-4">
+          <UFormField label="App Name" required>
+            <UInput v-model="addForm.name" placeholder="my-app-name" class="w-full" />
+          </UFormField>
+          <UFormField label="Production URL" required>
+            <UInput v-model="addForm.url" placeholder="https://my-app.nard.uk" class="w-full" />
+          </UFormField>
+          <UFormField label="Doppler Project" hint="Defaults to app name">
+            <UInput
+              v-model="addForm.dopplerProject"
+              :placeholder="addForm.name || 'my-app-name'"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="GA4 Property ID" hint="Numeric ID for Reporting API">
+            <UInput v-model="addForm.gaPropertyId" placeholder="526067189" class="w-full" />
+          </UFormField>
+          <UFormField label="GA Measurement ID" hint="G-XXXXXXXX from runtime config">
+            <UInput v-model="addForm.gaMeasurementId" placeholder="G-XXXXXXXXXX" class="w-full" />
+          </UFormField>
+          <UFormField label="PostHog App Name" hint="Only if different from app name">
+            <UInput v-model="addForm.posthogAppName" placeholder="My App Name" class="w-full" />
+          </UFormField>
+          <UFormField label="GitHub Repo">
+            <UInput
+              v-model="addForm.githubRepo"
+              placeholder="narduk-enterprises/my-app-name"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </template>
 
-          <template #footer>
-            <div class="flex justify-end gap-2">
-              <UButton
-                variant="outline"
-                color="neutral"
-                class="cursor-pointer"
-                @click="showAddModal = false"
-              >
-                Cancel
-              </UButton>
-              <UButton
-                :loading="isAdding"
-                :disabled="!addForm.name || !addForm.url"
-                class="cursor-pointer"
-                @click="addApp()"
-              >
-                Add App
-              </UButton>
-            </div>
-          </template>
-        </UCard>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            variant="outline"
+            color="neutral"
+            class="cursor-pointer"
+            @click="showAddModal = false"
+          >
+            Cancel
+          </UButton>
+          <UButton
+            :loading="isAdding"
+            :disabled="!addForm.name || !addForm.url"
+            class="cursor-pointer"
+            @click="addApp()"
+          >
+            Add App
+          </UButton>
+        </div>
       </template>
     </UModal>
 
     <!-- Edit App Modal -->
     <UModal v-model:open="showEditModal">
-      <template #content>
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <h3 class="font-semibold text-default">Edit {{ editingApp?.name }}</h3>
-              <UButton
-                icon="i-lucide-x"
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                class="cursor-pointer"
-                @click="showEditModal = false"
-              />
-            </div>
-          </template>
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-default">Edit {{ editingApp?.name }}</h3>
+          <UButton
+            icon="i-lucide-x"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            class="cursor-pointer"
+            @click="showEditModal = false"
+          />
+        </div>
+      </template>
 
-          <div class="flex flex-col gap-4">
-            <UFormField label="Production URL" required>
-              <UInput v-model="editForm.url" placeholder="https://my-app.nard.uk" class="w-full" />
-            </UFormField>
-            <UFormField label="Doppler Project">
-              <UInput
-                v-model="editForm.dopplerProject"
-                :placeholder="editingApp?.name || 'my-app-name'"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="GA4 Property ID" hint="Numeric ID for Reporting API">
-              <UInput v-model="editForm.gaPropertyId" placeholder="526067189" class="w-full" />
-            </UFormField>
-            <UFormField label="GA Measurement ID" hint="G-XXXXXXXX from runtime config">
-              <UInput
-                v-model="editForm.gaMeasurementId"
-                placeholder="G-XXXXXXXXXX"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="PostHog App Name" hint="Only if different from app name">
-              <UInput v-model="editForm.posthogAppName" placeholder="My App Name" class="w-full" />
-            </UFormField>
-            <UFormField label="GitHub Repo">
-              <UInput
-                v-model="editForm.githubRepo"
-                placeholder="narduk-enterprises/my-app-name"
-                class="w-full"
-              />
-            </UFormField>
-          </div>
+      <template #body>
+        <div class="flex flex-col gap-4">
+          <UFormField label="Production URL" required>
+            <UInput v-model="editForm.url" placeholder="https://my-app.nard.uk" class="w-full" />
+          </UFormField>
+          <UFormField label="Doppler Project">
+            <UInput
+              v-model="editForm.dopplerProject"
+              :placeholder="editingApp?.name || 'my-app-name'"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="GA4 Property ID" hint="Numeric ID for Reporting API">
+            <UInput v-model="editForm.gaPropertyId" placeholder="526067189" class="w-full" />
+          </UFormField>
+          <UFormField label="GA Measurement ID" hint="G-XXXXXXXX from runtime config">
+            <UInput
+              v-model="editForm.gaMeasurementId"
+              placeholder="G-XXXXXXXXXX"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="PostHog App Name" hint="Only if different from app name">
+            <UInput v-model="editForm.posthogAppName" placeholder="My App Name" class="w-full" />
+          </UFormField>
+          <UFormField label="GitHub Repo">
+            <UInput
+              v-model="editForm.githubRepo"
+              placeholder="narduk-enterprises/my-app-name"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </template>
 
-          <template #footer>
-            <div class="flex justify-end gap-2">
-              <UButton
-                variant="outline"
-                color="neutral"
-                class="cursor-pointer"
-                @click="showEditModal = false"
-              >
-                Cancel
-              </UButton>
-              <UButton
-                :loading="isEditing"
-                :disabled="!editForm.url"
-                class="cursor-pointer"
-                @click="saveEdit()"
-              >
-                Save Changes
-              </UButton>
-            </div>
-          </template>
-        </UCard>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton
+            variant="outline"
+            color="neutral"
+            class="cursor-pointer"
+            @click="showEditModal = false"
+          >
+            Cancel
+          </UButton>
+          <UButton
+            :loading="isEditing"
+            :disabled="!editForm.url"
+            class="cursor-pointer"
+            @click="saveEdit()"
+          >
+            Save Changes
+          </UButton>
+        </div>
       </template>
     </UModal>
   </div>

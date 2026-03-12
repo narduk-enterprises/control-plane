@@ -25,10 +25,10 @@ const jsonResult = computed(() =>
       GSC
     </UButton>
     <UModal v-model:open="open">
-      <UCard>
-        <template #header>
-          GSC — {{ appName }}
-        </template>
+      <template #header>
+        GSC — {{ appName }}
+      </template>
+      <template #body>
         <div v-if="loading" class="py-4 text-muted">Loading…</div>
         <div v-else-if="error" class="py-4 text-error">{{ error?.message }}</div>
         <div v-else-if="data" class="space-y-2">
@@ -37,7 +37,7 @@ const jsonResult = computed(() =>
           </p>
           <pre class="max-h-80 overflow-auto rounded bg-muted p-2 text-xs">{{ jsonResult }}</pre>
         </div>
-      </UCard>
+      </template>
     </UModal>
   </div>
 </template>

@@ -62,6 +62,10 @@ function toggleSort(k: string) {
   }
 }
 
+function getEventCount(appName: string): string {
+  return Number(props.summaryMap[appName]?.posthog?.summary?.event_count ?? 0).toLocaleString()
+}
+
 const columns = computed(() => [
   { key: 'name', label: 'App', class: 'font-medium' },
   { key: 'sparkline', label: '', class: 'w-20' },
@@ -75,7 +79,7 @@ const columns = computed(() => [
 
 <template>
   <div class="overflow-x-auto rounded-lg border border-default">
-    <!-- eslint-disable-next-line atx/no-native-table -- custom dense table not suitable for UTable migration -->
+    <!-- eslint-disable-next-line narduk/no-native-table -- custom dense table not suitable for UTable migration -->
     <table class="w-full min-w-[600px] text-sm">
       <thead>
         <tr class="border-b border-default bg-elevated/50">
@@ -127,8 +131,7 @@ const columns = computed(() => [
             {{ (summaryMap[app.name]?.gsc?.totals?.clicks ?? 0).toLocaleString() }}
           </td>
           <td class="px-3 py-2 text-right tabular-nums">
-            <!-- eslint-disable-next-line vue-official/no-template-complex-expressions -->
-            {{ Number(summaryMap[app.name]?.posthog?.summary?.event_count ?? 0).toLocaleString() }}
+            {{ getEventCount(app.name) }}
           </td>
           <td class="px-3 py-2">
             <UBadge
