@@ -356,6 +356,7 @@ function patchWebPackage(
     readFileSync(join(templateDir, 'apps/web/package.json'), 'utf-8'),
   ) as {
     dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
   }
 
   let touched = false
@@ -401,8 +402,10 @@ function patchWebPackage(
       }
 
       pkg.dependencies = pkg.dependencies || {}
+      pkg.devDependencies = pkg.devDependencies || {}
       const templateEslintVersion =
         templateWebPackage.dependencies?.['@narduk-enterprises/eslint-config']
+      const templateDevEslintVersion = templateWebPackage.devDependencies?.eslint
       if (pkg.dependencies['@narduk/eslint-config']) {
         delete pkg.dependencies['@narduk/eslint-config']
         changed = true
@@ -412,6 +415,10 @@ function patchWebPackage(
         pkg.dependencies['@narduk-enterprises/eslint-config'] !== templateEslintVersion
       ) {
         pkg.dependencies['@narduk-enterprises/eslint-config'] = templateEslintVersion
+        changed = true
+      }
+      if (templateDevEslintVersion && pkg.devDependencies.eslint !== templateDevEslintVersion) {
+        pkg.devDependencies.eslint = templateDevEslintVersion
         changed = true
       }
 
