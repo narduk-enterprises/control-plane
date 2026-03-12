@@ -483,6 +483,12 @@ function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => v
     content = content.replace(/@loganrenz:registry/g, '@narduk-enterprises:registry')
   }
 
+  const sanitizedLines = content
+    .split('\n')
+    .filter((line) => !line.includes('//npm.pkg.github.com/:_authToken='))
+    .filter((line) => !line.includes('Auth token injected via CI env'))
+  content = sanitizedLines.join('\n')
+
   if (content.includes('strict-peer-dependencies=true')) {
     content = content.replace('strict-peer-dependencies=true', 'strict-peer-dependencies=false')
   }
@@ -493,6 +499,17 @@ function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => v
     }
     content += 'strict-peer-dependencies=false\n'
   }
+
+  content = `${content
+    .split('\n')
+    .reduce<string[]>((lines, line) => {
+      const previous = lines[lines.length - 1]
+      if (line === '' && previous === '') return lines
+      lines.push(line)
+      return lines
+    }, [])
+    .join('\n')
+    .trimEnd()}\n`
 
   if (content === original) return false
 
