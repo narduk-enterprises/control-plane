@@ -78,7 +78,7 @@ export default defineEventHandler(async (event): Promise<GithubRepo[]> => {
 
         // For each repo, fetch the latest workflow run
         const reposWithActions = await Promise.all(
-            // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server
+            // eslint-disable-next-line narduk/no-map-async-in-server -- intentional parallel GitHub API fan-out
             repos.map(async (repo: GithubRawRepo) => {
                 let latestRun: GithubRepo['latestRun'] = null
                 try {

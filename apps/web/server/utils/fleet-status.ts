@@ -33,7 +33,7 @@ export async function checkAllFleetStatuses(event: H3Event): Promise<AppStatus[]
     const now = new Date().toISOString()
 
     const results = await Promise.allSettled(
-        // eslint-disable-next-line nuxt-guardrails/no-map-async-in-server -- Intentional: parallel HTTP checks, not DB queries
+        // eslint-disable-next-line narduk/no-map-async-in-server -- Intentional: parallel HTTP checks, not DB queries
         apps.map(async (app) => {
             const { status, code } = await checkUrl(app.url)
             return { 

@@ -7,7 +7,7 @@
     "build": "nuxt build",
     "predev": "wrangler d1 execute control-plane-db --local --file=drizzle/migrations.sql",
     "dev": "nuxt dev",
-    "db:migrate": "wrangler d1 execute control-plane-db --local --file=drizzle/migrations.sql",
+    "db:migrate": "bash ../../tools/db-migrate.sh control-plane-db --local --dir drizzle",
     "db:seed": "wrangler d1 execute control-plane-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql",
     "db:seed:fleet": "wrangler d1 execute control-plane-db --local --file=../../tools/seed-fleet-apps.sql",
     "db:studio": "drizzle-kit studio",
@@ -19,11 +19,12 @@
     "lint": "eslint . --max-warnings 0",
     "test:hydration": "node scripts/hydration-smoke.mjs",
     "test:integration": "vitest run --config vitest.config.ts",
-    "quality": "echo 'Turbo dependsOn handles lint + typecheck + format:check'"
+    "quality": "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
+    "db:reset": "bash ../../tools/db-migrate.sh control-plane-db --local --dir drizzle --reset && pnpm run db:seed",
+    "db:ready": "pnpm run db:migrate && pnpm run db:seed"
   },
   "dependencies": {
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
-    "@narduk/eslint-config": "workspace:*",
     "chart.js": "^4.5.1",
     "chartjs-plugin-annotation": "^3.1.0",
     "chartjs-plugin-zoom": "^2.2.0",
@@ -31,7 +32,8 @@
     "libsodium-wrappers": "^0.8.2",
     "nuxt": "^4.3.1",
     "vue-chartjs": "^5.3.3",
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "@narduk-enterprises/eslint-config": "^1.0.11"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260226.0",

@@ -1,4 +1,4 @@
-/* eslint-disable vue-official/no-composable-conditional-hooks -- composable function, not conditional */
+/* eslint-disable narduk/no-composable-conditional-hooks -- composable function, not conditional */
 import type { MaybeRefOrGetter } from 'vue'
 
 interface FleetGAResponse {

@@ -36,7 +36,7 @@ export function useFleetGscSeries(
     const compareEnd = toValue(options.compareEndDate)
     if (compareStart) q.compareStartDate = compareStart
     if (compareEnd) q.compareEndDate = compareEnd
-    // eslint-disable-next-line vue-official/no-composable-conditional-hooks -- false positive: toValue(options.force) is not conditional
+    // eslint-disable-next-line narduk/no-composable-conditional-hooks -- false positive: toValue(options.force) is not conditional
     if (toValue(options.force)) q.force = 'true'
     return q
   })

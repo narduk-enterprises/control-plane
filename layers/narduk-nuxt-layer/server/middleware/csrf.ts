@@ -26,7 +26,6 @@ export default defineEventHandler((event) => {
     path.startsWith('/api/cron/') ||
     path.startsWith('/api/callbacks/') ||
     path.startsWith('/api/_auth/') ||
-    path.startsWith('/api/fleet/provision') ||
     path.startsWith('/__nuxt_content/')
   ) {
     return
@@ -39,6 +38,8 @@ export default defineEventHandler((event) => {
   const xRequestedWith = getHeader(event, 'x-requested-with')
 
   if (!xRequestedWith) {
+    const log = useLogger(event).child('Security')
+    log.warn('CSRF blocked', { method, path })
     throw createError({
       statusCode: 403,
       message: 'Forbidden: missing required header',
