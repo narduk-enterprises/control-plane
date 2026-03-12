@@ -1,9 +1,12 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 export const VERBATIM_SYNC_FILES = [
   '.githooks/pre-commit',
+  'tools/gsc-toolbox.ts',
+  'tools/setup-analytics.ts',
   'tools/update-layer.ts',
+  'tools/validate.ts',
   'tools/sync-template.ts',
   'tools/sync-core.ts',
   'tools/sync-manifest.ts',
@@ -21,6 +24,8 @@ export const VERBATIM_SYNC_FILES = [
   'pnpm-workspace.yaml',
   'renovate.json',
   '.github/copilot-instructions.md',
+  'apps/web/.nuxtrc',
+  'apps/web/.npmrc',
   'apps/web/eslint.config.mjs',
   'prettier.config.mjs',
   '.editorconfig',
@@ -31,6 +36,11 @@ export const VERBATIM_SYNC_FILES = [
 export const RECURSIVE_SYNC_DIRECTORIES = [
   'packages/eslint-config',
   '.agents/workflows',
+  '.agent',
+  '.codex',
+  '.cursor/skills',
+  '.github/prompts',
+  '.template-reference',
   'layers/narduk-nuxt-layer',
 ] as const
 
@@ -42,6 +52,12 @@ export const STALE_SYNC_PATHS = [
   '.github/workflows/template-sync-bot.yml',
   '.github/workflows/sync-fleet.yml',
   'tools/check-setup.js',
+  '.cursor/.DS_Store',
+  '.cursor/rules/nuxt-v4-template.mdc',
+  '.agent/skills/ui-ux-pro-max/scripts/__pycache__',
+  '.codex/skills/ui-ux-pro-max/scripts/__pycache__',
+  '.cursor/skills/ui-ux-pro-max/scripts/__pycache__',
+  '.github/prompts/ui-ux-pro-max/scripts/__pycache__',
   '.env',
   '.env.local',
   '.env.example',
@@ -83,7 +99,11 @@ export const FLEET_WEB_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
 }
 
 const TRANSIENT_DIRECTORY_PATTERN =
-  /(^|\/)(node_modules|dist|\.turbo|\.nuxt|\.output|\.nitro|\.wrangler|\.data)(\/|$)/
+  /(^|\/)(node_modules|dist|\.turbo|\.nuxt|\.output|\.nitro|\.wrangler|\.data|__pycache__)(\/|$)/
+
+export function isIgnoredManagedPath(fullPath: string): boolean {
+  return TRANSIENT_DIRECTORY_PATTERN.test(fullPath) || basename(fullPath) === '.DS_Store'
+}
 
 export function getCanonicalCiContent(): string {
   return `name: CI
@@ -109,7 +129,7 @@ jobs:
 }
 
 function shouldIgnoreEntry(fullPath: string): boolean {
-  return TRANSIENT_DIRECTORY_PATTERN.test(fullPath)
+  return isIgnoredManagedPath(fullPath)
 }
 
 function collectFilesUnderDirectory(rootDir: string, relativeDir: string): string[] {

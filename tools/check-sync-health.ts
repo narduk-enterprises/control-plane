@@ -31,6 +31,12 @@ const LAYER_PACKAGE_PATH = join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'packag
 const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
 const INSTALLED_NUXT_OG_IMAGE = join(ROOT_DIR, 'node_modules', 'nuxt-og-image', 'package.json')
+const REFERENCE_BASELINES = [
+  '.template-reference/apps/web/AGENTS.md',
+  '.template-reference/tools/AGENTS.md',
+  '.template-reference/CONTRIBUTING.md',
+  '.template-reference/playwright.config.ts',
+] as const
 
 function readJson<T>(path: string): T | null {
   if (!existsSync(path)) return null
@@ -220,6 +226,24 @@ function checkPublicJunk(): CheckResult {
   }
 }
 
+function checkReferenceBaselines(): CheckResult {
+  const missing = REFERENCE_BASELINES.filter(
+    (relativePath) => !existsSync(join(ROOT_DIR, relativePath)),
+  )
+  if (missing.length === 0) {
+    return {
+      status: 'pass',
+      summary: 'reference baselines present for local-only docs/config',
+    }
+  }
+
+  return {
+    status: 'warn',
+    summary: `${missing.length} reference baseline(s) missing`,
+    detail: missing.join('\n'),
+  }
+}
+
 function checkLockfileState(): CheckResult {
   const pnpmWhy = run('pnpm why nuxt-og-image')
   const installed = getInstalledPackageVersion(INSTALLED_NUXT_OG_IMAGE)
@@ -268,6 +292,7 @@ function main() {
     ['pnpm graph', checkLockfileState()],
     ['og-image config', checkOgImageConfig()],
     ['public junk', checkPublicJunk()],
+    ['reference baselines', checkReferenceBaselines()],
   ]
 
   console.log('\nSync Health Check')

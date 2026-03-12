@@ -10,7 +10,7 @@ import { URL } from 'node:url'
 function _httpsJson(
   method: string,
   urlStr: string,
-  opts: { headers?: Record<string, string>; body?: object } = {}
+  opts: { headers?: Record<string, string>; body?: object } = {},
 ): Promise<{ statusCode: number; data: any }> {
   const u = new URL(urlStr)
   const headers: Record<string, string> = { Accept: 'application/json', ...opts.headers }
@@ -20,7 +20,9 @@ function _httpsJson(
       { hostname: u.hostname, path: u.pathname + u.search, method, headers },
       (res) => {
         let buf = ''
-        res.on('data', (c) => { buf += c })
+        res.on('data', (c) => {
+          buf += c
+        })
         res.on('end', () => {
           try {
             resolve({ statusCode: res.statusCode!, data: buf ? JSON.parse(buf) : {} })
@@ -28,7 +30,7 @@ function _httpsJson(
             reject(new Error(`Invalid JSON: ${buf.slice(0, 200)}`))
           }
         })
-      }
+      },
     )
     req.on('error', reject)
     if (opts.body) req.write(JSON.stringify(opts.body))
@@ -93,7 +95,7 @@ function loadCredentials(): Record<string, any> {
   }
 
   throw new Error(
-    'No service account credentials found. Set GSC_SERVICE_ACCOUNT_JSON_PATH or GSC_SERVICE_ACCOUNT_JSON in Doppler.'
+    'No service account credentials found. Set GSC_SERVICE_ACCOUNT_JSON_PATH or GSC_SERVICE_ACCOUNT_JSON in Doppler.',
   )
 }
 
@@ -113,16 +115,29 @@ function readDopplerYaml(): { project: string; config: string } | null {
 
 /**
  * Persist a setup-generated secret. Prefer Doppler (doppler secrets set); otherwise print instructions.
+ *
+ * @param configOverride — When called from init.ts (via `doppler run --config prd`), pass 'prd'
+ *   to ensure secrets land in the production config rather than the dev config from doppler.yaml.
+ *   Falls back to doppler.yaml if no override is provided.
  */
-function writeSetupSecret(key: string, value: string) {
-  const doppler = readDopplerYaml()
+function writeSetupSecret(key: string, value: string, configOverride?: string) {
+  const envProject = process.env.DOPPLER_PROJECT
+  const envConfig = configOverride || process.env.DOPPLER_CONFIG
+  const doppler =
+    envProject && envConfig ? { project: envProject, config: envConfig } : readDopplerYaml()
+
   if (doppler) {
-    const out = spawnSync('doppler', ['secrets', 'set', `${key}=${value}`, '--project', doppler.project, '--config', doppler.config], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe']
-    })
+    const targetConfig = configOverride || doppler.config
+    const out = spawnSync(
+      'doppler',
+      ['secrets', 'set', `${key}=${value}`, '--project', doppler.project, '--config', targetConfig],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
     if (out.status === 0) {
-      console.log(`  ✅  ${key} written to Doppler (${doppler.project}/${doppler.config}).`)
+      console.log(`  ✅  ${key} written to Doppler (${doppler.project}/${targetConfig}).`)
       return
     }
   }
@@ -152,17 +167,17 @@ function checkStatus(): StatusResult {
   const posthogKey = check(
     'POSTHOG_PUBLIC_KEY',
     env('POSTHOG_PUBLIC_KEY'),
-    'Run: npm run setup:posthog (or set manually from Project Settings)'
+    'Run: npm run setup:posthog (or set manually from Project Settings)',
   )
   check(
     'POSTHOG_PROJECT_ID',
     env('POSTHOG_PROJECT_ID'),
-    'Set from Hubble/Analytics central project'
+    'Set from Hubble/Analytics central project',
   )
   check(
     'POSTHOG_HOST',
     env('POSTHOG_HOST'),
-    'Defaults to https://us.i.posthog.com (US) — set to https://eu.i.posthog.com for EU'
+    'Defaults to https://us.i.posthog.com (US) — set to https://eu.i.posthog.com for EU',
   )
 
   // Google Analytics
@@ -170,12 +185,12 @@ function checkStatus(): StatusResult {
   const gaId = check(
     'GA_MEASUREMENT_ID',
     env('GA_MEASUREMENT_ID'),
-    'Run: npm run setup:ga (or create GA4 property manually and copy G-XXXXXXX)'
+    'Run: npm run setup:ga (or create GA4 property manually and copy G-XXXXXXX)',
   )
   check(
     'GA_ACCOUNT_ID',
     env('GA_ACCOUNT_ID'),
-    'For automation: analytics.google.com → Admin → Account settings (numeric ID)'
+    'For automation: analytics.google.com → Admin → Account settings (numeric ID)',
   )
 
   // Google Search Console
@@ -195,17 +210,19 @@ function checkStatus(): StatusResult {
     console.log(`  ✅  GSC_SERVICE_ACCOUNT_JSON (inline)`)
     gscCreds = true
   } else {
-    console.log(`  ⬜  GSC credentials  →  Set GSC_SERVICE_ACCOUNT_JSON_PATH to your key file (e.g. ./my-key.json), or GSC_SERVICE_ACCOUNT_JSON for inline JSON/base64`)
+    console.log(
+      `  ⬜  GSC credentials  →  Set GSC_SERVICE_ACCOUNT_JSON_PATH to your key file (e.g. ./my-key.json), or GSC_SERVICE_ACCOUNT_JSON for inline JSON/base64`,
+    )
   }
   const gscSite = check(
     'SITE_URL',
     env('SITE_URL'),
-    'Set to your production URL, e.g. https://myapp.com'
+    'Set to your production URL, e.g. https://myapp.com',
   )
   const gscEmail = check(
     'GSC_USER_EMAIL',
     env('GSC_USER_EMAIL'),
-    'Your Google account email — the GSC property will be shared with this account so it appears in your dashboard'
+    'Your Google account email — the GSC property will be shared with this account so it appears in your dashboard',
   )
 
   // Verification file
@@ -221,7 +238,7 @@ function checkStatus(): StatusResult {
   const indexNowKey = check(
     'INDEXNOW_KEY',
     env('INDEXNOW_KEY'),
-    'Run: npm run setup:all (auto-generates) or set manually (any 32-char hex string)'
+    'Run: npm run setup:all (auto-generates) or set manually (any 32-char hex string)',
   )
 
   console.log()
@@ -246,12 +263,18 @@ function checkStatus(): StatusResult {
     gscCredentials: gscCreds,
     gscSiteUrl: gscSite,
     gscUserEmail: gscEmail,
-    indexNow: indexNowKey
+    indexNow: indexNowKey,
   }
 }
 
+function resolvePublicDir(): string {
+  const monorepoPublic = join(process.cwd(), 'apps', 'web', 'public')
+  if (existsSync(monorepoPublic)) return monorepoPublic
+  return join(process.cwd(), 'public')
+}
+
 function findVerificationFiles(): string[] {
-  const publicDir = join(process.cwd(), 'public')
+  const publicDir = resolvePublicDir()
   const found: string[] = []
   try {
     for (const file of readdirSync(publicDir)) {
@@ -259,7 +282,9 @@ function findVerificationFiles(): string[] {
         found.push(`public/${file}`)
       }
     }
-  } catch { /* public dir may not exist */ }
+  } catch {
+    /* public dir may not exist */
+  }
   return found
 }
 
@@ -286,7 +311,9 @@ async function runPosthogSetupOrSkip(): Promise<boolean> {
   console.log()
   console.log('  ⚠️  PostHog: POSTHOG_PUBLIC_KEY not set.')
   console.log('      To use the shared Narduk Analytics project, bind the key from the Hub:')
-  console.log('      doppler secrets set POSTHOG_PUBLIC_KEY="\\\\${narduk-nuxt-template.prd.POSTHOG_PUBLIC_KEY}" --project YOUR_PROJECT --config prd')
+  console.log(
+    '      doppler secrets set POSTHOG_PUBLIC_KEY="\\\\${narduk-nuxt-template.prd.POSTHOG_PUBLIC_KEY}" --project YOUR_PROJECT --config prd',
+  )
   console.log()
   return false
 }
@@ -300,21 +327,24 @@ async function runGaSetup() {
   const gaAccountId = env('GA_ACCOUNT_ID')
 
   if (!hasGscCredentials()) {
-    throw new Error('Service account credentials required. Set GSC_SERVICE_ACCOUNT_JSON_PATH or GSC_SERVICE_ACCOUNT_JSON in Doppler.')
+    throw new Error(
+      'Service account credentials required. Set GSC_SERVICE_ACCOUNT_JSON_PATH or GSC_SERVICE_ACCOUNT_JSON in Doppler.',
+    )
   }
   if (!gaAccountId) {
-    throw new Error('GA_ACCOUNT_ID is required. Find it at https://analytics.google.com → Admin → Account settings.')
+    throw new Error(
+      'GA_ACCOUNT_ID is required. Find it at https://analytics.google.com → Admin → Account settings.',
+    )
   }
   if (!siteUrl) {
     throw new Error('SITE_URL is required for the web data stream.')
   }
 
-  // @ts-expect-error googleapis is used as an optional dev script dependency
   const { google } = await import('googleapis')
   const credentials = loadCredentials()
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: ['https://www.googleapis.com/auth/analytics.edit']
+    scopes: ['https://www.googleapis.com/auth/analytics.edit'],
   })
 
   const analyticsadmin = google.analyticsadmin({ version: 'v1beta', auth })
@@ -324,7 +354,9 @@ async function runGaSetup() {
   console.log('Step 1/3: Checking for existing GA4 property...')
   let propertyName = ''
   try {
-    const listRes = await analyticsadmin.properties.list({ filter: `parent:accounts/${gaAccountId}` })
+    const listRes = await analyticsadmin.properties.list({
+      filter: `parent:accounts/${gaAccountId}`,
+    })
     const existing = listRes.data.properties?.find((p: any) => p.displayName === appName)
     if (existing) {
       propertyName = existing.name || ''
@@ -336,16 +368,18 @@ async function runGaSetup() {
 
   if (!propertyName) {
     console.log('          Creating new GA4 property...')
-    const propertyRes = await analyticsadmin.properties.create({
-      requestBody: {
-        parent: `accounts/${gaAccountId}`,
-        displayName: appName,
-        timeZone: 'America/Los_Angeles',
-        currencyCode: 'USD'
-      }
-    }).catch((e: any) => {
-      throw new Error(e.message || 'Failed to create property')
-    })
+    const propertyRes = await analyticsadmin.properties
+      .create({
+        requestBody: {
+          parent: `accounts/${gaAccountId}`,
+          displayName: appName,
+          timeZone: 'America/Los_Angeles',
+          currencyCode: 'USD',
+        },
+      })
+      .catch((e: any) => {
+        throw new Error(e.message || 'Failed to create property')
+      })
 
     const property = propertyRes.data
     propertyName = property?.name || ''
@@ -358,7 +392,9 @@ async function runGaSetup() {
   let measurementId = ''
   try {
     const streamsRes = await analyticsadmin.properties.dataStreams.list({ parent: propertyName })
-    const existingStream = streamsRes.data.dataStreams?.find((s: any) => s.type === 'WEB_DATA_STREAM')
+    const existingStream = streamsRes.data.dataStreams?.find(
+      (s: any) => s.type === 'WEB_DATA_STREAM',
+    )
     if (existingStream) {
       measurementId = existingStream.webStreamData?.measurementId || ''
       console.log(`  ✅  Found existing web stream. Measurement ID: ${measurementId}`)
@@ -370,18 +406,20 @@ async function runGaSetup() {
   if (!measurementId) {
     console.log('          Creating new web data stream...')
     const defaultUri = siteUrl.replace(/\/$/, '')
-    const streamRes = await analyticsadmin.properties.dataStreams.create({
-      parent: propertyName,
-      requestBody: {
-        displayName: `${appName} Web`,
-        type: 'WEB_DATA_STREAM',
-        webStreamData: {
-          defaultUri
-        }
-      }
-    }).catch((e: any) => {
-      throw new Error(e.message || 'Failed to create data stream')
-    })
+    const streamRes = await analyticsadmin.properties.dataStreams
+      .create({
+        parent: propertyName,
+        requestBody: {
+          displayName: `${appName} Web`,
+          type: 'WEB_DATA_STREAM',
+          webStreamData: {
+            defaultUri,
+          },
+        },
+      })
+      .catch((e: any) => {
+        throw new Error(e.message || 'Failed to create data stream')
+      })
 
     const stream = streamRes.data
     measurementId = (stream as any)?.webStreamData?.measurementId || ''
@@ -391,9 +429,36 @@ async function runGaSetup() {
     console.log(`  ✅  Web stream created. Measurement ID: ${measurementId}`)
   }
 
+  const numericPropertyId = propertyName.replace('properties/', '')
+
   console.log()
-  console.log('Step 3/3: Writing GA_MEASUREMENT_ID to Doppler...')
+  console.log('Step 3/4: Writing GA_MEASUREMENT_ID + GA_PROPERTY_ID to Doppler...')
   writeSetupSecret('GA_MEASUREMENT_ID', measurementId)
+  if (numericPropertyId) {
+    writeSetupSecret('GA_PROPERTY_ID', numericPropertyId)
+  }
+
+  // Push GA property ID to control plane fleet registry
+  console.log()
+  console.log('Step 4/4: Updating control plane fleet registry...')
+  if (numericPropertyId) {
+    const cpUrl = 'https://control-plane.nard.uk'
+    const cpAppName = getAppName()
+    try {
+      const cpRes = await fetch(`${cpUrl}/api/fleet/apps/${cpAppName}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gaPropertyId: numericPropertyId }),
+      })
+      if (cpRes.ok) {
+        console.log(`  ✅ Updated GA property ID in control plane fleet registry.`)
+      } else {
+        console.warn(`  ⚠️ Could not update GA property ID in control plane (${cpRes.status}).`)
+      }
+    } catch {
+      console.warn('  ⚠️ Could not update GA property ID in control plane.')
+    }
+  }
 
   console.log()
   console.log('🎉  Google Analytics 4 setup complete!')
@@ -425,7 +490,11 @@ async function runGaSetupOrSkip(): Promise<boolean> {
     return true
   } catch (e: any) {
     const msg = e?.message || String(e)
-    if (msg.includes('permission') || msg.includes('403') || msg.includes('does not have permission')) {
+    if (
+      msg.includes('permission') ||
+      msg.includes('403') ||
+      msg.includes('does not have permission')
+    ) {
       const email = getServiceAccountEmail()
       console.log()
       console.log('  ⚠️  GA4: Service account lacks access. Add it in Google Analytics:')
@@ -448,10 +517,11 @@ async function runGscPipeline() {
   const siteUrl = env('SITE_URL')
 
   if (!hasGscCredentials() || !siteUrl) {
-    throw new Error('Service account credentials and SITE_URL are required for GSC setup. Set GSC_SERVICE_ACCOUNT_JSON_PATH (or GSC_SERVICE_ACCOUNT_JSON) and SITE_URL in Doppler.')
+    throw new Error(
+      'Service account credentials and SITE_URL are required for GSC setup. Set GSC_SERVICE_ACCOUNT_JSON_PATH (or GSC_SERVICE_ACCOUNT_JSON) and SITE_URL in Doppler.',
+    )
   }
 
-  // @ts-expect-error googleapis is used as an optional dev script dependency
   const { google } = await import('googleapis')
 
   const credentials = loadCredentials()
@@ -459,8 +529,8 @@ async function runGscPipeline() {
     credentials,
     scopes: [
       'https://www.googleapis.com/auth/webmasters',
-      'https://www.googleapis.com/auth/siteverification'
-    ]
+      'https://www.googleapis.com/auth/siteverification',
+    ],
   })
 
   const searchconsole = google.searchconsole({ version: 'v1', auth })
@@ -486,19 +556,21 @@ async function runGscPipeline() {
 
   const existingVerificationFiles = findVerificationFiles()
   if (existingVerificationFiles.length > 0) {
-    console.log(`  ✅  Found existing verification file(s): ${existingVerificationFiles.join(', ')}. Skipping creation.`)
+    console.log(
+      `  ✅  Found existing verification file(s): ${existingVerificationFiles.join(', ')}. Skipping creation.`,
+    )
     console.log()
     console.log('  ⚠️   You must deploy now so Google can find the verification file.')
-    console.log('       Run: npm run deploy')
-    console.log('       Then run: npm run setup:gsc:verify')
+    console.log('       Run: pnpm ship')
+    console.log('       Then run: doppler run -- npx jiti tools/setup-analytics.ts gsc:verify')
     return
   }
 
   const tokenResponse = await siteVerification.webResource.getToken({
     requestBody: {
       site: { identifier: siteUrl, type: 'SITE' },
-      verificationMethod: 'FILE'
-    }
+      verificationMethod: 'FILE',
+    },
   })
   const token = tokenResponse.data.token
   if (token) {
@@ -511,25 +583,25 @@ async function runGscPipeline() {
       ? token
       : `google-site-verification: ${fileName}`
 
-    const publicDir = join(process.cwd(), 'public')
+    const publicDir = resolvePublicDir()
     if (!existsSync(publicDir)) {
       mkdirSync(publicDir, { recursive: true })
     }
 
     writeFileSync(join(publicDir, fileName), content)
-    console.log(`  ✅  Created public/${fileName}`)
+    console.log(`  ✅  Created ${publicDir}/${fileName}`)
 
     // Cloudflare Pages may strip .html extension
     if (fileName.endsWith('.html')) {
       const noExt = fileName.slice(0, -5)
       writeFileSync(join(publicDir, noExt), content)
-      console.log(`  ✅  Created public/${noExt} (no-extension fallback)`)
+      console.log(`  ✅  Created ${publicDir}/${noExt} (no-extension fallback)`)
     }
 
     console.log()
     console.log('  ⚠️   You must deploy now so Google can find the verification file.')
-    console.log('       Run: npm run deploy')
-    console.log('       Then run: npm run setup:gsc:verify')
+    console.log('       Run: pnpm ship')
+    console.log('       Then run: doppler run -- npx jiti tools/setup-analytics.ts gsc:verify')
   } else {
     console.log('  ⚠️   No verification token returned. Site may already be verified.')
   }
@@ -539,10 +611,11 @@ async function runGscVerify() {
   const siteUrl = env('SITE_URL')
 
   if (!hasGscCredentials() || !siteUrl) {
-    throw new Error('Service account credentials and SITE_URL are required. Set GSC_SERVICE_ACCOUNT_JSON_PATH (or GSC_SERVICE_ACCOUNT_JSON) and SITE_URL in Doppler.')
+    throw new Error(
+      'Service account credentials and SITE_URL are required. Set GSC_SERVICE_ACCOUNT_JSON_PATH (or GSC_SERVICE_ACCOUNT_JSON) and SITE_URL in Doppler.',
+    )
   }
 
-  // @ts-expect-error googleapis is used as an optional dev script dependency
   const { google } = await import('googleapis')
 
   const credentials = loadCredentials()
@@ -550,8 +623,8 @@ async function runGscVerify() {
     credentials,
     scopes: [
       'https://www.googleapis.com/auth/webmasters',
-      'https://www.googleapis.com/auth/siteverification'
-    ]
+      'https://www.googleapis.com/auth/siteverification',
+    ],
   })
 
   const searchconsole = google.searchconsole({ version: 'v1', auth })
@@ -563,8 +636,8 @@ async function runGscVerify() {
   await siteVerification.webResource.insert({
     verificationMethod: 'FILE',
     requestBody: {
-      site: { identifier: siteUrl, type: 'SITE' }
-    }
+      site: { identifier: siteUrl, type: 'SITE' },
+    },
   })
   console.log('  ✅  Ownership verified!')
 
@@ -573,9 +646,11 @@ async function runGscVerify() {
   if (userEmail) {
     console.log(`  👤  Granting owner access to ${userEmail}...`)
     try {
-      const resource = await siteVerification.webResource.get({
-        id: siteUrl
-      }).catch(() => null)
+      const resource = await siteVerification.webResource
+        .get({
+          id: siteUrl,
+        })
+        .catch(() => null)
 
       const owners = resource?.data.owners || []
       if (!owners.includes(userEmail)) {
@@ -586,8 +661,8 @@ async function runGscVerify() {
         id: siteUrl,
         requestBody: {
           site: { identifier: siteUrl, type: 'SITE' },
-          owners
-        }
+          owners,
+        },
       })
       console.log(`  ✅  ${userEmail} is now an owner. Property will appear in your GSC dashboard.`)
     } catch (e: any) {
@@ -639,10 +714,13 @@ async function runSetupAll() {
   if (!env('GA_ACCOUNT_ID')) missing.push('GA_ACCOUNT_ID')
   if (!env('SITE_URL')) missing.push('SITE_URL')
   if (!env('GSC_USER_EMAIL')) missing.push('GSC_USER_EMAIL')
-  if (!hasGscCredentials()) missing.push('GSC_SERVICE_ACCOUNT_JSON or GSC_SERVICE_ACCOUNT_JSON_PATH')
+  if (!hasGscCredentials())
+    missing.push('GSC_SERVICE_ACCOUNT_JSON or GSC_SERVICE_ACCOUNT_JSON_PATH')
 
   if (missing.length) {
-    throw new Error(`Missing required keys (set in Doppler): ${missing.join(', ')}. Then run: doppler run -- npm run setup:all`)
+    throw new Error(
+      `Missing required keys (set in Doppler): ${missing.join(', ')}. Then run: doppler run -- npm run setup:all`,
+    )
   }
 
   console.log()
@@ -658,8 +736,8 @@ async function runSetupAll() {
   console.log()
   console.log('══════════════════════════════════════════════════════════')
   console.log('  Next steps (run after deploy):')
-  console.log('    1. npm run deploy')
-  console.log('    2. doppler run -- npm run setup:gsc:verify')
+  console.log('    1. pnpm ship')
+  console.log('    2. doppler run -- npx jiti tools/setup-analytics.ts gsc:verify')
   console.log('══════════════════════════════════════════════════════════')
   console.log()
 }
@@ -692,7 +770,9 @@ async function main() {
         break
 
       case 'posthog':
-        console.log('PostHog projects are shared globally now. Link POSTHOG_PUBLIC_KEY from narduk-nuxt-template.')
+        console.log(
+          'PostHog projects are shared globally now. Link POSTHOG_PUBLIC_KEY from narduk-nuxt-template.',
+        )
         break
 
       case 'ga':
@@ -705,13 +785,25 @@ async function main() {
 
       default:
         console.log('Usage:')
-        console.log('  npx jiti tools/setup-analytics.ts all          # Full bootstrap (PostHog + GA4 + GSC + IndexNow), then deploy + gsc:verify')
+        console.log(
+          '  npx jiti tools/setup-analytics.ts all          # Full bootstrap (PostHog + GA4 + GSC + IndexNow), then deploy + gsc:verify',
+        )
         console.log('  npx jiti tools/setup-analytics.ts status       # Check status')
-        console.log('  npx jiti tools/setup-analytics.ts posthog      # Create PostHog project only')
-        console.log('  npx jiti tools/setup-analytics.ts ga           # Create GA4 property + stream only')
-        console.log('  npx jiti tools/setup-analytics.ts gsc          # GSC: register + verification file only')
-        console.log('  npx jiti tools/setup-analytics.ts gsc:verify   # GSC: verify ownership + submit sitemap (run after deploy)')
-        console.log('  npx jiti tools/setup-analytics.ts indexnow     # Generate IndexNow API key only')
+        console.log(
+          '  npx jiti tools/setup-analytics.ts posthog      # Create PostHog project only',
+        )
+        console.log(
+          '  npx jiti tools/setup-analytics.ts ga           # Create GA4 property + stream only',
+        )
+        console.log(
+          '  npx jiti tools/setup-analytics.ts gsc          # GSC: register + verification file only',
+        )
+        console.log(
+          '  npx jiti tools/setup-analytics.ts gsc:verify   # GSC: verify ownership + submit sitemap (run after deploy)',
+        )
+        console.log(
+          '  npx jiti tools/setup-analytics.ts indexnow     # Generate IndexNow API key only',
+        )
     }
   } catch (error: any) {
     console.error()

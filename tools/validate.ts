@@ -16,6 +16,9 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 
+// Construct the template name from parts so init.ts string replacement can never corrupt it.
+const TEMPLATE_NAME = ['narduk', 'nuxt', 'template'].join('-')
+
 // --- Helper Functions ---
 function checkCommand(command: string, successMessage: string, errorMessage: string) {
   try {
@@ -34,7 +37,7 @@ async function main() {
   const APP_NAME = packageJson.name
 
   let allGood = true
-  if (!APP_NAME || APP_NAME.includes('narduk-nuxt-template')) {
+  if (!APP_NAME || APP_NAME.includes(TEMPLATE_NAME)) {
     console.error(`  ❌ Project name is still '${APP_NAME}'. Has init been run?`)
     allGood = false
   }
@@ -160,9 +163,10 @@ async function main() {
     console.log('  ⏭ Skipping (Doppler project not found).')
   } else {
     const hubChecks: Array<{ key: string; hub: string; config: string }> = [
-      { key: 'CLOUDFLARE_API_TOKEN', hub: 'narduk-nuxt-template', config: 'prd' },
-      { key: 'CLOUDFLARE_ACCOUNT_ID', hub: 'narduk-nuxt-template', config: 'prd' },
-      { key: 'POSTHOG_PUBLIC_KEY', hub: 'narduk-nuxt-template', config: 'prd' },
+      { key: 'CLOUDFLARE_API_TOKEN', hub: TEMPLATE_NAME, config: 'prd' },
+      { key: 'CLOUDFLARE_ACCOUNT_ID', hub: TEMPLATE_NAME, config: 'prd' },
+      { key: 'GITHUB_TOKEN_PACKAGES_READ', hub: TEMPLATE_NAME, config: 'prd' },
+      { key: 'POSTHOG_PUBLIC_KEY', hub: TEMPLATE_NAME, config: 'prd' },
     ]
 
     for (const { key, hub, config } of hubChecks) {
@@ -198,43 +202,63 @@ async function main() {
 
   // 4. GitHub Secret
   console.log('\nStep 4/6: Validating GitHub Secrets...')
-  let targetRepoFlag = ''
+
+  // Check if gh CLI is available before attempting to list secrets
+  let ghAvailable = false
   try {
-    const remotesOutput = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' })
-    const remotes = remotesOutput.split('\n').filter(Boolean)
-    const targetRemoteLine = remotes.find(
-      (line) => !line.includes('narduk-nuxt-template') && line.includes('(push)'),
-    )
-    if (targetRemoteLine) {
-      let url = targetRemoteLine.split(/\s+/)[1]
-      url = url
-        .replace(/^(https?:\/\/|git@)/, '')
-        .replace(/^github\.com[:/]/, '')
-        .replace(/\.git$/, '')
-      if (url) {
-        targetRepoFlag = `--repo "${url}"`
-        console.log(`  🎯 Checking secrets for repository: ${url}`)
-      }
-    }
+    execSync('gh --version', { encoding: 'utf-8', stdio: 'pipe' })
+    ghAvailable = true
   } catch {
-    // Ignore error
+    /* gh not installed */
   }
 
-  try {
-    const ghOutput = execSync(`gh secret list ${targetRepoFlag}`, {
-      encoding: 'utf-8',
-      stdio: 'pipe',
-    })
-    if (ghOutput.includes('DOPPLER_TOKEN')) {
-      console.log(`  ✅ DOPPLER_TOKEN is set in GitHub repository.`)
-    } else {
-      console.error('  ❌ DOPPLER_TOKEN is missing from GitHub repository.')
-      allGood = false
+  if (!ghAvailable) {
+    console.log('  ⏭ GitHub CLI (gh) not installed — skipping secret validation.')
+    console.log('     Install: https://cli.github.com/ then run `gh auth login`.')
+  } else {
+    let targetRepoFlag = ''
+    try {
+      const remotesOutput = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' })
+      const remotes = remotesOutput.split('\n').filter(Boolean)
+      const targetRemoteLine = remotes.find(
+        (line) => !line.includes(TEMPLATE_NAME) && line.includes('(push)'),
+      )
+      if (targetRemoteLine) {
+        let url = targetRemoteLine.split(/\s+/)[1]
+        url = url
+          .replace(/^(https?:\/\/|git@)/, '')
+          .replace(/^github\.com[:/]/, '')
+          .replace(/\.git$/, '')
+        if (url) {
+          targetRepoFlag = `--repo "${url}"`
+          console.log(`  🎯 Checking secrets for repository: ${url}`)
+        }
+      }
+    } catch {
+      // Ignore error
     }
-  } catch (error: any) {
-    const stderr = error.stderr || error.message || ''
-    console.error(`  ❌ Failed to list GitHub secrets: ${stderr}`)
-    allGood = false
+
+    try {
+      const ghOutput = execSync(`gh secret list ${targetRepoFlag}`, {
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      })
+      if (ghOutput.includes('DOPPLER_TOKEN')) {
+        console.log(`  ✅ DOPPLER_TOKEN is set in GitHub repository.`)
+      } else {
+        console.error('  ❌ DOPPLER_TOKEN is missing from GitHub repository.')
+        allGood = false
+      }
+    } catch (error: any) {
+      const stderr = error.stderr || error.message || ''
+      if (stderr.includes('not logged') || stderr.includes('auth login')) {
+        console.log('  ⏭ GitHub CLI not authenticated — skipping secret validation.')
+        console.log('     Run `gh auth login` and re-run validate.')
+      } else {
+        console.error(`  ❌ Failed to list GitHub secrets: ${stderr}`)
+        allGood = false
+      }
+    }
   }
 
   // 5. Package.json health (critical deps + script database names)
@@ -266,9 +290,9 @@ async function main() {
 
     // Ensure db:migrate doesn't still reference the template database name
     const migrateScript = webPkg.scripts?.['db:migrate'] || ''
-    if (migrateScript.includes('narduk-nuxt-template')) {
+    if (migrateScript.includes(TEMPLATE_NAME)) {
       console.error(
-        `  ❌ db:migrate script still references 'narduk-nuxt-template' — run setup with --repair`,
+        `  ❌ db:migrate script still references '${TEMPLATE_NAME}' — run setup with --repair`,
       )
       allGood = false
     } else if (migrateScript) {

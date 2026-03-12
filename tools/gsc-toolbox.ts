@@ -7,7 +7,7 @@ import 'dotenv/config'
 /**
  * GSC Toolbox: Programmatically manage Google Search Console properties
  * and Google Indexing API notifications.
- * 
+ *
  * Usage:
  * npx jiti tools/gsc-toolbox.ts init <site_url>
  * npx jiti tools/gsc-toolbox.ts verify <site_url>
@@ -18,6 +18,12 @@ import 'dotenv/config'
  */
 
 const siteUrl = process.argv[3] || process.env.SITE_URL
+
+function resolvePublicDir(): string {
+  const monorepoPublic = join(process.cwd(), 'apps', 'web', 'public')
+  if (existsSync(monorepoPublic)) return monorepoPublic
+  return join(process.cwd(), 'public')
+}
 
 function loadCredentials(): Record<string, any> {
   // Option A: file path (recommended)
@@ -41,7 +47,7 @@ function loadCredentials(): Record<string, any> {
   }
 
   throw new Error(
-    'No service account credentials found. Set GSC_SERVICE_ACCOUNT_JSON_PATH (path to key file) or GSC_SERVICE_ACCOUNT_JSON (inline JSON/base64) in your .env'
+    'No service account credentials found. Set GSC_SERVICE_ACCOUNT_JSON_PATH (path to key file) or GSC_SERVICE_ACCOUNT_JSON (inline JSON/base64) in your .env',
   )
 }
 
@@ -51,7 +57,7 @@ async function getAuth() {
     credentials,
     scopes: [
       'https://www.googleapis.com/auth/webmasters',
-      'https://www.googleapis.com/auth/siteverification'
+      'https://www.googleapis.com/auth/siteverification',
     ],
   })
 }
@@ -80,8 +86,8 @@ async function getVerificationToken(url: string) {
   const response = await siteVerification.webResource.getToken({
     requestBody: {
       site: { identifier: url, type: 'SITE' },
-      verificationMethod: 'FILE'
-    }
+      verificationMethod: 'FILE',
+    },
   })
 
   return response.data.token
@@ -95,8 +101,8 @@ async function verifySite(url: string) {
   await siteVerification.webResource.insert({
     verificationMethod: 'FILE',
     requestBody: {
-      site: { identifier: url, type: 'SITE' }
-    }
+      site: { identifier: url, type: 'SITE' },
+    },
   })
   console.log('✅ Ownership verified.')
 }
@@ -107,9 +113,11 @@ async function grantAccess(url: string, email: string) {
 
   console.log(`👤 Granting "Owner" access to ${email}...`)
   // First get current owners to avoid overwriting them
-  const resource = await siteVerification.webResource.get({
-    id: `http${url.includes('https') ? 's' : ''}://${url.replace(/^https?:\/\//, '')}`
-  }).catch(() => null)
+  const resource = await siteVerification.webResource
+    .get({
+      id: `http${url.includes('https') ? 's' : ''}://${url.replace(/^https?:\/\//, '')}`,
+    })
+    .catch(() => null)
 
   const owners = resource?.data.owners || []
   if (!owners.includes(email)) {
@@ -120,8 +128,8 @@ async function grantAccess(url: string, email: string) {
     id: url,
     requestBody: {
       site: { identifier: url, type: 'SITE' },
-      owners: owners
-    }
+      owners: owners,
+    },
   })
   console.log('✅ Access granted. Property should now appear in your GSC dashboard.')
 }
@@ -134,7 +142,7 @@ async function submitSitemap(url: string) {
   console.log(`🚀 Submitting sitemap: ${sitemapUrl}`)
   await searchconsole.sitemaps.submit({
     siteUrl: url,
-    feedpath: sitemapUrl
+    feedpath: sitemapUrl,
   })
   console.log('✅ Sitemap submitted.')
 }
@@ -193,19 +201,22 @@ async function main() {
           const content = token.includes('google-site-verification:')
             ? token
             : `google-site-verification: ${fileName}`
-          const publicDir = join(process.cwd(), 'public')
+          const publicDir = resolvePublicDir()
           if (!existsSync(publicDir)) mkdirSync(publicDir)
           const filePath = join(publicDir, fileName)
           writeFileSync(filePath, content)
-          console.log(`💾 Verification file created: public/${fileName}`)
+          console.log(`💾 Verification file created: ${filePath.replace(`${process.cwd()}/`, '')}`)
 
           // Cloudflare Pages (and some hosting setups) may redirect `/foo.html` -> `/foo`.
           // Create a no-extension copy too so verification still succeeds.
           if (fileName.toLowerCase().endsWith('.html')) {
             const noExt = fileName.slice(0, -'.html'.length)
             if (noExt && noExt !== fileName) {
-              writeFileSync(join(publicDir, noExt), content)
-              console.log(`💾 Verification file created: public/${noExt}`)
+              const noExtPath = join(publicDir, noExt)
+              writeFileSync(noExtPath, content)
+              console.log(
+                `💾 Verification file created: ${noExtPath.replace(`${process.cwd()}/`, '')}`,
+              )
             }
           }
 
@@ -221,7 +232,9 @@ async function main() {
           await grantAccess(siteUrl, userEmail)
         } else {
           console.log('⚠️  GSC_USER_EMAIL not set. Skipping automatic access grant.')
-          console.log('👉 To see this property in your dashboard, add your email to .env and run: npm run setup:gsc:verify')
+          console.log(
+            '👉 To see this property in your dashboard, add your email to .env and run: npm run setup:gsc:verify',
+          )
         }
         break
       }
@@ -249,7 +262,9 @@ async function main() {
       }
 
       default:
-        console.log('Usage: npx jiti tools/gsc-toolbox.ts [init|verify|submit|index-url|remove-url|index-status]')
+        console.log(
+          'Usage: npx jiti tools/gsc-toolbox.ts [init|verify|submit|index-url|remove-url|index-status]',
+        )
     }
   } catch (error: any) {
     console.error('❌ Error:', error.response?.data?.error?.message || error.message)
