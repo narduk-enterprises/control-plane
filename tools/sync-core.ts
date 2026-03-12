@@ -275,6 +275,7 @@ function patchRootPackage(
     devDependencies?: Record<string, string>
     pnpm?: {
       overrides?: Record<string, string>
+      peerDependencyRules?: Record<string, unknown>
       onlyBuiltDependencies?: string[]
     }
   }
@@ -315,10 +316,19 @@ function patchRootPackage(
 
       pkg.pnpm = pkg.pnpm || {}
       const templateOverrides = templatePackage.pnpm?.overrides || {}
+      const templatePeerDependencyRules = templatePackage.pnpm?.peerDependencyRules || {}
       const templateOnlyBuiltDependencies = templatePackage.pnpm?.onlyBuiltDependencies || []
 
       if (JSON.stringify(pkg.pnpm.overrides) !== JSON.stringify(templateOverrides)) {
         pkg.pnpm.overrides = templateOverrides
+        changed = true
+      }
+
+      if (
+        JSON.stringify(pkg.pnpm.peerDependencyRules) !==
+        JSON.stringify(templatePeerDependencyRules)
+      ) {
+        pkg.pnpm.peerDependencyRules = templatePeerDependencyRules
         changed = true
       }
 

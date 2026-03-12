@@ -62,7 +62,14 @@
       "unrs-resolver",
       "vue-demi",
       "workerd"
-    ]
+    ],
+    "peerDependencyRules": {
+      "allowAny": [
+        "eslint",
+        "citty",
+        "@cloudflare/workers-types"
+      ]
+    }
   },
   "volta": {
     "node": "22.22.0"
