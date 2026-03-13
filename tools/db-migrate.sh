@@ -78,11 +78,25 @@ for f in "$DRIZZLE_DIR"/0*.sql; do
   fi
 
   echo "⏳  Applying $filename..."
-  wrangler d1 execute "$DB_NAME" "$LOCATION_FLAG" --file="$f"
+  MIGRATE_OUTPUT=""
+  set +e
+  MIGRATE_OUTPUT=$(wrangler d1 execute "$DB_NAME" "$LOCATION_FLAG" --file="$f" 2>&1)
+  MIGRATE_EXIT=$?
+  set -e
 
-  # Record successful application
+  if [ $MIGRATE_EXIT -eq 0 ]; then
+    : # Success — record normally below
+  elif echo "$MIGRATE_OUTPUT" | grep -qiE "duplicate column name|already exists"; then
+    echo "⚠️  $filename: schema already applied (skipping) — recording as applied"
+  else
+    echo "❌  $filename failed:"
+    echo "$MIGRATE_OUTPUT"
+    exit 1
+  fi
+
+  # Record as applied (both success and safe-conflict cases)
   wrangler d1 execute "$DB_NAME" "$LOCATION_FLAG" \
-    --command "INSERT INTO _applied_migrations (filename) VALUES ('$filename');" \
+    --command "INSERT OR IGNORE INTO _applied_migrations (filename) VALUES ('$filename');" \
     > /dev/null 2>&1
 
   APPLY=$((APPLY + 1))
