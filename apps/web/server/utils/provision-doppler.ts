@@ -52,8 +52,8 @@ export async function createDopplerProject(
 
 /**
  * Bulk set secrets on a Doppler project/config. Overwrites existing values.
- * This is the primary mechanism for hub-spoke secret sync: the Control Plane
- * reads hub values and writes resolved values to the spoke project.
+ * Supports both plain values and cross-project reference syntax
+ * (e.g. `${narduk-nuxt-template.prd.KEY}`).
  */
 export async function bulkSetSecrets(
   apiToken: string,
@@ -155,16 +155,34 @@ export async function createDopplerServiceToken(
   return data.token.key
 }
 
+/** Hub keys that should use cross-project references (matching init.ts hub ref list). */
+const HUB_KEYS_TO_SYNC = [
+  'CLOUDFLARE_API_TOKEN',
+  'CLOUDFLARE_ACCOUNT_ID',
+  'CONTROL_PLANE_API_KEY',
+  'GITHUB_TOKEN_PACKAGES_READ',
+  'POSTHOG_PUBLIC_KEY',
+  'POSTHOG_PROJECT_ID',
+  'POSTHOG_HOST',
+  'POSTHOG_PERSONAL_API_KEY',
+  'GA_ACCOUNT_ID',
+  'GSC_SERVICE_ACCOUNT_JSON',
+  'GSC_USER_EMAIL',
+  'APPLE_KEY_ID',
+  'APPLE_SECRET_KEY',
+  'APPLE_TEAM_ID',
+  'CSP_SCRIPT_SRC',
+  'CSP_CONNECT_SRC',
+]
+
 /**
- * Resolve hub secrets and sync them to a spoke project.
- * Reads actual values from the hub project and writes them to the spoke.
+ * Sync hub secrets to a spoke project using **cross-project references**.
+ * Instead of copying resolved values, writes Doppler cross-project reference
+ * syntax (`${hub.config.KEY}`) so spoke secrets stay in sync automatically
+ * when hub values rotate.
  *
- * Hub secrets: shared infrastructure credentials (CF, PostHog, GSC, etc.)
- * Per-app secrets: app-specific values (APP_NAME, SITE_URL, random tokens)
- *
- * IMPORTANT: Per-app secrets are only set if they don't already exist in the
- * spoke, preventing overwrites of CRON_SECRET/NUXT_SESSION_PASSWORD on retries.
- * Hub secrets are always synced (overwritten) to ensure spoke stays in sync.
+ * Hub secrets: always synced as cross-project references (overwritten).
+ * Per-app secrets: only set if MISSING in spoke (don't clobber on retries).
  */
 export async function syncHubSecrets(
   apiToken: string,
@@ -174,9 +192,6 @@ export async function syncHubSecrets(
   spokeConfig: string,
   perAppSecrets: Record<string, string>,
 ): Promise<{ synced: number }> {
-  // Read resolved values from hub
-  const hubSecrets = await getDopplerSecrets(apiToken, hubProject, hubConfig)
-
   // Read existing spoke secrets to avoid clobbering per-app values
   let existingSpokeSecrets: Record<string, string> = {}
   try {
@@ -185,32 +200,11 @@ export async function syncHubSecrets(
     // If the config doesn't exist yet (fresh project), that's fine — set everything
   }
 
-  // Hub keys to sync (matching init.ts hub ref list)
-  const hubKeysToSync = [
-    'CLOUDFLARE_API_TOKEN',
-    'CLOUDFLARE_ACCOUNT_ID',
-    'CONTROL_PLANE_API_KEY',
-    'POSTHOG_PUBLIC_KEY',
-    'POSTHOG_PROJECT_ID',
-    'POSTHOG_HOST',
-    'POSTHOG_PERSONAL_API_KEY',
-    'GA_ACCOUNT_ID',
-    'GSC_SERVICE_ACCOUNT_JSON',
-    'GSC_USER_EMAIL',
-    'APPLE_KEY_ID',
-    'APPLE_SECRET_KEY',
-    'APPLE_TEAM_ID',
-    'CSP_SCRIPT_SRC',
-    'CSP_CONNECT_SRC',
-  ]
-
   const secretsToSet: Record<string, string> = {}
 
-  // Hub secrets: always sync (overwrite) to keep spoke in sync with hub
-  for (const key of hubKeysToSync) {
-    if (hubSecrets[key]) {
-      secretsToSet[key] = hubSecrets[key]
-    }
+  // Hub secrets: write as cross-project references (always overwrite to fix any stale values)
+  for (const key of HUB_KEYS_TO_SYNC) {
+    secretsToSet[key] = `\${${hubProject}.${hubConfig}.${key}}`
   }
 
   // Per-app secrets: only set if MISSING in spoke (don't clobber existing values)
@@ -222,6 +216,52 @@ export async function syncHubSecrets(
 
   if (Object.keys(secretsToSet).length > 0) {
     await bulkSetSecrets(apiToken, spokeProject, spokeConfig, secretsToSet)
+  }
+
+  return { synced: Object.keys(secretsToSet).length }
+}
+
+/**
+ * Populate the `dev` config by mirroring hub cross-project references and
+ * per-app secrets from `prd`, with SITE_URL overridden to localhost.
+ *
+ * This ensures `doppler run -- pnpm dev` works immediately after provisioning.
+ */
+export async function syncDevConfig(
+  apiToken: string,
+  hubProject: string,
+  hubConfig: string,
+  spokeProject: string,
+  perAppSecrets: Record<string, string>,
+): Promise<{ synced: number }> {
+  // Read existing dev secrets to avoid clobbering
+  let existingDevSecrets: Record<string, string> = {}
+  try {
+    existingDevSecrets = await getDopplerSecrets(apiToken, spokeProject, 'dev')
+  } catch {
+    // Fresh project — set everything
+  }
+
+  const secretsToSet: Record<string, string> = {}
+
+  // Hub secrets: same cross-project references as prd
+  for (const key of HUB_KEYS_TO_SYNC) {
+    secretsToSet[key] = `\${${hubProject}.${hubConfig}.${key}}`
+  }
+
+  // Per-app secrets: only set if missing, with SITE_URL override for local dev
+  const devAppSecrets = {
+    ...perAppSecrets,
+    SITE_URL: 'http://localhost:3000',
+  }
+  for (const [key, value] of Object.entries(devAppSecrets)) {
+    if (!existingDevSecrets[key]) {
+      secretsToSet[key] = value
+    }
+  }
+
+  if (Object.keys(secretsToSet).length > 0) {
+    await bulkSetSecrets(apiToken, spokeProject, 'dev', secretsToSet)
   }
 
   return { synced: Object.keys(secretsToSet).length }

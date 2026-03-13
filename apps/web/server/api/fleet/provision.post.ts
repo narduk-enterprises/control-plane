@@ -6,6 +6,7 @@ import { createD1Database } from '#server/utils/provision-cloudflare'
 import {
   createDopplerProject,
   syncHubSecrets,
+  syncDevConfig,
   createDopplerServiceToken,
   getDopplerSecrets,
   bulkSetSecrets,
@@ -226,13 +227,27 @@ export default defineEventHandler(async (event) => {
     const cronSecret = randomHex(32)
     const sessionPassword = randomHex(32)
 
-    // Sync hub secrets + set per-app secrets (resolved values, not cross-refs)
+    // Sync hub secrets as cross-project references + set per-app secrets
     await syncHubSecrets(
       dopplerToken,
       'narduk-nuxt-template', // hub project
       'prd', // hub config
       name, // spoke project
       'prd', // spoke config
+      {
+        APP_NAME: name,
+        SITE_URL: url,
+        CRON_SECRET: cronSecret,
+        NUXT_SESSION_PASSWORD: sessionPassword,
+      },
+    )
+
+    // Populate dev config so local development works immediately
+    await syncDevConfig(
+      dopplerToken,
+      'narduk-nuxt-template', // hub project
+      'prd', // hub config
+      name, // spoke project
       {
         APP_NAME: name,
         SITE_URL: url,
@@ -380,6 +395,8 @@ export default defineEventHandler(async (event) => {
       if (gaMeasurementId) analyticsSecrets.GA_MEASUREMENT_ID = gaMeasurementId
       if (indexNowKey) analyticsSecrets.INDEXNOW_KEY = indexNowKey
       await bulkSetSecrets(dopplerToken2, name, 'prd', analyticsSecrets)
+      // Also write analytics IDs to dev so local dev has them
+      await bulkSetSecrets(dopplerToken2, name, 'dev', analyticsSecrets)
     }
 
     // Update fleet_apps with GA property ID
