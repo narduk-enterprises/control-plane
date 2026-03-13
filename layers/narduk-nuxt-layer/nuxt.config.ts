@@ -87,9 +87,6 @@ export default defineNuxtConfig({
       password:
         process.env.NUXT_SESSION_PASSWORD ||
         (import.meta.dev ? 'layer-auth-dev-session-secret-min-32-chars' : ''),
-      cookie: {
-        secure: false,
-      },
     },
     appleTeamId: process.env.APPLE_TEAM_ID || '',
     appleKeyId: process.env.APPLE_KEY_ID || '',
