@@ -117,19 +117,30 @@ export default defineEventHandler(async (event) => {
   const summaryCacheKey = `fleet-analytics-summary-${startDate}-${endDate}`
   const STALE_WINDOW = 30 * 60
 
-  return withD1Cache(event, cacheKey, TTL, async () => {
-    // Read summary from D1 cache only — never call the summary API (avoids 522 when summary is cold).
-    const d1 = getD1CacheDB(event)
-    let apps: Record<string, FleetAppAnalyticsSummary> = {}
-    if (d1) {
-      try {
-        const raw = await getCached(d1, summaryCacheKey)
-        if (raw) {
-          const parsed = JSON.parse(raw.value) as { apps?: Record<string, FleetAppAnalyticsSummary> }
-          apps = parsed?.apps ?? {}
+  return withD1Cache(
+    event,
+    cacheKey,
+    TTL,
+    async () => {
+      // Read summary from D1 cache only — never call the summary API (avoids 522 when summary is cold).
+      const d1 = getD1CacheDB(event)
+      let apps: Record<string, FleetAppAnalyticsSummary> = {}
+      if (d1) {
+        try {
+          const raw = await getCached(d1, summaryCacheKey)
+          if (raw) {
+            const parsed = JSON.parse(raw.value) as {
+              apps?: Record<string, FleetAppAnalyticsSummary>
+            }
+            apps = parsed?.apps ?? {}
+          }
+        } catch (_) {
+          /* use empty apps */
         }
-      } catch (_) { /* use empty apps */ }
-    }
-    return { insights: buildInsights(apps), startDate, endDate }
-  }, parsed.force === 'true', { staleWindowSeconds: STALE_WINDOW })
+      }
+      return { insights: buildInsights(apps), startDate, endDate }
+    },
+    parsed.force === 'true',
+    { staleWindowSeconds: STALE_WINDOW },
+  )
 })

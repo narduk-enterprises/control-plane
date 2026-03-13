@@ -20,7 +20,8 @@ const isLoading = computed(() => status.value === 'pending')
 function getStatusIcon(repo: GithubRepo) {
   if (!repo.latestRun) return { name: 'i-lucide-minus', class: 'text-muted' }
   const { conclusion, status } = repo.latestRun
-  if (status !== 'completed') return { name: 'i-lucide-loader-2', class: 'text-primary animate-spin' }
+  if (status !== 'completed')
+    return { name: 'i-lucide-loader-2', class: 'text-primary animate-spin' }
   if (conclusion === 'success') return { name: 'i-lucide-check-circle', class: 'text-success' }
   if (conclusion === 'failure') return { name: 'i-lucide-x-circle', class: 'text-error' }
   return { name: 'i-lucide-help-circle', class: 'text-muted' }
@@ -40,19 +41,28 @@ const githubColumns: TableColumn<GithubRepo>[] = [
       const repo = row.original
       const privateIcon = h(UIcon, {
         name: repo.private ? 'i-lucide-lock' : 'i-lucide-book-open',
-        class: 'size-4 shrink-0 text-muted'
+        class: 'size-4 shrink-0 text-muted',
       })
-      const titleLink = h(NuxtLink, {
-        to: repo.url,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-        class: 'font-semibold text-default hover:text-primary transition-colors flex items-center gap-2 truncate'
-      }, () => [privateIcon, h('span', { class: 'truncate' }, repo.name)])
-      
-      const desc = h('p', { class: 'text-xs text-muted mt-1 line-clamp-1 max-w-sm' }, repo.description || 'No description provided.')
-      
+      const titleLink = h(
+        NuxtLink,
+        {
+          to: repo.url,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          class:
+            'font-semibold text-default hover:text-primary transition-colors flex items-center gap-2 truncate',
+        },
+        () => [privateIcon, h('span', { class: 'truncate' }, repo.name)],
+      )
+
+      const desc = h(
+        'p',
+        { class: 'text-xs text-muted mt-1 line-clamp-1 max-w-sm' },
+        repo.description || 'No description provided.',
+      )
+
       return h('div', { class: 'flex flex-col gap-1 min-w-0' }, [titleLink, desc])
-    }
+    },
   },
   {
     accessorKey: 'language',
@@ -62,7 +72,7 @@ const githubColumns: TableColumn<GithubRepo>[] = [
       const lang = row.original.language
       if (!lang) return h('span', { class: 'text-muted text-xs' }, '-')
       return h(UBadge, { color: 'neutral', variant: 'soft', size: 'sm' }, () => lang)
-    }
+    },
   },
   {
     accessorKey: 'stars',
@@ -72,9 +82,9 @@ const githubColumns: TableColumn<GithubRepo>[] = [
       const stars = row.original.stars
       return h('div', { class: 'flex items-center gap-1.5' }, [
         h(UIcon, { name: 'i-lucide-star', class: 'size-4 text-muted shrink-0' }),
-        h('span', { class: 'text-sm text-muted' }, stars?.toString() || '0')
+        h('span', { class: 'text-sm text-muted' }, stars?.toString() || '0'),
       ])
-    }
+    },
   },
   {
     accessorKey: 'forks',
@@ -84,9 +94,9 @@ const githubColumns: TableColumn<GithubRepo>[] = [
       const forks = row.original.forks
       return h('div', { class: 'flex items-center gap-1.5' }, [
         h(UIcon, { name: 'i-lucide-git-fork', class: 'size-4 text-muted shrink-0' }),
-        h('span', { class: 'text-sm text-muted' }, forks?.toString() || '0')
+        h('span', { class: 'text-sm text-muted' }, forks?.toString() || '0'),
       ])
-    }
+    },
   },
   {
     id: 'status',
@@ -97,27 +107,37 @@ const githubColumns: TableColumn<GithubRepo>[] = [
       if (!repo.latestRun) {
         return h('div', { class: 'flex items-center gap-2' }, [
           h(UIcon, { name: 'i-lucide-minus', class: 'size-4 text-muted shrink-0' }),
-          h('span', { class: 'text-xs text-muted' }, 'No recent runs')
+          h('span', { class: 'text-xs text-muted' }, 'No recent runs'),
         ])
       }
-      
+
       const iconAttrs = getStatusIcon(repo)
       return h('div', { class: 'flex items-center gap-2' }, [
         h(UIcon, { ...iconAttrs, class: [iconAttrs.class, 'size-4 shrink-0'] }),
-        h(NuxtLink, {
-          to: repo.latestRun.url,
-          target: '_blank',
-          rel: 'noopener noreferrer',
-          class: 'text-xs font-medium text-default hover:text-primary transition-colors truncate max-w-[140px]'
-        }, () => repo.latestRun!.name)
+        h(
+          NuxtLink,
+          {
+            to: repo.latestRun.url,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            class:
+              'text-xs font-medium text-default hover:text-primary transition-colors truncate max-w-[140px]',
+          },
+          () => repo.latestRun!.name,
+        ),
       ])
-    }
+    },
   },
   {
     accessorKey: 'updatedAt',
     header: 'Updated',
-    meta: { class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell tabular-nums text-xs w-32' } },
-    cell: ({ row }) => h('ClientOnly', null, () => h(NuxtTime, { datetime: row.original.updatedAt, relative: true }))
+    meta: {
+      class: { th: 'hidden sm:table-cell', td: 'hidden sm:table-cell tabular-nums text-xs w-32' },
+    },
+    cell: ({ row }) =>
+      h('ClientOnly', null, () =>
+        h(NuxtTime, { datetime: row.original.updatedAt, relative: true }),
+      ),
   },
   {
     id: 'actions',
@@ -136,7 +156,7 @@ const githubColumns: TableColumn<GithubRepo>[] = [
           color: 'neutral',
           icon: 'i-lucide-play-circle',
           'aria-label': 'Actions',
-          class: 'cursor-pointer'
+          class: 'cursor-pointer',
         }),
         h(UButton, {
           to: repo.url,
@@ -147,11 +167,11 @@ const githubColumns: TableColumn<GithubRepo>[] = [
           color: 'neutral',
           icon: 'i-lucide-external-link',
           'aria-label': 'Open repo',
-          class: 'cursor-pointer'
-        })
+          class: 'cursor-pointer',
+        }),
       ])
-    }
-  }
+    },
+  },
 ]
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
@@ -167,11 +187,12 @@ const filteredRepos = computed(() => {
   const allRepos = sortedRepos.value
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return allRepos
-  
-  return allRepos.filter(repo => 
-    repo.name.toLowerCase().includes(q) || 
-    (repo.description && repo.description.toLowerCase().includes(q)) ||
-    (repo.language && repo.language.toLowerCase().includes(q))
+
+  return allRepos.filter(
+    (repo) =>
+      repo.name.toLowerCase().includes(q) ||
+      (repo.description && repo.description.toLowerCase().includes(q)) ||
+      (repo.language && repo.language.toLowerCase().includes(q)),
   )
 })
 </script>
@@ -179,15 +200,11 @@ const filteredRepos = computed(() => {
 <template>
   <div>
     <AppBreadcrumbs :items="[{ label: 'Dashboard', to: '/' }, { label: 'GitHub Repositories' }]" />
-    
+
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="font-display text-2xl font-semibold text-default">
-          GitHub Repositories
-        </h1>
-        <p class="mt-1 text-sm text-muted">
-          All repositories and CI/CD build statuses
-        </p>
+        <h1 class="font-display text-2xl font-semibold text-default">GitHub Repositories</h1>
+        <p class="mt-1 text-sm text-muted">All repositories and CI/CD build statuses</p>
       </div>
       <UButton
         variant="outline"
@@ -205,7 +222,11 @@ const filteredRepos = computed(() => {
     <UAlert
       v-if="error"
       title="Error loading repositories"
-      :description="error.data?.message || error.message || 'Failed to fetch GitHub data. Ensure GITHUB_TOKEN is configured.'"
+      :description="
+        error.data?.message ||
+        error.message ||
+        'Failed to fetch GitHub data. Ensure GITHUB_TOKEN is configured.'
+      "
       color="error"
       variant="soft"
       icon="i-lucide-alert-circle"
@@ -226,11 +247,15 @@ const filteredRepos = computed(() => {
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!repos?.length" class="rounded-xl border border-dashed border-default p-12 text-center">
+    <div
+      v-else-if="!repos?.length"
+      class="rounded-xl border border-dashed border-default p-12 text-center"
+    >
       <UIcon name="i-lucide-github" class="mx-auto size-12 text-muted mb-4" />
       <h3 class="text-lg font-medium text-default mb-1">No repositories found</h3>
       <p class="text-sm text-muted max-w-sm mx-auto">
-        We couldn't find any recently updated repositories. Make sure your GitHub token has the correct permissions.
+        We couldn't find any recently updated repositories. Make sure your GitHub token has the
+        correct permissions.
       </p>
     </div>
 
@@ -248,10 +273,7 @@ const filteredRepos = computed(() => {
         </div>
       </template>
       <div v-if="filteredRepos.length" class="overflow-x-auto">
-        <UTable
-          :data="filteredRepos"
-          :columns="githubColumnsForTable"
-        />
+        <UTable :data="filteredRepos" :columns="githubColumnsForTable" />
       </div>
       <div v-else class="rounded-lg border border-dashed border-default p-8 text-center my-4 mx-4">
         <UIcon name="i-lucide-search-x" class="mx-auto size-10 text-muted" />

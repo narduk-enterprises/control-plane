@@ -9,17 +9,20 @@ import { z } from 'zod'
  * to populate the table (first-run / fresh migration scenario).
  */
 export default defineEventHandler(async (event) => {
-    const queryParams = await getValidatedQuery(event, z.object({
-        force: z.enum(['true', 'false']).optional(),
-    }).parse)
+  const queryParams = await getValidatedQuery(
+    event,
+    z.object({
+      force: z.enum(['true', 'false']).optional(),
+    }).parse,
+  )
 
-    const db = useDatabase(event)
+  const db = useDatabase(event)
 
-    if (queryParams.force !== 'true') {
-        const rows = await db.select().from(appStatus).all()
-        if (rows.length > 0) return rows
-    }
+  if (queryParams.force !== 'true') {
+    const rows = await db.select().from(appStatus).all()
+    if (rows.length > 0) return rows
+  }
 
-    // No cached data or forced — run the checks now and return fresh results
-    return checkAllFleetStatuses(event)
+  // No cached data or forced — run the checks now and return fresh results
+  return checkAllFleetStatuses(event)
 })

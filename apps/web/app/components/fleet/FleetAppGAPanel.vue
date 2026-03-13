@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const props = defineProps<{ appName: string; active?: boolean }>()
 
-const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } = useAnalyticsDateRange('today')
+const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } =
+  useAnalyticsDateRange('today')
 const force = ref(false)
 const { data, error, loading, load } = useFleetGA(() => props.appName, startDate, endDate, force)
 

@@ -23,15 +23,16 @@ export function useFleetAnalyticsInsights(
     ...(toValue(options?.force) ? { force: 'true' } : {}),
   }))
 
-  const { data, status, error, refresh } = useFetch<{ insights: AnalyticsInsight[]; startDate: string; endDate: string }>(
-    '/api/fleet/analytics/insights',
-    {
-      query,
-      lazy: true,
-      server: false,
-      watch: false,
-    },
-  )
+  const { data, status, error, refresh } = useFetch<{
+    insights: AnalyticsInsight[]
+    startDate: string
+    endDate: string
+  }>('/api/fleet/analytics/insights', {
+    query,
+    lazy: true,
+    server: false,
+    watch: false,
+  })
 
   const insights = computed(() => data.value?.insights ?? [])
   const loading = computed(() => status.value === 'pending')

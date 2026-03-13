@@ -20,7 +20,7 @@ const tabs = [
 const router = useRouter()
 const activeTab = computed({
   get: () => (route.query.tab as string) || 'ga4',
-  set: (val) => router.replace({ query: { ...route.query, tab: val } })
+  set: (val) => router.replace({ query: { ...route.query, tab: val } }),
 })
 
 const breadcrumbItems = computed(() => [

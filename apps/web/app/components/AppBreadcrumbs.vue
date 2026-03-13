@@ -5,7 +5,11 @@ defineProps<{
 </script>
 
 <template>
-  <div role="navigation" aria-label="Breadcrumb" class="flex items-center gap-2 text-sm text-muted mb-6">
+  <div
+    role="navigation"
+    aria-label="Breadcrumb"
+    class="flex items-center gap-2 text-sm text-muted mb-6"
+  >
     <template v-for="(item, i) in items" :key="i">
       <span v-if="i > 0" class="text-muted/70" aria-hidden="true">/</span>
       <NuxtLink

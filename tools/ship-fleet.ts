@@ -136,9 +136,7 @@ function ensureDopplerYaml(repo: ManagedRepo, repoDir: string, dryRun: boolean) 
   const setup = readDopplerSetup(repoDir)
   const resolvedProject = repo.dopplerProject
   const needsRepair =
-    !setup.exists ||
-    setup.project !== resolvedProject ||
-    setup.config !== FLEET_DOPPLER_CONFIG
+    !setup.exists || setup.project !== resolvedProject || setup.config !== FLEET_DOPPLER_CONFIG
 
   if (needsRepair) {
     const nextContent = `setup:\n  project: ${resolvedProject}\n  config: ${FLEET_DOPPLER_CONFIG}\n`

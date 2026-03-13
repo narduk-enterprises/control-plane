@@ -1,12 +1,15 @@
 # Contributing
 
-Welcome! This guide helps you get up and running with the **Nuxt 4 + Nuxt UI 4 Edge Template** monorepo.
+Welcome! This guide helps you get up and running with the **Nuxt 4 + Nuxt UI 4
+Edge Template** monorepo.
 
 ## Prerequisites
 
-- **Node.js 22+** (pinned via Volta — install [Volta](https://volta.sh/) and it's automatic)
+- **Node.js 22+** (pinned via Volta — install [Volta](https://volta.sh/) and
+  it's automatic)
 - **pnpm** (install globally: `npm i -g pnpm`)
-- **Doppler CLI** (for secrets management: [Install Guide](https://docs.doppler.com/docs/install-cli))
+- **Doppler CLI** (for secrets management:
+  [Install Guide](https://docs.doppler.com/docs/install-cli))
 
 ## Quick Start
 
@@ -42,17 +45,23 @@ tools/          → Init, validate, and setup scripts
 
 ## Development Workflow
 
-1. **Pick an app** — Work in `apps/web/` for the main app, or create a new example under `apps/example-<name>/`.
-2. **Layer changes** — If you need to edit shared code, modify files in `layers/narduk-nuxt-layer/`. Changes are live-reloaded.
-3. **ESLint plugins** — After modifying plugins in `packages/eslint-config/`, rebuild with `pnpm run build:plugins`.
-4. **Commit often** — Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `refactor:`, `chore:`).
+1. **Pick an app** — Work in `apps/web/` for the main app, or create a new
+   example under `apps/example-<name>/`.
+2. **Layer changes** — If you need to edit shared code, modify files in
+   `layers/narduk-nuxt-layer/`. Changes are live-reloaded.
+3. **ESLint plugins** — After modifying plugins in `packages/eslint-config/`,
+   rebuild with `pnpm run build:plugins`.
+4. **Commit often** — Use
+   [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`,
+   `fix:`, `refactor:`, `chore:`).
 
 ## Secrets Management
 
-This project uses **Doppler** — never create `.env` files. All example apps share a single Doppler project:
+This project uses **Doppler** — never create `.env` files. All example apps
+share a single Doppler project:
 
-| Doppler Project        | Config     | Used By        |
-| ---------------------- | ---------- | -------------- |
+| Doppler Project       | Config     | Used By        |
+| --------------------- | ---------- | -------------- |
 | `sailing-passage-map` | `dev`      | Shared secrets |
 | `sailing-passage-map` | `dev_auth` | `example-auth` |
 
@@ -63,7 +72,9 @@ cd apps/example-auth
 doppler setup --project sailing-passage-map --config dev_auth --no-interactive
 ```
 
-See the [Secrets recipe in AGENTS.md](./AGENTS.md#-recipe-secrets--environment-doppler) for full details.
+See the
+[Secrets recipe in AGENTS.md](./AGENTS.md#-recipe-secrets--environment-doppler)
+for full details.
 
 ## Testing
 
@@ -80,4 +91,5 @@ See the [Secrets recipe in AGENTS.md](./AGENTS.md#-recipe-secrets--environment-d
 
 ## Need Help?
 
-Read **[AGENTS.md](./AGENTS.md)** for complete architectural rules, recipes, and quality workflows.
+Read **[AGENTS.md](./AGENTS.md)** for complete architectural rules, recipes, and
+quality workflows.

@@ -41,7 +41,10 @@ const comparePathData = computed(() => {
 </script>
 
 <template>
-  <div class="inline-block overflow-hidden rounded" :style="{ width: `${width}px`, height: `${height}px` }">
+  <div
+    class="inline-block overflow-hidden rounded"
+    :style="{ width: `${width}px`, height: `${height}px` }"
+  >
     <!-- eslint-disable-next-line narduk/no-inline-svg -- sparkline requires direct SVG rendering -->
     <svg :width="width" :height="height" class="block" xmlns="http://www.w3.org/2000/svg">
       <path

@@ -8,33 +8,21 @@ async function onSubmit() {
   await submit()
 }
 
-const jsonResult = computed(() =>
-  data.value ? JSON.stringify(data.value.response, null, 2) : '',
-)
+const jsonResult = computed(() => (data.value ? JSON.stringify(data.value.response, null, 2) : ''))
 </script>
 
 <template>
   <div>
-    <UButton
-      size="xs"
-      variant="outline"
-      color="neutral"
-      :loading="loading"
-      @click="onSubmit"
-    >
+    <UButton size="xs" variant="outline" color="neutral" :loading="loading" @click="onSubmit">
       IndexNow
     </UButton>
     <UModal v-model:open="open">
-      <template #header>
-        IndexNow — {{ appName }}
-      </template>
+      <template #header> IndexNow — {{ appName }} </template>
       <template #body>
         <div v-if="loading" class="py-4 text-muted">Submitting…</div>
         <div v-else-if="error" class="py-4 text-error">{{ error?.message }}</div>
         <div v-else-if="data" class="space-y-2">
-          <p class="text-sm text-muted">
-            Status {{ data.status }} — {{ data.targetUrl }}
-          </p>
+          <p class="text-sm text-muted">Status {{ data.status }} — {{ data.targetUrl }}</p>
           <pre class="max-h-80 overflow-auto rounded bg-muted p-2 text-xs">{{ jsonResult }}</pre>
         </div>
       </template>

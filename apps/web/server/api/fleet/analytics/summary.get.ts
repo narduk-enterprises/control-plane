@@ -72,11 +72,18 @@ export default defineEventHandler(async (event) => {
             // Try exact key first, fall back to most recent cache entry for this app.
             // Date ranges vary by timezone/timing, so fuzzy matching prevents silent nulls.
             const gaCache = await getCached(db, `ga-app-${slug}-${startDate}-${endDate}`)
-            const gaRow = gaCache
-              ?? await db.prepare(`SELECT value FROM kv_cache WHERE key LIKE ? ORDER BY expires_at DESC LIMIT 1`)
-                .bind(`ga-app-${slug}-%`).first<{ value: string }>()
+            const gaRow =
+              gaCache ??
+              (await db
+                .prepare(
+                  `SELECT value FROM kv_cache WHERE key LIKE ? ORDER BY expires_at DESC LIMIT 1`,
+                )
+                .bind(`ga-app-${slug}-%`)
+                .first<{ value: string }>())
             if (gaRow) {
-              const gaData = JSON.parse('value' in gaRow ? gaRow.value : (gaRow as { value: string }).value)
+              const gaData = JSON.parse(
+                'value' in gaRow ? gaRow.value : (gaRow as { value: string }).value,
+              )
               ga = {
                 summary: gaData.summary ?? null,
                 deltas: gaData.deltas ?? null,
@@ -89,11 +96,18 @@ export default defineEventHandler(async (event) => {
 
           try {
             const gscCache = await getCached(db, `gsc-app-${slug}-${startDate}-${endDate}-query`)
-            const gscRow = gscCache
-              ?? await db.prepare(`SELECT value FROM kv_cache WHERE key LIKE ? ORDER BY expires_at DESC LIMIT 1`)
-                .bind(`gsc-app-${slug}-%`).first<{ value: string }>()
+            const gscRow =
+              gscCache ??
+              (await db
+                .prepare(
+                  `SELECT value FROM kv_cache WHERE key LIKE ? ORDER BY expires_at DESC LIMIT 1`,
+                )
+                .bind(`gsc-app-${slug}-%`)
+                .first<{ value: string }>())
             if (gscRow) {
-              const gscData = JSON.parse('value' in gscRow ? gscRow.value : (gscRow as { value: string }).value)
+              const gscData = JSON.parse(
+                'value' in gscRow ? gscRow.value : (gscRow as { value: string }).value,
+              )
               gsc = {
                 totals: gscData.totals ?? null,
                 rowsCount: gscData.rows?.length ?? 0,

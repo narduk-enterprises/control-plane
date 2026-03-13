@@ -20,19 +20,27 @@ export default defineEventHandler(async (event) => {
 
   const db = useDatabase(event)
 
-  const existing = await db.select().from(fleetApps).where(eq(fleetApps.name, appName)).limit(1).all()
+  const existing = await db
+    .select()
+    .from(fleetApps)
+    .where(eq(fleetApps.name, appName))
+    .limit(1)
+    .all()
   if (existing.length === 0) {
     throw createError({ statusCode: 404, message: `App '${appName}' not found.` })
   }
 
   const rawQuery = getQuery(event)
   const query = querySchema.parse(rawQuery)
-  
+
   if (query.hard === 'true') {
     await db.delete(fleetApps).where(eq(fleetApps.name, appName))
     return { ok: true, app: appName, action: 'deleted' }
   }
 
-  await db.update(fleetApps).set({ isActive: false, updatedAt: new Date().toISOString() }).where(eq(fleetApps.name, appName))
+  await db
+    .update(fleetApps)
+    .set({ isActive: false, updatedAt: new Date().toISOString() })
+    .where(eq(fleetApps.name, appName))
   return { ok: true, app: appName, action: 'deactivated' }
 })

@@ -3,7 +3,13 @@ import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '~/types/table'
 import type { GscDimension } from '~/composables/useFleetGscQuery'
 
-type GscRow = { keys?: string[]; clicks?: number; impressions?: number; ctr?: number; position?: number }
+type GscRow = {
+  keys?: string[]
+  clicks?: number
+  impressions?: number
+  ctr?: number
+  position?: number
+}
 
 const props = defineProps<{ appName: string; active?: boolean }>()
 
@@ -68,7 +74,13 @@ const csvContent = computed(() => {
   const body = rows
     .map((r) => {
       const key = (r.keys?.[0] ?? '').replaceAll('"', '""')
-      return [`"${key}"`, r.clicks ?? 0, r.impressions ?? 0, (r.ctr ?? 0).toFixed(2), (r.position ?? 0).toFixed(1)].join(',')
+      return [
+        `"${key}"`,
+        r.clicks ?? 0,
+        r.impressions ?? 0,
+        (r.ctr ?? 0).toFixed(2),
+        (r.position ?? 0).toFixed(1),
+      ].join(',')
     })
     .join('\n')
   return [header, body].join('\n')
@@ -79,58 +91,63 @@ const UButton = resolveComponent('UButton')
 const gscColumns = computed<TableColumn<GscRow>[]>(() => [
   {
     id: 'key',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `${data.value?.dimension ?? 'query'} ${sortIndicator('key')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('key'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `${data.value?.dimension ?? 'query'} ${sortIndicator('key')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('key'),
+      }),
     meta: { class: { td: 'max-w-[200px] truncate' } },
     cell: ({ row }) => row.original.keys?.[0] ?? '—',
   },
   {
     accessorKey: 'clicks',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `Clicks ${sortIndicator('clicks')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('clicks'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `Clicks ${sortIndicator('clicks')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('clicks'),
+      }),
     cell: ({ row }) => row.original.clicks ?? 0,
   },
   {
     accessorKey: 'impressions',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `Impressions ${sortIndicator('impressions')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('impressions'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `Impressions ${sortIndicator('impressions')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('impressions'),
+      }),
     cell: ({ row }) => row.original.impressions ?? 0,
   },
   {
     accessorKey: 'ctr',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `CTR ${sortIndicator('ctr')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('ctr'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `CTR ${sortIndicator('ctr')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('ctr'),
+      }),
     cell: ({ row }) => `${((row.original.ctr ?? 0) * 100).toFixed(2)}%`,
   },
   {
     accessorKey: 'position',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `Position ${sortIndicator('position')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('position'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `Position ${sortIndicator('position')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('position'),
+      }),
     cell: ({ row }) => (row.original.position ?? 0).toFixed(1),
   },
 ])
@@ -185,32 +202,20 @@ const formattedLastCrawlTime = computed(() => {
         </UButton>
       </div>
 
-      <div v-if="preset === 'custom'" class="flex flex-wrap items-center gap-2 border-t border-default pt-3">
-        <UInput 
-          type="date" 
-          v-model="startDate" 
-          size="xs" 
-          class="w-auto"
-        />
+      <div
+        v-if="preset === 'custom'"
+        class="flex flex-wrap items-center gap-2 border-t border-default pt-3"
+      >
+        <UInput type="date" v-model="startDate" size="xs" class="w-auto" />
         <span class="text-xs text-muted">to</span>
-        <UInput 
-          type="date" 
-          v-model="endDate" 
-          size="xs" 
-          class="w-auto"
-        />
+        <UInput type="date" v-model="endDate" size="xs" class="w-auto" />
       </div>
     </div>
 
     <!-- Controls Row -->
     <div class="flex flex-wrap items-end gap-3">
       <UFormField label="Dimension">
-        <USelect
-          v-model="dimension"
-          :items="dimensions"
-          value-attribute="value"
-          class="min-w-40"
-        />
+        <USelect v-model="dimension" :items="dimensions" value-attribute="value" class="min-w-40" />
       </UFormField>
       <UButton
         :loading="loading"
@@ -234,19 +239,27 @@ const formattedLastCrawlTime = computed(() => {
       <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div class="rounded-xl border border-default bg-elevated/30 p-4">
           <p class="text-sm font-medium text-muted">Total Clicks</p>
-          <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.clicks ?? 0).toLocaleString() }}</p>
+          <p class="mt-1 text-2xl font-semibold text-default">
+            {{ (data.totals?.clicks ?? 0).toLocaleString() }}
+          </p>
         </div>
         <div class="rounded-xl border border-default bg-elevated/30 p-4">
           <p class="text-sm font-medium text-muted">Total Impressions</p>
-          <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.impressions ?? 0).toLocaleString() }}</p>
+          <p class="mt-1 text-2xl font-semibold text-default">
+            {{ (data.totals?.impressions ?? 0).toLocaleString() }}
+          </p>
         </div>
         <div class="rounded-xl border border-default bg-elevated/30 p-4">
           <p class="text-sm font-medium text-muted">Average CTR</p>
-          <p class="mt-1 text-2xl font-semibold text-default">{{ ((data.totals?.ctr ?? 0) * 100).toFixed(2) }}%</p>
+          <p class="mt-1 text-2xl font-semibold text-default">
+            {{ ((data.totals?.ctr ?? 0) * 100).toFixed(2) }}%
+          </p>
         </div>
         <div class="rounded-xl border border-default bg-elevated/30 p-4">
           <p class="text-sm font-medium text-muted">Average Position</p>
-          <p class="mt-1 text-2xl font-semibold text-default">{{ (data.totals?.position ?? 0).toFixed(1) }}</p>
+          <p class="mt-1 text-2xl font-semibold text-default">
+            {{ (data.totals?.position ?? 0).toFixed(1) }}
+          </p>
         </div>
       </div>
 
@@ -254,9 +267,17 @@ const formattedLastCrawlTime = computed(() => {
         <div class="flex items-start justify-between">
           <div>
             <div class="flex items-center gap-2">
-              <UIcon 
-                :name="data.inspection.indexStatusResult.verdict === 'PASS' ? 'i-lucide-check-circle' : 'i-lucide-alert-circle'" 
-                :class="data.inspection.indexStatusResult.verdict === 'PASS' ? 'text-success' : 'text-warning'"
+              <UIcon
+                :name="
+                  data.inspection.indexStatusResult.verdict === 'PASS'
+                    ? 'i-lucide-check-circle'
+                    : 'i-lucide-alert-circle'
+                "
+                :class="
+                  data.inspection.indexStatusResult.verdict === 'PASS'
+                    ? 'text-success'
+                    : 'text-warning'
+                "
                 class="size-5"
               />
               <p class="font-medium text-default">Index Status</p>
@@ -264,16 +285,16 @@ const formattedLastCrawlTime = computed(() => {
             <p class="mt-1 text-sm text-muted">
               {{ data.inspection.indexStatusResult.coverageState || 'Unknown coverage state' }}
             </p>
-            <div class="mt-2 flex flex-col gap-1 text-xs text-muted sm:flex-row sm:items-center sm:gap-4">
+            <div
+              class="mt-2 flex flex-col gap-1 text-xs text-muted sm:flex-row sm:items-center sm:gap-4"
+            >
               <span v-if="formattedLastCrawlTime">
                 Last crawled: {{ formattedLastCrawlTime }}
               </span>
-              <span v-if="formattedCrawledAs">
-                Agent: {{ formattedCrawledAs }}
-              </span>
+              <span v-if="formattedCrawledAs"> Agent: {{ formattedCrawledAs }} </span>
             </div>
           </div>
-          <UButton 
+          <UButton
             v-if="data.inspection.inspectionResultLink"
             :to="data.inspection.inspectionResultLink"
             target="_blank"
@@ -290,7 +311,8 @@ const formattedLastCrawlTime = computed(() => {
       <div class="space-y-2">
         <div class="flex items-center justify-between">
           <p class="text-sm text-muted">
-            {{ data.startDate }} → {{ data.endDate }} ({{ data.dimension }}) · {{ data.rows.length }} rows
+            {{ data.startDate }} → {{ data.endDate }} ({{ data.dimension }}) ·
+            {{ data.rows.length }} rows
           </p>
           <UButton
             variant="outline"
@@ -303,19 +325,20 @@ const formattedLastCrawlTime = computed(() => {
           </UButton>
         </div>
         <div class="overflow-x-auto rounded-lg border border-default">
-          <UTable
-            :data="tableRows"
-            :columns="gscColumnsForTable"
-            class="text-sm"
-          />
+          <UTable :data="tableRows" :columns="gscColumnsForTable" class="text-sm" />
         </div>
       </div>
     </div>
 
-    <div v-else-if="data && !data.rows?.length" class="rounded-lg border border-dashed border-default p-6 text-center">
+    <div
+      v-else-if="data && !data.rows?.length"
+      class="rounded-lg border border-dashed border-default p-6 text-center"
+    >
       <UIcon name="i-lucide-bar-chart-3" class="mx-auto size-10 text-muted" />
       <p class="mt-2 text-sm font-medium text-default">No data</p>
-      <p class="mt-1 text-sm text-muted">No Search Console data for this period. Try a different range or dimension.</p>
+      <p class="mt-1 text-sm text-muted">
+        No Search Console data for this period. Try a different range or dimension.
+      </p>
     </div>
 
     <div v-else class="rounded-lg border border-dashed border-default p-6 text-center">

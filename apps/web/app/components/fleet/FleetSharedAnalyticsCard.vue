@@ -79,16 +79,22 @@ onMounted(() => {
   isMounted.value = true
 })
 
-const refreshIcon = computed(() => (isMounted.value && props.loading) ? 'i-lucide-loader-2' : 'i-lucide-refresh-cw')
-const refreshColor = computed(() => (isMounted.value && props.loading) ? 'primary' : 'neutral')
+const refreshIcon = computed(() =>
+  isMounted.value && props.loading ? 'i-lucide-loader-2' : 'i-lucide-refresh-cw',
+)
+const refreshColor = computed(() => (isMounted.value && props.loading ? 'primary' : 'neutral'))
 
-function onUpdateStartDate(val: string | number) { emit('update:startDate', String(val)) }
-function onUpdateEndDate(val: string | number) { emit('update:endDate', String(val)) }
+function onUpdateStartDate(val: string | number) {
+  emit('update:startDate', String(val))
+}
+function onUpdateEndDate(val: string | number) {
+  emit('update:endDate', String(val))
+}
 
 const showLoadButton = computed(() => !props.hideButton && !props.presetOptions?.length)
 const showChart = computed(() => !!props.timeSeries && props.timeSeries.length > 0)
 const showEmptyState = computed(() => !props.summary && !(isMounted.value && props.loading))
-const chartTitle = computed(() => props.presetLabel ? `Trend (${props.presetLabel})` : 'Trend')
+const chartTitle = computed(() => (props.presetLabel ? `Trend (${props.presetLabel})` : 'Trend'))
 
 function onPresetClick(val: DatePreset) {
   emit('preset', val)
@@ -127,20 +133,23 @@ function onPresetClick(val: DatePreset) {
         </UButton>
       </div>
 
-      <div v-if="activePreset === 'custom'" class="flex flex-wrap items-center gap-2 border-t border-default pt-3">
-        <UInput 
-          type="date" 
-          :model-value="startDate" 
-          @update:model-value="onUpdateStartDate" 
-          size="xs" 
+      <div
+        v-if="activePreset === 'custom'"
+        class="flex flex-wrap items-center gap-2 border-t border-default pt-3"
+      >
+        <UInput
+          type="date"
+          :model-value="startDate"
+          @update:model-value="onUpdateStartDate"
+          size="xs"
           class="w-auto"
         />
         <span class="text-xs text-muted">to</span>
-        <UInput 
-          type="date" 
-          :model-value="endDate" 
-          @update:model-value="onUpdateEndDate" 
-          size="xs" 
+        <UInput
+          type="date"
+          :model-value="endDate"
+          @update:model-value="onUpdateEndDate"
+          size="xs"
           class="w-auto"
         />
       </div>
@@ -163,7 +172,11 @@ function onPresetClick(val: DatePreset) {
     <!-- Skeletons -->
     <div v-else-if="!summary && isMounted && loading" class="space-y-4 animate-pulse">
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div v-for="i in 4" :key="i" class="rounded-xl border border-default bg-elevated/30 p-4 h-[104px] flex flex-col justify-center">
+        <div
+          v-for="i in 4"
+          :key="i"
+          class="rounded-xl border border-default bg-elevated/30 p-4 h-[104px] flex flex-col justify-center"
+        >
           <div class="h-4 w-24 bg-default/10 rounded mb-3"></div>
           <div class="h-8 w-16 bg-default/10 rounded"></div>
         </div>
@@ -174,51 +187,82 @@ function onPresetClick(val: DatePreset) {
     <div v-else-if="summary" class="space-y-4">
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <!-- Users -->
-        <div v-if="summary.users !== undefined" class="rounded-xl border border-default bg-elevated/30 p-4">
+        <div
+          v-if="summary.users !== undefined"
+          class="rounded-xl border border-default bg-elevated/30 p-4"
+        >
           <p class="text-sm font-medium text-muted">Unique Users</p>
           <p class="mt-1 text-2xl font-semibold text-default">
             {{ summary.users.toLocaleString() }}
           </p>
-          <p v-if="deltas?.users !== undefined" class="mt-0.5 text-xs" :class="getDeltaClass(deltas.users)">
+          <p
+            v-if="deltas?.users !== undefined"
+            class="mt-0.5 text-xs"
+            :class="getDeltaClass(deltas.users)"
+          >
             {{ formatDelta(deltas.users) }} vs prev
           </p>
         </div>
 
         <!-- New Users (GA Specific) -->
-        <div v-if="summary.newUsers !== undefined" class="rounded-xl border border-default bg-elevated/30 p-4">
+        <div
+          v-if="summary.newUsers !== undefined"
+          class="rounded-xl border border-default bg-elevated/30 p-4"
+        >
           <p class="text-sm font-medium text-muted">New Users</p>
           <p class="mt-1 text-2xl font-semibold text-default">
             {{ summary.newUsers.toLocaleString() }}
           </p>
-          <p v-if="deltas?.newUsers !== undefined" class="mt-0.5 text-xs" :class="getDeltaClass(deltas.newUsers)">
+          <p
+            v-if="deltas?.newUsers !== undefined"
+            class="mt-0.5 text-xs"
+            :class="getDeltaClass(deltas.newUsers)"
+          >
             {{ formatDelta(deltas.newUsers) }} vs prev
           </p>
         </div>
 
         <!-- Sessions -->
-        <div v-if="summary.sessions !== undefined" class="rounded-xl border border-default bg-elevated/30 p-4">
+        <div
+          v-if="summary.sessions !== undefined"
+          class="rounded-xl border border-default bg-elevated/30 p-4"
+        >
           <p class="text-sm font-medium text-muted">Sessions</p>
           <p class="mt-1 text-2xl font-semibold text-default">
             {{ summary.sessions.toLocaleString() }}
           </p>
-          <p v-if="deltas?.sessions !== undefined" class="mt-0.5 text-xs" :class="getDeltaClass(deltas.sessions)">
+          <p
+            v-if="deltas?.sessions !== undefined"
+            class="mt-0.5 text-xs"
+            :class="getDeltaClass(deltas.sessions)"
+          >
             {{ formatDelta(deltas.sessions) }} vs prev
           </p>
         </div>
 
         <!-- Pageviews -->
-        <div v-if="summary.pageviews !== undefined" class="rounded-xl border border-default bg-elevated/30 p-4">
+        <div
+          v-if="summary.pageviews !== undefined"
+          class="rounded-xl border border-default bg-elevated/30 p-4"
+        >
           <p class="text-sm font-medium text-muted">Pageviews</p>
           <p class="mt-1 text-2xl font-semibold text-default">
             {{ summary.pageviews.toLocaleString() }}
           </p>
-          <p v-if="deltas?.pageviews !== undefined" class="mt-0.5 text-xs" :class="getDeltaClass(deltas.pageviews)">
+          <p
+            v-if="deltas?.pageviews !== undefined"
+            class="mt-0.5 text-xs"
+            :class="getDeltaClass(deltas.pageviews)"
+          >
             {{ formatDelta(deltas.pageviews) }} vs prev
           </p>
         </div>
 
         <!-- Event Count (PostHog Specific) -->
-        <div v-if="summary.eventCount !== undefined && summary.eventCount > 0" class="rounded-xl border border-default bg-elevated/30 p-4">
+        <div
+          v-if="summary.eventCount !== undefined && summary.eventCount > 0"
+          class="rounded-xl border border-default bg-elevated/30 p-4"
+        >
           <p class="text-sm font-medium text-muted">Total Events</p>
           <p class="mt-1 text-2xl font-semibold text-default">
             {{ summary.eventCount.toLocaleString() }}
@@ -226,18 +270,28 @@ function onPresetClick(val: DatePreset) {
         </div>
 
         <!-- Bounce Rate (GA Specific) -->
-        <div v-if="summary.bounceRate !== undefined" class="rounded-xl border border-default bg-elevated/30 p-4">
+        <div
+          v-if="summary.bounceRate !== undefined"
+          class="rounded-xl border border-default bg-elevated/30 p-4"
+        >
           <p class="text-sm font-medium text-muted">Bounce Rate</p>
           <p class="mt-1 text-2xl font-semibold text-default">
             {{ (summary.bounceRate * 100).toFixed(1) }}%
           </p>
-          <p v-if="deltas?.bounceRate !== undefined" class="mt-0.5 text-xs" :class="getInvertedDeltaClass(deltas.bounceRate)">
+          <p
+            v-if="deltas?.bounceRate !== undefined"
+            class="mt-0.5 text-xs"
+            :class="getInvertedDeltaClass(deltas.bounceRate)"
+          >
             {{ formatDelta(deltas.bounceRate) }} vs prev
           </p>
         </div>
 
         <!-- Engagement Rate (GA Specific) -->
-        <div v-if="summary.engagementRate !== undefined" class="rounded-xl border border-default bg-elevated/30 p-4">
+        <div
+          v-if="summary.engagementRate !== undefined"
+          class="rounded-xl border border-default bg-elevated/30 p-4"
+        >
           <p class="text-sm font-medium text-muted">Engagement Rate</p>
           <p class="mt-1 text-2xl font-semibold text-default">
             {{ (summary.engagementRate * 100).toFixed(1) }}%
@@ -245,7 +299,10 @@ function onPresetClick(val: DatePreset) {
         </div>
 
         <!-- Avg Session Duration (GA Specific) -->
-        <div v-if="summary.avgSessionDuration !== undefined" class="rounded-xl border border-default bg-elevated/30 p-4">
+        <div
+          v-if="summary.avgSessionDuration !== undefined"
+          class="rounded-xl border border-default bg-elevated/30 p-4"
+        >
           <p class="text-sm font-medium text-muted">Avg Session</p>
           <p class="mt-1 text-2xl font-semibold text-default">
             {{ formatSeconds(summary.avgSessionDuration) }}
@@ -263,7 +320,10 @@ function onPresetClick(val: DatePreset) {
       <AnalyticsLineChart :data="timeSeries ?? []" :title="chartTitle" />
     </div>
 
-    <div v-else-if="showEmptyState" class="rounded-lg border border-dashed border-default p-6 text-center">
+    <div
+      v-else-if="showEmptyState"
+      class="rounded-lg border border-dashed border-default p-6 text-center"
+    >
       <UIcon :name="iconName" class="mx-auto size-10 text-muted" />
       <p class="mt-2 text-sm font-medium text-default">{{ providerName }} Analytics</p>
       <p class="mt-1 text-sm text-muted">Select a date range to load metrics.</p>

@@ -1,9 +1,15 @@
 <script setup lang="ts">
 const props = defineProps<{ appName: string; active?: boolean }>()
 
-const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } = useAnalyticsDateRange('today')
+const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } =
+  useAnalyticsDateRange('today')
 const force = ref(false)
-const { data, error, loading, load } = useFleetPosthog(() => props.appName, startDate, endDate, force)
+const { data, error, loading, load } = useFleetPosthog(
+  () => props.appName,
+  startDate,
+  endDate,
+  force,
+)
 
 async function onForceRefresh() {
   force.value = true

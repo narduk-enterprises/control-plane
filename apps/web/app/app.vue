@@ -1,18 +1,18 @@
 <script setup lang="ts">
-const route = useRoute();
-const colorMode = useColorMode();
-const appName = useRuntimeConfig().public.appName || 'Narduk Control Plane';
-const currentYear = new Date().getFullYear();
+const route = useRoute()
+const colorMode = useColorMode()
+const appName = useRuntimeConfig().public.appName || 'Narduk Control Plane'
+const currentYear = new Date().getFullYear()
 
 const colorModeIcon = computed(() => {
-  if (colorMode.preference === 'system') return 'i-lucide-monitor';
-  return colorMode.value === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun';
-});
+  if (colorMode.preference === 'system') return 'i-lucide-monitor'
+  return colorMode.value === 'dark' ? 'i-lucide-moon' : 'i-lucide-sun'
+})
 
 function cycleColorMode() {
-  const modes = ['system', 'light', 'dark'] as const;
-  const idx = modes.indexOf(colorMode.preference as (typeof modes)[number]);
-  colorMode.preference = modes[(idx + 1) % modes.length]!;
+  const modes = ['system', 'light', 'dark'] as const
+  const idx = modes.indexOf(colorMode.preference as (typeof modes)[number])
+  colorMode.preference = modes[(idx + 1) % modes.length]!
 }
 
 const navItems = [
@@ -24,17 +24,17 @@ const navItems = [
   { label: 'Audit', to: '/audit', icon: 'i-lucide-shield-check' },
   { label: 'GitHub', to: '/github', icon: 'i-lucide-github' },
   { label: 'Settings', to: '/settings', icon: 'i-lucide-settings' },
-];
+]
 
-const mobileMenuOpen = ref(false);
+const mobileMenuOpen = ref(false)
 
 watch(route, () => {
-  mobileMenuOpen.value = false;
-});
+  mobileMenuOpen.value = false
+})
 
 function isActive(path: string) {
-  if (path === '/') return route.path === '/';
-  return route.path.startsWith(path);
+  if (path === '/') return route.path === '/'
+  return route.path.startsWith(path)
 }
 </script>
 

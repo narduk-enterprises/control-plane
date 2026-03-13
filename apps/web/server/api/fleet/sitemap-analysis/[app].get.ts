@@ -42,7 +42,9 @@ async function fetchText(url: string): Promise<string> {
   }
 }
 
-async function headWithTiming(url: string): Promise<{ status: number; durationMs: number; error?: string }> {
+async function headWithTiming(
+  url: string,
+): Promise<{ status: number; durationMs: number; error?: string }> {
   const start = Date.now()
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), HEAD_TIMEOUT_MS)
@@ -87,9 +89,7 @@ export default defineEventHandler(async (event) => {
     )
     if (looksLikeIndex && mainLocs.length > 0) {
       const toFetch = mainLocs.slice(0, MAX_INDEX_SITEMAPS)
-      const childXmls = await Promise.all(
-        toFetch.map((url) => fetchText(url).catch(() => '')),
-      )
+      const childXmls = await Promise.all(toFetch.map((url) => fetchText(url).catch(() => '')))
       const seen = new Set<string>()
       for (const xml of childXmls) {
         for (const u of extractLocUrls(xml)) {

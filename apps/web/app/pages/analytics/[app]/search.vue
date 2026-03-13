@@ -4,7 +4,13 @@ import type { TableColumn } from '~/types/table'
 import type { GscDimension } from '~/composables/useFleetGscQuery'
 import type { DatePreset } from '~/composables/useAnalyticsDateRange'
 
-type GscRow = { keys?: string[]; clicks?: number; impressions?: number; ctr?: number; position?: number }
+type GscRow = {
+  keys?: string[]
+  clicks?: number
+  impressions?: number
+  ctr?: number
+  position?: number
+}
 
 const route = useRoute()
 const appName = computed(() => (route.params.app as string) ?? '')
@@ -18,11 +24,16 @@ useWebPageSchema({
   description: 'Search Console performance with time series and dimension tables.',
 })
 
-const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } = useAnalyticsDateRange('7d')
+const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } =
+  useAnalyticsDateRange('7d')
 const force = ref(false)
 const dimension = ref<GscDimension>('query')
 
-const { data: seriesData, loading: seriesLoading, load: loadSeries } = useFleetGscSeries(appName, startDate, endDate, { force })
+const {
+  data: seriesData,
+  loading: seriesLoading,
+  load: loadSeries,
+} = useFleetGscSeries(appName, startDate, endDate, { force })
 
 const gscParams = computed(() => ({
   startDate: startDate.value,
@@ -38,8 +49,16 @@ function loadAll() {
   loadGsc()
 }
 
-watch([appName, startDate, endDate], () => { loadAll() }, { immediate: true })
-watch(dimension, () => { loadGsc() })
+watch(
+  [appName, startDate, endDate],
+  () => {
+    loadAll()
+  },
+  { immediate: true },
+)
+watch(dimension, () => {
+  loadGsc()
+})
 
 async function onForceRefresh() {
   force.value = true
@@ -90,7 +109,13 @@ const csvContent = computed(() => {
   const body = rows
     .map((r) => {
       const key = (r.keys?.[0] ?? '').replaceAll('"', '""')
-      return [`"${key}"`, r.clicks ?? 0, r.impressions ?? 0, (r.ctr ?? 0).toFixed(2), (r.position ?? 0).toFixed(1)].join(',')
+      return [
+        `"${key}"`,
+        r.clicks ?? 0,
+        r.impressions ?? 0,
+        (r.ctr ?? 0).toFixed(2),
+        (r.position ?? 0).toFixed(1),
+      ].join(',')
     })
     .join('\n')
   return [header, body].join('\n')
@@ -101,58 +126,63 @@ const UButton = resolveComponent('UButton')
 const gscColumns = computed<TableColumn<GscRow>[]>(() => [
   {
     id: 'key',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `${gscData.value?.dimension ?? 'query'} ${sortIndicator('key')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('key'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `${gscData.value?.dimension ?? 'query'} ${sortIndicator('key')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('key'),
+      }),
     meta: { class: { td: 'max-w-[200px] truncate' } },
     cell: ({ row }) => row.original.keys?.[0] ?? '—',
   },
   {
     accessorKey: 'clicks',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `Clicks ${sortIndicator('clicks')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('clicks'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `Clicks ${sortIndicator('clicks')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('clicks'),
+      }),
     cell: ({ row }) => row.original.clicks ?? 0,
   },
   {
     accessorKey: 'impressions',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `Impressions ${sortIndicator('impressions')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('impressions'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `Impressions ${sortIndicator('impressions')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('impressions'),
+      }),
     cell: ({ row }) => row.original.impressions ?? 0,
   },
   {
     accessorKey: 'ctr',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `CTR ${sortIndicator('ctr')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('ctr'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `CTR ${sortIndicator('ctr')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('ctr'),
+      }),
     cell: ({ row }) => `${((row.original.ctr ?? 0) * 100).toFixed(2)}%`,
   },
   {
     accessorKey: 'position',
-    header: () => h(UButton, {
-      variant: 'ghost',
-      color: 'neutral',
-      label: `Position ${sortIndicator('position')}`,
-      class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
-      onClick: () => setSort('position'),
-    }),
+    header: () =>
+      h(UButton, {
+        variant: 'ghost',
+        color: 'neutral',
+        label: `Position ${sortIndicator('position')}`,
+        class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
+        onClick: () => setSort('position'),
+      }),
     cell: ({ row }) => (row.original.position ?? 0).toFixed(1),
   },
 ])
@@ -204,9 +234,7 @@ const breadcrumbItems = computed(() => [
     <AppBreadcrumbs :items="breadcrumbItems" />
 
     <div class="flex flex-wrap items-center justify-between gap-4">
-      <h1 class="font-display text-2xl font-semibold text-default">
-        Search — {{ appName }}
-      </h1>
+      <h1 class="font-display text-2xl font-semibold text-default">Search — {{ appName }}</h1>
       <div class="flex flex-wrap items-center gap-2">
         <div class="flex gap-1 rounded-lg border border-default p-1 shadow-xs">
           <UButton
@@ -232,7 +260,13 @@ const breadcrumbItems = computed(() => [
           Refresh
         </UButton>
         <NuxtLink :to="`/analytics/${appName}`">
-          <UButton variant="ghost" color="neutral" size="xs" icon="i-lucide-arrow-left" class="cursor-pointer">
+          <UButton
+            variant="ghost"
+            color="neutral"
+            size="xs"
+            icon="i-lucide-arrow-left"
+            class="cursor-pointer"
+          >
             App overview
           </UButton>
         </NuxtLink>
@@ -298,16 +332,15 @@ const breadcrumbItems = computed(() => [
         </div>
       </template>
       <div v-if="gscData?.rows?.length" class="overflow-x-auto rounded-lg border border-default">
-        <UTable
-          :data="tableRows"
-          :columns="gscColumns as any"
-          class="text-sm"
-        />
+        <UTable :data="tableRows" :columns="gscColumns as any" class="text-sm" />
       </div>
       <div v-else-if="gscLoading" class="flex h-24 items-center justify-center text-sm text-muted">
         Loading…
       </div>
-      <div v-else class="rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted">
+      <div
+        v-else
+        class="rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted"
+      >
         No data for this period or dimension.
       </div>
     </UCard>
@@ -317,8 +350,14 @@ const breadcrumbItems = computed(() => [
       <template #header>
         <div class="flex items-center gap-2">
           <UIcon
-            :name="gscInspection.indexStatusResult.verdict === 'PASS' ? 'i-lucide-check-circle' : 'i-lucide-alert-circle'"
-            :class="gscInspection.indexStatusResult.verdict === 'PASS' ? 'text-success' : 'text-warning'"
+            :name="
+              gscInspection.indexStatusResult.verdict === 'PASS'
+                ? 'i-lucide-check-circle'
+                : 'i-lucide-alert-circle'
+            "
+            :class="
+              gscInspection.indexStatusResult.verdict === 'PASS' ? 'text-success' : 'text-warning'
+            "
             class="size-5"
           />
           <h3 class="text-sm font-medium text-default">URL Inspection</h3>

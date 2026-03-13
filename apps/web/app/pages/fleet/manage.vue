@@ -433,11 +433,7 @@ function formatUrl(url: string) {
             <UInput v-model="editForm.gaPropertyId" placeholder="526067189" class="w-full" />
           </UFormField>
           <UFormField label="GA Measurement ID" hint="G-XXXXXXXX from runtime config">
-            <UInput
-              v-model="editForm.gaMeasurementId"
-              placeholder="G-XXXXXXXXXX"
-              class="w-full"
-            />
+            <UInput v-model="editForm.gaMeasurementId" placeholder="G-XXXXXXXXXX" class="w-full" />
           </UFormField>
           <UFormField label="PostHog App Name" hint="Only if different from app name">
             <UInput v-model="editForm.posthogAppName" placeholder="My App Name" class="w-full" />

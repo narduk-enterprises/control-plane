@@ -1,8 +1,12 @@
 # AGENTS.md — tools/
 
-These are **Node.js automation scripts** that run locally or in CI. They are **NOT** deployed to Cloudflare Workers.
+These are **Node.js automation scripts** that run locally or in CI. They are
+**NOT** deployed to Cloudflare Workers.
 
-> **⚠️ Important:** These scripts use `node:fs`, `node:child_process`, and other Node.js built-in modules. This does NOT violate the project's "no Node.js modules" constraint — that constraint applies only to `server/` code deployed to Workers.
+> **⚠️ Important:** These scripts use `node:fs`, `node:child_process`, and other
+> Node.js built-in modules. This does NOT violate the project's "no Node.js
+> modules" constraint — that constraint applies only to `server/` code deployed
+> to Workers.
 
 ## Scripts
 
@@ -18,4 +22,7 @@ These are **Node.js automation scripts** that run locally or in CI. They are **N
 
 ## vs. `scripts/`
 
-The `scripts/` directory at the repo root contains **shell helper scripts** for developer convenience (`dev-kill.sh`, `run-dev-auth.sh`). The `tools/` directory contains **TypeScript automation** for project initialization and infrastructure.
+The `scripts/` directory at the repo root contains **shell helper scripts** for
+developer convenience (`dev-kill.sh`, `run-dev-auth.sh`). The `tools/` directory
+contains **TypeScript automation** for project initialization and
+infrastructure.

@@ -8,26 +8,16 @@ async function onOpen() {
   await load()
 }
 
-const jsonResult = computed(() =>
-  data.value ? JSON.stringify(data.value.rows, null, 2) : '',
-)
+const jsonResult = computed(() => (data.value ? JSON.stringify(data.value.rows, null, 2) : ''))
 </script>
 
 <template>
   <div>
-    <UButton
-      size="xs"
-      variant="outline"
-      color="neutral"
-      :loading="loading"
-      @click="onOpen"
-    >
+    <UButton size="xs" variant="outline" color="neutral" :loading="loading" @click="onOpen">
       GSC
     </UButton>
     <UModal v-model:open="open">
-      <template #header>
-        GSC — {{ appName }}
-      </template>
+      <template #header> GSC — {{ appName }} </template>
       <template #body>
         <div v-if="loading" class="py-4 text-muted">Loading…</div>
         <div v-else-if="error" class="py-4 text-error">{{ error?.message }}</div>

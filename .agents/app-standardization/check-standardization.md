@@ -1,10 +1,12 @@
 ---
-description: Verify an app meets standardization requirements after migration or fixes
+description:
+  Verify an app meets standardization requirements after migration or fixes
 ---
 
 # Check Standardization
 
-> **Run this after completing any standardization work.** Reports pass/fail on all 7 requirements.
+> **Run this after completing any standardization work.** Reports pass/fail on
+> all 7 requirements.
 
 // turbo-all
 
@@ -177,4 +179,5 @@ Standardization Check: <app-name>
 Score: X/9
 ```
 
-If score is 9/9, update `STANDARDIZATION.md` with all ✅. Otherwise, fix the failures and re-run.
+If score is 9/9, update `STANDARDIZATION.md` with all ✅. Otherwise, fix the
+failures and re-run.

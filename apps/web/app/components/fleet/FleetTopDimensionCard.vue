@@ -9,11 +9,13 @@ const props = defineProps<{
   items: { name: string; count: number }[]
 }>()
 
-const sortedItems = computed(() => [...(props.items ?? [])].sort((a, b) => a.name.localeCompare(b.name)))
+const sortedItems = computed(() =>
+  [...(props.items ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+)
 
 const columns = [
   { accessorKey: 'name', header: 'Item' },
-  { accessorKey: 'count', header: 'Count', class: 'w-20 text-right' }
+  { accessorKey: 'count', header: 'Count', class: 'w-20 text-right' },
 ]
 </script>
 

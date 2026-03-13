@@ -23,19 +23,29 @@ const setPresetFn = dateState.setPreset
 const is1hRef = dateState.is1h
 
 const forceFlag = ref(false)
-const { data: summaryData, meta: summaryMeta, loading: summaryLoading, error: summaryError, load: loadSummary } = useFleetAnalyticsSummary(
-  startRef,
-  endRef,
-  { force: forceFlag },
-)
-const { insights, loading: insightsLoading, error: insightsError, load: loadInsights } = useFleetAnalyticsInsights(startRef, endRef, { force: forceFlag })
+const {
+  data: summaryData,
+  meta: summaryMeta,
+  loading: summaryLoading,
+  error: summaryError,
+  load: loadSummary,
+} = useFleetAnalyticsSummary(startRef, endRef, { force: forceFlag })
+const {
+  insights,
+  loading: insightsLoading,
+  error: insightsError,
+  load: loadInsights,
+} = useFleetAnalyticsInsights(startRef, endRef, { force: forceFlag })
 
 const viewMode = ref<'cards' | 'dense'>('cards')
 
 watch(viewMode, (v) => {
   try {
-    if (import.meta.client && typeof localStorage !== 'undefined') localStorage.setItem('analytics-view-mode', v)
-  } catch (_) { /* localStorage may be unavailable */ }
+    if (import.meta.client && typeof localStorage !== 'undefined')
+      localStorage.setItem('analytics-view-mode', v)
+  } catch (_) {
+    /* localStorage may be unavailable */
+  }
 })
 
 const sortKey = ref('name')
@@ -90,13 +100,21 @@ async function refreshAll() {
   await loadAll(true)
 }
 
-watch([startRef, endRef], () => { loadAll() }, { immediate: false })
+watch(
+  [startRef, endRef],
+  () => {
+    loadAll()
+  },
+  { immediate: false },
+)
 
 onMounted(() => {
   try {
     const saved = localStorage.getItem('analytics-view-mode') as 'cards' | 'dense' | null
     if (saved === 'cards' || saved === 'dense') viewMode.value = saved
-  } catch (_) { /* localStorage may be unavailable */ }
+  } catch (_) {
+    /* localStorage may be unavailable */
+  }
   refreshStatusesRaw()
   if (!is1hRef.value) loadAll()
 })
@@ -167,7 +185,10 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       </div>
     </div>
 
-    <div v-if="presetRef === 'custom'" class="mb-6 flex items-center gap-2 bg-elevated/50 p-2 rounded-lg w-fit border border-default">
+    <div
+      v-if="presetRef === 'custom'"
+      class="mb-6 flex items-center gap-2 bg-elevated/50 p-2 rounded-lg w-fit border border-default"
+    >
       <UInput v-model="startRef" type="date" size="sm" />
       <span class="text-xs text-muted">to</span>
       <UInput v-model="endRef" type="date" size="sm" />
@@ -190,30 +211,22 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       color="error"
       variant="subtle"
       class="mb-6"
-      :description="summaryError?.message || insightsError?.message || 'Server timeout or error (502/522). Cache may still be warming from cron.'"
+      :description="
+        summaryError?.message ||
+        insightsError?.message ||
+        'Server timeout or error (502/522). Cache may still be warming from cron.'
+      "
     >
       <template #actions>
-        <UButton
-          size="xs"
-          color="error"
-          variant="soft"
-          class="cursor-pointer"
-          @click="refreshAll"
-        >
+        <UButton size="xs" color="error" variant="soft" class="cursor-pointer" @click="refreshAll">
           Retry
         </UButton>
       </template>
     </UAlert>
 
     <template v-if="!is1hRef">
-      <AnalyticsInsightsPanel
-        :insights="insights"
-        :loading="insightsLoading"
-      />
-      <AnalyticsFleetBanner
-        :apps="normalizedSummary"
-        :loading="summaryLoading"
-      />
+      <AnalyticsInsightsPanel :insights="insights" :loading="insightsLoading" />
+      <AnalyticsFleetBanner :apps="normalizedSummary" :loading="summaryLoading" />
       <p v-if="indexnowSummary" class="mb-4 text-xs text-muted">
         IndexNow: {{ indexnowSummary.totalSubmissions?.toLocaleString() ?? 0 }} pings,
         {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{ indexnowSummary.totalFleetSize ?? 0 }} apps
@@ -247,7 +260,10 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
         </UButton>
       </div>
 
-      <div v-if="viewMode === 'cards'" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div
+        v-if="viewMode === 'cards'"
+        class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      >
         <AnalyticsFleetCard
           v-for="app in filteredApps"
           :key="app.name"

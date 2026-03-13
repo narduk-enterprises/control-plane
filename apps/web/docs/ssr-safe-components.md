@@ -1,16 +1,22 @@
 # SSR-Safe Component Patterns
 
-This document codifies the patterns used in this codebase to prevent hydration mismatches. Follow these rules when adding new components or modifying existing ones.
+This document codifies the patterns used in this codebase to prevent hydration
+mismatches. Follow these rules when adding new components or modifying existing
+ones.
 
 ## Core Principle
 
-**SSR and CSR must render the same DOM for the initial paint.** Hydration warnings are not cosmetic — they indicate real divergence that can cause flickering, broken interactivity, or invisible bugs.
+**SSR and CSR must render the same DOM for the initial paint.** Hydration
+warnings are not cosmetic — they indicate real divergence that can cause
+flickering, broken interactivity, or invisible bugs.
 
 ---
 
 ## Pattern 1: `<ClientOnly>` for Non-deterministic Values
 
-When a value depends on the current time, random generation, or browser-only state, wrap the **smallest possible fragment** in `<ClientOnly>` with a matching fallback.
+When a value depends on the current time, random generation, or browser-only
+state, wrap the **smallest possible fragment** in `<ClientOnly>` with a matching
+fallback.
 
 ```vue
 <!-- ✅ Correct: only the non-deterministic fragment is client-only -->
@@ -41,31 +47,34 @@ When a value depends on the current time, random generation, or browser-only sta
 
 ## Pattern 2: Deterministic Initialization with `useState` / `ref`
 
-When data is available at SSR time, initialize refs synchronously from it — don't rely on watchers to set initial values.
+When data is available at SSR time, initialize refs synchronously from it —
+don't rely on watchers to set initial values.
 
 ```typescript
 // ✅ Correct: initialize from SSR data synchronously
-const { apps } = useFleet();
-const selectedApp = ref(apps.value[0]?.name ?? '');
+const { apps } = useFleet()
+const selectedApp = ref(apps.value[0]?.name ?? '')
 
 // ❌ Wrong: initialize empty and set via watch
-const selectedApp = ref('');
+const selectedApp = ref('')
 watch(
   apps,
   (newApps) => {
     if (newApps.length && !selectedApp.value) {
-      selectedApp.value = newApps[0].name;
+      selectedApp.value = newApps[0].name
     }
   },
-  { immediate: true }
-);
+  { immediate: true },
+)
 ```
 
 ---
 
 ## Pattern 3: `<ClientOnly>` for Third-party SSR-unsafe Components
 
-Some UI components (comboboxes, popovers, chart libraries) render different internal classes on server vs client. Wrap them in `<ClientOnly>` with a dimensionally-matching skeleton.
+Some UI components (comboboxes, popovers, chart libraries) render different
+internal classes on server vs client. Wrap them in `<ClientOnly>` with a
+dimensionally-matching skeleton.
 
 ```vue
 <ClientOnly>
@@ -85,7 +94,9 @@ Some UI components (comboboxes, popovers, chart libraries) render different inte
 
 ## Pattern 4: Client-only Fetch Status Gates
 
-When `useFetch` uses `server: false`, its status is `'idle'` during SSR but `'pending'` on client. Any UI that depends on this status (`:loading`, `:disabled`) will mismatch.
+When `useFetch` uses `server: false`, its status is `'idle'` during SSR but
+`'pending'` on client. Any UI that depends on this status (`:loading`,
+`:disabled`) will mismatch.
 
 ```vue
 <!-- ✅ Correct: wrap loading-dependent buttons in ClientOnly -->
@@ -101,21 +112,22 @@ When `useFetch` uses `server: false`, its status is `'idle'` during SSR but `'pe
 
 ## Pattern 5: Guard with `import.meta.client`
 
-For browser-only API access (window, document, localStorage), guard with `import.meta.client` or move into `onMounted`.
+For browser-only API access (window, document, localStorage), guard with
+`import.meta.client` or move into `onMounted`.
 
 ```typescript
 // ✅ Correct
 onMounted(() => {
-  const width = window.innerWidth;
-});
+  const width = window.innerWidth
+})
 
 // ✅ Also correct
 if (import.meta.client) {
-  const stored = localStorage.getItem('key');
+  const stored = localStorage.getItem('key')
 }
 
 // ❌ Wrong: accessing in setup without guard
-const width = window.innerWidth; // crashes on SSR
+const width = window.innerWidth // crashes on SSR
 ```
 
 ---

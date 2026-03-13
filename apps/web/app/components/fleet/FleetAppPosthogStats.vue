@@ -16,8 +16,7 @@ async function handleRefresh() {
 
   try {
     await refreshPosthog()
-  }
-  catch (err) {
+  } catch (err) {
     console.error(`[PostHog Refresh] Error for ${props.appName}:`, err)
   }
 }

@@ -47,7 +47,10 @@ const sortedApps = computed(() => {
         va = a.name
         vb = b.name
     }
-    const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
+    const cmp =
+      typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb))
     return dir === 'asc' ? cmp : -cmp
   })
   return list
@@ -116,7 +119,11 @@ const columns = computed(() => [
           </td>
           <td class="px-3 py-2">
             <AnalyticsSparkline
-              :data="summaryMap[app.name]?.ga?.timeSeries ?? summaryMap[app.name]?.posthog?.timeSeries ?? []"
+              :data="
+                summaryMap[app.name]?.ga?.timeSeries ??
+                summaryMap[app.name]?.posthog?.timeSeries ??
+                []
+              "
               :width="80"
               :height="24"
             />

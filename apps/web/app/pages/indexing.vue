@@ -8,8 +8,18 @@ useWebPageSchema({
   description: 'Google Indexing API tools.',
 })
 
-const { data: indexingPublishData, error: indexingPublishError, loading: loadingIndexing, submitUrl } = useIndexingPublish()
-const { data: indexingStatusData, error: indexingStatusError, loading: loadingStatus, checkStatus } = useIndexingStatus()
+const {
+  data: indexingPublishData,
+  error: indexingPublishError,
+  loading: loadingIndexing,
+  submitUrl,
+} = useIndexingPublish()
+const {
+  data: indexingStatusData,
+  error: indexingStatusError,
+  loading: loadingStatus,
+  checkStatus,
+} = useIndexingStatus()
 
 const toast = useToast()
 
@@ -25,10 +35,17 @@ async function onSubmitIndexing() {
   if (!indexingUrl.value.trim()) return
   await submitUrl(indexingUrl.value.trim(), indexingType.value)
   if (!indexingPublishError.value) {
-    recentSubmitted.value = [{ url: indexingUrl.value, at: new Date() }, ...recentSubmitted.value].slice(0, 10)
+    recentSubmitted.value = [
+      { url: indexingUrl.value, at: new Date() },
+      ...recentSubmitted.value,
+    ].slice(0, 10)
     toast.add({ title: 'URL submitted', description: indexingUrl.value, color: 'success' })
   } else {
-    toast.add({ title: 'Submit failed', description: indexingPublishError.value?.message, color: 'error' })
+    toast.add({
+      title: 'Submit failed',
+      description: indexingPublishError.value?.message,
+      color: 'error',
+    })
   }
 }
 
@@ -38,16 +55,24 @@ async function onCheckIndexingStatus() {
   if (!indexingStatusError.value) {
     toast.add({ title: 'Status loaded', color: 'success' })
   } else {
-    toast.add({ title: 'Status check failed', description: indexingStatusError.value?.message, color: 'error' })
+    toast.add({
+      title: 'Status check failed',
+      description: indexingStatusError.value?.message,
+      color: 'error',
+    })
   }
 }
 
 const indexingResultJson = computed(() => {
-  const raw = indexingPublishError.value ? { error: indexingPublishError.value?.message } : indexingPublishData.value
+  const raw = indexingPublishError.value
+    ? { error: indexingPublishError.value?.message }
+    : indexingPublishData.value
   return raw ? JSON.stringify(raw, null, 2) : ''
 })
 const indexingStatusJson = computed(() => {
-  const raw = indexingStatusError.value ? { error: indexingStatusError.value?.message } : indexingStatusData.value
+  const raw = indexingStatusError.value
+    ? { error: indexingStatusError.value?.message }
+    : indexingStatusData.value
   return raw ? JSON.stringify(raw, null, 2) : ''
 })
 </script>
@@ -55,12 +80,8 @@ const indexingStatusJson = computed(() => {
 <template>
   <div>
     <AppBreadcrumbs :items="breadcrumbItems" />
-    <h1 class="font-display text-2xl font-semibold text-default">
-      Indexing
-    </h1>
-    <p class="mt-1 mb-6 text-sm text-muted">
-      Submit URLs to Google Indexing API and check status
-    </p>
+    <h1 class="font-display text-2xl font-semibold text-default">Indexing</h1>
+    <p class="mt-1 mb-6 text-sm text-muted">Submit URLs to Google Indexing API and check status</p>
 
     <div class="grid gap-8 lg:grid-cols-2">
       <UCard>
@@ -69,11 +90,7 @@ const indexingStatusJson = computed(() => {
         </template>
         <div class="form-section">
           <UFormField label="URL">
-            <UInput
-              v-model="indexingUrl"
-              placeholder="https://example.com/page"
-              class="w-full"
-            />
+            <UInput v-model="indexingUrl" placeholder="https://example.com/page" class="w-full" />
           </UFormField>
           <UFormField label="Type">
             <USelect
@@ -86,11 +103,7 @@ const indexingStatusJson = computed(() => {
               class="w-full"
             />
           </UFormField>
-          <UButton
-            :loading="loadingIndexing"
-            class="cursor-pointer"
-            @click="onSubmitIndexing"
-          >
+          <UButton :loading="loadingIndexing" class="cursor-pointer" @click="onSubmitIndexing">
             Submit
           </UButton>
           <div v-if="indexingResultJson" class="rounded-lg bg-muted p-3 text-sm">

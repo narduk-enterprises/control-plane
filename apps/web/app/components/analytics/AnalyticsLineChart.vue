@@ -79,7 +79,17 @@ const chartData = computed(() => {
 const annotationPluginsConfig = computed(() => {
   const ann = props.annotations
   if (!ann?.length) return {}
-  const vLines: Record<string, { type: 'line'; xMin: string; xMax: string; borderColor: string; borderWidth: number; borderDash: number[] }> = {}
+  const vLines: Record<
+    string,
+    {
+      type: 'line'
+      xMin: string
+      xMax: string
+      borderColor: string
+      borderWidth: number
+      borderDash: number[]
+    }
+  > = {}
   for (const [i, a] of ann.entries()) {
     vLines[`vline-${i}`] = {
       type: 'line',
@@ -98,7 +108,9 @@ const chartOptions = computed(() => ({
   maintainAspectRatio: false,
   interaction: { mode: 'index' as const, intersect: false },
   plugins: {
-    title: props.title ? { display: true, text: props.title, font: { size: 12 } } : { display: false },
+    title: props.title
+      ? { display: true, text: props.title, font: { size: 12 } }
+      : { display: false },
     legend: { display: !!props.compareData?.length },
     tooltip: {
       callbacks: {
@@ -129,9 +141,7 @@ const chartOptions = computed(() => ({
   <ClientOnly>
     <div class="h-64 w-full">
       <Line v-if="chartData.labels.length" :data="chartData" :options="chartOptions" />
-      <div v-else class="flex h-full items-center justify-center text-sm text-muted">
-        No data
-      </div>
+      <div v-else class="flex h-full items-center justify-center text-sm text-muted">No data</div>
     </div>
     <template #fallback>
       <div class="h-64 w-full animate-pulse rounded-lg bg-elevated/50" />

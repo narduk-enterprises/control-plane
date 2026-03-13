@@ -60,7 +60,10 @@ const severityColor = (s: string) => {
             {{ insights.length }}
           </UBadge>
         </div>
-        <UIcon :name="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'" class="size-4 text-muted" />
+        <UIcon
+          :name="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+          class="size-4 text-muted"
+        />
       </UButton>
     </template>
     <div v-if="!isCollapsed">
@@ -74,7 +77,10 @@ const severityColor = (s: string) => {
           :key="i"
           class="flex items-start gap-2 rounded-lg border border-default/50 bg-default/30 px-3 py-2 text-sm"
         >
-          <UIcon :name="severityIcon(insight.severity)" :class="['size-4 shrink-0', severityColor(insight.severity)]" />
+          <UIcon
+            :name="severityIcon(insight.severity)"
+            :class="['size-4 shrink-0', severityColor(insight.severity)]"
+          />
           <span class="text-default">{{ insight.message }}</span>
           <NuxtLink
             :to="`/fleet/${insight.appName}`"

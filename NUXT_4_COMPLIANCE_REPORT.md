@@ -9,7 +9,10 @@
 
 ## 1. Executive Summary
 
-The control-plane monorepo is **fully compliant** with Nuxt 4 best practices. All runtime warning classes have been audited and resolved. The quality gate (`pnpm run quality`) now runs real lint + typecheck and passes with **zero errors and zero warnings**.
+The control-plane monorepo is **fully compliant** with Nuxt 4 best practices.
+All runtime warning classes have been audited and resolved. The quality gate
+(`pnpm run quality`) now runs real lint + typecheck and passes with **zero
+errors and zero warnings**.
 
 ### Key Metrics
 
@@ -26,14 +29,17 @@ The control-plane monorepo is **fully compliant** with Nuxt 4 best practices. Al
 
 ### Template Compliance — ✅ PASS
 
-- Single app (`apps/web`) + shared layer (`layers/narduk-nuxt-layer`) + ESLint config (`packages/eslint-config`)
-- Cloudflare Workers: `cloudflare-module` preset, D1 binding `DB` → `control-plane-db`
+- Single app (`apps/web`) + shared layer (`layers/narduk-nuxt-layer`) + ESLint
+  config (`packages/eslint-config`)
+- Cloudflare Workers: `cloudflare-module` preset, D1 binding `DB` →
+  `control-plane-db`
 - `@nuxtjs/seo` v3.4.0 configured once in layer
 - Nuxt UI 4.5.0, Tailwind v4, `compatibilityVersion: 4`
 
 ### Transition Safety — ✅ PASS
 
-- 1 `<Transition>` boundary found: `app.vue` mobile nav — correct single `<div>` root with `v-if`
+- 1 `<Transition>` boundary found: `app.vue` mobile nav — correct single `<div>`
+  root with `v-if`
 - No page/layout transitions configured
 - No fragments or text roots under transition boundaries
 
@@ -50,10 +56,13 @@ The control-plane monorepo is **fully compliant** with Nuxt 4 best practices. Al
 
 ### Hydration Safety — ✅ PASS
 
-- `new Date().getFullYear()` in `app.vue`: extremely low risk (only at midnight Dec 31), documented but not changed per minimal-diff rule
-- All `toLocaleString()` calls are in computed properties from client-side API responses — never SSR-rendered
+- `new Date().getFullYear()` in `app.vue`: extremely low risk (only at midnight
+  Dec 31), documented but not changed per minimal-diff rule
+- All `toLocaleString()` calls are in computed properties from client-side API
+  responses — never SSR-rendered
 - `localStorage` access guarded by `import.meta.client` and `onMounted`
-- `ClientOnly` used correctly for `NuxtTime`, date-relative rendering, and client-only KPIs
+- `ClientOnly` used correctly for `NuxtTime`, date-relative rendering, and
+  client-only KPIs
 
 ### Architecture Standards — ✅ PASS
 
@@ -65,11 +74,13 @@ The control-plane monorepo is **fully compliant** with Nuxt 4 best practices. Al
 
 - `d1-cache.ts`: 4 `console.log` calls gated behind `import.meta.dev`
 - `build-info.client.ts`: intentional client banner — kept as-is
-- All `console.error`/`console.warn` calls are legitimate error paths — kept as-is
+- All `console.error`/`console.warn` calls are legitimate error paths — kept
+  as-is
 
 ### Guardrails — ✅ PASS (fixed)
 
-- Quality script replaced: `echo 'quality pass'` → `pnpm run lint && pnpm run typecheck`
+- Quality script replaced: `echo 'quality pass'` →
+  `pnpm run lint && pnpm run typecheck`
 - ESLint `--max-warnings 0` enforces zero-tolerance policy
 
 ### Verification — ✅ PASS
@@ -110,13 +121,18 @@ The control-plane monorepo is **fully compliant** with Nuxt 4 best practices. Al
 
 ## 4. Future Rules
 
-1. **Never ship a no-op quality script** — `pnpm run quality` must run `lint && typecheck` always
-2. **Gate server-side debug logs** behind `import.meta.dev`; production Workers logs stay clean
-3. **No native `<button>` or `<a>`** in Vue templates — use `<UButton>` and `<ULink>`/`<NuxtLink>`
-4. **No inline `<svg>`** unless justified (sparklines, custom graphics) — use `<UIcon>`
+1. **Never ship a no-op quality script** — `pnpm run quality` must run
+   `lint && typecheck` always
+2. **Gate server-side debug logs** behind `import.meta.dev`; production Workers
+   logs stay clean
+3. **No native `<button>` or `<a>`** in Vue templates — use `<UButton>` and
+   `<ULink>`/`<NuxtLink>`
+4. **No inline `<svg>`** unless justified (sparklines, custom graphics) — use
+   `<UIcon>`
 5. **Prefer `.find()` over `.filter()[0]`** for single-result lookups
 6. **Avoid super-linear regex** — no `\s*` adjacent to `[^<]+` style quantifiers
-7. **Extract complex template expressions** to computed properties (`.slice()`, `.replace()`)
+7. **Extract complex template expressions** to computed properties (`.slice()`,
+   `.replace()`)
 8. **Prefix unused destructured variables** with `_` to satisfy `no-unused-vars`
 9. **Annotate empty catch blocks** with a comment explaining why they're empty
 10. **Run `pnpm run quality` from root** before every PR merge

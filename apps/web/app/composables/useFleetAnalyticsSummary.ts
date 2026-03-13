@@ -27,7 +27,9 @@ export interface FleetAnalyticsSummaryMeta {
   stale: boolean
 }
 
-function isMetaResponse<T>(r: T | { data: T; _meta: FleetAnalyticsSummaryMeta }): r is { data: T; _meta: FleetAnalyticsSummaryMeta } {
+function isMetaResponse<T>(
+  r: T | { data: T; _meta: FleetAnalyticsSummaryMeta },
+): r is { data: T; _meta: FleetAnalyticsSummaryMeta } {
   return typeof r === 'object' && r !== null && 'data' in r && '_meta' in r
 }
 
@@ -43,15 +45,20 @@ export function useFleetAnalyticsSummary(
     ...(toValue(options?.force) ? { force: 'true' } : {}),
   }))
 
-  const { data: rawData, status, error, refresh } = useFetch<FleetAnalyticsSummaryResponse | { data: FleetAnalyticsSummaryResponse; _meta: FleetAnalyticsSummaryMeta }>(
-    '/api/fleet/analytics/summary',
-    {
-      query,
-      lazy: true,
-      server: false,
-      watch: false,
-    },
-  )
+  const {
+    data: rawData,
+    status,
+    error,
+    refresh,
+  } = useFetch<
+    | FleetAnalyticsSummaryResponse
+    | { data: FleetAnalyticsSummaryResponse; _meta: FleetAnalyticsSummaryMeta }
+  >('/api/fleet/analytics/summary', {
+    query,
+    lazy: true,
+    server: false,
+    watch: false,
+  })
 
   const data = computed(() => {
     const r = rawData.value

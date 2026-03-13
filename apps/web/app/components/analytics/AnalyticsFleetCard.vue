@@ -15,7 +15,9 @@ const pageviews = computed(() => props.data?.ga?.summary?.screenPageViews ?? 0)
 const clicks = computed(() => props.data?.gsc?.totals?.clicks ?? 0)
 const events = computed(() => Number(props.data?.posthog?.summary?.event_count ?? 0))
 
-const timeSeries = computed(() => props.data?.ga?.timeSeries ?? props.data?.posthog?.timeSeries ?? [])
+const timeSeries = computed(
+  () => props.data?.ga?.timeSeries ?? props.data?.posthog?.timeSeries ?? [],
+)
 
 const userDelta = computed(() => props.data?.ga?.deltas?.users ?? undefined)
 const pvDelta = computed(() => props.data?.ga?.deltas?.pageviews ?? undefined)

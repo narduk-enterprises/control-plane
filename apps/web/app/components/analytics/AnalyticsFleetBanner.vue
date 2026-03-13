@@ -50,7 +50,11 @@ const deltas = computed(() => {
             <template v-if="loading && totals.users === 0">—</template>
             <template v-else>{{ totals.users.toLocaleString() }}</template>
           </p>
-          <p v-if="deltas.users !== 0" class="text-xs" :class="deltas.users > 0 ? 'text-success' : 'text-error'">
+          <p
+            v-if="deltas.users !== 0"
+            class="text-xs"
+            :class="deltas.users > 0 ? 'text-success' : 'text-error'"
+          >
             {{ deltas.users > 0 ? '+' : '' }}{{ deltas.users.toFixed(1) }}% vs prev
           </p>
         </div>
@@ -67,7 +71,11 @@ const deltas = computed(() => {
             <template v-if="loading && totals.pageviews === 0">—</template>
             <template v-else>{{ totals.pageviews.toLocaleString() }}</template>
           </p>
-          <p v-if="deltas.pageviews !== 0" class="text-xs" :class="deltas.pageviews > 0 ? 'text-success' : 'text-error'">
+          <p
+            v-if="deltas.pageviews !== 0"
+            class="text-xs"
+            :class="deltas.pageviews > 0 ? 'text-success' : 'text-error'"
+          >
             {{ deltas.pageviews > 0 ? '+' : '' }}{{ deltas.pageviews.toFixed(1) }}% vs prev
           </p>
         </div>

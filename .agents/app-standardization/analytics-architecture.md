@@ -2,9 +2,13 @@
 
 > **Location:** `.agents/app-standardization/analytics-architecture.md`
 >
-> Everything an agent needs to know to set up, audit, or troubleshoot analytics across any Narduk app.
+> Everything an agent needs to know to set up, audit, or troubleshoot analytics
+> across any Narduk app.
 >
-> **Fleet app registry:** The canonical list of all fleet apps is stored in the control plane's D1 database (`fleet_apps` table). Manage apps at `/fleet/manage` or via the CRUD API at `/api/fleet/apps`. The per-app measurement IDs table below may be outdated — always check the control plane.
+> **Fleet app registry:** The canonical list of all fleet apps is stored in the
+> control plane's D1 database (`fleet_apps` table). Manage apps at
+> `/fleet/manage` or via the CRUD API at `/api/fleet/apps`. The per-app
+> measurement IDs table below may be outdated — always check the control plane.
 
 ---
 

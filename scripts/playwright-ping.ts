@@ -1,52 +1,57 @@
 import { chromium } from 'playwright'
 
 const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
-interface FleetApp { name: string; url: string }
+interface FleetApp {
+  name: string
+  url: string
+}
 
 async function generateTraffic() {
   let apps: FleetApp[]
   try {
     const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    apps = await res.json() as FleetApp[]
+    apps = (await res.json()) as FleetApp[]
   } catch {
     console.error(`❌ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
     process.exit(1)
   }
 
-  console.log(`🚀 Launching headless browser to simulate real user visits on ${apps.length} apps...`)
-  
+  console.log(
+    `🚀 Launching headless browser to simulate real user visits on ${apps.length} apps...`,
+  )
+
   const browser = await chromium.launch({ headless: true })
-  
+
   for (const app of apps) {
     const context = await browser.newContext()
     const page = await context.newPage()
-    
+
     try {
       console.log(`🌐 Visiting: ${app.url}`)
       // Wait until network is mostly idle to ensure gtag.js loads and fires
       await page.goto(app.url, { waitUntil: 'networkidle', timeout: 30000 })
-      
+
       // Look for the GA script injection to be absolutely sure
       const hasGtag = await page.evaluate(() => {
         return !!document.querySelector('script[src*="googletagmanager.com/gtag/js"]')
       })
-      
+
       if (hasGtag) {
         console.log(`  ✅ gtag.js script found injected into DOM.`)
       } else {
         console.log(`  ❌ gtag.js script MISSING from DOM!`)
       }
-      
+
       // Wait 3 seconds on the page to ensure the ping completes
-      await new Promise(r => setTimeout(r, 3000))
+      await new Promise((r) => setTimeout(r, 3000))
     } catch (e: any) {
       console.error(`  ❌ Failed to fully load ${app.url}: ${e.message}`)
     } finally {
       await context.close()
     }
   }
-  
+
   await browser.close()
   console.log('\n✅ Traffic generation complete! The Realtime API should hit in ~10 seconds.')
 }

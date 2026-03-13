@@ -4,11 +4,11 @@ import type { MaybeRefOrGetter } from 'vue'
 interface FleetPosthogResponse {
   app: string
   summary: Record<string, unknown>
-  timeSeries: { date: string, value: number }[]
-  topPages: { name: string, count: number }[]
-  topReferrers: { name: string, count: number }[]
-  topCountries: { name: string, count: number }[]
-  topBrowsers: { name: string, count: number }[]
+  timeSeries: { date: string; value: number }[]
+  topPages: { name: string; count: number }[]
+  topReferrers: { name: string; count: number }[]
+  topCountries: { name: string; count: number }[]
+  topBrowsers: { name: string; count: number }[]
   replaysUrl: string
   startDate: string
   endDate: string

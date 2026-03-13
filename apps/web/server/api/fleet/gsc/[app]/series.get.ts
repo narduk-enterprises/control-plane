@@ -3,7 +3,6 @@ import { GoogleApiError, googleApiFetch, GSC_SCOPES } from '#layer/server/utils/
 import { getFleetAppByName } from '#server/data/fleet-registry'
 import { withD1Cache } from '#layer/server/utils/d1Cache'
 
-
 const querySchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
@@ -16,7 +15,7 @@ const querySchema = z.object({
 async function tryGscDateSeries(siteUrl: string, startDate: string, endDate: string) {
   const encoded = encodeURIComponent(siteUrl)
   try {
-    const data = await googleApiFetch(
+    const data = (await googleApiFetch(
       `https://www.googleapis.com/webmasters/v3/sites/${encoded}/searchAnalytics/query`,
       GSC_SCOPES,
       {
@@ -28,7 +27,7 @@ async function tryGscDateSeries(siteUrl: string, startDate: string, endDate: str
           rowLimit: 1000,
         }),
       },
-    ) as Record<string, unknown>
+    )) as Record<string, unknown>
     return { data, siteUrl }
   } catch (err: unknown) {
     if (err instanceof GoogleApiError && (err.status === 403 || err.status === 404)) {
@@ -46,17 +45,22 @@ interface GscRow {
   position?: number
 }
 
-function mapRowsToTimeSeries(rows: Array<Record<string, unknown>>): { date: string; clicks: number; impressions: number; ctr: number; position: number }[] {
-  return (rows ?? []).map((row: Record<string, unknown>) => {
-    const r = row as GscRow
-    return {
-      date: r.keys?.[0] ?? '',
-      clicks: Number(r.clicks ?? 0),
-      impressions: Number(r.impressions ?? 0),
-      ctr: Number(r.ctr ?? 0),
-      position: Number(r.position ?? 0),
-    }
-  }).filter((d) => d.date).sort((a, b) => a.date.localeCompare(b.date))
+function mapRowsToTimeSeries(
+  rows: Array<Record<string, unknown>>,
+): { date: string; clicks: number; impressions: number; ctr: number; position: number }[] {
+  return (rows ?? [])
+    .map((row: Record<string, unknown>) => {
+      const r = row as GscRow
+      return {
+        date: r.keys?.[0] ?? '',
+        clicks: Number(r.clicks ?? 0),
+        impressions: Number(r.impressions ?? 0),
+        ctr: Number(r.ctr ?? 0),
+        position: Number(r.position ?? 0),
+      }
+    })
+    .filter((d) => d.date)
+    .sort((a, b) => a.date.localeCompare(b.date))
 }
 
 export default defineEventHandler(async (event) => {
@@ -89,45 +93,57 @@ export default defineEventHandler(async (event) => {
   const TTL = 4 * 3600
   const staleWindow = 2 * 3600
 
-  return withD1Cache(event, cacheKey, TTL, async () => {
-    let result = await tryGscDateSeries(scDomain, startDate, endDate)
-    if (!result) {
-      result = await tryGscDateSeries(urlPrefix, startDate, endDate)
-    }
-    if (!result) {
-      throw createError({
-        statusCode: 403,
-        message: `GSC: No access for '${scDomain}' or '${urlPrefix}'. Grant access in Google Search Console.`,
-      })
-    }
-
-    const data = result.data as Record<string, unknown>
-    const rows = (data.rows as Array<Record<string, unknown>>) ?? []
-    const timeSeries = mapRowsToTimeSeries(rows)
-
-    let compareTimeSeries: { date: string; clicks: number; impressions: number; ctr: number; position: number }[] | undefined
-    if (query.compareStartDate && query.compareEndDate) {
-      let compareStart = query.compareStartDate
-      let compareEnd = query.compareEndDate
-      if (compareStart > compareEnd) {
-        const t = compareStart
-        compareStart = compareEnd
-        compareEnd = t
+  return withD1Cache(
+    event,
+    cacheKey,
+    TTL,
+    async () => {
+      let result = await tryGscDateSeries(scDomain, startDate, endDate)
+      if (!result) {
+        result = await tryGscDateSeries(urlPrefix, startDate, endDate)
       }
-      let compareResult = await tryGscDateSeries(scDomain, compareStart, compareEnd)
-      if (!compareResult) compareResult = await tryGscDateSeries(urlPrefix, compareStart, compareEnd)
-      if (compareResult) {
-        const compareData = compareResult.data as Record<string, unknown>
-        compareTimeSeries = mapRowsToTimeSeries((compareData.rows as Array<Record<string, unknown>>) ?? [])
+      if (!result) {
+        throw createError({
+          statusCode: 403,
+          message: `GSC: No access for '${scDomain}' or '${urlPrefix}'. Grant access in Google Search Console.`,
+        })
       }
-    }
 
-    return {
-      app: app.name,
-      timeSeries,
-      compareTimeSeries,
-      startDate,
-      endDate,
-    }
-  }, query.force === 'true', { staleWindowSeconds: staleWindow })
+      const data = result.data as Record<string, unknown>
+      const rows = (data.rows as Array<Record<string, unknown>>) ?? []
+      const timeSeries = mapRowsToTimeSeries(rows)
+
+      let compareTimeSeries:
+        | { date: string; clicks: number; impressions: number; ctr: number; position: number }[]
+        | undefined
+      if (query.compareStartDate && query.compareEndDate) {
+        let compareStart = query.compareStartDate
+        let compareEnd = query.compareEndDate
+        if (compareStart > compareEnd) {
+          const t = compareStart
+          compareStart = compareEnd
+          compareEnd = t
+        }
+        let compareResult = await tryGscDateSeries(scDomain, compareStart, compareEnd)
+        if (!compareResult)
+          compareResult = await tryGscDateSeries(urlPrefix, compareStart, compareEnd)
+        if (compareResult) {
+          const compareData = compareResult.data as Record<string, unknown>
+          compareTimeSeries = mapRowsToTimeSeries(
+            (compareData.rows as Array<Record<string, unknown>>) ?? [],
+          )
+        }
+      }
+
+      return {
+        app: app.name,
+        timeSeries,
+        compareTimeSeries,
+        startDate,
+        endDate,
+      }
+    },
+    query.force === 'true',
+    { staleWindowSeconds: staleWindow },
+  )
 })

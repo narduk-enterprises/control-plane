@@ -79,10 +79,7 @@ try {
 
     page.on('console', (msg) => {
       const text = msg.text().toLowerCase()
-      if (
-        text.includes('hydration') &&
-        (text.includes('mismatch') || text.includes('expected'))
-      ) {
+      if (text.includes('hydration') && (text.includes('mismatch') || text.includes('expected'))) {
         hydrationWarnings.push(msg.text())
       }
     })

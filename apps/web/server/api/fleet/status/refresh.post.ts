@@ -7,7 +7,7 @@ import { requireAdmin } from '#layer/server/utils/auth'
  * Performs HEAD/GET checks and upserts results into the `app_status` table.
  */
 export default defineEventHandler(async (event) => {
-    await requireAdmin(event)
-    const rows = await checkAllFleetStatuses(event)
-    return { ok: true, checked: rows.length, statuses: rows }
+  await requireAdmin(event)
+  const rows = await checkAllFleetStatuses(event)
+  return { ok: true, checked: rows.length, statuses: rows }
 })
