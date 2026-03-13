@@ -643,10 +643,33 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
           stdio: 'pipe',
         })
         console.log(
-          `  ✅ Synced ${toSet.length} credentials: ${toSet.map((s) => s.split('=')[0]).join(', ')}`,
+          `  ✅ Synced ${toSet.length} credentials (prd): ${toSet.map((s) => s.split('=')[0]).join(', ')}`,
         )
       } else {
-        console.log(`  ⏭ All credentials correctly configured (hub references verified).`)
+        console.log(`  ⏭ All prd credentials correctly configured (hub references verified).`)
+      }
+
+      // Mirror secrets to dev config so local development works immediately.
+      // Override SITE_URL to localhost for dev environment.
+      const devSet = toSet.map((s) => {
+        if (s.startsWith("SITE_URL='")) return `SITE_URL='http://localhost:3000'`
+        return s
+      })
+      // Ensure SITE_URL is always present in dev even if it wasn't in the prd toSet
+      if (!devSet.some((s) => s.startsWith("SITE_URL='"))) {
+        devSet.push(`SITE_URL='http://localhost:3000'`)
+      }
+      if (devSet.length > 0) {
+        try {
+          execSync(`doppler secrets set ${devSet.join(' ')} --project ${APP_NAME} --config dev`, {
+            stdio: 'pipe',
+          })
+          console.log(
+            `  ✅ Synced ${devSet.length} credentials (dev): ${devSet.map((s) => s.split('=')[0]).join(', ')}`,
+          )
+        } catch (devError: any) {
+          console.warn(`  ⚠️ Failed to sync dev config: ${devError.message}`)
+        }
       }
     } catch (error: any) {
       console.warn(`  ⚠️ Failed to sync hub credentials: ${error.message}`)
