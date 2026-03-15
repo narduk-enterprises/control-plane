@@ -66,16 +66,18 @@ const severityColor = (s: string) => {
         <li
           v-for="(insight, i) in insights"
           :key="i"
-          class="flex items-start gap-2 rounded-lg border border-default/50 bg-default/30 px-3 py-2 text-sm"
+          class="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-2 rounded-lg border border-default/50 bg-default/30 px-3 py-2 text-sm"
         >
-          <UIcon
-            :name="severityIcon(insight.severity)"
-            :class="['size-4 shrink-0', severityColor(insight.severity)]"
-          />
-          <span class="text-default">{{ insight.message }}</span>
+          <div class="flex items-start gap-2 min-w-0 flex-1">
+            <UIcon
+              :name="severityIcon(insight.severity)"
+              :class="['size-4 shrink-0 mt-0.5', severityColor(insight.severity)]"
+            />
+            <span class="text-default break-words min-w-0">{{ insight.message }}</span>
+          </div>
           <NuxtLink
             :to="`/fleet/${insight.appName}`"
-            class="shrink-0 font-medium text-primary hover:underline"
+            class="shrink-0 font-medium text-primary hover:underline pl-6 sm:pl-0"
           >
             {{ insight.appName }}
           </NuxtLink>

@@ -139,13 +139,13 @@ const breadcrumbItems = computed(() => [
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 overflow-hidden">
     <AppBreadcrumbs :items="breadcrumbItems" />
 
     <!-- Header -->
-    <div class="flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h1 class="font-display text-2xl font-semibold text-default">{{ appName }}</h1>
+    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div class="min-w-0">
+        <h1 class="font-display text-2xl font-semibold text-default truncate">{{ appName }}</h1>
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm">
           <UButton
             v-if="appUrl"
@@ -171,16 +171,18 @@ const breadcrumbItems = computed(() => [
       </div>
 
       <!-- Date bar + Refresh -->
-      <AnalyticsDateBar
-        :preset-options="presetOptions"
-        :active-preset="preset"
-        :loading="anyLoading"
-        show-refresh
-        v-model:start-date="startDate"
-        v-model:end-date="endDate"
-        @preset="setPreset($event as DatePreset)"
-        @refresh="onForceRefresh"
-      />
+      <div class="w-full md:w-auto min-w-0">
+        <AnalyticsDateBar
+          :preset-options="presetOptions"
+          :active-preset="preset"
+          :loading="anyLoading"
+          show-refresh
+          v-model:start-date="startDate"
+          v-model:end-date="endDate"
+          @preset="setPreset($event as DatePreset)"
+          @refresh="onForceRefresh"
+        />
+      </div>
     </div>
 
     <!-- GA4 KPI Grid -->

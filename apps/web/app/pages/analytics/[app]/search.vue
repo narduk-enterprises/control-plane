@@ -223,46 +223,52 @@ const breadcrumbItems = computed(() => [
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 overflow-hidden">
     <AppBreadcrumbs :items="breadcrumbItems" />
 
-    <div class="flex flex-wrap items-center justify-between gap-4">
-      <h1 class="font-display text-2xl font-semibold text-default">Search — {{ appName }}</h1>
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="flex gap-1 rounded-lg border border-default p-1 shadow-xs">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <h1 class="font-display text-2xl font-semibold text-default truncate min-w-0">
+        Search — {{ appName }}
+      </h1>
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 min-w-0">
+        <div
+          class="flex gap-1 overflow-x-auto scrollbar-none rounded-lg border border-default p-1 shadow-xs"
+        >
           <UButton
             v-for="opt in presetOptions"
             :key="opt.value"
             size="xs"
             :color="preset === opt.value ? 'primary' : 'neutral'"
             :variant="preset === opt.value ? 'solid' : 'outline'"
-            class="cursor-pointer"
+            class="cursor-pointer whitespace-nowrap"
             @click="onPresetChange(opt.value)"
           >
             {{ opt.label }}
           </UButton>
         </div>
-        <UButton
-          size="xs"
-          variant="ghost"
-          :icon="seriesLoading || gscLoading ? 'i-lucide-loader-2' : 'i-lucide-refresh-cw'"
-          :class="seriesLoading || gscLoading ? 'animate-spin' : ''"
-          class="cursor-pointer text-muted hover:text-default"
-          @click="onForceRefresh"
-        >
-          Refresh
-        </UButton>
-        <NuxtLink :to="`/analytics/${appName}`">
+        <div class="flex items-center gap-2">
           <UButton
-            variant="ghost"
-            color="neutral"
             size="xs"
-            icon="i-lucide-arrow-left"
-            class="cursor-pointer"
+            variant="ghost"
+            :icon="seriesLoading || gscLoading ? 'i-lucide-loader-2' : 'i-lucide-refresh-cw'"
+            :class="seriesLoading || gscLoading ? 'animate-spin' : ''"
+            class="cursor-pointer text-muted hover:text-default"
+            @click="onForceRefresh"
           >
-            App overview
+            Refresh
           </UButton>
-        </NuxtLink>
+          <NuxtLink :to="`/analytics/${appName}`">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              icon="i-lucide-arrow-left"
+              class="cursor-pointer"
+            >
+              App overview
+            </UButton>
+          </NuxtLink>
+        </div>
       </div>
     </div>
 
