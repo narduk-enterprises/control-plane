@@ -31,7 +31,7 @@ export function useFleetAnalyticsInsights(
     endDate: string
   }>('/api/fleet/analytics/insights', {
     query,
-    key: fetchKey,
+    key: fetchKey.value,
     lazy: true,
     server: false,
     watch: false,

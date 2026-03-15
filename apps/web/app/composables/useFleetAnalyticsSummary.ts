@@ -66,7 +66,7 @@ export function useFleetAnalyticsSummary(
     | { data: FleetAnalyticsSummaryResponse; _meta: FleetAnalyticsSummaryMeta }
   >('/api/fleet/analytics/summary', {
     query,
-    key: fetchKey,
+    key: fetchKey.value,
     lazy: true,
     server: false,
     watch: false,
