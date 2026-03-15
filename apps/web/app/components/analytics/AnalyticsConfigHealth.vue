@@ -46,28 +46,18 @@ const issues = computed<ConfigIssue[]>(() => {
         message: 'No GA4 property ID configured',
         action: 'Add via /fleet/manage or provision API',
       })
-    } else if (!props.loading && summary) {
-      if (summary.ga?.summary) {
-        appsWithGAData++
-        // Check for zero data (might be wrong property ID or no access)
-        const s = summary.ga.summary
-        if (s.activeUsers === 0 && s.screenPageViews === 0) {
-          list.push({
-            app: app.name,
-            severity: 'warning',
-            provider: 'GA4',
-            message: `Property ${app.gaPropertyId} returned zero users and pageviews`,
-            action:
-              'Verify the property ID matches the correct site, or check service account access',
-          })
-        }
-      } else {
-        // Has property ID but no data returned — cache not populated
+    } else if (!props.loading && summary?.ga?.summary) {
+      appsWithGAData++
+      // Check for zero data (might be wrong property ID or no access)
+      const s = summary.ga.summary
+      if (s.activeUsers === 0 && s.screenPageViews === 0) {
         list.push({
           app: app.name,
-          severity: 'info',
+          severity: 'warning',
           provider: 'GA4',
-          message: 'No cached GA4 data — needs individual app fetch or cron to populate',
+          message: `Property ${app.gaPropertyId} returned zero users and pageviews`,
+          action:
+            'Verify the property ID matches the correct site, or check service account access',
         })
       }
     }

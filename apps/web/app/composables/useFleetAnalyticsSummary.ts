@@ -33,6 +33,12 @@ function isMetaResponse<T>(
   return typeof r === 'object' && r !== null && 'data' in r && '_meta' in r
 }
 
+const CLIENT_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000 // 5 minutes
+
+// Module-scope cache for tracking when each key was last fetched
+const fetchTimestamps = new Map<string, number>()
+
 export function useFleetAnalyticsSummary(
   startDate: MaybeRefOrGetter<string>,
   endDate: MaybeRefOrGetter<string>,
@@ -45,6 +51,11 @@ export function useFleetAnalyticsSummary(
     ...(toValue(options?.force) ? { force: 'true' } : {}),
   }))
 
+  // Unique key for client-side Nuxt payload cache based on date range
+  const fetchKey = computed(
+    () => `fleet-analytics-summary-${toValue(startDate)}-${toValue(endDate)}`,
+  )
+
   const {
     data: rawData,
     status,
@@ -55,9 +66,22 @@ export function useFleetAnalyticsSummary(
     | { data: FleetAnalyticsSummaryResponse; _meta: FleetAnalyticsSummaryMeta }
   >('/api/fleet/analytics/summary', {
     query,
+    key: fetchKey.value,
     lazy: true,
     server: false,
     watch: false,
+    // Stale-while-revalidate: show cached data instantly, refetch in background
+    getCachedData(key, nuxtApp) {
+      const cached = nuxtApp.payload.data[key] || nuxtApp.static.data[key]
+      if (!cached) return
+      // Check if cached data is still fresh (within TTL)
+      const fetchedAt = fetchTimestamps.get(key)
+      if (fetchedAt && Date.now() - fetchedAt < CLIENT_CACHE_TTL) {
+        return cached
+      }
+      // Return stale data (will trigger background refetch)
+      return cached
+    },
   })
 
   const data = computed(() => {
@@ -76,7 +100,26 @@ export function useFleetAnalyticsSummary(
 
   async function load() {
     await refresh()
+    fetchTimestamps.set(fetchKey.value, Date.now())
   }
+
+  // Auto-refresh every 5 minutes while component is mounted
+  let refreshTimer: ReturnType<typeof setInterval> | undefined
+
+  onMounted(() => {
+    refreshTimer = setInterval(() => {
+      if (!loading.value) {
+        load()
+      }
+    }, AUTO_REFRESH_INTERVAL)
+  })
+
+  onUnmounted(() => {
+    if (refreshTimer) {
+      clearInterval(refreshTimer)
+      refreshTimer = undefined
+    }
+  })
 
   return {
     data,

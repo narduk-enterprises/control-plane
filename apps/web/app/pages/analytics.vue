@@ -190,14 +190,15 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
     />
 
     <template v-if="!is1hRef">
-      <!-- Config Health / Data Validation -->
-      <AnalyticsConfigHealth
+      <!-- Consolidated Health + Insights Panel -->
+      <AnalyticsHealthPanel
         :apps="fleetApps"
         :summary-map="normalizedSummary"
+        :insights="insights"
         :loading="summaryLoading"
+        :insights-loading="insightsLoading"
       />
 
-      <AnalyticsInsightsPanel :insights="insights" :loading="insightsLoading" />
       <AnalyticsFleetBanner :apps="normalizedSummary" :loading="summaryLoading" />
 
       <p v-if="indexnowSummary" class="mb-4 text-xs text-muted">
