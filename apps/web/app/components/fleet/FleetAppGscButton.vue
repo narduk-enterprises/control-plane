@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import type { GscDimension } from '~/types/analytics'
+
 const props = defineProps<{ appName: string }>()
-const { data, error, loading, load } = useFleetGsc(() => props.appName)
+const params = computed(() => ({
+  startDate: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]!,
+  endDate: new Date().toISOString().split('T')[0]!,
+  dimension: 'query' as GscDimension,
+}))
+const { data, error, loading, load } = useFleetGscQuery(() => props.appName, params)
 const open = ref(false)
 
 async function onOpen() {

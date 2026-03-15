@@ -1,48 +1,16 @@
 import type { MaybeRefOrGetter } from 'vue'
+import type { GscQueryParams, FleetGscResponse } from '~/types/analytics'
 
-export type GscDimension = 'query' | 'page' | 'device' | 'country' | 'searchAppearance'
+// Re-export types for consumers
+export type {
+  GscDimension,
+  GscRow,
+  GscTotals,
+  GscInspection,
+  GscQueryParams,
+} from '~/types/analytics'
 
-export interface GscRow {
-  keys?: string[]
-  clicks?: number
-  impressions?: number
-  ctr?: number
-  position?: number
-}
-
-export interface GscTotals {
-  clicks?: number
-  impressions?: number
-  ctr?: number
-  position?: number
-}
-
-export interface GscInspection {
-  inspectionResultLink?: string
-  indexStatusResult?: {
-    verdict?: string
-    coverageState?: string
-    crawledAs?: string
-    lastCrawlTime?: string
-  }
-}
-
-export interface GscQueryParams {
-  startDate: string
-  endDate: string
-  dimension: GscDimension
-  force?: boolean
-}
-
-interface GscQueryResponse {
-  app: string
-  rows: GscRow[]
-  totals: GscTotals | null
-  inspection: GscInspection | null
-  startDate: string
-  endDate: string
-  dimension: string
-}
+const CACHE_MAX_AGE = 5 * 60 * 1000 // 5 minutes stale-while-revalidate
 
 export function useFleetGscQuery(
   appName: MaybeRefOrGetter<string>,
@@ -60,14 +28,28 @@ export function useFleetGscQuery(
     }
   })
 
-  const { data, error, pending, refresh } = useFetch<GscQueryResponse>(
+  const fetchKey = computed(() => {
+    const p = toValue(params)
+    return `fleet-gsc-${resolvedApp.value}-${p.dimension}-${p.startDate}-${p.endDate}`
+  })
+
+  const { data, error, pending, refresh } = useFetch<FleetGscResponse>(
     () => `/api/fleet/gsc/${encodeURIComponent(resolvedApp.value || '_')}`,
     {
+      key: fetchKey.value,
       query,
       server: false,
       lazy: true,
       watch: false,
       immediate: false,
+      getCachedData(key, nuxtApp) {
+        const cached = nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+        if (!cached) return
+        const timestamps = nuxtApp.payload._fetchedAt as Record<string, number> | undefined
+        const fetchedAt = timestamps?.[key]
+        if (fetchedAt && Date.now() - fetchedAt < CACHE_MAX_AGE) return cached
+        return
+      },
     },
   )
 

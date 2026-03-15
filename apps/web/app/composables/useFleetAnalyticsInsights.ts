@@ -1,15 +1,8 @@
 import type { MaybeRefOrGetter } from 'vue'
+import type { AnalyticsInsight } from '~/types/analytics'
 
-export interface AnalyticsInsight {
-  type: 'spike' | 'drop' | 'milestone'
-  severity: 'info' | 'warning' | 'critical'
-  appName: string
-  message: string
-  metric: string
-  currentValue?: number
-  previousValue?: number
-  delta?: number
-}
+// Re-export for consumers
+export type { AnalyticsInsight } from '~/types/analytics'
 
 export function useFleetAnalyticsInsights(
   startDate: MaybeRefOrGetter<string>,

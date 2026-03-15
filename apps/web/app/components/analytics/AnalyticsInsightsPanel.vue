@@ -1,14 +1,5 @@
 <script setup lang="ts">
-export interface AnalyticsInsight {
-  type: 'spike' | 'drop' | 'milestone'
-  severity: 'info' | 'warning' | 'critical'
-  appName: string
-  message: string
-  metric: string
-  currentValue?: number
-  previousValue?: number
-  delta?: number
-}
+import type { AnalyticsInsight } from '~/types/analytics'
 
 const props = withDefaults(
   defineProps<{

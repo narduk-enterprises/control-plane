@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
 import type { FleetAppAnalyticsSummary } from '~/composables/useFleetAnalyticsSummary'
 
 useSeo({
@@ -18,9 +17,6 @@ const dateState = useAnalyticsDateRange('30d')
 const presetRef = dateState.preset
 const startRef = dateState.startDate
 const endRef = dateState.endDate
-const optsRef = dateState.presetOptions
-const setPresetFn = dateState.setPreset
-const is1hRef = dateState.is1h
 
 const forceFlag = ref(false)
 const {
@@ -88,6 +84,8 @@ const freshness = computed(() => {
   return at.toLocaleTimeString()
 })
 
+const is1hRef = dateState.is1h
+
 async function loadAll(force = false) {
   if (is1hRef.value) return
   forceFlag.value = force
@@ -102,13 +100,8 @@ async function refreshAll() {
   await loadAll(true)
 }
 
-watch(
-  [startRef, endRef],
-  () => {
-    loadAll()
-  },
-  { immediate: false },
-)
+// Auto-load on date changes
+watch([startRef, endRef], () => loadAll(), { immediate: false })
 
 onMounted(() => {
   try {
@@ -122,11 +115,14 @@ onMounted(() => {
 })
 
 const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label: 'Analytics' }])
+
+const summaryOrInsightsError = computed(() => (summaryError.value || insightsError.value) ?? null)
 </script>
 
 <template>
   <div class="pb-12">
     <AppBreadcrumbs :items="breadcrumbItems" />
+
     <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <h1 class="font-display text-2xl font-semibold text-default flex items-center gap-2">
@@ -137,32 +133,20 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
           Fleet-wide view: compare pageviews, clicks, and events across all properties.
         </p>
       </div>
+
       <div class="flex flex-wrap items-center gap-2">
-        <ClientOnly>
-          <UButton
-            v-for="opt in optsRef"
-            :key="opt.value"
-            size="xs"
-            :color="presetRef === opt.value ? 'primary' : 'neutral'"
-            :variant="presetRef === opt.value ? 'solid' : 'outline'"
-            class="cursor-pointer rounded-full"
-            @click="setPresetFn(opt.value)"
-          >
-            {{ opt.label }}
-          </UButton>
-        </ClientOnly>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-refresh-cw"
-          size="xs"
-          class="cursor-pointer"
+        <AnalyticsDateBar
+          :preset-options="dateState.presetOptions"
+          :active-preset="presetRef"
           :loading="summaryLoading"
-          @click="refreshAll"
-        >
-          Refresh
-        </UButton>
-        <span v-if="freshness" class="text-xs text-muted">{{ freshness }}</span>
+          :freshness="freshness"
+          show-refresh
+          v-model:start-date="startRef"
+          v-model:end-date="endRef"
+          @preset="dateState.setPreset($event)"
+          @refresh="refreshAll"
+        />
+
         <USeparator orientation="vertical" class="hidden sm:block h-6" />
         <UButton
           :color="viewMode === 'cards' ? 'primary' : 'neutral'"
@@ -187,15 +171,6 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       </div>
     </div>
 
-    <div
-      v-if="presetRef === 'custom'"
-      class="mb-6 flex items-center gap-2 bg-elevated/50 p-2 rounded-lg w-fit border border-default"
-    >
-      <UInput v-model="startRef" type="date" size="sm" />
-      <span class="text-xs text-muted">to</span>
-      <UInput v-model="endRef" type="date" size="sm" />
-    </div>
-
     <UAlert
       v-if="is1hRef"
       icon="i-lucide-info"
@@ -206,29 +181,24 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       class="mb-6"
     />
 
-    <UAlert
-      v-if="(summaryError || insightsError) && !summaryLoading && !insightsLoading"
-      icon="i-lucide-alert-circle"
-      title="Failed to load analytics"
-      color="error"
-      variant="subtle"
-      class="mb-6"
-      :description="
-        summaryError?.message ||
-        insightsError?.message ||
-        'Server timeout or error (502/522). Cache may still be warming from cron.'
-      "
-    >
-      <template #actions>
-        <UButton size="xs" color="error" variant="soft" class="cursor-pointer" @click="refreshAll">
-          Retry
-        </UButton>
-      </template>
-    </UAlert>
+    <AnalyticsErrorAlert
+      v-if="summaryError || insightsError"
+      :provider="summaryError ? 'Analytics Summary' : 'Insights'"
+      :error="summaryOrInsightsError"
+      @retry="refreshAll"
+    />
 
     <template v-if="!is1hRef">
+      <!-- Config Health / Data Validation -->
+      <AnalyticsConfigHealth
+        :apps="fleetApps"
+        :summary-map="normalizedSummary"
+        :loading="summaryLoading"
+      />
+
       <AnalyticsInsightsPanel :insights="insights" :loading="insightsLoading" />
       <AnalyticsFleetBanner :apps="normalizedSummary" :loading="summaryLoading" />
+
       <p v-if="indexnowSummary" class="mb-4 text-xs text-muted">
         IndexNow: {{ indexnowSummary.totalSubmissions?.toLocaleString() ?? 0 }} pings,
         {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{ indexnowSummary.totalFleetSize ?? 0 }} apps
@@ -237,28 +207,14 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       <div class="mb-4 flex flex-wrap items-center gap-2">
         <span class="text-sm text-muted">Filter:</span>
         <UButton
+          v-for="f in ['all', 'up', 'down'] as const"
+          :key="f"
           size="xs"
-          :color="statusFilter === 'all' ? 'primary' : 'neutral'"
+          :color="statusFilter === f ? 'primary' : 'neutral'"
           variant="outline"
-          @click="statusFilter = 'all'"
+          @click="statusFilter = f"
         >
-          All
-        </UButton>
-        <UButton
-          size="xs"
-          :color="statusFilter === 'up' ? 'primary' : 'neutral'"
-          variant="outline"
-          @click="statusFilter = 'up'"
-        >
-          Up
-        </UButton>
-        <UButton
-          size="xs"
-          :color="statusFilter === 'down' ? 'primary' : 'neutral'"
-          variant="outline"
-          @click="statusFilter = 'down'"
-        >
-          Down
+          {{ f === 'all' ? 'All' : f === 'up' ? 'Up' : 'Down' }}
         </UButton>
       </div>
 

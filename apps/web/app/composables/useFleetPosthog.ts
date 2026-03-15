@@ -1,19 +1,9 @@
-/* eslint-disable narduk/no-composable-conditional-hooks -- composable function, not conditional */
 import type { MaybeRefOrGetter } from 'vue'
+import type { FleetPosthogResponse } from '~/types/analytics'
 
-interface FleetPosthogResponse {
-  app: string
-  summary: Record<string, unknown>
-  timeSeries: { date: string; value: number }[]
-  topPages: { name: string; count: number }[]
-  topReferrers: { name: string; count: number }[]
-  topCountries: { name: string; count: number }[]
-  topBrowsers: { name: string; count: number }[]
-  replaysUrl: string
-  startDate: string
-  endDate: string
-}
+const CACHE_MAX_AGE = 5 * 60 * 1000 // 5 minutes stale-while-revalidate
 
+/* eslint-disable narduk/no-composable-conditional-hooks -- composable function, not conditional */
 export function useFleetPosthog(
   appName: MaybeRefOrGetter<string>,
   startDate: MaybeRefOrGetter<string>,
@@ -28,14 +18,27 @@ export function useFleetPosthog(
     force: toValue(force) ? 'true' : undefined,
   }))
 
+  const fetchKey = computed(
+    () => `fleet-posthog-${resolvedApp.value}-${toValue(startDate)}-${toValue(endDate)}`,
+  )
+
   const { data, error, status, refresh } = useFetch<FleetPosthogResponse>(
     () => `/api/fleet/posthog/${encodeURIComponent(resolvedApp.value || '_')}`,
     {
+      key: fetchKey.value,
       query,
       lazy: true,
       server: false,
       watch: false,
       immediate: false,
+      getCachedData(key, nuxtApp) {
+        const cached = nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
+        if (!cached) return
+        const timestamps = nuxtApp.payload._fetchedAt as Record<string, number> | undefined
+        const fetchedAt = timestamps?.[key]
+        if (fetchedAt && Date.now() - fetchedAt < CACHE_MAX_AGE) return cached
+        return
+      },
     },
   )
 

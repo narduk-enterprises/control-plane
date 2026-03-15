@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GscDimension } from '~/composables/useFleetGscQuery'
+import type { GscDimension, StatCardConfig } from '~/types/analytics'
 import type { DatePreset } from '~/composables/useAnalyticsDateRange'
 
 const route = useRoute()
@@ -20,9 +20,9 @@ const status = computed(() => getAppStatus(appName.value))
 
 const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } =
   useAnalyticsDateRange('7d')
-const compareMode = ref(false)
 const force = ref(false)
 
+// ── Data fetching (all auto-cached via getCachedData in composables) ──
 const {
   data: gaData,
   error: gaError,
@@ -36,11 +36,7 @@ const gscParamsQuery = computed(() => ({
   dimension: 'query' as GscDimension,
   force: force.value,
 }))
-const {
-  data: gscQueryData,
-  loading: _gscQueryLoading,
-  load: loadGscQuery,
-} = useFleetGscQuery(appName, gscParamsQuery)
+const { data: gscQueryData, load: loadGscQuery } = useFleetGscQuery(appName, gscParamsQuery)
 
 const gscParamsDevice = computed(() => ({
   startDate: startDate.value,
@@ -56,30 +52,14 @@ const {
   loading: posthogLoading,
   load: loadPosthog,
 } = useFleetPosthog(appName, startDate, endDate, force)
-const {
-  data: _indexnowData,
-  loading: indexnowLoading,
-  submit: submitIndexnow,
-} = useFleetIndexnow(appName)
-const {
-  data: sitemapData,
-  error: sitemapError,
-  loading: sitemapLoading,
-  run: runSitemapAnalysis,
-} = useFleetSitemapAnalysis(appName)
 
+// ── Auto-load on mount and date changes ──
 async function loadAll() {
   if (!appName.value) return
   await Promise.all([loadGA(), loadGscQuery(), loadGscDevice(), loadPosthog()])
 }
 
-watch(
-  [appName, startDate, endDate],
-  () => {
-    loadAll()
-  },
-  { immediate: true },
-)
+watch([appName, startDate, endDate], () => loadAll(), { immediate: true })
 
 async function onForceRefresh() {
   force.value = true
@@ -90,43 +70,72 @@ async function onForceRefresh() {
   }
 }
 
-function onPresetChange(p: string) {
-  setPreset(p as DatePreset)
-}
-
+// ── Computed data (typed via centralized types) ──
 const gaSummary = computed(() => {
-  const d = gaData.value
-  if (!d?.summary || typeof d.summary !== 'object') return null
-  const s = d.summary as Record<string, unknown>
+  const s = gaData.value?.summary
+  if (!s) return null
   return {
-    users: Number(s.activeUsers ?? 0),
-    newUsers: Number(s.newUsers ?? 0),
-    sessions: Number(s.sessions ?? 0),
-    pageviews: Number(s.screenPageViews ?? 0),
-    bounceRate: Number(s.bounceRate ?? 0),
-    avgSessionDuration: Number(s.averageSessionDuration ?? 0),
-    engagementRate: Number(s.engagementRate ?? 0),
-    eventCount: Number(s.eventCount ?? 0),
+    users: s.activeUsers ?? 0,
+    newUsers: s.newUsers ?? 0,
+    sessions: s.sessions ?? 0,
+    pageviews: s.screenPageViews ?? 0,
+    bounceRate: s.bounceRate ?? 0,
+    avgSessionDuration: s.averageSessionDuration ?? 0,
+    engagementRate: s.engagementRate ?? 0,
+    eventCount: s.eventCount ?? 0,
   }
 })
-const gaDeltas = computed(
-  () => (gaData.value as { deltas?: Record<string, number> } | null)?.deltas ?? null,
-)
+const gaDeltas = computed(() => gaData.value?.deltas ?? null)
 const gaTimeSeries = computed(() => gaData.value?.timeSeries ?? [])
-
 const gscTotals = computed(() => gscQueryData.value?.totals ?? null)
 const gscInspection = computed(() => gscQueryData.value?.inspection ?? null)
+const gscTopQueries = computed(() => (gscQueryData.value?.rows ?? []).slice(0, 10))
+const gscTopDevices = computed(() => (gscDeviceData.value?.rows ?? []).slice(0, 5))
+const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
+const anyLoading = computed(() => gaLoading.value || posthogLoading.value)
+
+// ── KPI stat cards (data-driven, no duplicated markup) ──
+const gaKpis = computed<StatCardConfig[]>(() => {
+  const s = gaSummary.value
+  const d = gaDeltas.value
+  if (!s) return []
+  return [
+    { label: 'Users', value: s.users, delta: d?.users, format: 'number' },
+    { label: 'Sessions', value: s.sessions, delta: d?.sessions, format: 'number' },
+    { label: 'Pageviews', value: s.pageviews, delta: d?.pageviews, format: 'number' },
+    {
+      label: 'Bounce Rate',
+      value: s.bounceRate,
+      delta: d?.bounceRate,
+      format: 'percent',
+      invertDelta: true,
+    },
+    {
+      label: 'Avg Session',
+      value: s.avgSessionDuration,
+      delta: d?.avgSessionDuration,
+      format: 'duration',
+    },
+    { label: 'Engagement', value: s.engagementRate, format: 'percent' },
+  ]
+})
+
+const gscKpis = computed<StatCardConfig[]>(() => {
+  const t = gscTotals.value
+  if (!t) return []
+  return [
+    { label: 'GSC Clicks', value: t.clicks, format: 'number' },
+    { label: 'Impressions', value: t.impressions, format: 'number' },
+    { label: 'CTR', value: t.ctr, format: 'percent' },
+    { label: 'Avg Position', value: t.position, format: 'number' },
+  ]
+})
 
 const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
   { label: 'Analytics', to: '/analytics' },
   { label: appName.value },
 ])
-
-const gscTopQueries = computed(() => (gscQueryData.value?.rows ?? []).slice(0, 10))
-const gscTopDevices = computed(() => (gscDeviceData.value?.rows ?? []).slice(0, 5))
-const sitemapUrlsPreview = computed(() => (sitemapData.value?.urls ?? []).slice(0, 50))
-const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
 </script>
 
 <template>
@@ -136,9 +145,7 @@ const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
     <!-- Header -->
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 class="font-display text-2xl font-semibold text-default">
-          {{ appName }}
-        </h1>
+        <h1 class="font-display text-2xl font-semibold text-default">{{ appName }}</h1>
         <div class="mt-1 flex flex-wrap items-center gap-3 text-sm">
           <UButton
             v-if="appUrl"
@@ -162,135 +169,43 @@ const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
           </UBadge>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="flex gap-1 rounded-lg border border-default p-1 shadow-xs">
-          <UButton
-            v-for="opt in presetOptions"
-            :key="opt.value"
-            size="xs"
-            :color="preset === opt.value ? 'primary' : 'neutral'"
-            :variant="preset === opt.value ? 'solid' : 'outline'"
-            class="cursor-pointer"
-            @click="onPresetChange(opt.value)"
-          >
-            {{ opt.label }}
-          </UButton>
-        </div>
-        <UButton
-          size="xs"
-          variant="ghost"
-          :color="compareMode ? 'primary' : 'neutral'"
-          icon="i-lucide-git-compare"
-          class="cursor-pointer"
-          @click="compareMode = !compareMode"
-        >
-          Compare
-        </UButton>
-        <UButton
-          size="xs"
-          variant="ghost"
-          :icon="gaLoading || posthogLoading ? 'i-lucide-loader-2' : 'i-lucide-refresh-cw'"
-          :class="gaLoading || posthogLoading ? 'animate-spin' : ''"
-          class="cursor-pointer text-muted hover:text-default"
-          @click="onForceRefresh"
-        >
-          Refresh
-        </UButton>
-      </div>
+
+      <!-- Date bar + Refresh -->
+      <AnalyticsDateBar
+        :preset-options="presetOptions"
+        :active-preset="preset"
+        :loading="anyLoading"
+        show-refresh
+        v-model:start-date="startDate"
+        v-model:end-date="endDate"
+        @preset="setPreset($event as DatePreset)"
+        @refresh="onForceRefresh"
+      />
     </div>
 
-    <!-- KPI Row -->
+    <!-- GA4 KPI Grid -->
     <div
       v-if="gaLoading && !gaSummary"
-      class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6"
+      class="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
     >
       <div
         v-for="i in 6"
         :key="i"
-        class="h-24 rounded-xl border border-default bg-elevated/30 animate-pulse"
+        class="h-20 sm:h-24 rounded-xl border border-default bg-elevated/30 animate-pulse"
       />
     </div>
-    <div v-else-if="gaSummary" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">Users</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ gaSummary.users.toLocaleString() }}
-        </p>
-        <p
-          v-if="gaDeltas?.users !== undefined"
-          class="mt-0.5 text-xs"
-          :class="gaDeltas.users >= 0 ? 'text-success' : 'text-error'"
-        >
-          {{ gaDeltas.users >= 0 ? '+' : '' }}{{ gaDeltas.users.toFixed(1) }}% vs prev
-        </p>
-      </div>
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">Sessions</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ gaSummary.sessions.toLocaleString() }}
-        </p>
-        <p
-          v-if="gaDeltas?.sessions !== undefined"
-          class="mt-0.5 text-xs"
-          :class="gaDeltas.sessions >= 0 ? 'text-success' : 'text-error'"
-        >
-          {{ gaDeltas.sessions >= 0 ? '+' : '' }}{{ gaDeltas.sessions.toFixed(1) }}% vs prev
-        </p>
-      </div>
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">Pageviews</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ gaSummary.pageviews.toLocaleString() }}
-        </p>
-        <p
-          v-if="gaDeltas?.pageviews !== undefined"
-          class="mt-0.5 text-xs"
-          :class="gaDeltas.pageviews >= 0 ? 'text-success' : 'text-error'"
-        >
-          {{ gaDeltas.pageviews >= 0 ? '+' : '' }}{{ gaDeltas.pageviews.toFixed(1) }}% vs prev
-        </p>
-      </div>
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">Bounce Rate</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ (gaSummary.bounceRate * 100).toFixed(1) }}%
-        </p>
-        <p
-          v-if="gaDeltas?.bounceRate !== undefined"
-          class="mt-0.5 text-xs"
-          :class="gaDeltas.bounceRate <= 0 ? 'text-success' : 'text-error'"
-        >
-          {{ gaDeltas.bounceRate >= 0 ? '+' : '' }}{{ gaDeltas.bounceRate.toFixed(1) }}% vs prev
-        </p>
-      </div>
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">Avg Session</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{
-            gaSummary.avgSessionDuration >= 60
-              ? `${Math.floor(gaSummary.avgSessionDuration / 60)}m `
-              : ''
-          }}{{ Math.floor(gaSummary.avgSessionDuration % 60) }}s
-        </p>
-        <p
-          v-if="gaDeltas?.avgSessionDuration !== undefined"
-          class="mt-0.5 text-xs"
-          :class="gaDeltas.avgSessionDuration >= 0 ? 'text-success' : 'text-error'"
-        >
-          {{ gaDeltas.avgSessionDuration >= 0 ? '+' : ''
-          }}{{ gaDeltas.avgSessionDuration.toFixed(1) }}% vs prev
-        </p>
-      </div>
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">Engagement</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ (gaSummary.engagementRate * 100).toFixed(1) }}%
-        </p>
-      </div>
+    <div v-else-if="gaKpis.length" class="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+      <AnalyticsStatCard
+        v-for="kpi in gaKpis"
+        :key="kpi.label"
+        v-bind="kpi"
+        :loading="gaLoading"
+        compact
+      />
     </div>
 
     <!-- Traffic Chart -->
-    <UCard>
+    <UCard v-if="gaTimeSeries.length">
       <template #header>
         <h2 class="text-sm font-medium text-default">Traffic ({{ presetLabel }})</h2>
       </template>
@@ -300,32 +215,9 @@ const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
       />
     </UCard>
 
-    <!-- GSC Summary Strip -->
-    <div v-if="gscQueryData?.totals" class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">GSC Clicks</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ (gscTotals?.clicks ?? 0).toLocaleString() }}
-        </p>
-      </div>
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">Impressions</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ (gscTotals?.impressions ?? 0).toLocaleString() }}
-        </p>
-      </div>
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">CTR</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ ((gscTotals?.ctr ?? 0) * 100).toFixed(2) }}%
-        </p>
-      </div>
-      <div class="rounded-xl border border-default bg-elevated/30 p-4">
-        <p class="text-sm font-medium text-muted">Avg Position</p>
-        <p class="mt-1 text-xl font-semibold text-default">
-          {{ (gscTotals?.position ?? 0).toFixed(1) }}
-        </p>
-      </div>
+    <!-- GSC KPI Strip -->
+    <div v-if="gscKpis.length" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
+      <AnalyticsStatCard v-for="kpi in gscKpis" :key="kpi.label" v-bind="kpi" compact />
     </div>
 
     <!-- Data Breakdowns -->
@@ -335,33 +227,7 @@ const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
         icon="i-lucide-file-text"
         :items="posthogData?.topPages ?? []"
       />
-      <UCard v-if="gscQueryData?.rows?.length" class="overflow-hidden">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-search" class="text-primary-500" />
-            <h3 class="text-sm font-medium">Top Queries (GSC)</h3>
-          </div>
-        </template>
-        <div class="max-h-64 overflow-auto">
-          <UTable
-            :data="gscTopQueries"
-            :columns="[
-              {
-                accessorKey: 'keys',
-                header: 'Query',
-                meta: { class: { td: 'max-w-[180px] truncate' } },
-                cell: ({ row }) => row.original.keys?.[0] ?? '—',
-              },
-              {
-                accessorKey: 'clicks',
-                header: 'Clicks',
-                cell: ({ row }) => (row.original.clicks ?? 0).toLocaleString(),
-              },
-            ]"
-            class="text-xs"
-          />
-        </div>
-      </UCard>
+      <AnalyticsGscTopQueries :queries="gscTopQueries" :devices="gscTopDevices" />
       <FleetTopDimensionCard
         title="Top Referrers"
         icon="i-lucide-external-link"
@@ -377,235 +243,33 @@ const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
         icon="i-lucide-laptop"
         :items="posthogData?.topBrowsers ?? []"
       />
-      <UCard v-if="gscDeviceData?.rows?.length" class="overflow-hidden">
-        <template #header>
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-smartphone" class="text-primary-500" />
-            <h3 class="text-sm font-medium">Device (GSC)</h3>
-          </div>
-        </template>
-        <div class="max-h-48 overflow-auto">
-          <UTable
-            :data="gscTopDevices"
-            :columns="[
-              {
-                accessorKey: 'keys',
-                header: 'Device',
-                cell: ({ row }) => row.original.keys?.[0] ?? '—',
-              },
-              {
-                accessorKey: 'clicks',
-                header: 'Clicks',
-                cell: ({ row }) => (row.original.clicks ?? 0).toLocaleString(),
-              },
-            ]"
-            class="text-xs"
-          />
-        </div>
-      </UCard>
     </div>
 
     <!-- URL Inspection -->
     <AnalyticsGscInspection v-if="gscInspection?.indexStatusResult" :inspection="gscInspection" />
 
-    <!-- Sitemap analysis -->
-    <UCard>
-      <template #header>
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-map" class="text-primary-500 size-5" />
-            <h3 class="text-sm font-medium text-default">Sitemap analysis</h3>
-          </div>
-          <div class="flex gap-2">
-            <UButton
-              size="xs"
-              variant="outline"
-              color="neutral"
-              :loading="sitemapLoading"
-              class="cursor-pointer"
-              icon="i-lucide-file-search"
-              @click="runSitemapAnalysis(false)"
-            >
-              Run analysis
-            </UButton>
-            <UButton
-              size="xs"
-              variant="outline"
-              color="primary"
-              :loading="sitemapLoading"
-              class="cursor-pointer"
-              icon="i-lucide-scan-search"
-              @click="runSitemapAnalysis(true)"
-            >
-              Deep analysis
-            </UButton>
-          </div>
-        </div>
-      </template>
-      <p class="text-sm text-muted">
-        Fetch sitemap.xml and list all URLs. Deep analysis runs HEAD requests on each URL (up to
-        200) for status and response time.
-      </p>
-      <div
-        v-if="sitemapError"
-        class="mt-3 rounded-lg border border-error/30 bg-error/5 p-3 text-sm text-error"
-      >
-        {{ sitemapError.message }}
-      </div>
-      <div v-else-if="sitemapData" class="mt-4 space-y-4">
-        <div class="flex flex-wrap gap-4 text-sm">
-          <span class="font-medium text-default">Sitemap:</span>
-          <ULink
-            :to="sitemapData.sitemapUrl"
-            target="_blank"
-            rel="noopener"
-            class="text-primary hover:underline"
-          >
-            {{ sitemapData.sitemapUrl }}
-          </ULink>
-        </div>
-        <div class="flex flex-wrap gap-6 text-sm">
-          <span
-            ><strong class="text-default">{{ sitemapData.totalUrls }}</strong>
-            <span class="text-muted">URLs</span></span
-          >
-          <template v-if="sitemapData.deepSummary">
-            <span
-              ><strong class="text-success">{{ sitemapData.deepSummary.ok }}</strong>
-              <span class="text-muted">OK</span></span
-            >
-            <span
-              ><strong class="text-error">{{ sitemapData.deepSummary.error }}</strong>
-              <span class="text-muted">errors</span></span
-            >
-            <span v-if="sitemapData.deepSummary.timeout > 0"
-              ><strong class="text-warning">{{ sitemapData.deepSummary.timeout }}</strong>
-              <span class="text-muted">timeouts</span></span
-            >
-            <span
-              ><span class="text-muted">Avg</span>
-              <strong class="text-default"
-                >{{ sitemapData.deepSummary.avgDurationMs }} ms</strong
-              ></span
-            >
-          </template>
-        </div>
-        <div
-          v-if="sitemapData.entries?.length"
-          class="max-h-80 overflow-auto rounded-lg border border-default"
-        >
-          <UTable
-            :data="sitemapData.entries"
-            :columns="[
-              {
-                accessorKey: 'url',
-                header: 'URL',
-                meta: { class: { td: 'max-w-[320px] truncate font-mono text-xs' } },
-                cell: ({ row }) => row.original.url,
-              },
-              {
-                accessorKey: 'status',
-                header: 'Status',
-                cell: ({ row }) => row.original.status || '—',
-              },
-              {
-                accessorKey: 'durationMs',
-                header: 'Time (ms)',
-                cell: ({ row }) => row.original.durationMs,
-              },
-              {
-                accessorKey: 'error',
-                header: 'Error',
-                cell: ({ row }) => row.original.error ?? '—',
-              },
-            ]"
-            class="text-xs"
-          />
-        </div>
-        <div
-          v-else-if="sitemapData.urls?.length"
-          class="max-h-48 overflow-auto rounded-lg border border-default p-2"
-        >
-          <ul class="list-inside list-disc space-y-1 font-mono text-xs text-muted">
-            <li v-for="u in sitemapUrlsPreview" :key="u" class="truncate">
-              <ULink :to="u" target="_blank" rel="noopener" class="text-primary hover:underline">{{
-                u
-              }}</ULink>
-            </li>
-          </ul>
-          <p v-if="sitemapData.urls.length > 50" class="mt-2 text-xs text-muted">
-            + {{ sitemapData.urls.length - 50 }} more URLs
-          </p>
-        </div>
-      </div>
-    </UCard>
+    <!-- Sitemap -->
+    <AnalyticsSitemapPanel :app-name="appName" />
 
     <!-- Quick Actions -->
-    <UCard>
-      <template #header>
-        <h3 class="text-sm font-medium text-default">Quick Actions</h3>
-      </template>
-      <div class="flex flex-wrap gap-2">
-        <UButton
-          v-if="posthogData?.replaysUrl"
-          :to="posthogData.replaysUrl"
-          target="_blank"
-          variant="outline"
-          color="neutral"
-          icon="i-lucide-video"
-          class="cursor-pointer"
-        >
-          Session Replays
-        </UButton>
-        <NuxtLink :to="`/analytics/${appName}/search`">
-          <UButton variant="outline" color="neutral" icon="i-lucide-search" class="cursor-pointer">
-            GSC Search
-          </UButton>
-        </NuxtLink>
-        <UButton
-          v-if="gscInspection?.inspectionResultLink"
-          :to="gscInspection.inspectionResultLink"
-          target="_blank"
-          variant="outline"
-          color="neutral"
-          icon="i-lucide-bar-chart-3"
-          class="cursor-pointer"
-        >
-          View in GSC
-        </UButton>
-        <UButton
-          :loading="indexnowLoading"
-          class="cursor-pointer"
-          icon="i-lucide-send"
-          @click="submitIndexnow()"
-        >
-          IndexNow Submit
-        </UButton>
-        <NuxtLink to="/analytics">
-          <UButton
-            variant="ghost"
-            color="neutral"
-            icon="i-lucide-arrow-left"
-            class="cursor-pointer"
-          >
-            Back to fleet
-          </UButton>
-        </NuxtLink>
-      </div>
-    </UCard>
+    <AnalyticsQuickActions
+      :app-name="appName"
+      :replays-url="posthogData?.replaysUrl"
+      :inspection-link="gscInspection?.inspectionResultLink"
+    />
 
     <!-- Errors -->
-    <div v-if="gaError" class="rounded-lg border border-error/30 bg-error/5 p-4">
-      <p class="text-sm font-medium text-error">Google Analytics error</p>
-      <p class="mt-1 text-sm text-muted">{{ gaError.message }}</p>
-    </div>
-    <div v-if="posthogError" class="rounded-lg border border-error/30 bg-error/5 p-4">
-      <p class="text-sm font-medium text-error">PostHog error</p>
-      <p class="mt-1 text-sm text-muted">{{ posthogError.message }}</p>
-    </div>
-    <div v-if="sitemapError" class="rounded-lg border border-error/30 bg-error/5 p-4">
-      <p class="text-sm font-medium text-error">Sitemap analysis error</p>
-      <p class="mt-1 text-sm text-muted">{{ sitemapError.message }}</p>
-    </div>
+    <AnalyticsErrorAlert
+      v-if="gaError"
+      provider="Google Analytics"
+      :error="gaError"
+      @retry="onForceRefresh"
+    />
+    <AnalyticsErrorAlert
+      v-if="posthogError"
+      provider="PostHog"
+      :error="posthogError"
+      @retry="onForceRefresh"
+    />
   </div>
 </template>

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { GaSummary, GaDeltas } from '~/types/analytics'
+import type { DatePreset } from '~/composables/useAnalyticsDateRange'
+
 const props = defineProps<{ appName: string; active?: boolean }>()
 
 const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } =
@@ -12,12 +15,9 @@ async function onForceRefresh() {
   force.value = false
 }
 
-// Data is loaded natively by Nuxt useFetch reactivity on the URL hook
-
 const summary = computed(() => {
-  const d = data.value as { summary: Record<string, number> | null } | null
-  if (!d?.summary || typeof d.summary !== 'object') return null
-  const s = d.summary
+  const s = data.value?.summary as GaSummary | null
+  if (!s) return null
   return {
     users: s.activeUsers,
     newUsers: s.newUsers,
@@ -31,18 +31,18 @@ const summary = computed(() => {
 })
 
 const deltas = computed(() => {
-  const d = data.value as { deltas: Record<string, number> | null } | null
-  return d?.deltas ?? null
+  const d = data.value?.deltas as GaDeltas | null
+  return d ?? null
 })
 
 const dateRange = computed(() => {
-  const d = data.value as { startDate?: string; endDate?: string } | null
+  const d = data.value
   if (!d?.startDate || !d?.endDate) return null
   return `${d.startDate} → ${d.endDate}`
 })
 
-function onPresetChange(p: string) {
-  setPreset(p as Parameters<typeof setPreset>[0])
+function onPresetChange(p: DatePreset) {
+  setPreset(p)
 }
 </script>
 
