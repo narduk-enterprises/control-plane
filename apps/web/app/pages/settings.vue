@@ -34,110 +34,36 @@ const integrations = computed(() => [
   },
 ])
 
-// Password change form
-const currentPassword = ref('')
-const newPassword = ref('')
-const confirmPassword = ref('')
-const passwordLoading = ref(false)
-const passwordError = ref('')
-const passwordSuccess = ref(false)
-
-const authApi = useAuthApi()
-
-async function handleChangePassword() {
-  passwordError.value = ''
-  passwordSuccess.value = false
-
-  if (newPassword.value.length < 8) {
-    passwordError.value = 'New password must be at least 8 characters'
-    return
-  }
-  if (newPassword.value !== confirmPassword.value) {
-    passwordError.value = 'New passwords do not match'
-    return
-  }
-
-  passwordLoading.value = true
-  try {
-    await authApi.changePassword({
-      currentPassword: currentPassword.value,
-      newPassword: newPassword.value,
-    })
-    passwordSuccess.value = true
-    currentPassword.value = ''
-    newPassword.value = ''
-    confirmPassword.value = ''
-  } catch (e: unknown) {
-    const err = e as { data?: { message?: string }; statusMessage?: string }
-    passwordError.value = err.data?.message || err.statusMessage || 'Failed to change password'
-  } finally {
-    passwordLoading.value = false
-  }
-}
+// Password change form — state lives in composable
+const {
+  currentPassword,
+  newPassword,
+  confirmPassword,
+  loading: passwordLoading,
+  error: passwordError,
+  success: passwordSuccess,
+  submit: handleChangePassword,
+} = usePasswordForm()
 
 async function handleLogout() {
   await logout()
   await navigateTo('/login')
 }
 
-// API Keys
+// API Keys — state lives in composable
 const {
-  keys: apiKeysList,
-  loading: apiKeysLoading,
-  fetchKeys: fetchApiKeys,
-  createKey,
-  deleteKey,
-} = useApiKeys()
-
-const newKeyName = ref('')
-const newKeyLoading = ref(false)
-const newKeyRaw = ref('') // shown once after creation
-const newKeyCopied = ref(false)
-const deleteKeyId = ref<string | null>(null)
-
-async function handleCreateKey() {
-  if (!newKeyName.value.trim()) return
-  newKeyLoading.value = true
-  newKeyRaw.value = ''
-  newKeyCopied.value = false
-  try {
-    newKeyRaw.value = await createKey(newKeyName.value.trim())
-    newKeyName.value = ''
-  } catch {
-    /* ignore */
-  } finally {
-    newKeyLoading.value = false
-  }
-}
-
-async function handleDeleteKey(id: string) {
-  try {
-    await deleteKey(id)
-    deleteKeyId.value = null
-  } catch {
-    /* ignore */
-  }
-}
-
-function copyKey() {
-  navigator.clipboard.writeText(newKeyRaw.value)
-  newKeyCopied.value = true
-}
-
-function formatDate(iso: string | null) {
-  if (!iso) return 'Never'
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-onMounted(() => {
-  fetchApiKeys()
-})
+  apiKeysList,
+  apiKeysLoading,
+  newKeyName,
+  newKeyLoading,
+  newKeyRaw,
+  newKeyCopied,
+  deleteKeyId,
+  handleCreate: handleCreateKey,
+  handleDelete: handleDeleteKey,
+  copyKey,
+  formatDate,
+} = useApiKeyForm()
 </script>
 
 <template>

@@ -42,48 +42,22 @@ const dimensions: { value: GscDimension; label: string }[] = [
   { value: 'searchAppearance', label: 'Search appearance' },
 ]
 
-type SortKey = 'key' | 'clicks' | 'impressions' | 'ctr' | 'position'
-const sortKey = ref<SortKey>('key')
-const sortDir = ref<'asc' | 'desc'>('asc')
+const rawRows = computed(() => (data.value?.rows ?? []) as GscRow[])
+const dimensionLabel = computed(() => data.value?.dimension ?? 'query')
+const { sortIndicator, setSort, tableRows, copyCsv } = useGscTableSort(rawRows, dimensionLabel)
 
-function sortIndicator(key: SortKey) {
-  if (sortKey.value !== key) return ''
-  return sortDir.value === 'desc' ? '↓' : '↑'
+function onPresetChange(p: string) {
+  setPreset(p as Parameters<typeof setPreset>[0])
 }
 
-const tableRows = computed(() => {
-  const rows = (data.value?.rows ?? []) as GscRow[]
-  const key = sortKey.value
-  const dir = sortDir.value
-  return [...rows].sort((a, b) => {
-    if (key === 'key') {
-      const va = a.keys?.[0] ?? ''
-      const vb = b.keys?.[0] ?? ''
-      return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-    }
-    const va = a[key] ?? 0
-    const vb = b[key] ?? 0
-    return dir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number)
-  })
+const formattedCrawledAs = computed(() => {
+  const crawledAs = data.value?.inspection?.indexStatusResult?.crawledAs
+  return crawledAs ? crawledAs.replace('CRAWLED_AS_', '') : ''
 })
 
-const csvContent = computed(() => {
-  const rows = tableRows.value
-  const dim = data.value?.dimension ?? 'query'
-  const header = [dim, 'Clicks', 'Impressions', 'CTR', 'Position'].join(',')
-  const body = rows
-    .map((r) => {
-      const key = (r.keys?.[0] ?? '').replaceAll('"', '""')
-      return [
-        `"${key}"`,
-        r.clicks ?? 0,
-        r.impressions ?? 0,
-        (r.ctr ?? 0).toFixed(2),
-        (r.position ?? 0).toFixed(1),
-      ].join(',')
-    })
-    .join('\n')
-  return [header, body].join('\n')
+const formattedLastCrawlTime = computed(() => {
+  const time = data.value?.inspection?.indexStatusResult?.lastCrawlTime
+  return time ? new Date(time).toLocaleString() : ''
 })
 
 const UButton = resolveComponent('UButton')
@@ -95,7 +69,7 @@ const gscColumns = computed<TableColumn<GscRow>[]>(() => [
       h(UButton, {
         variant: 'ghost',
         color: 'neutral',
-        label: `${data.value?.dimension ?? 'query'} ${sortIndicator('key')}`,
+        label: `${dimensionLabel.value} ${sortIndicator('key')}`,
         class: '-mx-2.5 cursor-pointer font-medium text-muted hover:text-default',
         onClick: () => setSort('key'),
       }),
@@ -152,36 +126,8 @@ const gscColumns = computed<TableColumn<GscRow>[]>(() => [
   },
 ])
 
-function copyCsv() {
-  if (!csvContent.value) return
-  navigator.clipboard.writeText(csvContent.value)
-}
-
-function setSort(key: SortKey) {
-  if (sortKey.value === key) {
-    sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
-  } else {
-    sortKey.value = key
-    sortDir.value = key === 'key' ? 'asc' : 'desc'
-  }
-}
-
-function onPresetChange(p: string) {
-  setPreset(p as Parameters<typeof setPreset>[0])
-}
-
-const formattedCrawledAs = computed(() => {
-  const crawledAs = data.value?.inspection?.indexStatusResult?.crawledAs
-  return crawledAs ? crawledAs.replace('CRAWLED_AS_', '') : ''
-})
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- UTable expects @nuxt/ui TableColumn, not our local type
 const gscColumnsForTable = computed(() => gscColumns.value as any)
-
-const formattedLastCrawlTime = computed(() => {
-  const time = data.value?.inspection?.indexStatusResult?.lastCrawlTime
-  return time ? new Date(time).toLocaleString() : ''
-})
 </script>
 
 <template>

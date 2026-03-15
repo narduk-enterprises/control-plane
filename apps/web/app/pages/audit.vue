@@ -27,6 +27,11 @@ async function runAudit() {
   }
 }
 
+// Auto-load on mount
+onMounted(() => {
+  if (!hasRun.value) runAudit()
+})
+
 // Summary counts — derive from results directly
 const allChecks = computed((): Array<{ status: string }> => {
   const out: Array<{ status: string }> = []
