@@ -120,7 +120,7 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
 </script>
 
 <template>
-  <div class="pb-12">
+  <div class="pb-12 overflow-hidden">
     <AppBreadcrumbs :items="breadcrumbItems" />
 
     <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -134,7 +134,7 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
         </p>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-col gap-2 min-w-0 w-full md:w-auto">
         <AnalyticsDateBar
           :preset-options="dateState.presetOptions"
           :active-preset="presetRef"
@@ -147,27 +147,28 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
           @refresh="refreshAll"
         />
 
-        <USeparator orientation="vertical" class="hidden sm:block h-6" />
-        <UButton
-          :color="viewMode === 'cards' ? 'primary' : 'neutral'"
-          variant="outline"
-          size="xs"
-          icon="i-lucide-layout-grid"
-          class="cursor-pointer"
-          @click="viewMode = 'cards'"
-        >
-          Cards
-        </UButton>
-        <UButton
-          :color="viewMode === 'dense' ? 'primary' : 'neutral'"
-          variant="outline"
-          size="xs"
-          icon="i-lucide-table"
-          class="cursor-pointer"
-          @click="viewMode = 'dense'"
-        >
-          Dense
-        </UButton>
+        <div class="flex items-center gap-2">
+          <UButton
+            :color="viewMode === 'cards' ? 'primary' : 'neutral'"
+            variant="outline"
+            size="xs"
+            icon="i-lucide-layout-grid"
+            class="cursor-pointer"
+            @click="viewMode = 'cards'"
+          >
+            Cards
+          </UButton>
+          <UButton
+            :color="viewMode === 'dense' ? 'primary' : 'neutral'"
+            variant="outline"
+            size="xs"
+            icon="i-lucide-table"
+            class="cursor-pointer"
+            @click="viewMode = 'dense'"
+          >
+            Dense
+          </UButton>
+        </div>
       </div>
     </div>
 

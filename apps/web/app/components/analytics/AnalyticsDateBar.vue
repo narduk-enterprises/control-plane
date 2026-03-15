@@ -19,9 +19,9 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="flex flex-col gap-2">
-    <div class="flex items-center gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-thin">
-      <div class="flex gap-1 shrink-0">
+  <div class="flex flex-col gap-2 min-w-0">
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="flex gap-1 shrink-0 overflow-x-auto scrollbar-none -mx-1 px-1 pb-0.5">
         <UButton
           v-for="opt in presetOptions"
           :key="opt.value"
@@ -34,8 +34,7 @@ defineEmits<{
           {{ opt.label }}
         </UButton>
       </div>
-      <div class="flex-1" />
-      <div v-if="showRefresh" class="flex items-center gap-2 shrink-0">
+      <div v-if="showRefresh" class="flex items-center gap-2 shrink-0 ml-auto">
         <UButton
           color="neutral"
           variant="ghost"
@@ -47,7 +46,9 @@ defineEmits<{
         >
           Refresh
         </UButton>
-        <span v-if="freshness" class="text-xs text-muted whitespace-nowrap">{{ freshness }}</span>
+        <span v-if="freshness" class="text-xs text-muted whitespace-nowrap hidden sm:inline">{{
+          freshness
+        }}</span>
       </div>
     </div>
 
