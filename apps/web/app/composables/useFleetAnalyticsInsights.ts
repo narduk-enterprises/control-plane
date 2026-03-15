@@ -4,8 +4,6 @@ import type { AnalyticsInsight } from '~/types/analytics'
 // Re-export for consumers
 export type { AnalyticsInsight } from '~/types/analytics'
 
-const CLIENT_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-
 // Module-scope cache for tracking when each key was last fetched
 const fetchTimestamps = new Map<string, number>()
 
@@ -38,11 +36,9 @@ export function useFleetAnalyticsInsights(
     getCachedData(key, nuxtApp) {
       const cached = nuxtApp.payload.data[key] || nuxtApp.static.data[key]
       if (!cached) return
-      const fetchedAt = fetchTimestamps.get(key)
-      if (fetchedAt && Date.now() - fetchedAt < CLIENT_CACHE_TTL) {
-        return cached
-      }
-      // Data is stale — don't return it so useFetch re-fetches
+      // Always return cached data (stale-while-revalidate).
+      // Explicit refresh() bypasses getCachedData, so refresh buttons always re-fetch.
+      return cached
     },
   })
 
