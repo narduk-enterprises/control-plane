@@ -20,8 +20,9 @@ defineEmits<{
 
 <template>
   <div class="flex flex-col gap-2 min-w-0">
+    <!-- Row 1: Preset buttons (scroll horizontally) + Refresh (always visible) -->
     <div class="flex items-center gap-2 min-w-0">
-      <div class="flex gap-1 shrink-0 overflow-x-auto scrollbar-none -mx-1 px-1 pb-0.5">
+      <div class="flex gap-1 overflow-x-auto scrollbar-none -mx-1 px-1 pb-0.5 min-w-0">
         <UButton
           v-for="opt in presetOptions"
           :key="opt.value"
@@ -34,24 +35,23 @@ defineEmits<{
           {{ opt.label }}
         </UButton>
       </div>
-      <div v-if="showRefresh" class="flex items-center gap-2 shrink-0 ml-auto">
+      <div v-if="showRefresh" class="flex items-center gap-2 shrink-0">
         <UButton
           color="neutral"
           variant="ghost"
           icon="i-lucide-refresh-cw"
           size="xs"
-          class="cursor-pointer min-h-[32px]"
+          class="cursor-pointer min-h-[32px] min-w-[44px]"
           :loading="loading"
           @click="$emit('refresh')"
-        >
-          Refresh
-        </UButton>
-        <span v-if="freshness" class="text-xs text-muted whitespace-nowrap hidden sm:inline">{{
-          freshness
-        }}</span>
+        />
+        <span v-if="freshness" class="text-xs text-muted whitespace-nowrap hidden sm:inline">
+          {{ freshness }}
+        </span>
       </div>
     </div>
 
+    <!-- Row 2: Custom date range inputs (only when custom preset active) -->
     <div
       v-if="activePreset === 'custom'"
       class="flex items-center gap-2 bg-elevated/50 p-2 rounded-lg w-fit border border-default"

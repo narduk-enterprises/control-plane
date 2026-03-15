@@ -63,14 +63,21 @@ const configIssues = computed<ConfigIssue[]>(() => {
     }
   }
 
-  // Fleet-wide diagnostic if zero providers have data
-  if (!props.loading && props.apps.length > 0 && appsWithGAData === 0 && appsWithGSCData === 0) {
+  // Fleet-wide diagnostic if zero providers have data AND we've finished loading
+  const hasAnySummaryData = Object.keys(props.summaryMap).length > 0
+  if (
+    !props.loading &&
+    props.apps.length > 0 &&
+    hasAnySummaryData &&
+    appsWithGAData === 0 &&
+    appsWithGSCData === 0
+  ) {
     list.unshift({
       app: 'fleet',
       severity: 'warning',
       provider: 'System',
-      message: `No GA4 or GSC data for any of ${props.apps.length} apps`,
-      action: 'Grant service account Viewer role in GA4 properties, then force refresh',
+      message: `No GA4 or GSC data cached for any of ${props.apps.length} apps`,
+      action: 'Force refresh to populate from providers, or wait for the hourly cron',
     })
   }
 

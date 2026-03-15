@@ -11,7 +11,14 @@ useWebPageSchema({
 })
 
 const { apps: fleetApps, getAppStatus, refreshStatusesRaw } = useFleet()
-const { data: indexnowSummary } = useFleetIndexnowSummary()
+const { data: indexnowSummary, refresh: refreshIndexnowSummary } = useFleetIndexnowSummary()
+
+// Batch IndexNow submit
+const { submitting: indexnowSubmitting, submitAll: submitAllIndexnow } = useBatchIndexnow(fleetApps)
+async function batchSubmitIndexnow() {
+  await submitAllIndexnow()
+  await refreshIndexnowSummary()
+}
 
 const dateState = useAnalyticsDateRange('30d')
 const presetRef = dateState.preset
@@ -201,10 +208,40 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
 
       <AnalyticsFleetBanner :apps="normalizedSummary" :loading="summaryLoading" />
 
-      <p v-if="indexnowSummary" class="mb-4 text-xs text-muted">
-        IndexNow: {{ indexnowSummary.totalSubmissions?.toLocaleString() ?? 0 }} pings,
-        {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{ indexnowSummary.totalFleetSize ?? 0 }} apps
-      </p>
+      <!-- IndexNow Status + Batch Submit -->
+      <div
+        v-if="indexnowSummary"
+        class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-default/50 bg-elevated/30 px-3 py-2"
+      >
+        <div class="flex items-center gap-2 text-sm text-muted">
+          <UIcon name="i-lucide-send" class="size-4 text-primary" />
+          <span>IndexNow:</span>
+          <UBadge
+            variant="subtle"
+            size="sm"
+            :color="(indexnowSummary.appsWithIndexnow ?? 0) > 0 ? 'success' : 'neutral'"
+          >
+            {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{
+              indexnowSummary.totalFleetSize ?? 0
+            }}
+            apps
+          </UBadge>
+          <span class="hidden sm:inline">
+            {{ indexnowSummary.totalSubmissions?.toLocaleString() ?? 0 }} total pings
+          </span>
+        </div>
+        <UButton
+          size="xs"
+          variant="soft"
+          color="primary"
+          icon="i-lucide-send"
+          class="cursor-pointer ml-auto"
+          :loading="indexnowSubmitting"
+          @click="batchSubmitIndexnow"
+        >
+          Submit All
+        </UButton>
+      </div>
 
       <div class="mb-4 flex flex-wrap items-center gap-2">
         <span class="text-sm text-muted">Filter:</span>

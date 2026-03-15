@@ -59,10 +59,10 @@ async function main() {
 
   // Apps that need properties
   const missingApps = [
-    { name: 'ai-media-gen', url: 'https://ai-media-gen.nard.uk' },
-    { name: 'favicon-checker', url: 'https://favicon-checker.nard.uk' },
-    { name: 'control-plane', url: 'https://control-plane.nard.uk' },
-    { name: 'tide-check', url: 'https://tide-check.nard.uk' },
+    { name: 'lucys-loomies', url: 'https://lucysloomies.nard.uk' },
+    { name: 'narduk-ai', url: 'https://narduk-ai.nard.uk' },
+    { name: 'scorchin-tims', url: 'https://scorchin-tims.nard.uk' },
+    { name: 'wan-video-review', url: 'https://review.nard.uk' },
   ]
 
   console.log('\n--- Creating missing properties ---\n')

@@ -231,44 +231,27 @@ const breadcrumbItems = computed(() => [
         Search — {{ appName }}
       </h1>
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 min-w-0">
-        <div
-          class="flex gap-1 overflow-x-auto scrollbar-none rounded-lg border border-default p-1 shadow-xs"
-        >
+        <AnalyticsDateBar
+          :preset-options="presetOptions"
+          :active-preset="preset"
+          :loading="seriesLoading || gscLoading"
+          show-refresh
+          v-model:start-date="startDate"
+          v-model:end-date="endDate"
+          @preset="onPresetChange($event as DatePreset)"
+          @refresh="onForceRefresh"
+        />
+        <NuxtLink :to="`/analytics/${appName}`">
           <UButton
-            v-for="opt in presetOptions"
-            :key="opt.value"
-            size="xs"
-            :color="preset === opt.value ? 'primary' : 'neutral'"
-            :variant="preset === opt.value ? 'solid' : 'outline'"
-            class="cursor-pointer whitespace-nowrap"
-            @click="onPresetChange(opt.value)"
-          >
-            {{ opt.label }}
-          </UButton>
-        </div>
-        <div class="flex items-center gap-2">
-          <UButton
-            size="xs"
             variant="ghost"
-            :icon="seriesLoading || gscLoading ? 'i-lucide-loader-2' : 'i-lucide-refresh-cw'"
-            :class="seriesLoading || gscLoading ? 'animate-spin' : ''"
-            class="cursor-pointer text-muted hover:text-default"
-            @click="onForceRefresh"
+            color="neutral"
+            size="xs"
+            icon="i-lucide-arrow-left"
+            class="cursor-pointer"
           >
-            Refresh
+            App overview
           </UButton>
-          <NuxtLink :to="`/analytics/${appName}`">
-            <UButton
-              variant="ghost"
-              color="neutral"
-              size="xs"
-              icon="i-lucide-arrow-left"
-              class="cursor-pointer"
-            >
-              App overview
-            </UButton>
-          </NuxtLink>
-        </div>
+        </NuxtLink>
       </div>
     </div>
 
