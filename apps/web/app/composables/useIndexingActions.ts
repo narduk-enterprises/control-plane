@@ -1,42 +1,59 @@
+/**
+ * Composable for Google Indexing API publish action.
+ * Uses $fetch for one-shot POST mutations — not useFetch.
+ */
 export function useIndexingPublish() {
-  const publishBody = ref<{ url: string; type?: string }>({ url: '', type: 'URL_UPDATED' })
-  const { data, error, pending, refresh } = useFetch('/api/fleet/indexing/publish', {
-    method: 'POST',
-    body: publishBody,
-    immediate: false,
-    server: false,
-    watch: false,
-  })
+  const data = ref<unknown>(null)
+  const error = ref<Error | null>(null)
+  const loading = ref(false)
+
   async function submitUrl(url: string, type = 'URL_UPDATED') {
-    publishBody.value = { url, type }
-    await nextTick()
-    await refresh()
-    return data.value
+    loading.value = true
+    error.value = null
+    try {
+      const result = await $fetch('/api/fleet/indexing/publish', {
+        method: 'POST',
+        body: { url, type },
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
+      data.value = result
+      return result
+    } catch (err) {
+      error.value = err as Error
+      return null
+    } finally {
+      loading.value = false
+    }
   }
-  return { data, error, loading: pending, submitUrl }
+
+  return { data, error, loading, submitUrl }
 }
 
+/**
+ * Composable for Google Indexing API URL status check.
+ * Uses $fetch for one-shot GET queries — not useFetch.
+ */
 export function useIndexingStatus() {
-  const statusUrl = ref('')
+  const data = ref<unknown>(null)
+  const error = ref<Error | null>(null)
+  const loading = ref(false)
 
-  const query = computed(() => {
-    if (!statusUrl.value) return {}
-    return { url: statusUrl.value }
-  })
-
-  const { data, error, pending, refresh } = useFetch('/api/fleet/indexing/status', {
-    query,
-    immediate: false,
-    server: false,
-    watch: false,
-  })
-
-  async function checkStatus(inputUrl: string) {
-    statusUrl.value = inputUrl
-    await nextTick()
-    await refresh()
-    return data.value
+  async function checkStatus(url: string) {
+    loading.value = true
+    error.value = null
+    try {
+      const result = await $fetch('/api/fleet/indexing/status', {
+        query: { url },
+      })
+      data.value = result
+      return result
+    } catch (err) {
+      error.value = err as Error
+      return null
+    } finally {
+      loading.value = false
+    }
   }
 
-  return { data, error, loading: pending, checkStatus }
+  return { data, error, loading, checkStatus }
 }

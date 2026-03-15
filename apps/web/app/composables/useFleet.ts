@@ -1,4 +1,10 @@
-import type { FleetAppStatusRecord } from '~/types/fleet'
+/**
+ * Thin facade composable that composes useFleetApps, useFleetStatuses,
+ * and useFleetAdmin. Preserves the existing public API so existing consumers
+ * don't break, while the real logic lives in focused composables.
+ *
+ * New code should import the focused composables directly instead of this.
+ */
 
 export interface FleetApp {
   name: string
@@ -16,30 +22,32 @@ export interface FleetApp {
 type PosthogSummaryMap = Record<string, { eventCount: number; users: number }>
 
 export function useFleet(options?: { includeInactive?: boolean }) {
-  const appsForce = ref(false)
-  const appsQuery = computed(() => ({
-    ...(options?.includeInactive ? { includeInactive: 'true' } : {}),
-    ...(appsForce.value ? { force: 'true' } : {}),
-  }))
   const {
-    data: rawApps,
+    apps,
+    rawApps,
     refresh: refreshApps,
+    forceRefresh: forceRefreshApps,
     status: appsStatus,
-  } = useFetch<FleetApp[]>('/api/fleet/apps', {
-    query: appsQuery,
-    default: () => [],
-  })
-
+  } = useFleetApps(options)
   const {
-    data: rawStatuses,
-    refresh: refreshStatusesRaw,
+    rawStatuses,
+    statusMap,
+    getAppStatus,
+    refreshRaw: refreshStatusesRaw,
+    refreshAll: refreshStatuses,
+    refreshApp: refreshAppStatus,
+    isAppRefreshing,
+    isRefreshing: isRefreshingStatus,
     status: statusesStatus,
-  } = useFetch<FleetAppStatusRecord[]>('/api/fleet/status', {
-    default: () => [],
-    lazy: true,
-    server: false,
-  })
+  } = useFleetStatuses()
+  const {
+    addApp: adminAddApp,
+    editApp: adminEditApp,
+    toggleApp: adminToggleApp,
+    deleteApp: adminDeleteApp,
+  } = useFleetAdmin()
 
+  // PostHog summary — kept here since it's only used by the dashboard facade
   const posthogForce = ref(false)
   const {
     data: rawPosthog,
@@ -52,69 +60,12 @@ export function useFleet(options?: { includeInactive?: boolean }) {
     lazy: true,
   })
 
-  // 2. Transformed & Sorted Data Maps
-  const apps = computed(() => {
-    return [...(rawApps.value ?? [])].sort((a, b) => a.name.localeCompare(b.name))
-  })
-
-  const statusMap = computed(() => {
-    const map = new Map<string, FleetAppStatusRecord>()
-    for (const s of rawStatuses.value) map.set(s.app, s)
-    return map
-  })
-
-  // 3. Status Utilities
-  function getAppStatus(appName: string): FleetAppStatusRecord | undefined {
-    return statusMap.value.get(appName)
-  }
-
-  const isRefreshingStatus = ref(false)
-  async function refreshStatuses() {
-    isRefreshingStatus.value = true
-    try {
-      await $fetch('/api/fleet/status/refresh', {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      })
-      await refreshStatusesRaw()
-    } finally {
-      isRefreshingStatus.value = false
-    }
-  }
-
-  const refreshingSpecificApps = ref(new Set<string>())
-  async function refreshAppStatus(appName: string) {
-    refreshingSpecificApps.value.add(appName)
-    try {
-      await $fetch(`/api/fleet/status/${encodeURIComponent(appName)}/refresh`, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      })
-      await refreshStatusesRaw()
-    } finally {
-      refreshingSpecificApps.value.delete(appName)
-    }
-  }
-  function isAppRefreshing(appName: string): boolean {
-    return refreshingSpecificApps.value.has(appName)
-  }
-
-  // 4. Force refresh all data (busts D1 caches)
-  async function forceRefreshApps() {
-    appsForce.value = true
-    await refreshApps()
-    appsForce.value = false
-  }
-
   async function forceRefreshAll() {
-    appsForce.value = true
     posthogForce.value = true
-    await Promise.all([refreshApps(), refreshStatusesRaw(), refreshPosthog()])
-    appsForce.value = false
+    await Promise.all([forceRefreshApps(), refreshStatusesRaw(), refreshPosthog()])
     posthogForce.value = false
   }
 
-  // 5. Global Load State
   const isLoading = computed(() => {
     return (
       appsStatus.value === 'pending' ||
@@ -122,38 +73,6 @@ export function useFleet(options?: { includeInactive?: boolean }) {
       posthogStatus.value === 'pending'
     )
   })
-
-  // 6. Admin Mutations
-  async function adminAddApp(body: Record<string, unknown>) {
-    return $fetch('/api/fleet/apps', {
-      method: 'POST',
-      body,
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-  }
-
-  async function adminToggleApp(appName: string, isActive: boolean) {
-    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}`, {
-      method: 'PUT',
-      body: { isActive },
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-  }
-
-  async function adminEditApp(appName: string, body: Record<string, unknown>) {
-    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}`, {
-      method: 'PUT',
-      body,
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-  }
-
-  async function adminDeleteApp(appName: string, hard: boolean = true) {
-    return $fetch(`/api/fleet/apps/${encodeURIComponent(appName)}${hard ? '?hard=true' : ''}`, {
-      method: 'DELETE',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-  }
 
   return {
     apps,

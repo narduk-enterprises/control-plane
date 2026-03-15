@@ -82,7 +82,7 @@ export default defineEventHandler(async (event) => {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({ query: { kind: 'HogQLQuery', query: hogqlQuery } }),
-          signal: AbortSignal.timeout(25_000),
+          signal: AbortSignal.timeout(8_000),
         })
 
         if (!res.ok) {
@@ -127,10 +127,8 @@ export default defineEventHandler(async (event) => {
       } catch (err: unknown) {
         const e = err as { message?: string }
         console.error('[PostHog Summary] Error:', e.message)
-        throw createError({
-          statusCode: 500,
-          message: `PostHog summary error: ${e.message ?? 'Unknown'}`,
-        })
+        // Return empty data instead of 500 — dashboard renders gracefully without PostHog stats
+        return {}
       }
     },
     queryParams.force === 'true',

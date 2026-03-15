@@ -86,6 +86,7 @@ export default defineEventHandler((event) => {
       "img-src 'self' data: https:",
       "font-src 'self' https://fonts.gstatic.com",
       finalConnectSrc,
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
     ].join('; '),
     ...diagnosticHeaders,

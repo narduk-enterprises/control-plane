@@ -27,6 +27,10 @@ export default defineNuxtConfig({
       password:
         process.env.NUXT_SESSION_PASSWORD ||
         (import.meta.dev ? 'control-plane-dev-session-secret-min-32-chars' : ''),
+      cookie: {
+        // Secure=true requires HTTPS; disable in dev so localhost HTTP sessions work
+        secure: !import.meta.dev,
+      },
     },
     cronSecret: process.env.CRON_SECRET || '',
     githubToken: process.env.GITHUB_TOKEN || '',

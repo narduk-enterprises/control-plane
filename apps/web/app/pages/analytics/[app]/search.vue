@@ -62,8 +62,11 @@ watch(dimension, () => {
 
 async function onForceRefresh() {
   force.value = true
-  await loadAll()
-  force.value = false
+  try {
+    await loadAll()
+  } finally {
+    force.value = false
+  }
 }
 
 function onPresetChange(p: string) {
@@ -210,16 +213,6 @@ const dimensions: { value: GscDimension; label: string }[] = [
 ]
 
 const gscInspection = computed(() => gscData.value?.inspection ?? null)
-const formattedLastCrawlTime = computed(() => {
-  const t = gscInspection.value?.indexStatusResult?.lastCrawlTime
-  if (!t) return null
-  try {
-    return new Date(t).toLocaleString()
-  } catch {
-    return t
-  }
-})
-const formattedCrawledAs = computed(() => gscInspection.value?.indexStatusResult?.crawledAs ?? null)
 
 const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
@@ -346,41 +339,6 @@ const breadcrumbItems = computed(() => [
     </UCard>
 
     <!-- URL Inspection -->
-    <UCard v-if="gscInspection?.indexStatusResult">
-      <template #header>
-        <div class="flex items-center gap-2">
-          <UIcon
-            :name="
-              gscInspection.indexStatusResult.verdict === 'PASS'
-                ? 'i-lucide-check-circle'
-                : 'i-lucide-alert-circle'
-            "
-            :class="
-              gscInspection.indexStatusResult.verdict === 'PASS' ? 'text-success' : 'text-warning'
-            "
-            class="size-5"
-          />
-          <h3 class="text-sm font-medium text-default">URL Inspection</h3>
-        </div>
-      </template>
-      <p class="text-sm text-muted">
-        {{ gscInspection.indexStatusResult.coverageState ?? 'Unknown coverage state' }}
-      </p>
-      <div class="mt-2 flex flex-wrap gap-4 text-xs text-muted">
-        <span v-if="formattedLastCrawlTime">Last crawled: {{ formattedLastCrawlTime }}</span>
-        <span v-if="formattedCrawledAs">Agent: {{ formattedCrawledAs }}</span>
-      </div>
-      <UButton
-        v-if="gscInspection.inspectionResultLink"
-        :to="gscInspection.inspectionResultLink"
-        target="_blank"
-        variant="outline"
-        size="sm"
-        class="mt-3 cursor-pointer"
-        icon="i-lucide-external-link"
-      >
-        View in GSC
-      </UButton>
-    </UCard>
+    <AnalyticsGscInspection v-if="gscInspection?.indexStatusResult" :inspection="gscInspection" />
   </div>
 </template>

@@ -91,9 +91,11 @@ const freshness = computed(() => {
 async function loadAll(force = false) {
   if (is1hRef.value) return
   forceFlag.value = force
-  await nextTick()
-  await Promise.all([loadSummary(), loadInsights()])
-  if (force) forceFlag.value = false
+  try {
+    await Promise.all([loadSummary(), loadInsights()])
+  } finally {
+    if (force) forceFlag.value = false
+  }
 }
 
 async function refreshAll() {

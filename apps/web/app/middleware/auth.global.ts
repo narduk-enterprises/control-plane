@@ -10,9 +10,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Check session via the layer's /api/auth/me endpoint.
   // me.get.ts returns { user: null } with 200 OK when unauthenticated,
   // so we must check the response body — not just catch network errors.
+  // AbortSignal.timeout prevents stalling on cold-start D1 latency.
   try {
     const data = await $fetch<{ user: unknown }>('/api/auth/me', {
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      signal: AbortSignal.timeout(5_000),
     })
     if (!data?.user) {
       return navigateTo('/login')

@@ -1,5 +1,6 @@
 /**
  * Composable for managing API keys (CRUD operations).
+ * Uses useFetch for list, $fetch for mutations.
  */
 export interface ApiKeyItem {
   id: string
@@ -11,19 +12,17 @@ export interface ApiKeyItem {
 }
 
 export function useApiKeys() {
-  const keys = ref<ApiKeyItem[]>([])
-  const loading = ref(false)
+  const {
+    data: keys,
+    status,
+    refresh,
+  } = useFetch<ApiKeyItem[]>('/api/auth/api-keys', {
+    default: () => [],
+    lazy: true,
+    server: false,
+  })
 
-  async function fetchKeys() {
-    loading.value = true
-    try {
-      keys.value = await $fetch<ApiKeyItem[]>('/api/auth/api-keys')
-    } catch {
-      /* ignore */
-    } finally {
-      loading.value = false
-    }
-  }
+  const loading = computed(() => status.value === 'pending')
 
   async function createKey(name: string) {
     const result = await $fetch<{ rawKey: string }>('/api/auth/api-keys', {
@@ -31,7 +30,7 @@ export function useApiKeys() {
       body: { name },
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
     })
-    await fetchKeys()
+    await refresh()
     return result.rawKey
   }
 
@@ -40,8 +39,8 @@ export function useApiKeys() {
       method: 'DELETE',
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
     })
-    await fetchKeys()
+    await refresh()
   }
 
-  return { keys, loading, fetchKeys, createKey, deleteKey }
+  return { keys, loading, fetchKeys: refresh, createKey, deleteKey }
 }

@@ -118,8 +118,10 @@ export async function withD1Cache<T>(
         if (withinStale) {
           log.debug(`Cache STALE ${cacheKey}`)
           const parsed = JSON.parse(row.value) as T
-          // Background refresh (fire-and-forget)
-          void Promise.resolve()
+          // Background refresh — use waitUntil on Cloudflare Workers so it
+          // doesn't share CPU budget with the current request. Falls back to
+          // fire-and-forget for dev / non-CF environments.
+          const bgRefresh = Promise.resolve()
             .then(() => fetcher())
             .then((fresh) => {
               if (d1 && fresh !== undefined) {
@@ -130,6 +132,13 @@ export async function withD1Cache<T>(
             .catch((err) =>
               log.error(`Background refresh failed ${cacheKey}`, { error: String(err) }),
             )
+          const cfCtx = event.context.cloudflare?.context
+          const waitUntil = cfCtx?.waitUntil
+          if (typeof waitUntil === 'function') {
+            waitUntil.call(cfCtx, bgRefresh)
+          } else {
+            void bgRefresh
+          }
           return wrap(parsed, true)
         }
       }
