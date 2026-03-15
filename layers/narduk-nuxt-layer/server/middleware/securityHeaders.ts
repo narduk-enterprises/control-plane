@@ -34,6 +34,7 @@ export default defineEventHandler((event) => {
     'https://us-assets.i.posthog.com',
     'https://*.apple-mapkit.com',
     'https://*.apple.com',
+    'https://api.iconify.design',
   ]
 
   // 2. Add dev-only connections

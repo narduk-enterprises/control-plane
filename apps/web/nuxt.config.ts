@@ -15,6 +15,10 @@ export default defineNuxtConfig({
   // 3.3 MB wasm for OG images) and render Vue components on every first request.
   ssr: false,
 
+  // OG image generation requires SSR — disable to prevent typecheck errors
+  // (defineOgImage auto-import is not registered when SSR is off).
+  ogImage: { enabled: false },
+
   // nitro-cloudflare-dev proxies D1 bindings to the local dev server
   modules: ['nitro-cloudflare-dev'],
 
