@@ -9,6 +9,12 @@ export default defineNuxtConfig({
   // Extend the published Narduk Nuxt Layer
   extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],
 
+  // Disable SSR — this is an auth-gated admin dashboard with zero public pages.
+  // SSR was the primary cause of "Worker exceeded resource limits" (Error 1102)
+  // because cold-start SSR had to parse 7.9 MB of server bundles (including
+  // 3.3 MB wasm for OG images) and render Vue components on every first request.
+  ssr: false,
+
   // nitro-cloudflare-dev proxies D1 bindings to the local dev server
   modules: ['nitro-cloudflare-dev'],
 

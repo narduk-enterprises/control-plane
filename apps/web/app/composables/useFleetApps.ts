@@ -18,8 +18,6 @@ export function useFleetApps(options?: { includeInactive?: boolean }) {
   } = useFetch<FleetApp[]>('/api/fleet/apps', {
     query,
     default: () => [],
-    server: false,
-    lazy: true,
   })
 
   const apps = computed(() => {
