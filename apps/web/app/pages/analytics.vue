@@ -221,9 +221,7 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
             size="sm"
             :color="(indexnowSummary.appsWithIndexnow ?? 0) > 0 ? 'success' : 'neutral'"
           >
-            {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{
-              indexnowSummary.totalFleetSize ?? 0
-            }}
+            {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{ indexnowSummary.totalFleetSize ?? 0 }}
             apps
           </UBadge>
           <span class="hidden sm:inline">
