@@ -31,7 +31,7 @@ export function useFleetAnalyticsInsights(
     endDate: string
   }>('/api/fleet/analytics/insights', {
     query,
-    key: fetchKey.value,
+    key: fetchKey,
     lazy: true,
     server: false,
     watch: false,
@@ -42,7 +42,7 @@ export function useFleetAnalyticsInsights(
       if (fetchedAt && Date.now() - fetchedAt < CLIENT_CACHE_TTL) {
         return cached
       }
-      return cached
+      // Data is stale — don't return it so useFetch re-fetches
     },
   })
 

@@ -66,21 +66,18 @@ export function useFleetAnalyticsSummary(
     | { data: FleetAnalyticsSummaryResponse; _meta: FleetAnalyticsSummaryMeta }
   >('/api/fleet/analytics/summary', {
     query,
-    key: fetchKey.value,
+    key: fetchKey,
     lazy: true,
     server: false,
     watch: false,
-    // Stale-while-revalidate: show cached data instantly, refetch in background
     getCachedData(key, nuxtApp) {
       const cached = nuxtApp.payload.data[key] || nuxtApp.static.data[key]
       if (!cached) return
-      // Check if cached data is still fresh (within TTL)
       const fetchedAt = fetchTimestamps.get(key)
       if (fetchedAt && Date.now() - fetchedAt < CLIENT_CACHE_TTL) {
         return cached
       }
-      // Return stale data (will trigger background refetch)
-      return cached
+      // Data is stale — don't return it so useFetch re-fetches
     },
   })
 
