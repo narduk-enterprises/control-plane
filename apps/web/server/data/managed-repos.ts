@@ -37,6 +37,18 @@ export const MANAGED_REPOS = [
     isActive: true,
   },
   {
+    name: 'bluebonnet-status-online',
+    githubRepo: 'narduk-enterprises/bluebonnet-status-online',
+    dopplerProject: 'bluebonnet-status',
+    publicUrl: 'https://bluebonnetstatus.online',
+    gaPropertyId: null,
+    gaMeasurementId: null,
+    posthogAppName: null,
+    syncManaged: true,
+    monitoringEnabled: true,
+    isActive: true,
+  },
+  {
     name: 'circuit-breaker-online',
     githubRepo: 'narduk-enterprises/circuit-breaker-online',
     dopplerProject: 'circuit-breaker-online',
