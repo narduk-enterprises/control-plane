@@ -9,7 +9,8 @@
  *
  * Skipped for:
  * - Non-mutating methods (GET, HEAD, OPTIONS)
- * - Webhook/external callback routes (`/api/webhooks/`, `/api/cron/`)
+ * - Webhook/external callback routes (`/api/webhooks/`, `/api/cron/`, `/api/callbacks/`)
+ * - Provision pipeline callbacks (`/api/fleet/provision/`) — server-to-server, API key auth
  * - Health check endpoints
  */
 export default defineEventHandler((event) => {
@@ -18,13 +19,14 @@ export default defineEventHandler((event) => {
   // Only protect state-changing methods
   if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return
 
-  // Skip CSRF for routes that receive external POSTs (webhooks, cron, callbacks)
-  // and for internal Nuxt Content query API (SSR has no browser header)
+  // Skip CSRF for routes that receive external POSTs (webhooks, cron, callbacks,
+  // provision pipeline) and for internal Nuxt Content query API (SSR has no browser header)
   const path = event.path
   if (
     path.startsWith('/api/webhooks/') ||
     path.startsWith('/api/cron/') ||
     path.startsWith('/api/callbacks/') ||
+    path.startsWith('/api/fleet/provision/') ||
     path.startsWith('/api/_auth/') ||
     path.startsWith('/__nuxt_content/')
   ) {
