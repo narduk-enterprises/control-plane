@@ -112,8 +112,8 @@ NOT run workspace-root quality — layer warnings are not your concern.
 
 Once the app is built and functional, follow the `/generate-brand-identity`
 workflow (`.agents/workflows/generate-brand-identity.md`) end-to-end. You are
-the creative director — analyze the app, make all creative decisions, and execute
-the full pipeline.
+the creative director — analyze the app, make all creative decisions, and
+execute the full pipeline.
 
 ### MANDATORY: Remove ALL Template Branding
 

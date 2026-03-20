@@ -11,13 +11,7 @@ useWebPageSchema({
   description: 'Provision a new fleet app.',
 })
 
-const {
-  jobs,
-  activeJobs,
-  refreshJobs,
-  isProvisioning,
-  provisionApp,
-} = useFleetProvision()
+const { jobs, activeJobs, refreshJobs, isProvisioning, provisionApp } = useFleetProvision()
 
 const toast = useToast()
 
@@ -101,7 +95,6 @@ function statusProgress(status: string): number {
   return Math.round((idx / (statusSteps.length - 1)) * 100)
 }
 
-
 function formatTime(iso: string): string {
   try {
     return new Date(iso).toLocaleString()
@@ -170,7 +163,8 @@ const breadcrumbItems = computed(() => [
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">Provision App</h1>
         <p class="mt-1 text-sm text-muted">
-          Create a new fleet app from the template — GitHub repo, D1, Doppler, analytics, and first deploy.
+          Create a new fleet app from the template — GitHub repo, D1, Doppler, analytics, and first
+          deploy.
         </p>
       </div>
       <UButton
@@ -223,7 +217,8 @@ const breadcrumbItems = computed(() => [
       <template #footer>
         <div class="flex items-center justify-between">
           <p class="text-xs text-muted">
-            This creates a GitHub repo, D1 database, Doppler project, GA4 property, and deploys the template.
+            This creates a GitHub repo, D1 database, Doppler project, GA4 property, and deploys the
+            template.
           </p>
           <UButton
             icon="i-lucide-rocket"
@@ -242,7 +237,9 @@ const breadcrumbItems = computed(() => [
     <div v-if="activeJobs.length > 0" class="mb-6">
       <h2 class="mb-3 font-semibold text-default flex items-center gap-2">
         <span class="relative flex size-3">
-          <span class="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+          <span
+            class="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75"
+          />
           <span class="relative inline-flex size-3 rounded-full bg-primary" />
         </span>
         Active ({{ activeJobs.length }})
@@ -272,7 +269,8 @@ const breadcrumbItems = computed(() => [
             </div>
             <p class="text-xs text-muted">
               <ClientOnly>
-                Started {{ relativeTime(job.createdAt) }} · Updated {{ relativeTime(job.updatedAt) }}
+                Started {{ relativeTime(job.createdAt) }} · Updated
+                {{ relativeTime(job.updatedAt) }}
                 <template #fallback><span class="opacity-0">loading</span></template>
               </ClientOnly>
             </p>
