@@ -7,12 +7,20 @@ export interface AdminSystemPrompt {
   updatedAt: string
 }
 
+interface ModelResponse {
+  currentModel: string
+}
+
+interface UpdateResponse {
+  ok: boolean
+}
+
 export function useAdminAi() {
   const toast = useToast()
 
   // ─── Current Model Tracking ─────────────────────────────────
   const { data: modelData, refresh: refreshModel } = useAsyncData('layer-admin-ai-model', () =>
-    $fetch<{ currentModel: string }>('/api/admin/ai/model'),
+    $fetch<ModelResponse>('/api/admin/ai/model'),
   )
 
   const currentModel = computed(() => modelData.value?.currentModel || 'grok-3-mini')
@@ -22,16 +30,17 @@ export function useAdminAi() {
     if (!newModel) return
     isUpdatingModel.value = true
     try {
-      await $fetch<any>('/api/admin/ai/model', {
+      await $fetch<UpdateResponse>('/api/admin/ai/model', {
         method: 'PUT',
         body: { model: newModel },
       })
       toast.add({ title: 'AI Model updated', color: 'success' })
       await refreshModel()
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error'
       toast.add({
         title: 'Failed to update AI model',
-        description: e.data?.message || e.message,
+        description: message,
         color: 'error',
       })
     } finally {
@@ -54,16 +63,17 @@ export function useAdminAi() {
     if (!name || !content) return
     isUpdatingPrompt.value = name
     try {
-      await $fetch<any>('/api/admin/system-prompts', {
+      await $fetch<UpdateResponse>('/api/admin/system-prompts', {
         method: 'PUT',
         body: { name, content },
       })
       toast.add({ title: `Prompt updated`, description: name, color: 'success' })
       await refreshPrompts()
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error'
       toast.add({
         title: 'Failed to update prompt',
-        description: e.data?.message || e.message,
+        description: message,
         color: 'error',
       })
     } finally {

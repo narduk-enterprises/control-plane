@@ -24,6 +24,8 @@ export interface LightboxItem {
   caption?: string
 }
 
+defineOptions({ inheritAttrs: false })
+
 const modelValue = defineModel<boolean>({ default: false })
 
 const props = withDefaults(

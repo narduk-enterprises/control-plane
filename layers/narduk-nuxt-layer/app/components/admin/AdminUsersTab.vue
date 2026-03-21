@@ -2,10 +2,15 @@
 const perPage = 20
 const page = ref(1)
 
+interface UsersResponse {
+  users: Array<{ id: string; name: string | null; email: string; isAdmin: boolean; createdAt: string }>
+  total: number
+}
+
 // Fetch from the layer's generic /api/admin/users endpoint
 const { data: usersData, refresh: refreshUsers } = useAsyncData(
   'layer-admin-users',
-  () => $fetch<any>('/api/admin/users', { query: { page: page.value, limit: perPage } }),
+  () => useAppFetch<UsersResponse>('/api/admin/users', { query: { page: page.value, limit: perPage } }),
   {
     watch: [page],
     default: () => ({ users: [], total: 0 }),
@@ -30,21 +35,38 @@ const toast = useToast()
 async function toggleAdmin(userId: string, currentIsAdmin: boolean) {
   activeAction.value = `admin-role:${userId}`
   try {
-    await $fetch<any>('/api/admin/users/role', {
+    await useAppFetch<{ ok: boolean }>('/api/admin/users/role', {
       method: 'PUT',
       body: { userId, isAdmin: !currentIsAdmin },
     })
     toast.add({ title: 'Success', description: 'User role updated', color: 'success' })
     await refreshUsers()
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
     toast.add({
-      title: 'Error updating role', 
-      description: err.data?.message || err.message, 
-      color: 'error' 
+      title: 'Error updating role',
+      description: message,
+      color: 'error',
     })
   } finally {
     activeAction.value = null
   }
+}
+
+function formatJoinDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString()
+}
+
+function pageRangeStart() {
+  return (page.value - 1) * perPage + 1
+}
+
+function pageRangeEnd() {
+  return Math.min(page.value * perPage, total.value)
+}
+
+function handleToggleAdmin(user: { id: string; isAdmin: boolean }) {
+  toggleAdmin(user.id, user.isAdmin ?? false)
 }
 </script>
 
@@ -61,7 +83,7 @@ async function toggleAdmin(userId: string, currentIsAdmin: boolean) {
           </div>
           <div class="flex flex-wrap items-center justify-between gap-2">
             <p class="text-sm text-muted">
-              Showing {{ (page - 1) * perPage + 1 }}-{{ Math.min(page * perPage, total) }} of
+              Showing {{ pageRangeStart() }}-{{ pageRangeEnd() }} of
               {{ total }}
             </p>
             <div class="flex items-center gap-2">
@@ -105,7 +127,7 @@ async function toggleAdmin(userId: string, currentIsAdmin: boolean) {
                 <div>
                   <p class="font-semibold text-default">{{ adminUser.name || adminUser.email }}</p>
                   <p class="text-sm text-muted">
-                    {{ adminUser.email }} • Joined {{ new Date(adminUser.createdAt).toLocaleDateString() }}
+                    {{ adminUser.email }} • Joined {{ formatJoinDate(adminUser.createdAt) }}
                   </p>
                 </div>
               </div>
@@ -115,7 +137,7 @@ async function toggleAdmin(userId: string, currentIsAdmin: boolean) {
                 variant="soft"
                 :icon="adminUser.isAdmin ? 'i-lucide-shield-off' : 'i-lucide-shield-check'"
                 :loading="activeAction === `admin-role:${adminUser.id}`"
-                @click="toggleAdmin(adminUser.id, adminUser.isAdmin ?? false)"
+                @click="handleToggleAdmin(adminUser)"
               >
                 {{ adminUser.isAdmin ? 'Remove admin' : 'Make admin' }}
               </UButton>

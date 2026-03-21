@@ -19,7 +19,7 @@
 
 const modelValue = defineModel<boolean>({ default: false })
 
-const props = withDefaults(
+const _props = withDefaults(
   defineProps<{
     /** Modal title. */
     title?: string

@@ -77,7 +77,7 @@ export function createUniqueEmail(prefix = 'e2e') {
 // so they use the browser's cookie jar (session cookies).
 
 /** CSRF headers required by the layer's CSRF middleware. */
-const CSRF_HEADERS = {
+const _CSRF_HEADERS = {
   'Content-Type': 'application/json',
   'X-Requested-With': 'XMLHttpRequest',
 } as const

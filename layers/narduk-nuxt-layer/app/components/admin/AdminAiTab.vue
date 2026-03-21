@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const props = withDefaults(defineProps<{
+const _props = withDefaults(defineProps<{
   /** List of chat models available to the active provider (e.g. xAI) */
   availableModels?: string[]
 }>(), {
@@ -42,6 +42,20 @@ function resetPrompt(name: string) {
     editingPrompts.value[name] = original.content
   }
 }
+
+const isModelUpdating = computed(() => adminAi.isUpdatingModel.value)
+
+function formatUpdatedAt(dateStr: string) {
+  return new Date(dateStr).toLocaleString()
+}
+
+function handleModelChange(event: string | number) {
+  adminAi.updateActiveModel(String(event))
+}
+
+function handleSavePrompt(name: string) {
+  adminAi.updateSystemPrompt(name, editingPrompts.value[name] ?? '')
+}
 </script>
 
 <template>
@@ -64,23 +78,23 @@ function resetPrompt(name: string) {
         <!-- Feature Flags Injection Slot -->
         <slot name="feature-flags" />
         
-        <UFormGroup label="Active Chat Model" class="max-w-md">
+        <UFormField label="Active Chat Model" class="max-w-md">
           <div class="flex gap-2">
             <USelectMenu
               :model-value="adminAi.currentModel.value"
               :options="availableModels"
               class="flex-1 w-full"
-              @update:model-value="adminAi.updateActiveModel(String($event))"
+              @update:model-value="handleModelChange"
             />
             <UButton
-              v-if="adminAi.isUpdatingModel.value"
+              v-if="isModelUpdating"
               color="neutral"
               variant="outline"
               loading
               disabled
             />
           </div>
-        </UFormGroup>
+        </UFormField>
       </div>
     </UCard>
 
@@ -132,7 +146,7 @@ function resetPrompt(name: string) {
                 color="primary"
                 :disabled="!isPromptChanged(prompt.name)"
                 :loading="adminAi.isUpdatingPrompt.value === prompt.name"
-                @click="adminAi.updateSystemPrompt(prompt.name, editingPrompts[prompt.name] ?? '')"
+                @click="handleSavePrompt(prompt.name)"
               >
                 Save Changes
               </UButton>
@@ -146,7 +160,7 @@ function resetPrompt(name: string) {
             class="w-full font-mono text-sm"
           />
           <p class="text-xs text-muted text-right">
-            Last updated: {{ new Date(prompt.updatedAt).toLocaleString() }}
+            Last updated: {{ formatUpdatedAt(prompt.updatedAt) }}
           </p>
         </div>
       </div>

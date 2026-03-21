@@ -1,4 +1,9 @@
-import { getQuery } from 'h3'
+import { z } from 'zod'
+
+const querySchema = z.object({
+  unreadOnly: z.string().optional(),
+  limit: z.string().optional(),
+})
 
 /**
  * GET /api/notifications
@@ -8,7 +13,12 @@ import { getQuery } from 'h3'
  */
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
-  const query = getQuery(event) as { unreadOnly?: string; limit?: string }
+  const raw = getQuery(event)
+  const parsed = querySchema.safeParse(raw)
+  if (!parsed.success) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid query parameters' })
+  }
+  const query = parsed.data
 
   const unreadOnly = query.unreadOnly === 'true'
   const limit = query.limit ? Math.min(Number.parseInt(query.limit, 10), 100) : 50
