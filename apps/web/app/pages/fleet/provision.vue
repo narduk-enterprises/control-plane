@@ -115,7 +115,7 @@ function relativeTime(iso: string): string {
 
 // ── Copy build command ──
 function copyBuildCommand(job: ProvisionJob) {
-  const repoPath = `~/new-code/${job.appName}`
+  const repoPath = `~/new-code/template-apps/${job.appName}`
   const command = [
     `# Open this app in a new Antigravity window at ${repoPath}`,
     `# Then paste the following prompt:`,
@@ -139,7 +139,7 @@ function copyBuildCommand(job: ProvisionJob) {
 
 // ── Clone command ──
 function copyCloneCommand(job: ProvisionJob) {
-  const cmd = `git clone https://github.com/${job.githubRepo}.git ~/new-code/${job.appName} && cd ~/new-code/${job.appName} && pnpm install`
+  const cmd = `git clone https://github.com/${job.githubRepo}.git ~/new-code/template-apps/${job.appName} && cd ~/new-code/template-apps/${job.appName} && pnpm install`
   navigator.clipboard.writeText(cmd)
   toast.add({
     title: 'Clone command copied',
