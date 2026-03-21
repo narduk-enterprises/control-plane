@@ -48,6 +48,7 @@ export default defineEventHandler(async (event) => {
     headers: {
       Authorization: `Bearer ${config.provisionApiKey}`,
       'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
     },
   })
 
