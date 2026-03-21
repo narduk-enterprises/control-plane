@@ -112,17 +112,13 @@ export function useSeo(options: SeoOptions) {
   // --- Dynamic OG Image ---
   if (ogImage) {
     const componentName = ogImage.component || (type === 'article' ? 'Article' : 'Default')
-    // defineOgImage is only available in SSR builds (provided by nuxt-og-image).
-    // In SPA mode (ssr: false), the composable is not registered, so guard it.
-    if (typeof defineOgImage === 'function') {
-      // Cast needed: OgImage component types aren't populated until the consuming
-      // app runs nuxt prepare, and defineOgImage may not exist when ogImage is disabled.
-      ;(defineOgImage as unknown as (...args: unknown[]) => void)(componentName, {
-        title: ogImage.title || title,
-        description: ogImage.description || description,
-        icon: ogImage.icon || '✨',
-        ...(ogImage.category && { category: ogImage.category }),
-      })
-    }
+    // @ts-expect-error OgImage components are provided by this layer but OgImageComponents
+    // types aren't populated until the consuming app runs nuxt prepare.
+    defineOgImage(componentName, {
+      title: ogImage.title || title,
+      description: ogImage.description || description,
+      icon: ogImage.icon || '✨',
+      ...(ogImage.category && { category: ogImage.category }),
+    })
   }
 }

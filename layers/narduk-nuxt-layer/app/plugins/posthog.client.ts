@@ -43,6 +43,8 @@ export default defineNuxtPlugin(() => {
   if (window.location.hostname.endsWith('.pages.dev')) {
     superProperties.is_internal_user = true
   }
+  const isOwner = document.cookie.includes('narduk_owner=true')
+  superProperties.is_owner = isOwner
   posthog.register(superProperties)
 
   // Capture initial pageview since Nuxt router.afterEach does not fire on SSR hydration
