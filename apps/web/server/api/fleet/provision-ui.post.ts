@@ -41,8 +41,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Call the provision endpoint internally (relative path stays within the Worker)
-  const result = await $fetch('/api/fleet/provision', {
+  // Use event.$fetch to preserve Cloudflare platform bindings (D1, KV, etc.)
+  const result = await event.$fetch('/api/fleet/provision', {
     method: 'POST',
     body: parsed.data,
     headers: {
