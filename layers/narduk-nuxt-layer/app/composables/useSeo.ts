@@ -112,9 +112,9 @@ export function useSeo(options: SeoOptions) {
   // --- Dynamic OG Image ---
   if (ogImage) {
     const componentName = ogImage.component || (type === 'article' ? 'Article' : 'Default')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OgImage component names are
-    // registered at the consuming-app level; the layer can't enumerate them at type-check time.
-    defineOgImage(componentName as any, {
+    // OgImage component names are registered at the consuming-app level;
+    // the layer can't enumerate them at type-check time.
+    defineOgImage(componentName as never, {
       title: ogImage.title || title,
       description: ogImage.description || description,
       icon: ogImage.icon || '✨',
