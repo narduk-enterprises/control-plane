@@ -112,8 +112,6 @@ export function useSeo(options: SeoOptions) {
   // --- Dynamic OG Image ---
   if (ogImage) {
     const componentName = ogImage.component || (type === 'article' ? 'Article' : 'Default')
-    // @ts-expect-error OgImage components are provided by this layer but OgImageComponents
-    // types aren't populated until the consuming app runs nuxt prepare.
     defineOgImage(componentName, {
       title: ogImage.title || title,
       description: ogImage.description || description,

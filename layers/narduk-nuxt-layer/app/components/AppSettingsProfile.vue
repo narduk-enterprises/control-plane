@@ -186,7 +186,9 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
               </UButton>
             </div>
             <p v-if="avatarError" class="text-xs text-error">{{ avatarError }}</p>
-            <p v-else class="text-xs text-dimmed">Square images work best. Max {{ Math.round(maxAvatarSize / 1024 / 1024) }}MB.</p>
+            <p v-else class="text-xs text-dimmed">
+              Square images work best. Max {{ Math.round(maxAvatarSize / 1024 / 1024) }}MB.
+            </p>
             <!-- eslint-disable-next-line narduk/no-native-input -- hidden file input for avatar upload -->
             <input
               ref="fileInputRef"
@@ -210,12 +212,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
         <slot name="extra-fields" />
 
-        <UButton
-          color="primary"
-          icon="i-lucide-save"
-          :loading="saving"
-          @click="handleSave"
-        >
+        <UButton color="primary" icon="i-lucide-save" :loading="saving" @click="handleSave">
           Save changes
         </UButton>
       </div>

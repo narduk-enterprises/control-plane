@@ -84,7 +84,11 @@ async function signOut() {
 
 <template>
   <ClientOnly>
-    <UPopover v-if="loggedIn" v-model:open="isOpen" :content="{ align: 'end', side: 'bottom', sideOffset: 8 }">
+    <UPopover
+      v-if="loggedIn"
+      v-model:open="isOpen"
+      :content="{ align: 'end', side: 'bottom', sideOffset: 8 }"
+    >
       <UButton
         color="neutral"
         variant="ghost"
@@ -105,7 +109,9 @@ async function signOut() {
         >
           {{ initials }}
         </span>
-        <span class="text-sm font-medium text-default hidden sm:inline truncate max-w-32">{{ displayName }}</span>
+        <span class="text-sm font-medium text-default hidden sm:inline truncate max-w-32">{{
+          displayName
+        }}</span>
         <UIcon name="i-lucide-chevron-down" class="size-3 text-dimmed" />
       </UButton>
 
@@ -142,12 +148,7 @@ async function signOut() {
             >
               <UIcon :name="link.icon" class="size-4" />
               <span class="flex-1">{{ link.label }}</span>
-              <UBadge
-                v-if="link.badge"
-                color="primary"
-                variant="soft"
-                size="xs"
-              >
+              <UBadge v-if="link.badge" color="primary" variant="soft" size="xs">
                 {{ link.badge }}
               </UBadge>
             </NuxtLink>

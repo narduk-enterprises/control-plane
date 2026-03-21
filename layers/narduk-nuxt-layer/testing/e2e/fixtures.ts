@@ -119,10 +119,7 @@ export async function loginAsAdmin(page: Page) {
 /**
  * Log in with specific credentials.
  */
-export async function loginViaApi(
-  page: Page,
-  payload: { email: string; password: string },
-) {
+export async function loginViaApi(page: Page, payload: { email: string; password: string }) {
   return page.evaluate(async (body) => {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
@@ -215,10 +212,7 @@ export async function markAllNotificationsReadViaApi(page: Page) {
 /**
  * Update the current user's profile name.
  */
-export async function updateProfileViaApi(
-  page: Page,
-  payload: { name: string },
-) {
+export async function updateProfileViaApi(page: Page, payload: { name: string }) {
   return page.evaluate(async (body) => {
     const response = await fetch('/api/auth/me', {
       method: 'PATCH',
@@ -231,4 +225,3 @@ export async function updateProfileViaApi(
 }
 
 export { expect }
-

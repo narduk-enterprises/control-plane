@@ -58,16 +58,19 @@ export async function notifyIndexNow(
   }
 
   // Derive host from site URL if not provided
-  const host = siteHost || (() => {
-    try {
-      const siteUrl = (config.public as Record<string, unknown>)?.siteUrl as string
-        || process.env.SITE_URL
-        || ''
-      return new URL(siteUrl).host
-    } catch {
-      return ''
-    }
-  })()
+  const host =
+    siteHost ||
+    (() => {
+      try {
+        const siteUrl =
+          ((config.public as Record<string, unknown>)?.siteUrl as string) ||
+          process.env.SITE_URL ||
+          ''
+        return new URL(siteUrl).host
+      } catch {
+        return ''
+      }
+    })()
 
   if (!host) {
     return { success: false, submitted: 0, error: 'Could not determine site host' }

@@ -55,7 +55,9 @@ function downloadImage() {
       />
     </div>
 
-    <div class="relative overflow-hidden rounded-md border border-default bg-elevated/50 aspect-1200/630">
+    <div
+      class="relative overflow-hidden rounded-md border border-default bg-elevated/50 aspect-1200/630"
+    >
       <div v-if="isLoading" class="absolute inset-0 flex items-center justify-center">
         <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-muted" />
       </div>

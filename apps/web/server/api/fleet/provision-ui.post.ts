@@ -41,9 +41,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Proxy to the real provision endpoint with the API key
-  const appUrl = config.public.appUrl || 'https://control-plane.nard.uk'
-  const result = await $fetch(`${appUrl}/api/fleet/provision`, {
+  // Call the provision endpoint internally (relative path stays within the Worker)
+  const result = await $fetch('/api/fleet/provision', {
     method: 'POST',
     body: parsed.data,
     headers: {

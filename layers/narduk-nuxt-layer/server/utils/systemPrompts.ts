@@ -18,11 +18,7 @@ export async function getSystemPrompt(
   defaults: Record<string, AppSystemPromptConfig>,
 ): Promise<string> {
   const db = useDatabase(event)
-  const existing = await db
-    .select()
-    .from(systemPrompts)
-    .where(eq(systemPrompts.name, name))
-    .get()
+  const existing = await db.select().from(systemPrompts).where(eq(systemPrompts.name, name)).get()
 
   if (existing) {
     return existing.content
@@ -62,8 +58,8 @@ export async function getAllSystemPrompts(
     description: string
     updatedAt: string
   }>
-  const existingMap = new Map<string, typeof existingRows[number]>(
-    existingRows.map((r) => [r.name, r])
+  const existingMap = new Map<string, (typeof existingRows)[number]>(
+    existingRows.map((r) => [r.name, r]),
   )
 
   // Check what's missing

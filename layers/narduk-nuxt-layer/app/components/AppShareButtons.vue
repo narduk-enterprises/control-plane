@@ -34,9 +34,7 @@ const props = withDefaults(
 const runtimeConfig = useRuntimeConfig()
 const route = useRoute()
 
-const siteUrl = computed(() =>
-  ((runtimeConfig.public.siteUrl as string) || '').replace(/\/$/, ''),
-)
+const siteUrl = computed(() => ((runtimeConfig.public.siteUrl as string) || '').replace(/\/$/, ''))
 const fullUrl = computed(() => props.url || `${siteUrl.value}${route.path}`)
 const text = computed(() => props.shareText || props.title)
 
@@ -45,8 +43,7 @@ const twitterUrl = computed(
     `https://twitter.com/intent/tweet?text=${encodeURIComponent(text.value)}&url=${encodeURIComponent(fullUrl.value)}`,
 )
 const facebookUrl = computed(
-  () =>
-    `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullUrl.value)}`,
+  () => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullUrl.value)}`,
 )
 
 const copied = ref(false)

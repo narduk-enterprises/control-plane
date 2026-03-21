@@ -11,10 +11,10 @@ const schema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  
+
   const body = await readBody(event)
   const parsed = schema.safeParse(body)
-  
+
   if (!parsed.success) {
     throw createError({
       statusCode: 400,
@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = useDatabase(event)
-  
+
   await db
     .update(systemPrompts)
     .set({

@@ -107,12 +107,7 @@ function kindIcon(notification: AppNotification): string {
       color="error"
       size="lg"
     >
-      <UButton
-        icon="i-lucide-bell"
-        variant="ghost"
-        color="neutral"
-        aria-label="Notifications"
-      />
+      <UButton icon="i-lucide-bell" variant="ghost" color="neutral" aria-label="Notifications" />
     </UChip>
 
     <template #content>
@@ -162,7 +157,9 @@ function kindIcon(notification: AppNotification): string {
               v-for="notification in notifications"
               :key="notification.id"
               class="group px-4 py-3 flex items-start gap-3 transition-colors cursor-pointer"
-              :class="notification.isRead ? 'hover:bg-elevated' : 'bg-primary/5 hover:bg-primary/10'"
+              :class="
+                notification.isRead ? 'hover:bg-elevated' : 'bg-primary/5 hover:bg-primary/10'
+              "
               @click="handleClick(notification)"
             >
               <!-- Icon -->
@@ -182,11 +179,15 @@ function kindIcon(notification: AppNotification): string {
                   {{ notification.title }}
                 </p>
                 <p class="text-xs text-dimmed mt-0.5 line-clamp-2">{{ notification.body }}</p>
-                <p class="text-xs text-toned mt-1">{{ formatRelativeTime(notification.createdAt) }}</p>
+                <p class="text-xs text-toned mt-1">
+                  {{ formatRelativeTime(notification.createdAt) }}
+                </p>
               </div>
 
               <!-- Actions -->
-              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <div
+                class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              >
                 <UButton
                   v-if="!notification.isRead"
                   icon="i-lucide-check"

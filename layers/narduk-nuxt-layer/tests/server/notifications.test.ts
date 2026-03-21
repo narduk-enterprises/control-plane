@@ -169,22 +169,18 @@ describe('notifications', () => {
     it('updates the notification and returns successfully', async () => {
       mockDb = createChainMock([{ id: 'notif-1' }])
 
-      await expect(
-        markNotificationAsRead(event, 'notif-1', 'user-1'),
-      ).resolves.toBeUndefined()
+      await expect(markNotificationAsRead(event, 'notif-1', 'user-1')).resolves.toBeUndefined()
 
       expect(mockDb.update).toHaveBeenCalled()
-      expect(mockDb.set).toHaveBeenCalledWith(
-        expect.objectContaining({ isRead: true }),
-      )
+      expect(mockDb.set).toHaveBeenCalledWith(expect.objectContaining({ isRead: true }))
     })
 
     it('throws 404 when notification not found or not owned', async () => {
       mockDb = createChainMock([]) // empty result
 
-      await expect(
-        markNotificationAsRead(event, 'notif-999', 'user-1'),
-      ).rejects.toThrow('Notification not found.')
+      await expect(markNotificationAsRead(event, 'notif-999', 'user-1')).rejects.toThrow(
+        'Notification not found.',
+      )
     })
   })
 
@@ -195,9 +191,7 @@ describe('notifications', () => {
       await markAllNotificationsAsRead(event, 'user-1')
 
       expect(mockDb.update).toHaveBeenCalled()
-      expect(mockDb.set).toHaveBeenCalledWith(
-        expect.objectContaining({ isRead: true }),
-      )
+      expect(mockDb.set).toHaveBeenCalledWith(expect.objectContaining({ isRead: true }))
       expect(mockDb.where).toHaveBeenCalled()
     })
   })
@@ -206,9 +200,7 @@ describe('notifications', () => {
     it('deletes the notification and returns successfully', async () => {
       mockDb = createChainMock([{ id: 'notif-1' }])
 
-      await expect(
-        deleteNotification(event, 'notif-1', 'user-1'),
-      ).resolves.toBeUndefined()
+      await expect(deleteNotification(event, 'notif-1', 'user-1')).resolves.toBeUndefined()
 
       expect(mockDb.delete).toHaveBeenCalled()
     })
@@ -216,9 +208,9 @@ describe('notifications', () => {
     it('throws 404 when notification not found or not owned', async () => {
       mockDb = createChainMock([])
 
-      await expect(
-        deleteNotification(event, 'notif-999', 'user-1'),
-      ).rejects.toThrow('Notification not found.')
+      await expect(deleteNotification(event, 'notif-999', 'user-1')).rejects.toThrow(
+        'Notification not found.',
+      )
     })
   })
 })

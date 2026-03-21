@@ -1,16 +1,19 @@
 <script setup lang="ts">
-const _props = withDefaults(defineProps<{
-  /** List of chat models available to the active provider (e.g. xAI) */
-  availableModels?: string[]
-}>(), {
-  availableModels: () => [
-    'grok-4-1-fast-non-reasoning',
-    'grok-3-mini',
-    'grok-4',
-    'grok-4.20-beta-latest-non-reasoning',
-    'grok-2-1212',
-  ],
-})
+const _props = withDefaults(
+  defineProps<{
+    /** List of chat models available to the active provider (e.g. xAI) */
+    availableModels?: string[]
+  }>(),
+  {
+    availableModels: () => [
+      'grok-4-1-fast-non-reasoning',
+      'grok-3-mini',
+      'grok-4',
+      'grok-4.20-beta-latest-non-reasoning',
+      'grok-2-1212',
+    ],
+  },
+)
 
 const adminAi = useAdminAi()
 
@@ -49,7 +52,7 @@ function formatUpdatedAt(dateStr: string) {
   return new Date(dateStr).toLocaleString()
 }
 
-function handleModelChange(event: string | number) {
+function handleModelChange(event: unknown) {
   adminAi.updateActiveModel(String(event))
 }
 
@@ -70,14 +73,15 @@ function handleSavePrompt(name: string) {
           <h2 class="text-lg font-semibold text-default">Model Configuration</h2>
         </div>
         <p class="text-sm text-muted">
-          Select the active model to be used by all application endpoints leveraging the generic AI engine.
+          Select the active model to be used by all application endpoints leveraging the generic AI
+          engine.
         </p>
       </div>
-      
+
       <div class="p-4 space-y-4">
         <!-- Feature Flags Injection Slot -->
         <slot name="feature-flags" />
-        
+
         <UFormField label="Active Chat Model" class="max-w-md">
           <div class="flex gap-2">
             <USelectMenu
@@ -86,13 +90,7 @@ function handleSavePrompt(name: string) {
               class="flex-1 w-full"
               @update:model-value="handleModelChange"
             />
-            <UButton
-              v-if="isModelUpdating"
-              color="neutral"
-              variant="outline"
-              loading
-              disabled
-            />
+            <UButton v-if="isModelUpdating" color="neutral" variant="outline" loading disabled />
           </div>
         </UFormField>
       </div>
@@ -108,19 +106,23 @@ function handleSavePrompt(name: string) {
           <h2 class="text-lg font-semibold text-default">System Prompts</h2>
         </div>
         <p class="text-sm text-muted">
-          Modify the baseline instructions sent to the AI for specific internal domains or generator workflows. Changes take effect on the very next query.
+          Modify the baseline instructions sent to the AI for specific internal domains or generator
+          workflows. Changes take effect on the very next query.
         </p>
       </div>
-      
+
       <div class="p-4 space-y-8">
         <div v-if="adminAi.promptsStatus.value === 'pending'" class="py-12 flex justify-center">
-            <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-muted" />
+          <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-muted" />
         </div>
-        
-        <div v-else-if="!adminAi.systemPrompts.value || adminAi.systemPrompts.value.length === 0" class="py-12 text-center text-muted">
+
+        <div
+          v-else-if="!adminAi.systemPrompts.value || adminAi.systemPrompts.value.length === 0"
+          class="py-12 text-center text-muted"
+        >
           No system prompts configured in the database.
         </div>
-        
+
         <div
           v-for="prompt in adminAi.systemPrompts.value"
           :key="prompt.name"
@@ -131,7 +133,7 @@ function handleSavePrompt(name: string) {
               <h3 class="font-medium text-default font-mono text-sm">{{ prompt.name }}</h3>
               <p class="text-sm text-muted">{{ prompt.description }}</p>
             </div>
-            
+
             <div class="flex items-center gap-2">
               <UButton
                 v-if="isPromptChanged(prompt.name)"
@@ -152,7 +154,7 @@ function handleSavePrompt(name: string) {
               </UButton>
             </div>
           </div>
-          
+
           <UTextarea
             v-model="editingPrompts[prompt.name]"
             autoresize

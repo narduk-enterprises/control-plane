@@ -107,4 +107,3 @@ export type Notification = typeof notifications.$inferSelect
 export type NewNotification = typeof notifications.$inferInsert
 export type SystemPrompt = typeof systemPrompts.$inferSelect
 export type NewSystemPrompt = typeof systemPrompts.$inferInsert
-

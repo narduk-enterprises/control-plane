@@ -17,7 +17,9 @@ import {
 function createMockWriter(shouldThrow = false) {
   return {
     write: shouldThrow
-      ? vi.fn(() => { throw new Error('Connection closed') })
+      ? vi.fn(() => {
+          throw new Error('Connection closed')
+        })
       : vi.fn(),
     close: vi.fn(),
   } as unknown as WritableStreamDefaultWriter

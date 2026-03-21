@@ -48,10 +48,7 @@ const _encoder = new TextEncoder()
  * Register an SSE connection on a channel.
  * Returns the connection handle needed for `removeSSE`.
  */
-export function registerSSE(
-  channelId: string,
-  writer: WritableStreamDefaultWriter,
-): SSEConnection {
+export function registerSSE(channelId: string, writer: WritableStreamDefaultWriter): SSEConnection {
   const conn: SSEConnection = { writer, channelId }
   let set = _channels.get(channelId)
   if (!set) {

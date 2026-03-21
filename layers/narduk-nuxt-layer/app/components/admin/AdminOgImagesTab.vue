@@ -24,7 +24,8 @@ if (ogError.value) {
           <h2 class="text-lg font-semibold text-default">Dynamic Social Cards Explorer</h2>
         </div>
         <p class="text-sm text-muted">
-          Ensure social cards render correctly with v6 formatting (usually at <code>/__og-image__/image/og.png</code>).
+          Ensure social cards render correctly with v6 formatting (usually at
+          <code>/__og-image__/image/og.png</code>).
         </p>
       </div>
 
@@ -32,13 +33,18 @@ if (ogError.value) {
         <div v-if="ogStatus === 'pending'" class="flex items-center justify-center py-12">
           <UIcon name="i-lucide-loader-2" class="size-6 animate-spin text-muted" />
         </div>
-        
-        <div v-else-if="ogError" class="flex flex-col items-center justify-center py-12 space-y-4 text-center">
-            <UIcon name="i-lucide-alert-triangle" class="size-8 text-warning" />
-            <div class="space-y-1">
-               <p class="font-medium">Cannot Load Exploratory Data</p>
-               <p class="text-sm text-muted">Host application must provide the API endpoint: <code>/api/admin/og-image-data</code>.</p>
-            </div>
+
+        <div
+          v-else-if="ogError"
+          class="flex flex-col items-center justify-center py-12 space-y-4 text-center"
+        >
+          <UIcon name="i-lucide-alert-triangle" class="size-8 text-warning" />
+          <div class="space-y-1">
+            <p class="font-medium">Cannot Load Exploratory Data</p>
+            <p class="text-sm text-muted">
+              Host application must provide the API endpoint: <code>/api/admin/og-image-data</code>.
+            </p>
+          </div>
         </div>
 
         <div v-else-if="!ogData || ogData.length === 0" class="py-12 text-center text-muted">
