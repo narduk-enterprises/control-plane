@@ -31,9 +31,10 @@ export default defineEventHandler((event) => {
     return
   }
 
-  // Skip CSRF for API key bearer auth — not browser-based, not CSRF-vulnerable
+  // Skip CSRF for Bearer token auth — not browser-based, not CSRF-vulnerable
+  // (browsers never auto-send Authorization headers, so CSRF doesn't apply)
   const authHeader = getHeader(event, 'authorization')
-  if (authHeader?.startsWith('Bearer nk_')) return
+  if (authHeader?.startsWith('Bearer ')) return
 
   const xRequestedWith = getHeader(event, 'x-requested-with')
 
