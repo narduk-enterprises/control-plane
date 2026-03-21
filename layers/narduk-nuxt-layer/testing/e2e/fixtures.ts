@@ -83,6 +83,36 @@ const _CSRF_HEADERS = {
 } as const
 
 /**
+ * Create a pre-configured fetch function for E2E tests that automatically
+ * includes CSRF headers (`X-Requested-With: XMLHttpRequest`).
+ *
+ * This mirrors what `useCsrfFetch()` does at runtime but for Playwright's
+ * `page.evaluate()` context where Nuxt composables aren't available.
+ *
+ * ```ts
+ * const testFetch = createTestFetch()
+ * await page.evaluate(async (fetch) => {
+ *   await fetch('/api/items', { method: 'POST', body: JSON.stringify(data) })
+ * }, testFetch)
+ * ```
+ */
+export function createTestFetchHeaders(extraHeaders: Record<string, string> = {}) {
+  return {
+    'X-Requested-With': 'XMLHttpRequest',
+    ...extraHeaders,
+  } as const
+}
+
+/** Shorthand: CSRF + JSON content type headers for mutation requests with a body. */
+export function createTestMutationHeaders(extraHeaders: Record<string, string> = {}) {
+  return {
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    ...extraHeaders,
+  } as const
+}
+
+/**
  * Register a new user via the API and return the user object.
  * The page's cookie jar will contain the session after this call.
  */
