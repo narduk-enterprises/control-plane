@@ -63,6 +63,31 @@ export interface WithD1CacheOptions {
   returnMeta?: boolean
 }
 
+type WaitUntilFn = (promise: Promise<unknown>) => void
+
+function getWaitUntil(event: H3Event): WaitUntilFn | null {
+  const cloudflareCtx = (
+    event.context.cloudflare as
+      | {
+          ctx?: {
+            waitUntil?: WaitUntilFn
+          }
+        }
+      | undefined
+  )?.ctx
+
+  if (typeof cloudflareCtx?.waitUntil === 'function') {
+    return cloudflareCtx.waitUntil.bind(cloudflareCtx)
+  }
+
+  const eventContext = event.context as { waitUntil?: WaitUntilFn }
+  if (typeof eventContext.waitUntil === 'function') {
+    return eventContext.waitUntil.bind(eventContext)
+  }
+
+  return null
+}
+
 /**
  * Wraps an async fetcher with D1 KV caching.
  *
@@ -98,6 +123,7 @@ export async function withD1Cache<T>(
   const { staleWindowSeconds = 0, returnMeta = false } = options
   const d1 = getD1CacheDB(event)
   const nowSec = Math.floor(Date.now() / 1000)
+  const waitUntil = getWaitUntil(event)
 
   const wrap = (data: T, stale: boolean): T | { data: T; _meta: D1CacheMeta } => {
     if (!returnMeta) return data
@@ -123,8 +149,7 @@ export async function withD1Cache<T>(
         if (withinStale) {
           log.debug(`Cache STALE ${cacheKey}`)
           const parsed = JSON.parse(row.value) as T
-          // Background refresh (fire-and-forget)
-          void Promise.resolve()
+          const refreshPromise = Promise.resolve()
             .then(() => fetcher())
             .then((fresh) => {
               if (d1 && fresh !== undefined) {
@@ -135,6 +160,14 @@ export async function withD1Cache<T>(
             .catch((err) =>
               log.error(`Background refresh failed ${cacheKey}`, { error: String(err) }),
             )
+
+          if (waitUntil) {
+            waitUntil(refreshPromise)
+          } else {
+            // Non-Cloudflare runtimes can still best-effort refresh without a request lifecycle hook.
+            void refreshPromise
+          }
+
           return wrap(parsed, true)
         }
       }
