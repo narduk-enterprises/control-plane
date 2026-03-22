@@ -1,135 +1,120 @@
 <script setup lang="ts">
-import type { GscDimension, StatCardConfig } from '~/types/analytics'
-import type { DatePreset } from '~/composables/useAnalyticsDateRange'
+import { storeToRefs } from 'pinia'
+import type { StatCardConfig } from '~/types/analytics'
+import { useAnalyticsStore } from '~/stores/analytics'
 
 const route = useRoute()
-const appName = computed(() => (route.params.app as string) ?? '')
+const appName = computed(() => String(route.params.app ?? ''))
+const analyticsStore = useAnalyticsStore()
+const { preset, startDate, endDate } = storeToRefs(analyticsStore)
+const dateState = useAnalyticsDateRange('30d')
 
 useSeo({
   title: `${appName.value} — Analytics`,
-  description: `Analytics deep dive for ${appName.value}: GA4, GSC, PostHog, IndexNow.`,
+  description: `Canonical analytics snapshot for ${appName.value}.`,
 })
 useWebPageSchema({
-  name: 'App Analytics Deep Dive',
-  description: 'Single-app analytics with KPIs, traffic chart, and breakdowns.',
+  name: 'App Analytics Snapshot',
+  description: 'Single-app analytics view with provider health and drilldowns.',
 })
 
-const { apps: fleetApps, getAppStatus } = useFleet()
-const appUrl = computed(() => fleetApps.value?.find((a) => a.name === appName.value)?.url ?? '')
-const status = computed(() => getAppStatus(appName.value))
+const range = computed(() => ({ startDate: startDate.value, endDate: endDate.value }))
+const snapshot = computed(() => analyticsStore.getDetail(appName.value, range.value))
+const detailLoading = computed(
+  () => analyticsStore.getDetailStatus(appName.value, range.value) === 'pending',
+)
+const detailError = computed(() => analyticsStore.getDetailError(appName.value, range.value))
 
-const { preset, startDate, endDate, presetOptions, presetLabel, setPreset } =
-  useAnalyticsDateRange('7d')
-const force = ref(false)
-
-// ── Data fetching (all auto-cached via getCachedData in composables) ──
-const {
-  data: gaData,
-  error: gaError,
-  loading: gaLoading,
-  load: loadGA,
-} = useFleetGA(appName, startDate, endDate, force)
-
-const gscParamsQuery = computed(() => ({
-  startDate: startDate.value,
-  endDate: endDate.value,
-  dimension: 'query' as GscDimension,
-  force: force.value,
-}))
-const { data: gscQueryData, load: loadGscQuery } = useFleetGscQuery(appName, gscParamsQuery)
-
-const gscParamsDevice = computed(() => ({
-  startDate: startDate.value,
-  endDate: endDate.value,
-  dimension: 'device' as GscDimension,
-  force: force.value,
-}))
-const { data: gscDeviceData, load: loadGscDevice } = useFleetGscQuery(appName, gscParamsDevice)
-
-const {
-  data: posthogData,
-  error: posthogError,
-  loading: posthogLoading,
-  load: loadPosthog,
-} = useFleetPosthog(appName, startDate, endDate, force)
-
-// ── Auto-load on mount and date changes ──
-async function loadAll() {
-  if (!appName.value) return
-  await Promise.all([loadGA(), loadGscQuery(), loadGscDevice(), loadPosthog()])
+async function loadDetail(force = false) {
+  if (!appName.value || preset.value === '1h') return
+  await analyticsStore.fetchDetail(appName.value, { range: range.value, force })
 }
 
-watch([appName, startDate, endDate], () => loadAll(), { immediate: true })
-
-async function onForceRefresh() {
-  force.value = true
-  try {
-    await loadAll()
-  } finally {
-    force.value = false
-  }
-}
-
-// ── Computed data (typed via centralized types) ──
-const gaSummary = computed(() => {
-  const s = gaData.value?.summary
-  if (!s) return null
-  return {
-    users: s.activeUsers ?? 0,
-    newUsers: s.newUsers ?? 0,
-    sessions: s.sessions ?? 0,
-    pageviews: s.screenPageViews ?? 0,
-    bounceRate: s.bounceRate ?? 0,
-    avgSessionDuration: s.averageSessionDuration ?? 0,
-    engagementRate: s.engagementRate ?? 0,
-    eventCount: s.eventCount ?? 0,
-  }
+watch([appName, range], () => {
+  void loadDetail()
 })
-const gaDeltas = computed(() => gaData.value?.deltas ?? null)
-const gaTimeSeries = computed(() => gaData.value?.timeSeries ?? [])
-const gscTotals = computed(() => gscQueryData.value?.totals ?? null)
-const gscInspection = computed(() => gscQueryData.value?.inspection ?? null)
-const gscTopQueries = computed(() => (gscQueryData.value?.rows ?? []).slice(0, 10))
-const gscTopDevices = computed(() => (gscDeviceData.value?.rows ?? []).slice(0, 5))
-const displayUrl = computed(() => appUrl.value.replace(/^https?:\/\//, ''))
-const anyLoading = computed(() => gaLoading.value || posthogLoading.value)
 
-// ── KPI stat cards (data-driven, no duplicated markup) ──
-const gaKpis = computed<StatCardConfig[]>(() => {
-  const s = gaSummary.value
-  const d = gaDeltas.value
-  if (!s) return []
+onMounted(() => {
+  void loadDetail()
+})
+
+async function refreshDetail() {
+  await loadDetail(true)
+}
+
+const gaSummary = computed(() => snapshot.value?.ga.metrics?.summary ?? null)
+const gaDeltas = computed(() => snapshot.value?.ga.metrics?.deltas ?? null)
+const gaTimeSeries = computed(() => snapshot.value?.ga.metrics?.timeSeries ?? [])
+const gscMetrics = computed(() => snapshot.value?.gsc.metrics ?? null)
+const posthogMetrics = computed(() => snapshot.value?.posthog.metrics ?? null)
+
+const providerBadges = computed(() => {
+  if (!snapshot.value) return []
   return [
-    { label: 'Users', value: s.users, delta: d?.users, format: 'number' },
-    { label: 'Sessions', value: s.sessions, delta: d?.sessions, format: 'number' },
-    { label: 'Pageviews', value: s.pageviews, delta: d?.pageviews, format: 'number' },
+    { label: 'GA4', status: snapshot.value.ga.status, message: snapshot.value.ga.message },
+    { label: 'GSC', status: snapshot.value.gsc.status, message: snapshot.value.gsc.message },
     {
-      label: 'Bounce Rate',
-      value: s.bounceRate,
-      delta: d?.bounceRate,
-      format: 'percent',
-      invertDelta: true,
+      label: 'PostHog',
+      status: snapshot.value.posthog.status,
+      message: snapshot.value.posthog.message,
     },
     {
-      label: 'Avg Session',
-      value: s.avgSessionDuration,
-      delta: d?.avgSessionDuration,
-      format: 'duration',
+      label: 'IndexNow',
+      status: snapshot.value.indexnow.status,
+      message: snapshot.value.indexnow.message,
     },
-    { label: 'Engagement', value: s.engagementRate, format: 'percent' },
   ]
 })
 
-const gscKpis = computed<StatCardConfig[]>(() => {
-  const t = gscTotals.value
-  if (!t) return []
+function badgeColor(status: string) {
+  switch (status) {
+    case 'healthy':
+      return 'success'
+    case 'stale':
+      return 'warning'
+    case 'missing_registry':
+    case 'missing_config':
+    case 'access_denied':
+    case 'error':
+      return 'error'
+    default:
+      return 'neutral'
+  }
+}
+
+const gaCards = computed<StatCardConfig[]>(() => {
+  if (!gaSummary.value) return []
   return [
-    { label: 'GSC Clicks', value: t.clicks, format: 'number' },
-    { label: 'Impressions', value: t.impressions, format: 'number' },
-    { label: 'CTR', value: t.ctr, format: 'percent' },
-    { label: 'Avg Position', value: t.position, format: 'number' },
+    { label: 'Users', value: gaSummary.value.activeUsers, delta: gaDeltas.value?.users, format: 'number' },
+    { label: 'Sessions', value: gaSummary.value.sessions, delta: gaDeltas.value?.sessions, format: 'number' },
+    { label: 'Pageviews', value: gaSummary.value.screenPageViews, delta: gaDeltas.value?.pageviews, format: 'number' },
+    { label: 'Engagement', value: gaSummary.value.engagementRate, format: 'percent' },
   ]
 })
+
+const gscCards = computed<StatCardConfig[]>(() => {
+  if (!gscMetrics.value?.totals) return []
+  return [
+    { label: 'Clicks', value: gscMetrics.value.totals.clicks, format: 'number' },
+    { label: 'Impressions', value: gscMetrics.value.totals.impressions, format: 'number' },
+    { label: 'CTR', value: gscMetrics.value.totals.ctr, format: 'percent' },
+    { label: 'Avg Position', value: gscMetrics.value.totals.position, format: 'number' },
+  ]
+})
+
+const posthogCards = computed<StatCardConfig[]>(() => {
+  if (!posthogMetrics.value) return []
+  return [
+    { label: 'Events', value: Number(posthogMetrics.value.summary.event_count ?? 0), format: 'number' },
+    { label: 'Unique Users', value: Number(posthogMetrics.value.summary.unique_users ?? 0), format: 'number' },
+    { label: 'Pageviews', value: Number(posthogMetrics.value.summary.pageviews ?? 0), format: 'number' },
+    { label: 'Sessions', value: Number(posthogMetrics.value.summary.sessions ?? 0), format: 'number' },
+  ]
+})
+
+const gscClickSeries = computed(() =>
+  (gscMetrics.value?.timeSeries ?? []).map((point) => ({ date: point.date, value: point.clicks })),
+)
 
 const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
@@ -142,136 +127,134 @@ const breadcrumbItems = computed(() => [
   <div class="space-y-6 overflow-hidden">
     <AppBreadcrumbs :items="breadcrumbItems" />
 
-    <!-- Header -->
     <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
       <div class="min-w-0">
-        <h1 class="font-display text-2xl font-semibold text-default truncate">{{ appName }}</h1>
-        <div class="mt-1 flex flex-wrap items-center gap-3 text-sm">
-          <UButton
-            v-if="appUrl"
-            :to="appUrl"
-            target="_blank"
-            variant="link"
-            color="primary"
-            size="xs"
-            class="cursor-pointer p-0"
-            icon="i-lucide-external-link"
-          >
-            {{ displayUrl }}
-          </UButton>
+        <h1 class="truncate font-display text-2xl font-semibold text-default">{{ appName }}</h1>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
           <UBadge
-            v-if="status"
-            :color="status.status === 'up' ? 'success' : 'error'"
+            v-if="snapshot"
+            :color="snapshot.health.status === 'up' ? 'success' : snapshot.health.status === 'down' ? 'error' : 'neutral'"
             variant="subtle"
-            size="xs"
+            size="sm"
           >
-            {{ status.status }}
+            {{ snapshot.health.status }}
+          </UBadge>
+          <UBadge
+            v-for="provider in providerBadges"
+            :key="provider.label"
+            :color="badgeColor(provider.status)"
+            variant="soft"
+            size="sm"
+          >
+            {{ provider.label }}
           </UBadge>
         </div>
       </div>
 
-      <!-- Date bar + Refresh -->
-      <div class="w-full md:w-auto min-w-0">
-        <AnalyticsDateBar
-          :preset-options="presetOptions"
-          :active-preset="preset"
-          :loading="anyLoading"
-          show-refresh
-          v-model:start-date="startDate"
-          v-model:end-date="endDate"
-          @preset="setPreset($event as DatePreset)"
-          @refresh="onForceRefresh"
-        />
-      </div>
-    </div>
-
-    <!-- GA4 KPI Grid -->
-    <div
-      v-if="gaLoading && !gaSummary"
-      class="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
-    >
-      <div
-        v-for="i in 6"
-        :key="i"
-        class="h-20 sm:h-24 rounded-xl border border-default bg-elevated/30 animate-pulse"
-      />
-    </div>
-    <div v-else-if="gaKpis.length" class="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-      <AnalyticsStatCard
-        v-for="kpi in gaKpis"
-        :key="kpi.label"
-        v-bind="kpi"
-        :loading="gaLoading"
-        compact
+      <AnalyticsDateBar
+        :preset-options="dateState.presetOptions"
+        :active-preset="preset"
+        :loading="detailLoading"
+        show-refresh
+        v-model:start-date="startDate"
+        v-model:end-date="endDate"
+        @preset="dateState.setPreset($event)"
+        @refresh="refreshDetail"
       />
     </div>
 
-    <!-- Traffic Chart -->
+    <AnalyticsErrorAlert
+      v-if="detailError"
+      provider="App snapshot"
+      :error="detailError"
+      @retry="refreshDetail"
+    />
+
+    <div v-if="snapshot" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <UCard
+        v-for="provider in providerBadges"
+        :key="`${provider.label}-card`"
+        class="rounded-2xl"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-xs uppercase tracking-[0.12em] text-muted">{{ provider.label }}</p>
+            <p class="mt-1 text-base font-semibold text-default">{{ provider.status }}</p>
+            <p class="mt-2 text-sm text-muted">{{ provider.message || 'Snapshot is healthy.' }}</p>
+          </div>
+          <UBadge :color="badgeColor(provider.status)" variant="soft" size="sm">
+            {{ provider.status }}
+          </UBadge>
+        </div>
+      </UCard>
+    </div>
+
+    <div v-if="gaCards.length" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
+      <AnalyticsStatCard v-for="card in gaCards" :key="card.label" v-bind="card" compact />
+    </div>
+
     <UCard v-if="gaTimeSeries.length">
       <template #header>
-        <h2 class="text-sm font-medium text-default">Traffic ({{ presetLabel }})</h2>
+        <h2 class="text-sm font-medium text-default">GA4 Pageviews</h2>
       </template>
-      <AnalyticsLineChart
-        :data="gaTimeSeries"
-        :title="`Pageviews — ${gaData?.startDate ?? ''} to ${gaData?.endDate ?? ''}`"
-      />
+      <AnalyticsLineChart :data="gaTimeSeries" :title="`${startDate} to ${endDate}`" />
     </UCard>
 
-    <!-- GSC KPI Strip -->
-    <div v-if="gscKpis.length" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
-      <AnalyticsStatCard v-for="kpi in gscKpis" :key="kpi.label" v-bind="kpi" compact />
+    <div v-if="gscCards.length" id="search-console" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
+      <AnalyticsStatCard v-for="card in gscCards" :key="card.label" v-bind="card" compact />
     </div>
 
-    <!-- Data Breakdowns -->
+    <UCard v-if="gscClickSeries.length">
+      <template #header>
+        <h2 class="text-sm font-medium text-default">Search Console Clicks</h2>
+      </template>
+      <AnalyticsLineChart :data="gscClickSeries" :title="`${startDate} to ${endDate}`" />
+    </UCard>
+
+    <AnalyticsGscTopQueries
+      v-if="gscMetrics"
+      :queries="gscMetrics.queries.slice(0, 10)"
+      :devices="gscMetrics.devices.slice(0, 5)"
+    />
+
+    <AnalyticsGscInspection
+      v-if="gscMetrics?.inspection?.indexStatusResult"
+      :inspection="gscMetrics.inspection"
+    />
+
+    <div v-if="posthogCards.length" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
+      <AnalyticsStatCard v-for="card in posthogCards" :key="`ph-${card.label}`" v-bind="card" compact />
+    </div>
+
     <div class="grid gap-4 md:grid-cols-2">
       <FleetTopDimensionCard
         title="Top Pages"
         icon="i-lucide-file-text"
-        :items="posthogData?.topPages ?? []"
+        :items="posthogMetrics?.topPages ?? []"
       />
-      <AnalyticsGscTopQueries :queries="gscTopQueries" :devices="gscTopDevices" />
       <FleetTopDimensionCard
         title="Top Referrers"
-        icon="i-lucide-external-link"
-        :items="posthogData?.topReferrers ?? []"
+        icon="i-lucide-arrow-up-right"
+        :items="posthogMetrics?.topReferrers ?? []"
       />
       <FleetTopDimensionCard
         title="Top Countries"
         icon="i-lucide-globe"
-        :items="posthogData?.topCountries ?? []"
+        :items="posthogMetrics?.topCountries ?? []"
       />
       <FleetTopDimensionCard
         title="Top Browsers"
-        icon="i-lucide-laptop"
-        :items="posthogData?.topBrowsers ?? []"
+        icon="i-lucide-monitor"
+        :items="posthogMetrics?.topBrowsers ?? []"
       />
     </div>
 
-    <!-- URL Inspection -->
-    <AnalyticsGscInspection v-if="gscInspection?.indexStatusResult" :inspection="gscInspection" />
-
-    <!-- Sitemap -->
     <AnalyticsSitemapPanel :app-name="appName" />
 
-    <!-- Quick Actions -->
     <AnalyticsQuickActions
       :app-name="appName"
-      :replays-url="posthogData?.replaysUrl"
-      :inspection-link="gscInspection?.inspectionResultLink"
-    />
-
-    <!-- Errors -->
-    <AnalyticsErrorAlert
-      v-if="gaError"
-      provider="Google Analytics"
-      :error="gaError"
-      @retry="onForceRefresh"
-    />
-    <AnalyticsErrorAlert
-      v-if="posthogError"
-      provider="PostHog"
-      :error="posthogError"
-      @retry="onForceRefresh"
+      :replays-url="posthogMetrics?.replaysUrl ?? undefined"
+      :inspection-link="gscMetrics?.inspection?.inspectionResultLink"
     />
   </div>
 </template>

@@ -20,7 +20,7 @@ export default defineNuxtConfig({
   ogImage: { enabled: false },
 
   // nitro-cloudflare-dev proxies D1 bindings to the local dev server
-  modules: ['nitro-cloudflare-dev'],
+  modules: ['@pinia/nuxt', 'nitro-cloudflare-dev'],
 
   nitro: {
     cloudflareDev: {

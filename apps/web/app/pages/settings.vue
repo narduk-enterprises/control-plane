@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { useAnalyticsStore } from '~/stores/analytics'
+
 useSeo({
   robots: 'noindex',
   title: 'Settings',
@@ -9,30 +12,61 @@ useWebPageSchema({
   description: 'Settings and configuration.',
 })
 
-const config = useRuntimeConfig().public
 const { user, logout } = useAuth()
 const breadcrumbItems = [{ label: 'Dashboard', to: '/' }, { label: 'Settings' }]
 
-const integrations = computed(() => [
-  {
-    name: 'PostHog',
-    icon: 'i-lucide-users',
-    configured: !!(config.posthogPublicKey && config.posthogProjectId),
-    hint: 'Analytics & Events',
-  },
-  {
-    name: 'GA4',
-    icon: 'i-lucide-activity',
-    configured: !!(config.gaMeasurementId || config.gaPropertyId),
-    hint: 'Google Analytics',
-  },
-  {
-    name: 'IndexNow',
-    icon: 'i-lucide-globe',
-    configured: !!config.indexNowKey,
-    hint: 'Search engine indexing',
-  },
-])
+const analyticsStore = useAnalyticsStore()
+const {
+  integrationHealth,
+  integrationHealthError,
+  integrationHealthStatus,
+} = storeToRefs(analyticsStore)
+
+onMounted(() => {
+  void analyticsStore.fetchIntegrationHealth()
+})
+
+const integrations = computed(() => {
+  const health = integrationHealth.value
+  if (!health) return []
+
+  return [
+    {
+      name: 'Google Service Account',
+      icon: 'i-lucide-key-round',
+      status:
+        health.services.find((service) => service.key === 'google_service_account')?.status ??
+        'missing',
+      hint:
+        health.services.find((service) => service.key === 'google_service_account')?.message ??
+        'Missing',
+    },
+    {
+      name: 'GA Provisioning',
+      icon: 'i-lucide-activity',
+      status: health.services.find((service) => service.key === 'ga_account_id')?.status ?? 'missing',
+      hint:
+        health.services.find((service) => service.key === 'ga_account_id')?.message ?? 'Missing',
+    },
+    {
+      name: 'PostHog API',
+      icon: 'i-lucide-waveform',
+      status: health.services.find((service) => service.key === 'posthog')?.status ?? 'missing',
+      hint: health.services.find((service) => service.key === 'posthog')?.message ?? 'Missing',
+    },
+  ]
+})
+
+function integrationBadgeColor(status: string) {
+  switch (status) {
+    case 'configured':
+      return 'success'
+    case 'partial':
+      return 'warning'
+    default:
+      return 'neutral'
+  }
+}
 
 // Password change form — state lives in composable
 const {
@@ -276,6 +310,22 @@ const {
       <template #header>
         <h2 class="font-semibold text-default">Integrations</h2>
       </template>
+      <div
+        v-if="integrationHealthStatus === 'pending'"
+        class="mb-4 flex items-center gap-2 text-sm text-muted"
+      >
+        <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
+        Checking server-side integration health…
+      </div>
+      <UAlert
+        v-else-if="integrationHealthError"
+        icon="i-lucide-alert-circle"
+        title="Integration health could not be loaded"
+        :description="integrationHealthError"
+        color="error"
+        variant="subtle"
+        class="mb-4"
+      />
       <ul class="space-y-3">
         <li
           v-for="int in integrations"
@@ -293,11 +343,35 @@ const {
               <p class="text-sm text-muted">{{ int.hint }}</p>
             </div>
           </div>
-          <UBadge :color="int.configured ? 'success' : 'neutral'" variant="soft">
-            {{ int.configured ? 'Configured' : 'Not set' }}
+          <UBadge :color="integrationBadgeColor(int.status)" variant="soft">
+            {{ int.status }}
           </UBadge>
         </li>
       </ul>
+
+      <div
+        v-if="integrationHealth"
+        class="mt-4 grid gap-3 rounded-xl border border-default/60 bg-elevated/30 p-4 md:grid-cols-3"
+      >
+        <div>
+          <p class="text-xs uppercase tracking-[0.12em] text-muted">Fleet Apps</p>
+          <p class="mt-1 text-lg font-semibold text-default">
+            {{ integrationHealth.fleet.totalApps }}
+          </p>
+        </div>
+        <div>
+          <p class="text-xs uppercase tracking-[0.12em] text-muted">GA Measurement IDs</p>
+          <p class="mt-1 text-lg font-semibold text-default">
+            {{ integrationHealth.fleet.appsWithGaMeasurementId }}/{{ integrationHealth.fleet.totalApps }}
+          </p>
+        </div>
+        <div>
+          <p class="text-xs uppercase tracking-[0.12em] text-muted">Last Snapshot</p>
+          <p class="mt-1 text-sm font-medium text-default">
+            {{ integrationHealth.lastSnapshotAt ? new Date(integrationHealth.lastSnapshotAt).toLocaleString() : 'No canonical snapshot yet' }}
+          </p>
+        </div>
+      </div>
     </UCard>
 
     <UCard class="mt-6">
@@ -305,27 +379,18 @@ const {
         <h2 class="font-semibold text-default">Fleet registry</h2>
       </template>
       <p class="text-sm text-muted">
-        Fleet apps are defined in
-        <code class="rounded bg-muted px-1 py-0.5">server/data/fleet-registry.ts</code>. URLs are
-        taken from <code class="rounded bg-muted px-1 py-0.5">KNOWN_URLS</code> (keep in sync with
-        <code class="rounded bg-muted px-1 py-0.5"
-          >.agents/app-standardization/analytics-architecture.md</code
-        >
-        and each app's Doppler <code class="rounded bg-muted px-1 py-0.5">SITE_URL</code> prd). Apps
-        not in KNOWN_URLS use
-        <code class="rounded bg-muted px-1 py-0.5">https://&lt;dopplerProject&gt;.nard.uk</code>.
+        Runtime fleet metadata comes from the D1
+        <code class="rounded bg-muted px-1 py-0.5">fleet_apps</code> table. The legacy
+        <code class="rounded bg-muted px-1 py-0.5">managed-repos.ts</code> catalog is now bootstrap
+        data only and should not be treated as the live source of truth.
       </p>
       <p class="mt-3 text-sm text-muted">
-        For fleet GA4/GSC/PostHog to work, set in this app's Doppler (prd):
+        Required server-side secrets for working analytics snapshots:
         <code class="rounded bg-muted px-1 py-0.5">GA_PROPERTY_ID</code>,
         <code class="rounded bg-muted px-1 py-0.5">GSC_SERVICE_ACCOUNT_JSON</code>,
         <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PERSONAL_API_KEY</code>,
-        <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PROJECT_ID</code> (from the
-        narduk-nuxt-template Doppler project).
-        <br />
-        For this dashboard's own endpoints, set
-        <code class="rounded bg-muted px-1 py-0.5">GA_MEASUREMENT_ID</code>
-        and <code class="rounded bg-muted px-1 py-0.5">INDEXNOW_KEY</code>.
+        <code class="rounded bg-muted px-1 py-0.5">POSTHOG_PROJECT_ID</code>, and
+        <code class="rounded bg-muted px-1 py-0.5">GA_ACCOUNT_ID</code>.
       </p>
     </UCard>
   </div>

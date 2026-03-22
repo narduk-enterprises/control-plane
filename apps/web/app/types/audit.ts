@@ -12,3 +12,18 @@ export interface AuditResult {
   checks: AuditCheck[]
   fetchError?: string
 }
+
+export interface AuditReconcileCandidate {
+  app: string
+  previousMeasurementId: string | null
+  liveMeasurementId: string
+}
+
+export interface AuditResponse {
+  results: AuditResult[]
+  reconcile: {
+    mode: 'dry-run' | 'write'
+    updatedCount: number
+    candidates: AuditReconcileCandidate[]
+  }
+}

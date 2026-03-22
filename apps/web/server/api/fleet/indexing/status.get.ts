@@ -19,13 +19,43 @@ export default defineEventHandler(async (event) => {
       INDEXING_SCOPES,
     )
     return { url, metadata: data }
-  } catch (err) {
-    if (err instanceof GoogleApiError && err.status === 404) {
+  } catch (error: unknown) {
+    if (error instanceof GoogleApiError) {
+      if (error.status === 404) {
+        throw createError({
+          statusCode: 404,
+          message: `No indexing metadata found for ${url}. This usually means the URL hasn't been submitted to the Indexing API yet or isn't part of a verified Search Console property.`,
+        })
+      }
+
+      if (error.status === 403) {
+        throw createError({
+          statusCode: 403,
+          message:
+            'Google Indexing API access denied. Verify the service account has Search Console ownership and Indexing API access.',
+          data: error.body,
+        })
+      }
+
       throw createError({
-        statusCode: 404,
-        message: `No indexing metadata found for ${url}. This usually means the URL hasn't been submitted to the Indexing API yet or isn't part of a verified Search Console property.`,
+        statusCode: error.status,
+        message: `Google Indexing API error: ${error.message}`,
+        data: error.body,
       })
     }
-    throw err
+
+    const message = error instanceof Error ? error.message : 'Unknown indexing status error'
+    if (message.includes('not configured') || message.includes('service account')) {
+      throw createError({
+        statusCode: 503,
+        message:
+          'Google indexing is not configured: set GSC_SERVICE_ACCOUNT_JSON to enable Indexing API access.',
+      })
+    }
+
+    throw createError({
+      statusCode: 500,
+      message,
+    })
   }
 })

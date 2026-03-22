@@ -1,109 +1,93 @@
 <script setup lang="ts">
-import type { FleetAppAnalyticsSummary } from '~/composables/useFleetAnalyticsSummary'
-import type { AnalyticsInsight } from '~/types/analytics'
-import type { FleetApp } from '~/composables/useFleet'
+import type { AnalyticsInsight, FleetAnalyticsSnapshot } from '~/types/analytics'
+import type { FleetRegistryApp } from '~/types/fleet'
 
-/**
- * AnalyticsHealthPanel — unified config health + data insights.
- * Shows configuration errors (missing GA property IDs, zero data) alongside
- * trend insights (traffic spikes/drops) in one collapsible panel.
- */
-
-interface ConfigIssue {
+interface HealthIssue {
   app: string
-  severity: 'error' | 'warning' | 'info'
   provider: string
+  severity: 'critical' | 'warning' | 'info'
   message: string
-  action?: string
 }
 
 const props = defineProps<{
-  apps: FleetApp[]
-  summaryMap: Record<string, FleetAppAnalyticsSummary>
+  apps: FleetRegistryApp[]
+  snapshotMap: Record<string, FleetAnalyticsSnapshot | null>
   insights: AnalyticsInsight[]
   loading?: boolean
-  insightsLoading?: boolean
 }>()
 
 const isCollapsed = ref(false)
 
-// ── Config issues (computed from fleet apps + summary data) ──
-const configIssues = computed<ConfigIssue[]>(() => {
-  const list: ConfigIssue[] = []
-  let appsWithGAData = 0
-  let appsWithGSCData = 0
+function providerSeverity(status: string): HealthIssue['severity'] | null {
+  switch (status) {
+    case 'missing_registry':
+    case 'missing_config':
+    case 'access_denied':
+    case 'error':
+      return 'critical'
+    case 'stale':
+      return 'warning'
+    default:
+      return null
+  }
+}
+
+const issues = computed<HealthIssue[]>(() => {
+  const list: HealthIssue[] = []
 
   for (const app of props.apps) {
-    const summary = props.summaryMap?.[app.name]
+    const snapshot = props.snapshotMap[app.name]
+    if (!snapshot) continue
 
-    if (!app.gaPropertyId) {
+    for (const provider of [
+      { key: 'ga', label: 'GA4', message: snapshot.ga.message, status: snapshot.ga.status },
+      { key: 'gsc', label: 'GSC', message: snapshot.gsc.message, status: snapshot.gsc.status },
+      {
+        key: 'posthog',
+        label: 'PostHog',
+        message: snapshot.posthog.message,
+        status: snapshot.posthog.status,
+      },
+      {
+        key: 'indexnow',
+        label: 'IndexNow',
+        message: snapshot.indexnow.message,
+        status: snapshot.indexnow.status,
+      },
+    ]) {
+      const severity = providerSeverity(provider.status)
+      if (!severity) continue
       list.push({
         app: app.name,
-        severity: 'error',
-        provider: 'GA4',
-        message: 'No GA4 property ID configured',
-        action: 'Add via /fleet/manage or provision API',
+        provider: provider.label,
+        severity,
+        message: provider.message ?? `${provider.label} needs attention.`,
       })
-    } else if (!props.loading && summary?.ga?.summary) {
-      appsWithGAData++
-      const s = summary.ga.summary
-      if (s.activeUsers === 0 && s.screenPageViews === 0) {
-        list.push({
-          app: app.name,
-          severity: 'warning',
-          provider: 'GA4',
-          message: `Property ${app.gaPropertyId} returned zero data`,
-          action: 'Check service account access or verify property ID',
-        })
-      }
     }
-
-    if (!props.loading && summary?.gsc?.totals) {
-      appsWithGSCData++
-    }
-  }
-
-  // Fleet-wide diagnostic if zero providers have data AND we've finished loading
-  const hasAnySummaryData = Object.keys(props.summaryMap).length > 0
-  if (
-    !props.loading &&
-    props.apps.length > 0 &&
-    hasAnySummaryData &&
-    appsWithGAData === 0 &&
-    appsWithGSCData === 0
-  ) {
-    list.unshift({
-      app: 'fleet',
-      severity: 'warning',
-      provider: 'System',
-      message: `No GA4 or GSC data cached for any of ${props.apps.length} apps`,
-      action: 'Force refresh to populate from providers, or wait for the hourly cron',
-    })
   }
 
   return list
 })
 
-const errorCount = computed(() => configIssues.value.filter((i) => i.severity === 'error').length)
-const warnCount = computed(() => configIssues.value.filter((i) => i.severity === 'warning').length)
-const totalItems = computed(() => configIssues.value.length + props.insights.length)
+const counts = computed(() => ({
+  critical: issues.value.filter((issue) => issue.severity === 'critical').length,
+  warning: issues.value.filter((issue) => issue.severity === 'warning').length,
+}))
 
-const severityIcon = (s: string) => {
-  switch (s) {
+function iconFor(severity: string) {
+  switch (severity) {
     case 'critical':
-    case 'error':
-      return 'i-lucide-alert-octagon'
+      return 'i-lucide-octagon-alert'
     case 'warning':
-      return 'i-lucide-alert-triangle'
+      return 'i-lucide-triangle-alert'
     default:
       return 'i-lucide-info'
   }
 }
 
-const severityColor = (s: string) => {
-  switch (s) {
+function toneFor(severity: string) {
+  switch (severity) {
     case 'critical':
-    case 'error':
       return 'text-error'
     case 'warning':
       return 'text-warning'
@@ -114,30 +98,22 @@ const severityColor = (s: string) => {
 </script>
 
 <template>
-  <UCard v-if="totalItems > 0 || loading || insightsLoading" class="mb-6 bg-elevated/30">
+  <UCard v-if="issues.length || insights.length || loading" class="mb-6 bg-elevated/30">
     <template #header>
       <UButton
         variant="ghost"
         color="neutral"
-        class="flex w-full items-center justify-between gap-2 text-left cursor-pointer -mx-2"
+        class="flex w-full items-center justify-between gap-2 text-left -mx-2 cursor-pointer"
         @click="isCollapsed = !isCollapsed"
       >
         <div class="flex items-center gap-2">
           <UIcon name="i-lucide-heart-pulse" class="size-5 text-primary" />
-          <h3 class="font-medium text-default">Fleet Health</h3>
-          <UBadge v-if="errorCount > 0" variant="subtle" color="error" size="sm">
-            {{ errorCount }} {{ errorCount === 1 ? 'error' : 'errors' }}
+          <span class="font-medium text-default">Fleet Health</span>
+          <UBadge v-if="counts.critical > 0" color="error" variant="subtle" size="sm">
+            {{ counts.critical }} critical
           </UBadge>
-          <UBadge v-if="warnCount > 0" variant="subtle" color="warning" size="sm">
-            {{ warnCount }} {{ warnCount === 1 ? 'warning' : 'warnings' }}
-          </UBadge>
-          <UBadge
-            v-if="errorCount === 0 && warnCount === 0 && totalItems > 0"
-            variant="subtle"
-            color="info"
-            size="sm"
-          >
-            {{ totalItems }}
+          <UBadge v-if="counts.warning > 0" color="warning" variant="subtle" size="sm">
+            {{ counts.warning }} warning{{ counts.warning === 1 ? '' : 's' }}
           </UBadge>
         </div>
         <UIcon
@@ -147,66 +123,46 @@ const severityColor = (s: string) => {
       </UButton>
     </template>
 
-    <div v-if="!isCollapsed">
-      <!-- Loading state -->
-      <div
-        v-if="(loading || insightsLoading) && totalItems === 0"
-        class="flex items-center gap-2 text-sm text-muted"
-      >
+    <div v-if="!isCollapsed" class="space-y-3">
+      <div v-if="loading && !issues.length && !insights.length" class="flex items-center gap-2 text-sm text-muted">
         <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
-        Analyzing fleet…
+        Analyzing provider health…
       </div>
 
-      <!-- Config issues -->
-      <ul v-if="configIssues.length" class="space-y-2">
+      <ul v-if="issues.length" class="space-y-2">
         <li
-          v-for="(issue, i) in configIssues"
-          :key="`cfg-${i}`"
-          class="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-2 rounded-lg border border-default/50 bg-default/30 px-3 py-2 text-sm"
+          v-for="issue in issues"
+          :key="`${issue.app}-${issue.provider}-${issue.message}`"
+          class="flex flex-col gap-1 rounded-xl border border-default/60 bg-default/5 px-3 py-3 sm:flex-row sm:items-start sm:justify-between"
         >
-          <div class="flex items-start gap-2 min-w-0 flex-1">
-            <UIcon
-              :name="severityIcon(issue.severity)"
-              :class="['size-4 shrink-0 mt-0.5', severityColor(issue.severity)]"
-            />
-            <div class="min-w-0">
-              <span class="text-default break-words">{{ issue.message }}</span>
-              <span v-if="issue.action" class="block text-xs text-muted mt-0.5">
-                {{ issue.action }}
-              </span>
+          <div class="flex items-start gap-2">
+            <UIcon :name="iconFor(issue.severity)" :class="['mt-0.5 size-4', toneFor(issue.severity)]" />
+            <div>
+              <p class="text-sm text-default">
+                <span class="font-medium">{{ issue.provider }}:</span>
+                {{ issue.message }}
+              </p>
             </div>
           </div>
-          <NuxtLink
-            v-if="issue.app !== 'fleet'"
-            :to="`/fleet/${issue.app}`"
-            class="shrink-0 font-medium text-primary hover:underline text-xs pl-6 sm:pl-0"
-          >
+          <NuxtLink :to="`/analytics/${issue.app}`" class="text-xs font-medium text-primary hover:underline">
             {{ issue.app }}
           </NuxtLink>
         </li>
       </ul>
 
-      <!-- Insights separator -->
-      <USeparator v-if="configIssues.length && insights.length" class="my-3" />
+      <USeparator v-if="issues.length && insights.length" />
 
-      <!-- Trend insights -->
       <ul v-if="insights.length" class="space-y-2">
         <li
-          v-for="(insight, i) in insights"
-          :key="`ins-${i}`"
-          class="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-2 rounded-lg border border-default/50 bg-default/30 px-3 py-2 text-sm"
+          v-for="insight in insights"
+          :key="`${insight.appName}-${insight.message}`"
+          class="flex flex-col gap-1 rounded-xl border border-default/60 bg-default/5 px-3 py-3 sm:flex-row sm:items-start sm:justify-between"
         >
-          <div class="flex items-start gap-2 min-w-0 flex-1">
-            <UIcon
-              :name="severityIcon(insight.severity)"
-              :class="['size-4 shrink-0 mt-0.5', severityColor(insight.severity)]"
-            />
-            <span class="text-default break-words min-w-0">{{ insight.message }}</span>
+          <div class="flex items-start gap-2">
+            <UIcon :name="iconFor(insight.severity)" :class="['mt-0.5 size-4', toneFor(insight.severity)]" />
+            <p class="text-sm text-default">{{ insight.message }}</p>
           </div>
-          <NuxtLink
-            :to="`/fleet/${insight.appName}`"
-            class="shrink-0 font-medium text-primary hover:underline text-xs pl-6 sm:pl-0"
-          >
+          <NuxtLink :to="`/analytics/${insight.appName}`" class="text-xs font-medium text-primary hover:underline">
             {{ insight.appName }}
           </NuxtLink>
         </li>

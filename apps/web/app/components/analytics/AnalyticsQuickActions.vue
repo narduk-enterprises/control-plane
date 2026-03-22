@@ -25,9 +25,9 @@ const { loading: indexnowLoading, submit: submitIndexnow } = useFleetIndexnow(()
       >
         Session Replays
       </UButton>
-      <NuxtLink :to="`/analytics/${appName}/search`">
+      <NuxtLink :to="`/analytics/${appName}#search-console`">
         <UButton variant="outline" color="neutral" icon="i-lucide-search" class="cursor-pointer">
-          GSC Search
+          Search Console
         </UButton>
       </NuxtLink>
       <UButton
@@ -49,9 +49,9 @@ const { loading: indexnowLoading, submit: submitIndexnow } = useFleetIndexnow(()
       >
         IndexNow Submit
       </UButton>
-      <NuxtLink to="/analytics">
+      <NuxtLink :to="`/fleet/${appName}`">
         <UButton variant="ghost" color="neutral" icon="i-lucide-arrow-left" class="cursor-pointer">
-          Back to fleet
+          Operational View
         </UButton>
       </NuxtLink>
     </div>

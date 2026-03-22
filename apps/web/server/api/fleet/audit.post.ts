@@ -1,5 +1,7 @@
+import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { getFleetApps } from '#server/data/fleet-registry'
+import { reconcileAuditMeasurementIds } from '#server/utils/fleet-analytics'
 
 interface AuditCheck {
   name: string
@@ -16,54 +18,65 @@ interface AuditResult {
   fetchError?: string
 }
 
+const bodySchema = z
+  .object({
+    persist: z.boolean().optional(),
+  })
+  .optional()
+
 /**
  * POST /api/fleet/audit
  *
- * Fetches the live HTML of each fleet app in parallel and extracts PostHog and GA
- * configuration from the serialized Nuxt runtime config payload (window.__NUXT__).
- * Compares against the fleet registry values and returns structured pass/fail/warning results.
+ * Dry-run by default. When { persist: true } is sent, live GA measurement IDs
+ * discovered from deployed sites are written back to the fleet registry.
  */
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
-  const apps = await getFleetApps(event)
+  const bodyInput = await readBody(event).catch(() => null)
+  const body = bodySchema.safeParse(bodyInput)
+  const persist = body.success ? body.data?.persist === true : false
 
-  // Audit all apps in parallel — eliminates serial latency stacking across fleet
+  const apps = await getFleetApps(event)
+  const reconcileCandidates: Array<{
+    app: string
+    previousMeasurementId: string | null
+    liveMeasurementId: string
+  }> = []
+
   const results = await Promise.all(
-    // eslint-disable-next-line narduk/no-map-async-in-server -- intentional parallel work per repo, not DB N+1
+    // eslint-disable-next-line narduk/no-map-async-in-server -- intentional parallel audit across the fleet
     apps.map(async (app): Promise<AuditResult> => {
       let html = ''
 
-      // 1. Fetch the app's production HTML
       try {
-        const res = await fetch(app.url, {
-          headers: { 'User-Agent': 'NardukControlPlane-Auditor/1.0' },
+        const response = await fetch(app.url, {
+          headers: { 'User-Agent': 'NardukControlPlane-Auditor/2.0' },
           redirect: 'follow',
           signal: AbortSignal.timeout(15_000),
         })
-        if (!res.ok) {
+
+        if (!response.ok) {
           return {
             app: app.name,
             url: app.url,
             checks: [],
-            fetchError: `HTTP ${res.status} ${res.statusText}`,
+            fetchError: `HTTP ${response.status} ${response.statusText}`,
           }
         }
-        html = await res.text()
-      } catch (err) {
+
+        html = await response.text()
+      } catch (error: unknown) {
         return {
           app: app.name,
           url: app.url,
           checks: [],
-          fetchError: err instanceof Error ? err.message : String(err),
+          fetchError: error instanceof Error ? error.message : String(error),
         }
       }
 
       const checks: AuditCheck[] = []
 
-      // 2. Extract PostHog API key from serialized Nuxt runtime config.
-      // posthog.init() is called client-side only; the key is always present
-      // in the SSR'd window.__NUXT__.config.public payload.
       const actualPhKey =
         html.match(/posthogPublicKey["']?\s*[:=]\s*["']([^"']+)["']/i)?.[1] ?? null
       checks.push({
@@ -76,10 +89,6 @@ export default defineEventHandler(async (event) => {
           : 'No posthogPublicKey found in serialized runtime config',
       })
 
-      // 3. Check PostHog app identity — informational only.
-      // Since PostHog now uses $host for filtering (not appName), we only verify
-      // that appName is present in the runtime config. Display-name vs slug
-      // mismatches (e.g. "Enigma Box" vs "enigma-box") are not actionable.
       const actualAppName = html.match(/appName["']?\s*[:=]\s*["']([^"']+)["']/i)?.[1] ?? null
       checks.push({
         name: 'PostHog App Name',
@@ -91,11 +100,17 @@ export default defineEventHandler(async (event) => {
           : 'appName not found in serialized runtime config',
       })
 
-      // 4. Extract GA Measurement ID (G-XXXXXXXX) and compare to ga_measurement_id in registry.
-      // Note: ga_property_id is the numeric GA4 Property ID used for the Reporting API — different field.
       const actualGaId =
         html.match(/gaMeasurementId["']?\s*[:=]\s*["'](G-[A-Z0-9]+)["']/i)?.[1] ?? null
-      const expectedGaId = app.gaMeasurementId // G-XXXXXXXX from registry
+      const expectedGaId = app.gaMeasurementId
+
+      if (actualGaId && actualGaId !== expectedGaId) {
+        reconcileCandidates.push({
+          app: app.name,
+          previousMeasurementId: expectedGaId ?? null,
+          liveMeasurementId: actualGaId,
+        })
+      }
 
       if (expectedGaId) {
         checks.push({
@@ -117,26 +132,41 @@ export default defineEventHandler(async (event) => {
           expected: null,
           actual: actualGaId,
           message:
-            !expectedGaId && actualGaId
+            actualGaId
               ? `Found "${actualGaId}" on site but fleet registry has no ga_measurement_id set`
               : 'No ga_measurement_id configured in fleet registry',
         })
       }
 
-      // 5. Page title — informational
-      const appNameInTitle = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? null
+      const title = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? null
       checks.push({
         name: 'Page Title',
-        status: appNameInTitle ? 'pass' : 'warning',
+        status: title ? 'pass' : 'warning',
         expected: null,
-        actual: appNameInTitle,
-        message: appNameInTitle ? `Title: "${appNameInTitle}"` : 'No <title> tag found',
+        actual: title,
+        message: title ? `Title: "${title}"` : 'No <title> tag found',
       })
 
       return { app: app.name, url: app.url, checks }
     }),
   )
 
-  // Return sorted by app name for stable UI ordering
-  return results.sort((a, b) => a.app.localeCompare(b.app))
+  const updatedCount = persist
+    ? await reconcileAuditMeasurementIds(
+        event,
+        reconcileCandidates.map((candidate) => ({
+          app: candidate.app,
+          gaMeasurementId: candidate.liveMeasurementId,
+        })),
+      )
+    : 0
+
+  return {
+    results: results.sort((left, right) => left.app.localeCompare(right.app)),
+    reconcile: {
+      mode: persist ? 'write' : 'dry-run',
+      updatedCount,
+      candidates: reconcileCandidates.sort((left, right) => left.app.localeCompare(right.app)),
+    },
+  }
 })

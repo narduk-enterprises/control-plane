@@ -1,102 +1,90 @@
-/**
- * Thin facade composable that composes useFleetApps, useFleetStatuses,
- * and useFleetAdmin. Preserves the existing public API so existing consumers
- * don't break, while the real logic lives in focused composables.
- *
- * New code should import the focused composables directly instead of this.
- */
+import { storeToRefs } from 'pinia'
+import type { FleetRegistryApp } from '~/types/fleet'
+import { useAnalyticsStore } from '~/stores/analytics'
+import { useFleetRegistryStore } from '~/stores/fleetRegistry'
 
-export interface FleetApp {
-  name: string
-  url: string
-  dopplerProject: string
-  gaPropertyId?: string | null
-  gaMeasurementId?: string | null
-  posthogAppName?: string | null
-  githubRepo?: string | null
-  isActive?: boolean
-  createdAt?: string
-  updatedAt?: string
-}
-
-type PosthogSummaryMap = Record<string, { eventCount: number; users: number }>
+export type FleetApp = FleetRegistryApp
 
 export function useFleet(options?: { includeInactive?: boolean }) {
-  const {
-    apps,
-    rawApps,
-    refresh: refreshApps,
-    forceRefresh: forceRefreshApps,
-    status: appsStatus,
-  } = useFleetApps(options)
-  const {
-    rawStatuses,
-    statusMap,
-    getAppStatus,
-    refreshRaw: refreshStatusesRaw,
-    refreshAll: refreshStatuses,
-    refreshApp: refreshAppStatus,
-    isAppRefreshing,
-    isRefreshing: isRefreshingStatus,
-    status: statusesStatus,
-  } = useFleetStatuses()
-  const {
-    addApp: adminAddApp,
-    editApp: adminEditApp,
-    toggleApp: adminToggleApp,
-    deleteApp: adminDeleteApp,
-  } = useFleetAdmin()
+  const registryStore = useFleetRegistryStore()
+  const analyticsStore = useAnalyticsStore()
+  const { activeApps, allApps, statuses, statusesStatus, statusMap, refreshingStatuses } =
+    storeToRefs(registryStore)
+  const mappedStatuses = computed(() => new Map(Object.entries(statusMap.value)))
 
-  // PostHog summary — kept here since it's only used by the dashboard facade
-  const posthogForce = ref(false)
-  const {
-    data: rawPosthog,
-    refresh: refreshPosthog,
-    status: posthogStatus,
-  } = useFetch<PosthogSummaryMap>('/api/fleet/posthog/summary', {
-    query: computed(() => (posthogForce.value ? { force: 'true' } : {})),
-    default: () => ({}),
-    server: false,
-    lazy: true,
+  const apps = computed(() =>
+    (options?.includeInactive ? allApps.value : activeApps.value).filter(Boolean),
+  )
+  const rawApps = computed(() => (options?.includeInactive ? allApps.value : activeApps.value))
+
+  const posthogSummary = computed(() => {
+    const summary = analyticsStore.getSummary({
+      startDate: analyticsStore.startDate,
+      endDate: analyticsStore.endDate,
+    })
+
+    if (!summary) return {}
+
+    return Object.fromEntries(
+      Object.values(summary.apps).map((snapshot) => [
+        snapshot.app.name,
+        {
+          eventCount: Number(snapshot.posthog.metrics?.summary?.event_count ?? 0),
+          users: Number(snapshot.posthog.metrics?.summary?.unique_users ?? 0),
+        },
+      ]),
+    )
   })
 
+  onMounted(() => {
+    void registryStore.ensureApps(options?.includeInactive === true)
+    void registryStore.ensureStatuses()
+  })
+
+  async function refreshPosthog() {
+    return analyticsStore.fetchSummary({ force: true })
+  }
+
   async function forceRefreshAll() {
-    posthogForce.value = true
-    await Promise.all([forceRefreshApps(), refreshStatusesRaw(), refreshPosthog()])
-    posthogForce.value = false
+    await Promise.all([
+      registryStore.refreshApps(options?.includeInactive === true),
+      registryStore.loadStatuses(true),
+      analyticsStore.fetchSummary({ force: true }),
+    ])
   }
 
   const isLoading = computed(() => {
     return (
-      appsStatus.value === 'pending' ||
-      statusesStatus.value === 'pending' ||
-      posthogStatus.value === 'pending'
+      (options?.includeInactive ? registryStore.allAppsStatus : registryStore.appsStatus) ===
+        'pending' || statusesStatus.value === 'pending'
     )
   })
+
+  const admin = useFleetAdmin()
 
   return {
     apps,
     rawApps,
-    rawStatuses,
-    statusMap,
-    posthogSummary: rawPosthog,
+    rawStatuses: statuses,
+    statusMap: mappedStatuses,
+    posthogSummary,
 
-    getAppStatus,
-    refreshStatuses,
-    refreshAppStatus,
-    isAppRefreshing,
-    isRefreshingStatus,
+    getAppStatus: registryStore.getAppStatus,
+    refreshStatuses: registryStore.refreshAllStatuses,
+    refreshAppStatus: registryStore.refreshAppStatus,
+    isAppRefreshing: registryStore.isAppRefreshing,
+    isRefreshingStatus: refreshingStatuses,
 
-    refreshApps,
-    forceRefreshApps,
+    refreshApps: () => registryStore.ensureApps(options?.includeInactive === true),
+    forceRefreshApps: () => registryStore.refreshApps(options?.includeInactive === true),
     refreshPosthog,
-    refreshStatusesRaw,
+    refreshStatusesRaw: () => registryStore.loadStatuses(true),
     forceRefreshAll,
     isLoading,
 
-    adminAddApp,
-    adminEditApp,
-    adminToggleApp,
-    adminDeleteApp,
+    adminAddApp: admin.addApp,
+    adminEditApp: admin.editApp,
+    adminToggleApp: admin.toggleApp,
+    adminDeleteApp: admin.deleteApp,
   }
 }

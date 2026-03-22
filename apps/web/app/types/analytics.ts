@@ -1,7 +1,49 @@
 /**
- * Centralized analytics types — single source of truth for all GA4, GSC,
- * and PostHog API response shapes used by composables and components.
+ * Canonical analytics contracts shared by composables, stores, and UI.
+ * Raw provider responses remain here for compatibility, but the UI should
+ * consume FleetAnalyticsSnapshot / FleetAnalyticsSummaryResponse.
  */
+
+export type AnalyticsProviderStatus =
+  | 'healthy'
+  | 'stale'
+  | 'no_data'
+  | 'missing_registry'
+  | 'missing_config'
+  | 'access_denied'
+  | 'error'
+
+export type AnalyticsDataSource = 'live' | 'cache' | 'derived' | 'none'
+
+export interface AnalyticsCacheMeta {
+  cachedAt: string
+  stale: boolean
+}
+
+export interface AnalyticsRange {
+  startDate: string
+  endDate: string
+}
+
+export interface FleetAnalyticsAppInfo {
+  name: string
+  url: string
+  dopplerProject: string
+  gaPropertyId?: string | null
+  gaMeasurementId?: string | null
+  posthogAppName?: string | null
+  githubRepo?: string | null
+  isActive?: boolean
+}
+
+export interface AnalyticsProviderSnapshot<TMetrics = unknown> {
+  status: AnalyticsProviderStatus
+  source: AnalyticsDataSource
+  stale: boolean
+  lastUpdatedAt: string | null
+  message: string | null
+  metrics: TMetrics | null
+}
 
 // ── GA4 ──────────────────────────────────────────────────────────────
 
@@ -40,6 +82,14 @@ export interface FleetGAResponse {
   timeSeries: GaTimeSeriesPoint[]
   startDate: string
   endDate: string
+  fetchedAt: string
+}
+
+export interface FleetAnalyticsGaMetrics {
+  propertyId: string
+  summary: GaSummary | null
+  deltas: GaDeltas | null
+  timeSeries: GaTimeSeriesPoint[]
 }
 
 // ── GSC ──────────────────────────────────────────────────────────────
@@ -78,6 +128,14 @@ export interface GscQueryParams {
   force?: boolean
 }
 
+export interface GscSeriesPoint {
+  date: string
+  clicks: number
+  impressions: number
+  ctr: number
+  position: number
+}
+
 export interface FleetGscResponse {
   app: string
   rows: GscRow[]
@@ -86,6 +144,28 @@ export interface FleetGscResponse {
   startDate: string
   endDate: string
   dimension: string
+  gscSiteUrl?: string
+  note?: string
+  fetchedAt: string
+}
+
+export interface FleetGscSeriesResponse {
+  app: string
+  timeSeries: GscSeriesPoint[]
+  compareTimeSeries?: GscSeriesPoint[]
+  startDate: string
+  endDate: string
+  fetchedAt: string
+}
+
+export interface FleetAnalyticsGscMetrics {
+  totals: GscTotals | null
+  queries: GscRow[]
+  devices: GscRow[]
+  timeSeries: GscSeriesPoint[]
+  inspection: GscInspection | null
+  siteUrl: string | null
+  note: string | null
 }
 
 // ── PostHog ──────────────────────────────────────────────────────────
@@ -106,6 +186,110 @@ export interface FleetPosthogResponse {
   replaysUrl: string
   startDate: string
   endDate: string
+  fetchedAt: string
+}
+
+export interface FleetPosthogSummaryResponse {
+  generatedAt: string
+  apps: Record<
+    string,
+    {
+      eventCount: number
+      users: number
+      pageviews: number
+      sessions: number
+      fetchedAt: string
+    }
+  >
+}
+
+export interface FleetAnalyticsPosthogMetrics {
+  summary: Record<string, number>
+  timeSeries: GaTimeSeriesPoint[]
+  topPages: PosthogTopItem[]
+  topReferrers: PosthogTopItem[]
+  topCountries: PosthogTopItem[]
+  topBrowsers: PosthogTopItem[]
+  replaysUrl: string | null
+}
+
+// ── IndexNow ─────────────────────────────────────────────────────────
+
+export interface FleetAnalyticsIndexnowMetrics {
+  lastSubmission: string | null
+  totalSubmissions: number
+  lastSubmittedCount: number | null
+}
+
+// ── Canonical snapshots ─────────────────────────────────────────────
+
+export interface FleetAnalyticsSnapshot {
+  app: FleetAnalyticsAppInfo
+  range: AnalyticsRange
+  generatedAt: string
+  health: {
+    status: 'up' | 'down' | 'unknown'
+    checkedAt: string | null
+  }
+  ga: AnalyticsProviderSnapshot<FleetAnalyticsGaMetrics>
+  gsc: AnalyticsProviderSnapshot<FleetAnalyticsGscMetrics>
+  posthog: AnalyticsProviderSnapshot<FleetAnalyticsPosthogMetrics>
+  indexnow: AnalyticsProviderSnapshot<FleetAnalyticsIndexnowMetrics>
+}
+
+export interface FleetAnalyticsSummaryTotals {
+  gaUsers: number
+  gaPageviews: number
+  gscClicks: number
+  gscImpressions: number
+  posthogEvents: number
+  posthogUsers: number
+  healthyProviders: {
+    ga: number
+    gsc: number
+    posthog: number
+    indexnow: number
+  }
+  problemProviders: {
+    ga: number
+    gsc: number
+    posthog: number
+    indexnow: number
+  }
+}
+
+export interface FleetAnalyticsSummaryResponse {
+  startDate: string
+  endDate: string
+  generatedAt: string
+  apps: Record<string, FleetAnalyticsSnapshot>
+  totals: FleetAnalyticsSummaryTotals
+  insights: AnalyticsInsight[]
+}
+
+export type FleetAnalyticsDetailResponse = FleetAnalyticsSnapshot
+
+// ── Integration health ──────────────────────────────────────────────
+
+export type IntegrationHealthStatus = 'configured' | 'partial' | 'missing'
+
+export interface FleetIntegrationHealthCheck {
+  key: string
+  label: string
+  status: IntegrationHealthStatus
+  message: string
+}
+
+export interface FleetIntegrationHealthResponse {
+  generatedAt: string
+  lastSnapshotAt: string | null
+  fleet: {
+    totalApps: number
+    appsWithGaPropertyId: number
+    appsWithGaMeasurementId: number
+    appsWithPosthogAppName: number
+  }
+  services: FleetIntegrationHealthCheck[]
 }
 
 // ── Insights ─────────────────────────────────────────────────────────

@@ -85,16 +85,22 @@ describe('Fleet Status & Monitoring', () => {
 
   // ── Audit ──────────────────────────────────────────────────────────
   describe('POST /api/fleet/audit', () => {
-    authIt('returns array of audit results for all fleet apps', async () => {
+    authIt('returns audit results with reconcile metadata for all fleet apps', async () => {
       const res = await apiFetch('/api/fleet/audit', { method: 'POST' })
       assertNot500(res.status, 'POST /api/fleet/audit')
 
       if (res.status === 200) {
         const data = await res.json()
-        expect(Array.isArray(data)).toBe(true)
-        expect(data.length).toBeGreaterThan(0)
+        expect(data).toHaveProperty('results')
+        expect(data).toHaveProperty('reconcile')
+        expect(Array.isArray(data.results)).toBe(true)
+        expect(data.results.length).toBeGreaterThan(0)
+        expect(data.reconcile).toHaveProperty('mode')
+        expect(data.reconcile).toHaveProperty('updatedCount')
+        expect(data.reconcile).toHaveProperty('candidates')
+        expect(Array.isArray(data.reconcile.candidates)).toBe(true)
 
-        const first = data[0]
+        const first = data.results[0]
         expect(first).toHaveProperty('app')
         expect(first).toHaveProperty('url')
         expect(first).toHaveProperty('checks')

@@ -8,7 +8,7 @@
  * Usage:
  *   TEST_API_KEY="nk_..." pnpm --filter web test:integration
  */
-import { test as baseIt } from 'vitest'
+import { expect, test as baseIt } from 'vitest'
 
 export const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000'
 

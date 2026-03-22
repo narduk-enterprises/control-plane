@@ -399,11 +399,15 @@ export default defineEventHandler(async (event) => {
       await bulkSetSecrets(dopplerToken2, name, 'dev', analyticsSecrets)
     }
 
-    // Update fleet_apps with GA property ID
-    if (gaPropertyId) {
+    // Update fleet_apps with provisioned analytics IDs
+    if (gaPropertyId || gaMeasurementId) {
       await db
         .update(fleetApps)
-        .set({ gaPropertyId, updatedAt: new Date().toISOString() })
+        .set({
+          ...(gaPropertyId ? { gaPropertyId } : {}),
+          ...(gaMeasurementId ? { gaMeasurementId } : {}),
+          updatedAt: new Date().toISOString(),
+        })
         .where(eq(fleetApps.name, name))
     }
   } catch (err: unknown) {

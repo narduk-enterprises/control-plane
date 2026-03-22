@@ -1,5 +1,6 @@
 import {
-  buildFleetAnalyticsSummary,
+  buildFleetAnalyticsSnapshot,
+  parseAnalyticsAppParam,
   parseAnalyticsQuery,
   toHttpError,
 } from '#server/utils/fleet-analytics'
@@ -10,22 +11,18 @@ export default defineEventHandler(async (event) => {
   if (!(config.cronSecret && cronHeader === config.cronSecret)) {
     await requireAdmin(event)
   }
-  await enforceRateLimit(event, 'fleet-analytics-insights', 30, 60_000)
+  await enforceRateLimit(event, 'fleet-analytics-detail', 20, 60_000)
 
+  const appSlug = parseAnalyticsAppParam(event)
   const query = parseAnalyticsQuery(event)
 
   try {
-    const summary = await buildFleetAnalyticsSummary(
+    return await buildFleetAnalyticsSnapshot(
       event,
+      appSlug,
       { startDate: query.startDate, endDate: query.endDate },
-      query.force,
+      { force: query.force, mode: 'detail' },
     )
-    return {
-      insights: summary.insights,
-      startDate: summary.startDate,
-      endDate: summary.endDate,
-      generatedAt: summary.generatedAt,
-    }
   } catch (error: unknown) {
     throw toHttpError(error)
   }

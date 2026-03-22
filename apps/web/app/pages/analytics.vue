@@ -1,155 +1,135 @@
 <script setup lang="ts">
-import type { FleetAppAnalyticsSummary } from '~/composables/useFleetAnalyticsSummary'
+import { storeToRefs } from 'pinia'
+import { useAnalyticsStore } from '~/stores/analytics'
 
 useSeo({
   title: 'Analytics Dashboard',
-  description: 'Fleet-wide analytics: GA, GSC, and PostHog across all properties.',
+  description: 'Fleet-wide analytics: GA4, Search Console, PostHog, and integration health.',
 })
 useWebPageSchema({
   name: 'Analytics Dashboard',
   description: 'Fleet-wide analytics command center.',
 })
 
-const { apps: fleetApps, getAppStatus, refreshStatusesRaw } = useFleet()
-const { data: indexnowSummary, refresh: refreshIndexnowSummary } = useFleetIndexnowSummary()
-
-// Batch IndexNow submit
-const { submitting: indexnowSubmitting, submitAll: submitAllIndexnow } = useBatchIndexnow(fleetApps)
-async function batchSubmitIndexnow() {
-  await submitAllIndexnow()
-  await refreshIndexnowSummary()
-}
-
+const analyticsStore = useAnalyticsStore()
+const { preset, startDate, endDate } = storeToRefs(analyticsStore)
 const dateState = useAnalyticsDateRange('30d')
-const presetRef = dateState.preset
-const startRef = dateState.startDate
-const endRef = dateState.endDate
 
-const forceFlag = ref(false)
 const {
-  data: summaryData,
-  meta: summaryMeta,
-  loading: summaryLoading,
-  error: summaryError,
-  load: loadSummary,
-} = useFleetAnalyticsSummary(startRef, endRef, { force: forceFlag })
-const {
-  insights,
-  loading: insightsLoading,
-  error: insightsError,
-  load: loadInsights,
-} = useFleetAnalyticsInsights(startRef, endRef, { force: forceFlag })
+  apps: fleetApps,
+  getAppStatus,
+  refreshStatusesRaw,
+} = useFleet()
+
+const { data: indexnowSummary, refresh: refreshIndexnowSummary } = useFleetIndexnowSummary()
+const { submitting: indexnowSubmitting, submitAll: submitAllIndexnow } = useBatchIndexnow(fleetApps)
 
 const viewMode = ref<'cards' | 'dense'>('cards')
-
-watch(viewMode, (v) => {
-  try {
-    if (import.meta.client && typeof localStorage !== 'undefined')
-      localStorage.setItem('analytics-view-mode', v)
-  } catch (_) {
-    /* localStorage may be unavailable */
-  }
-})
-
+const statusFilter = ref<'all' | 'up' | 'down'>('all')
 const sortKey = ref('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
-const statusFilter = ref<'all' | 'up' | 'down'>('all')
 
-const normalizedSummary = computed(() => {
-  const r = summaryData.value
-  if (!r?.apps) return {}
-  return r.apps as Record<string, FleetAppAnalyticsSummary>
+const range = computed(() => ({ startDate: startDate.value, endDate: endDate.value }))
+const summary = computed(() => analyticsStore.getSummary(range.value))
+const snapshotMap = computed(() => summary.value?.apps ?? {})
+const summaryLoading = computed(() => analyticsStore.getSummaryStatus(range.value) === 'pending')
+const summaryError = computed(() => analyticsStore.getSummaryError(range.value))
+const insights = computed(() => analyticsStore.getInsights(range.value))
+
+const freshness = computed(() => {
+  const generatedAt = summary.value?.generatedAt
+  if (!generatedAt) return null
+  const diffMinutes = Math.round((Date.now() - new Date(generatedAt).getTime()) / 60_000)
+  if (diffMinutes < 1) return 'Updated just now'
+  if (diffMinutes < 60) return `Updated ${diffMinutes} min ago`
+  return `Updated ${new Date(generatedAt).toLocaleTimeString()}`
 })
 
 const filteredApps = computed(() => {
   let list = fleetApps.value
   if (statusFilter.value !== 'all') {
-    list = list.filter((app) => {
-      const s = getAppStatus(app.name)
-      return s?.status === statusFilter.value
-    })
+    list = list.filter((app) => getAppStatus(app.name)?.status === statusFilter.value)
   }
   return list
 })
 
 const statusMapComputed = computed(() => {
-  const m = new Map<string, import('~/types/fleet').FleetAppStatusRecord>()
+  const map = new Map()
   for (const app of filteredApps.value) {
-    const s = getAppStatus(app.name)
-    if (s) m.set(app.name, s)
+    const status = getAppStatus(app.name)
+    if (status) map.set(app.name, status)
   }
-  return m
+  return map
 })
 
-const freshness = computed(() => {
-  const m = summaryMeta.value
-  if (!m?.cachedAt) return null
-  const at = new Date(m.cachedAt)
-  const min = Math.round((Date.now() - at.getTime()) / 60_000)
-  if (min < 1) return 'Just now'
-  if (min < 60) return `${min} min ago`
-  return at.toLocaleTimeString()
-})
-
-const is1hRef = dateState.is1h
-
-async function loadAll(force = false) {
-  if (is1hRef.value) return
-  forceFlag.value = force
-  try {
-    await Promise.all([loadSummary(), loadInsights()])
-  } finally {
-    if (force) forceFlag.value = false
-  }
+async function loadSummary(force = false) {
+  if (preset.value === '1h') return
+  await analyticsStore.fetchSummary({ range: range.value, force })
 }
 
 async function refreshAll() {
-  await loadAll(true)
+  await Promise.all([loadSummary(true), refreshStatusesRaw()])
 }
 
-// Auto-load on date changes
-watch([startRef, endRef], () => loadAll(), { immediate: false })
+async function batchSubmitIndexnow() {
+  await submitAllIndexnow()
+  await refreshIndexnowSummary()
+}
+
+watch(range, () => {
+  if (preset.value !== '1h') {
+    void loadSummary()
+  }
+})
 
 onMounted(() => {
   try {
     const saved = localStorage.getItem('analytics-view-mode') as 'cards' | 'dense' | null
     if (saved === 'cards' || saved === 'dense') viewMode.value = saved
-  } catch (_) {
-    /* localStorage may be unavailable */
+  } catch {
+    // Ignore localStorage issues.
   }
-  refreshStatusesRaw()
-  if (!is1hRef.value) loadAll()
+
+  void refreshStatusesRaw()
+  void loadSummary()
+})
+
+watch(viewMode, (value) => {
+  if (!import.meta.client) return
+  try {
+    localStorage.setItem('analytics-view-mode', value)
+  } catch {
+    // Ignore localStorage issues.
+  }
 })
 
 const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label: 'Analytics' }])
-
-const summaryOrInsightsError = computed(() => (summaryError.value || insightsError.value) ?? null)
 </script>
 
 <template>
-  <div class="pb-12 overflow-hidden">
+  <div class="overflow-hidden pb-12">
     <AppBreadcrumbs :items="breadcrumbItems" />
 
     <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
-        <h1 class="font-display text-2xl font-semibold text-default flex items-center gap-2">
-          <UIcon name="i-lucide-activity" class="size-6 text-primary" />
-          Analytics Dashboard
+        <h1 class="flex items-center gap-2 font-display text-2xl font-semibold text-default">
+          <UIcon name="i-lucide-chart-column-big" class="size-6 text-primary" />
+          Analytics
         </h1>
         <p class="mt-1 text-sm text-muted">
-          Fleet-wide view: compare pageviews, clicks, and events across all properties.
+          Canonical fleet snapshot for GA4, Search Console, PostHog, and IndexNow.
         </p>
       </div>
 
-      <div class="flex flex-col gap-2 min-w-0 w-full md:w-auto">
+      <div class="flex flex-col gap-2">
         <AnalyticsDateBar
           :preset-options="dateState.presetOptions"
-          :active-preset="presetRef"
+          :active-preset="preset"
           :loading="summaryLoading"
           :freshness="freshness"
           show-refresh
-          v-model:start-date="startRef"
-          v-model:end-date="endRef"
+          v-model:start-date="startDate"
+          v-model:end-date="endDate"
           @preset="dateState.setPreset($event)"
           @refresh="refreshAll"
         />
@@ -180,49 +160,45 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
     </div>
 
     <UAlert
-      v-if="is1hRef"
+      v-if="preset === '1h'"
       icon="i-lucide-info"
-      title="Hourly filtering"
-      description="Fleet summary is not available for Last Hour (GA/GSC use daily granularity). Choose a longer range."
+      title="Last hour is not supported"
+      description="Fleet analytics snapshots use daily GA4 and Search Console granularity. Choose a longer range."
       color="info"
       variant="subtle"
       class="mb-6"
     />
 
     <AnalyticsErrorAlert
-      v-if="summaryError || insightsError"
-      :provider="summaryError ? 'Analytics Summary' : 'Insights'"
-      :error="summaryOrInsightsError"
+      v-if="summaryError"
+      provider="Analytics Snapshot"
+      :error="summaryError"
       @retry="refreshAll"
     />
 
-    <template v-if="!is1hRef">
-      <!-- Consolidated Health + Insights Panel -->
+    <template v-if="preset !== '1h'">
       <AnalyticsHealthPanel
         :apps="fleetApps"
-        :summary-map="normalizedSummary"
+        :snapshot-map="snapshotMap"
         :insights="insights"
         :loading="summaryLoading"
-        :insights-loading="insightsLoading"
       />
 
-      <AnalyticsFleetBanner :apps="normalizedSummary" :loading="summaryLoading" />
+      <AnalyticsFleetBanner :summary="summary" :loading="summaryLoading" />
 
-      <!-- IndexNow Status + Batch Submit -->
       <div
         v-if="indexnowSummary"
-        class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-default/50 bg-elevated/30 px-3 py-2"
+        class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-default/60 bg-elevated/30 px-4 py-3"
       >
         <div class="flex items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-send" class="size-4 text-primary" />
-          <span>IndexNow:</span>
+          <span>IndexNow</span>
           <UBadge
             variant="subtle"
             size="sm"
             :color="(indexnowSummary.appsWithIndexnow ?? 0) > 0 ? 'success' : 'neutral'"
           >
-            {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{ indexnowSummary.totalFleetSize ?? 0 }}
-            apps
+            {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{ indexnowSummary.totalFleetSize ?? 0 }} apps
           </UBadge>
           <span class="hidden sm:inline">
             {{ indexnowSummary.totalSubmissions?.toLocaleString() ?? 0 }} total pings
@@ -233,7 +209,7 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
           variant="soft"
           color="primary"
           icon="i-lucide-send"
-          class="cursor-pointer ml-auto"
+          class="ml-auto cursor-pointer"
           :loading="indexnowSubmitting"
           @click="batchSubmitIndexnow"
         >
@@ -244,14 +220,15 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
       <div class="mb-4 flex flex-wrap items-center gap-2">
         <span class="text-sm text-muted">Filter:</span>
         <UButton
-          v-for="f in ['all', 'up', 'down'] as const"
-          :key="f"
+          v-for="filterValue in ['all', 'up', 'down'] as const"
+          :key="filterValue"
           size="xs"
-          :color="statusFilter === f ? 'primary' : 'neutral'"
+          :color="statusFilter === filterValue ? 'primary' : 'neutral'"
           variant="outline"
-          @click="statusFilter = f"
+          class="cursor-pointer"
+          @click="statusFilter = filterValue"
         >
-          {{ f === 'all' ? 'All' : f === 'up' ? 'Up' : 'Down' }}
+          {{ filterValue === 'all' ? 'All' : filterValue === 'up' ? 'Up' : 'Down' }}
         </UButton>
       </div>
 
@@ -264,15 +241,16 @@ const summaryOrInsightsError = computed(() => (summaryError.value || insightsErr
           :key="app.name"
           :app-name="app.name"
           :app-url="app.url"
-          :data="normalizedSummary[app.name] ?? null"
+          :snapshot="snapshotMap[app.name] ?? null"
           :status="getAppStatus(app.name)"
           :loading="summaryLoading"
         />
       </div>
+
       <AnalyticsFleetTable
         v-else
         :apps="filteredApps"
-        :summary-map="normalizedSummary"
+        :snapshot-map="snapshotMap"
         :status-map="statusMapComputed"
         :loading="summaryLoading"
         :sort-key="sortKey"

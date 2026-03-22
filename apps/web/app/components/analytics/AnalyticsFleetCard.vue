@@ -1,112 +1,104 @@
 <script setup lang="ts">
-import type { FleetAppAnalyticsSummary } from '~/composables/useFleetAnalyticsSummary'
+import type { FleetAnalyticsSnapshot } from '~/types/analytics'
 import type { FleetAppStatusRecord } from '~/types/fleet'
 
 const props = defineProps<{
   appName: string
   appUrl: string
-  data: FleetAppAnalyticsSummary | null
+  snapshot: FleetAnalyticsSnapshot | null
   status: FleetAppStatusRecord | undefined
   loading?: boolean
 }>()
 
-// ── Computed data with provider awareness ──
-const hasGA = computed(() => !!props.data?.ga?.summary)
-const hasGSC = computed(() => !!props.data?.gsc?.totals)
-const hasPH = computed(() => !!props.data?.posthog?.summary)
-const hasAnyData = computed(() => hasGA.value || hasGSC.value || hasPH.value)
+const gaUsers = computed(() => props.snapshot?.ga.metrics?.summary?.activeUsers ?? 0)
+const gaPageviews = computed(() => props.snapshot?.ga.metrics?.summary?.screenPageViews ?? 0)
+const gscClicks = computed(() => props.snapshot?.gsc.metrics?.totals?.clicks ?? 0)
+const posthogEvents = computed(() => Number(props.snapshot?.posthog.metrics?.summary?.event_count ?? 0))
+const posthogUsers = computed(() => Number(props.snapshot?.posthog.metrics?.summary?.unique_users ?? 0))
+const userDelta = computed(() => props.snapshot?.ga.metrics?.deltas?.users)
 
-const gaUsers = computed(() => props.data?.ga?.summary?.activeUsers ?? 0)
-const gaPageviews = computed(() => props.data?.ga?.summary?.screenPageViews ?? 0)
-const gscClicks = computed(() => props.data?.gsc?.totals?.clicks ?? 0)
-const phEvents = computed(() => Number(props.data?.posthog?.summary?.event_count ?? 0))
-const phUniqueUsers = computed(() => Number(props.data?.posthog?.summary?.unique_users ?? 0))
+const providerBadges = computed(() => [
+  { key: 'ga', label: 'GA4', status: props.snapshot?.ga.status ?? 'no_data' },
+  { key: 'gsc', label: 'GSC', status: props.snapshot?.gsc.status ?? 'no_data' },
+  { key: 'posthog', label: 'PH', status: props.snapshot?.posthog.status ?? 'no_data' },
+])
 
 const timeSeries = computed(
-  () => props.data?.ga?.timeSeries ?? props.data?.posthog?.timeSeries ?? [],
+  () => props.snapshot?.ga.metrics?.timeSeries ?? props.snapshot?.posthog.metrics?.timeSeries ?? [],
 )
 
-const userDelta = computed(() => props.data?.ga?.deltas?.users ?? undefined)
+function badgeColor(status: string) {
+  switch (status) {
+    case 'healthy':
+      return 'success'
+    case 'stale':
+      return 'warning'
+    case 'missing_registry':
+    case 'missing_config':
+    case 'access_denied':
+    case 'error':
+      return 'error'
+    default:
+      return 'neutral'
+  }
+}
 
-// Border color based on trend
-const borderClass = computed(() => {
-  if (!hasAnyData.value) return 'border-default'
-  const d = userDelta.value
-  if (d == null) return 'border-default'
-  if (d >= 20) return 'border-l-4 border-l-success'
-  if (d <= -20) return 'border-l-4 border-l-error'
-  return 'border-default'
+const hasAnyMetrics = computed(() => {
+  return !!props.snapshot && (
+    gaUsers.value > 0 ||
+    gaPageviews.value > 0 ||
+    gscClicks.value > 0 ||
+    posthogEvents.value > 0 ||
+    timeSeries.value.length > 0
+  )
 })
-
-// Provider dots
-const providers = computed(() => [
-  { key: 'GA4', active: hasGA.value, color: 'bg-blue-500' },
-  { key: 'GSC', active: hasGSC.value, color: 'bg-green-500' },
-  { key: 'PH', active: hasPH.value, color: 'bg-orange-500' },
-])
 </script>
 
 <template>
   <NuxtLink
     :to="`/analytics/${appName}`"
-    class="block rounded-xl border border-default bg-elevated/50 p-3 sm:p-4 transition-all hover:scale-[1.02] hover:shadow-elevated"
-    :class="borderClass"
+    class="block rounded-2xl border border-default bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.02))] p-4 transition-all hover:-translate-y-1 hover:shadow-elevated"
   >
-    <!-- Header -->
-    <div class="flex items-start justify-between gap-2 mb-2">
-      <span class="font-medium text-default truncate text-sm">{{ appName }}</span>
-      <div class="flex items-center gap-1.5 shrink-0">
-        <!-- Provider dots -->
-        <div class="flex gap-0.5">
-          <div
-            v-for="p in providers"
-            :key="p.key"
-            :title="`${p.key}: ${p.active ? 'Data available' : 'No data'}`"
-            class="size-1.5 rounded-full"
-            :class="p.active ? p.color : 'bg-default/20'"
-          />
-        </div>
-        <UBadge
-          v-if="status"
-          :color="status.status === 'up' ? 'success' : 'error'"
-          variant="subtle"
-          size="xs"
-        >
-          {{ status.status }}
-        </UBadge>
+    <div class="mb-3 flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <p class="truncate font-semibold text-default">{{ appName }}</p>
+        <p class="truncate text-xs text-muted">{{ appUrl.replace(/^https?:\/\//, '') }}</p>
       </div>
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading && !data" class="flex items-center gap-2 text-sm text-muted">
-      <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
-      Loading…
-    </div>
-
-    <template v-else-if="hasAnyData">
-      <!-- Sparkline -->
-      <div v-if="timeSeries.length" class="mb-2 flex justify-end">
-        <AnalyticsSparkline :data="timeSeries" :width="120" :height="32" />
-      </div>
-
-      <!-- Stats Grid — only show providers with data -->
-      <div
-        class="grid gap-2 text-center text-xs"
-        :class="hasPH && hasGA ? 'grid-cols-4' : hasPH || hasGA ? 'grid-cols-3' : 'grid-cols-2'"
+      <UBadge
+        v-if="status"
+        :color="status.status === 'up' ? 'success' : 'error'"
+        variant="subtle"
+        size="xs"
       >
-        <!-- PostHog events (most likely to have data) -->
-        <div v-if="hasPH">
-          <p class="text-muted">Events</p>
-          <p class="font-semibold text-default">{{ phEvents.toLocaleString() }}</p>
-        </div>
-        <div v-if="hasPH && phUniqueUsers > 0">
-          <p class="text-muted">Users</p>
-          <p class="font-semibold text-default">{{ phUniqueUsers.toLocaleString() }}</p>
-        </div>
+        {{ status.status }}
+      </UBadge>
+    </div>
 
-        <!-- GA4 -->
-        <div v-if="hasGA">
-          <p class="text-muted">GA Users</p>
+    <div class="mb-3 flex flex-wrap gap-1.5">
+      <UBadge
+        v-for="provider in providerBadges"
+        :key="provider.key"
+        :color="badgeColor(provider.status)"
+        variant="soft"
+        size="xs"
+      >
+        {{ provider.label }}
+      </UBadge>
+    </div>
+
+    <div v-if="loading && !snapshot" class="flex items-center gap-2 text-sm text-muted">
+      <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
+      Loading snapshot…
+    </div>
+
+    <template v-else-if="hasAnyMetrics">
+      <div v-if="timeSeries.length" class="mb-3 flex justify-end">
+        <AnalyticsSparkline :data="timeSeries" :width="128" :height="28" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="rounded-xl bg-default/5 px-3 py-2">
+          <p class="text-muted">Users</p>
           <p class="font-semibold text-default">{{ gaUsers.toLocaleString() }}</p>
           <p
             v-if="userDelta !== undefined"
@@ -116,23 +108,30 @@ const providers = computed(() => [
             {{ userDelta >= 0 ? '+' : '' }}{{ userDelta.toFixed(0) }}%
           </p>
         </div>
-        <div v-if="hasGA">
-          <p class="text-muted">PV</p>
+        <div class="rounded-xl bg-default/5 px-3 py-2">
+          <p class="text-muted">Pageviews</p>
           <p class="font-semibold text-default">{{ gaPageviews.toLocaleString() }}</p>
         </div>
-
-        <!-- GSC -->
-        <div v-if="hasGSC">
-          <p class="text-muted">Clicks</p>
+        <div class="rounded-xl bg-default/5 px-3 py-2">
+          <p class="text-muted">GSC Clicks</p>
           <p class="font-semibold text-default">{{ gscClicks.toLocaleString() }}</p>
+        </div>
+        <div class="rounded-xl bg-default/5 px-3 py-2">
+          <p class="text-muted">Events</p>
+          <p class="font-semibold text-default">{{ posthogEvents.toLocaleString() }}</p>
+          <p v-if="posthogUsers > 0" class="text-[10px] text-muted">
+            {{ posthogUsers.toLocaleString() }} users
+          </p>
         </div>
       </div>
     </template>
 
-    <!-- No data state -->
-    <div v-else-if="!loading" class="text-center text-xs text-muted py-2">
-      <UIcon name="i-lucide-database" class="size-4 mx-auto mb-1" />
-      No cached data
+    <div v-else class="rounded-xl border border-dashed border-default/80 px-4 py-5 text-center">
+      <UIcon name="i-lucide-database" class="mx-auto mb-2 size-5 text-muted" />
+      <p class="text-sm font-medium text-default">No data for this range</p>
+      <p class="mt-1 text-xs text-muted">
+        Open the app snapshot to inspect provider state and remediation steps.
+      </p>
     </div>
   </NuxtLink>
 </template>

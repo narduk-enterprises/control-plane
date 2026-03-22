@@ -297,7 +297,7 @@ function formatUrl(url: string) {
             </UTooltip>
             <UTooltip text="View Analytics">
               <UButton
-                :to="`/fleet/${app.name}`"
+                :to="`/analytics/${app.name}`"
                 icon="i-lucide-bar-chart-3"
                 size="xs"
                 variant="ghost"

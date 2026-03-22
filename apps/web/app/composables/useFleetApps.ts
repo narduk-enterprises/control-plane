@@ -1,33 +1,27 @@
-import type { FleetApp } from '~/composables/useFleet'
+import { storeToRefs } from 'pinia'
+import type { FleetRegistryApp } from '~/types/fleet'
+import { useFleetRegistryStore } from '~/stores/fleetRegistry'
 
-/**
- * Composable for the fleet apps list (read-only).
- * Fetches the app registry and provides sorted, reactive data.
- */
 export function useFleetApps(options?: { includeInactive?: boolean }) {
-  const forceRef = ref(false)
-  const query = computed(() => ({
-    ...(options?.includeInactive ? { includeInactive: 'true' } : {}),
-    ...(forceRef.value ? { force: 'true' } : {}),
-  }))
+  const store = useFleetRegistryStore()
+  const { activeApps, allApps, appsStatus, allAppsStatus } = storeToRefs(store)
 
-  const {
-    data: rawApps,
-    refresh,
-    status,
-  } = useFetch<FleetApp[]>('/api/fleet/apps', {
-    query,
-    default: () => [],
+  const rawApps = computed<FleetRegistryApp[]>(() =>
+    options?.includeInactive ? allApps.value : activeApps.value,
+  )
+  const apps = computed(() => [...rawApps.value].sort((left, right) => left.name.localeCompare(right.name)))
+  const status = computed(() => (options?.includeInactive ? allAppsStatus.value : appsStatus.value))
+
+  onMounted(() => {
+    void store.ensureApps(options?.includeInactive === true)
   })
 
-  const apps = computed(() => {
-    return [...(rawApps.value ?? [])].sort((a, b) => a.name.localeCompare(b.name))
-  })
+  async function refresh() {
+    return store.ensureApps(options?.includeInactive === true)
+  }
 
   async function forceRefresh() {
-    forceRef.value = true
-    await refresh()
-    forceRef.value = false
+    return store.refreshApps(options?.includeInactive === true)
   }
 
   return {

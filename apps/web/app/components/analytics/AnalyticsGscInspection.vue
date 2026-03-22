@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GscInspection } from '~/composables/useFleetGscQuery'
+import type { GscInspection } from '~/types/analytics'
 
 const props = defineProps<{
   inspection: GscInspection

@@ -24,6 +24,7 @@
     "db:ready": "pnpm run db:migrate && pnpm run db:seed"
   },
   "dependencies": {
+    "@pinia/nuxt": "^0.11.2",
     "@narduk-enterprises/narduk-nuxt-template-layer": "workspace:*",
     "chart.js": "^4.5.1",
     "chartjs-plugin-annotation": "^3.1.0",
@@ -31,6 +32,7 @@
     "drizzle-orm": "^0.45.1",
     "libsodium-wrappers": "^0.8.2",
     "nuxt": "^4.3.1",
+    "pinia": "^3.0.4",
     "vue-chartjs": "^5.3.3",
     "zod": "^4.3.6",
     "@narduk-enterprises/eslint-config": "^1.0.12"

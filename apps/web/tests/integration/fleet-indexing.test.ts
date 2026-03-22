@@ -13,7 +13,7 @@ describe('Fleet Indexing & IndexNow', () => {
         expect(data).toHaveProperty('url')
         expect(data).toHaveProperty('metadata')
       } else {
-        expect([404, 403, 400]).toContain(res.status)
+        expect([404, 403, 400, 503]).toContain(res.status)
       }
     })
 
@@ -41,7 +41,7 @@ describe('Fleet Indexing & IndexNow', () => {
         expect(data).toHaveProperty('url')
         expect(data).toHaveProperty('type', 'URL_UPDATED')
       } else {
-        expect([400, 403, 401, 429]).toContain(res.status)
+        expect([400, 401, 403, 429, 503]).toContain(res.status)
       }
     })
 

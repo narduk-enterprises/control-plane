@@ -6,7 +6,7 @@ import type { TableColumn } from '~/types/table'
 
 useSeo({
   title: 'Fleet',
-  description: 'Fleet apps — GA4, GSC, PostHog, IndexNow per app.',
+  description: 'Fleet apps — operational status, registry metadata, and quick actions.',
 })
 useWebPageSchema({
   name: 'Narduk Control Plane — Fleet',
@@ -44,7 +44,7 @@ const fleetColumns: TableColumn<FleetApp>[] = [
       return h(
         NuxtLink,
         {
-          to: `/fleet/${app.name}`,
+          to: `/analytics/${app.name}`,
           class: 'font-medium text-primary hover:underline cursor-pointer',
         },
         () => app.name,
@@ -121,14 +121,25 @@ const fleetColumns: TableColumn<FleetApp>[] = [
     cell: ({ row }) => {
       const app = row.original
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
-        h(UTooltip, { text: 'View GSC Data' }, () => [
+          h(UTooltip, { text: 'Open Analytics Snapshot' }, () => [
+            h(UButton, {
+              to: `/analytics/${app.name}`,
+              size: 'xs',
+              variant: 'ghost',
+              color: 'neutral',
+              icon: 'i-lucide-bar-chart-3',
+              'aria-label': 'Analytics',
+              class: 'cursor-pointer',
+            }),
+          ]),
+        h(UTooltip, { text: 'Open Operational View' }, () => [
           h(UButton, {
             to: `/fleet/${app.name}`,
             size: 'xs',
             variant: 'ghost',
             color: 'neutral',
-            icon: 'i-lucide-bar-chart-3',
-            'aria-label': 'GSC',
+            icon: 'i-lucide-wrench',
+            'aria-label': 'Operations',
             class: 'cursor-pointer',
           }),
         ]),
@@ -170,7 +181,7 @@ const fleetColumnsForTable = fleetColumns as any
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">Fleet</h1>
         <p class="mt-1 text-sm text-muted">
-          {{ fleetCountLabel }} — open GA4, GSC, PostHog, or IndexNow per app
+          {{ fleetCountLabel }} — operational status and links into the canonical analytics views
         </p>
       </div>
       <div class="flex items-center gap-2">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AuditResult } from '~/types/audit'
+import type { AuditResponse, AuditResult } from '~/types/audit'
 
 useSeo({
   title: 'Fleet Audit',
@@ -10,16 +10,19 @@ useWebPageSchema({
   description: 'Verify analytics and app configuration across the fleet.',
 })
 
-const results = ref<AuditResult[]>([])
+const auditResponse = ref<AuditResponse | null>(null)
 const isAuditing = ref(false)
 const hasRun = ref(false)
 const auditApi = useAuditApi()
 
-async function runAudit() {
+const results = computed<AuditResult[]>(() => auditResponse.value?.results ?? [])
+const reconcileSummary = computed(() => auditResponse.value?.reconcile ?? null)
+
+async function runAudit(persist = false) {
   isAuditing.value = true
   hasRun.value = true
   try {
-    results.value = await auditApi.runAudit()
+    auditResponse.value = await auditApi.runAudit(persist ? { persist: true } : undefined)
   } catch (err) {
     console.error('Audit failed:', err)
   } finally {
@@ -71,16 +74,42 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
           Verify PostHog, Google Analytics, and app name configuration across all fleet apps
         </p>
       </div>
-      <UButton
-        icon="i-lucide-scan-search"
-        :loading="isAuditing"
-        :disabled="isAuditing"
-        class="cursor-pointer"
-        @click="runAudit()"
-      >
-        {{ isAuditing ? 'Auditing...' : 'Run Audit' }}
-      </UButton>
+      <div class="flex flex-wrap gap-2">
+        <UButton
+          icon="i-lucide-scan-search"
+          :loading="isAuditing"
+          :disabled="isAuditing"
+          class="cursor-pointer"
+          @click="runAudit()"
+        >
+          {{ isAuditing ? 'Auditing...' : 'Run Audit' }}
+        </UButton>
+        <UButton
+          v-if="reconcileSummary?.candidates.length"
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-database-zap"
+          :loading="isAuditing"
+          :disabled="isAuditing"
+          class="cursor-pointer"
+          @click="runAudit(true)"
+        >
+          Reconcile GA IDs
+        </UButton>
+      </div>
     </div>
+
+    <UAlert
+      v-if="reconcileSummary"
+      class="mb-6"
+      icon="i-lucide-database-zap"
+      :title="reconcileSummary.mode === 'write' ? 'Registry reconciled from live apps' : 'Dry-run reconcile preview'"
+      :description="reconcileSummary.mode === 'write'
+        ? `${reconcileSummary.updatedCount} measurement ID${reconcileSummary.updatedCount === 1 ? '' : 's'} updated in D1.`
+        : `${reconcileSummary.candidates.length} live measurement ID${reconcileSummary.candidates.length === 1 ? '' : 's'} differ from the current registry.`"
+      color="info"
+      variant="subtle"
+    />
 
     <!-- Summary cards -->
     <div v-if="hasRun && !isAuditing" class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
