@@ -41,7 +41,7 @@ export const MANAGED_REPOS = [
     githubRepo: 'narduk-enterprises/bluebonnet-status-online',
     dopplerProject: 'bluebonnet-status',
     publicUrl: 'https://bluebonnetstatus.online',
-    gaPropertyId: null,
+    gaPropertyId: '529344053',
     gaMeasurementId: 'G-5ENBL8VP0S',
     posthogAppName: null,
     syncManaged: true,
