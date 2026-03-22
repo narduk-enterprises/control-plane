@@ -71,12 +71,9 @@ function providerIsStale(provider: AnalyticsProviderSnapshot<unknown>) {
 }
 
 export function detailNeedsFollowUpRefresh(detail: FleetAnalyticsDetailResponse) {
-  return [
-    detail.ga,
-    detail.gsc,
-    detail.posthog,
-    detail.indexnow,
-  ].some((provider) => providerIsStale(provider))
+  return [detail.ga, detail.gsc, detail.posthog, detail.indexnow].some((provider) =>
+    providerIsStale(provider),
+  )
 }
 
 export function summaryNeedsFollowUpRefresh(summary: FleetAnalyticsSummaryResponse) {

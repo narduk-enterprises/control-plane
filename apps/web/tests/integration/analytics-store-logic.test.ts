@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  detailNeedsFollowUpRefresh,
-  summaryNeedsFollowUpRefresh,
-} from '../../app/stores/analytics'
+import { detailNeedsFollowUpRefresh, summaryNeedsFollowUpRefresh } from '../../app/stores/analytics'
 import type {
   AnalyticsProviderSnapshot,
   FleetAnalyticsDetailResponse,
