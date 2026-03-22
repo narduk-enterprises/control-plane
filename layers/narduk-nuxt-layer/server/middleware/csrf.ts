@@ -37,7 +37,8 @@ export default defineEventHandler((event) => {
     path.startsWith('/api/cron/') ||
     path.startsWith('/api/callbacks/') ||
     path.startsWith('/api/_auth/') ||
-    path.startsWith('/__nuxt_content/')
+    path.startsWith('/__nuxt_content/') ||
+    path === '/api/owner-tag'
   ) {
     return
   }

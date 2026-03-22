@@ -10,10 +10,10 @@ declare const mapkit: any
  *
  * Supports two rendering modes (can be combined):
  *   1. Pin annotations — pass `items` + `createPinElement`
- *   2. GeoJSON polygon overlays — pass `geojson` + optional `overlayStyleFn`
+ *   2. GeoJSON polygon/line overlays — pass `geojson` + optional `overlayStyleFn`
  *
  * Handles MapKit loading, map initialization, bounding region calculation,
- * pin annotations with selection, polygon overlays, zoom behavior, dark mode
+ * pin annotations with selection, GeoJSON overlays, zoom behavior, dark mode
  * sync, and cleanup.
  */
 
@@ -61,9 +61,9 @@ const props = withDefaults(
       item: T,
       isSelected: boolean,
     ) => { element: HTMLElement; cleanup?: () => void }
-    /** GeoJSON FeatureCollection with Polygon/MultiPolygon features. */
+    /** GeoJSON FeatureCollection with Polygon/MultiPolygon/LineString features. */
     geojson?: GeoJSONFeatureCollection | null
-    /** Custom style function for each GeoJSON overlay polygon. */
+    /** Custom style function for each GeoJSON overlay polygon/line feature. */
     overlayStyleFn?: (properties: GeoJSONFeatureProperties) => OverlayStyle
     /** Lightweight circle overlays for rendering large point clouds. */
     circles?: Array<{ lat: number; lng: number; radius: number; color: string; opacity?: number }>
@@ -98,6 +98,8 @@ const props = withDefaults(
     texasMask?: boolean
     /** When true, keeps the current map region when items change instead of auto-zooming to fit. */
     preserveRegion?: boolean
+    /** When true, selection changes only refresh pins; parent controls camera updates. */
+    suppressSelectionZoom?: boolean
     /** When false, hides all point-of-interest labels (road names, city names, etc). */
     showsPointsOfInterest?: boolean
     /** Text label to display at the center of the GeoJSON features. */
@@ -125,6 +127,7 @@ const props = withDefaults(
     isRotationEnabled: true,
     texasMask: false,
     preserveRegion: false,
+    suppressSelectionZoom: false,
     showsPointsOfInterest: true,
     centerLabel: undefined,
   },
@@ -139,6 +142,8 @@ const emit = defineEmits<{
   'region-change': [
     span: { latDelta: number; lngDelta: number; centerLat: number; centerLng: number },
   ]
+  /** Emitted once the internal `mapkit.Map` instance is ready for imperative camera control. */
+  'map-ready': []
 }>()
 
 const selectedId = defineModel<string | null>('selectedId', { default: null })
@@ -414,6 +419,12 @@ function extractAllPoints(geometry: GeoJSONGeometry): Array<[number, number]> {
         }
       }
     }
+  } else if (geometry.type === 'LineString') {
+    for (const pt of coords) {
+      if (Array.isArray(pt) && pt.length >= 2) {
+        points.push([pt[0] as number, pt[1] as number])
+      }
+    }
   }
 
   return points
@@ -429,6 +440,18 @@ function defaultOverlayStyle(): OverlayStyle {
   }
 }
 
+function defaultLineOverlayStyle(): OverlayStyle {
+  return {
+    // eslint-disable-next-line narduk/no-inline-hex -- MapKit Style API requires raw hex values; Tailwind utilities cannot be used in JS objects
+    strokeColor: '#0284c7',
+    strokeOpacity: 0.92,
+    // eslint-disable-next-line narduk/no-inline-hex -- MapKit Style API requires raw hex values; Tailwind utilities cannot be used in JS objects
+    fillColor: '#000000',
+    fillOpacity: 0,
+    lineWidth: 3,
+  }
+}
+
 function buildPolygonRings(
   geometry: GeoJSONGeometry,
 ): Array<InstanceType<typeof mapkit.Coordinate>[]> {
@@ -436,6 +459,10 @@ function buildPolygonRings(
   if (!Array.isArray(coords)) return []
 
   const rings: Array<InstanceType<typeof mapkit.Coordinate>[]> = []
+
+  if (geometry.type === 'LineString') {
+    return rings
+  }
 
   if (geometry.type === 'Polygon') {
     const outer = coords[0]
@@ -458,6 +485,19 @@ function buildPolygonRings(
   }
 
   return rings
+}
+
+function buildLineStringCoordinates(
+  geometry: GeoJSONGeometry,
+): InstanceType<typeof mapkit.Coordinate>[] {
+  if (geometry.type !== 'LineString') return []
+
+  const coords = geometry.coordinates
+  if (!Array.isArray(coords)) return []
+
+  return coords
+    .filter((pt: unknown) => Array.isArray(pt) && (pt as number[]).length >= 2)
+    .map((pt: unknown) => new mapkit.Coordinate((pt as number[])[1], (pt as number[])[0]))
 }
 
 // ── Map initialization ───────────────────────────────────────
@@ -533,6 +573,11 @@ function initMap() {
       : mapkit.Map.MapTypes.MutedStandard,
   }
 
+  const excludeAllPoi = mapkit.PointOfInterestFilter?.excludingAllCategories
+  if (!props.showsPointsOfInterest && excludeAllPoi) {
+    mapOpts.pointOfInterestFilter = excludeAllPoi
+  }
+
   // Register cluster annotation factory when clustering is enabled
   if (props.clusteringIdentifier) {
     mapOpts.annotationForCluster = (cluster: {
@@ -548,6 +593,14 @@ function initMap() {
   }
 
   map = new mapkit.Map(mapContainer.value, mapOpts)
+
+  if (
+    !props.showsPointsOfInterest &&
+    excludeAllPoi &&
+    map.pointOfInterestFilter !== excludeAllPoi
+  ) {
+    map.pointOfInterestFilter = excludeAllPoi
+  }
 
   // Click on map background (not a pin) clears selection + emits coordinates
   // Use a delay to avoid firing on double-click-to-zoom
@@ -602,6 +655,8 @@ function initMap() {
       resizeCirclesToRegion()
     }
   })
+
+  emit('map-ready')
 }
 
 // ── Pin annotations ──────────────────────────────────────────
@@ -663,6 +718,27 @@ function addOverlays() {
   if (!map || !props.geojson?.features?.length) return
 
   for (const feature of props.geojson.features) {
+    const lineCoordinates = buildLineStringCoordinates(feature.geometry)
+    if (lineCoordinates.length >= 2) {
+      const styleCfg = props.overlayStyleFn
+        ? props.overlayStyleFn(feature.properties)
+        : defaultLineOverlayStyle()
+
+      const style = new mapkit.Style({
+        strokeColor: styleCfg.strokeColor,
+        strokeOpacity: styleCfg.strokeOpacity ?? 1,
+        fillColor: styleCfg.fillColor,
+        fillOpacity: styleCfg.fillOpacity ?? 0,
+        lineWidth: styleCfg.lineWidth ?? 3,
+      })
+
+      const overlay = new mapkit.PolylineOverlay(lineCoordinates, { style })
+      overlay.enabled = true
+      overlayFeatureMap.set(overlay, feature)
+      map.addOverlay(overlay)
+      continue
+    }
+
     const rings = buildPolygonRings(feature.geometry)
     if (rings.length === 0) continue
 
@@ -803,6 +879,7 @@ function zoomOut() {
 watch(selectedId, (newId) => {
   if (!map) return
   rebuildAnnotations()
+  if (props.suppressSelectionZoom) return
   if (newId) {
     const item = props.items.find((i) => i.id === newId)
     if (item) zoomToItem(item)
@@ -816,13 +893,18 @@ watch(
   () => props.items,
   () => {
     if (!map) return
+    if (props.preserveRegion) {
+      clearPinCleanups()
+      map.removeAnnotations(map.annotations)
+      addAnnotations()
+      return
+    }
+
     selectedId.value = null
     clearPinCleanups()
     map.removeAnnotations(map.annotations)
-    if (!props.preserveRegion) {
-      overviewRegion = computeBoundingRegion()
-      map.setRegionAnimated(overviewRegion, true)
-    }
+    overviewRegion = computeBoundingRegion()
+    map.setRegionAnimated(overviewRegion, true)
     addAnnotations()
   },
   { deep: false },
@@ -890,10 +972,22 @@ function setRegion(center: { lat: number; lng: number }, span?: { lat: number; l
   const s = new mapkit.CoordinateSpan(span?.lat ?? 0.01, span?.lng ?? 0.01)
   map.setRegionAnimated(new mapkit.CoordinateRegion(coord, s), true)
 }
-function zoomToFit() {
+function zoomToFit(zoomOutLevels = 0) {
   if (!map) return
   const region = computeBoundingRegion()
-  if (region) map.setRegionAnimated(region, true)
+  if (!region) return
+
+  let latDelta = region.span.latitudeDelta
+  let lngDelta = region.span.longitudeDelta
+  for (let i = 0; i < zoomOutLevels; i++) {
+    latDelta *= 2
+    lngDelta *= 2
+  }
+
+  map.setRegionAnimated(
+    new mapkit.CoordinateRegion(region.center, new mapkit.CoordinateSpan(latDelta, lngDelta)),
+    true,
+  )
 }
 
 defineExpose({ scrollIntoView, setRegion, zoomToFit })
