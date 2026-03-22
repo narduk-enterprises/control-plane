@@ -18,7 +18,10 @@ function computeDates(preset: DatePreset): AnalyticsRange {
 
   switch (preset) {
     case '1h':
-      return { startDate: new Date(now.getTime() - 60 * 60 * 1000).toISOString(), endDate: now.toISOString() }
+      return {
+        startDate: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
+        endDate: now.toISOString(),
+      }
     case 'today':
       return { startDate: endDate, endDate }
     case 'yesterday': {

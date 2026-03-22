@@ -85,9 +85,24 @@ function badgeColor(status: string) {
 const gaCards = computed<StatCardConfig[]>(() => {
   if (!gaSummary.value) return []
   return [
-    { label: 'Users', value: gaSummary.value.activeUsers, delta: gaDeltas.value?.users, format: 'number' },
-    { label: 'Sessions', value: gaSummary.value.sessions, delta: gaDeltas.value?.sessions, format: 'number' },
-    { label: 'Pageviews', value: gaSummary.value.screenPageViews, delta: gaDeltas.value?.pageviews, format: 'number' },
+    {
+      label: 'Users',
+      value: gaSummary.value.activeUsers,
+      delta: gaDeltas.value?.users,
+      format: 'number',
+    },
+    {
+      label: 'Sessions',
+      value: gaSummary.value.sessions,
+      delta: gaDeltas.value?.sessions,
+      format: 'number',
+    },
+    {
+      label: 'Pageviews',
+      value: gaSummary.value.screenPageViews,
+      delta: gaDeltas.value?.pageviews,
+      format: 'number',
+    },
     { label: 'Engagement', value: gaSummary.value.engagementRate, format: 'percent' },
   ]
 })
@@ -105,10 +120,26 @@ const gscCards = computed<StatCardConfig[]>(() => {
 const posthogCards = computed<StatCardConfig[]>(() => {
   if (!posthogMetrics.value) return []
   return [
-    { label: 'Events', value: Number(posthogMetrics.value.summary.event_count ?? 0), format: 'number' },
-    { label: 'Unique Users', value: Number(posthogMetrics.value.summary.unique_users ?? 0), format: 'number' },
-    { label: 'Pageviews', value: Number(posthogMetrics.value.summary.pageviews ?? 0), format: 'number' },
-    { label: 'Sessions', value: Number(posthogMetrics.value.summary.sessions ?? 0), format: 'number' },
+    {
+      label: 'Events',
+      value: Number(posthogMetrics.value.summary.event_count ?? 0),
+      format: 'number',
+    },
+    {
+      label: 'Unique Users',
+      value: Number(posthogMetrics.value.summary.unique_users ?? 0),
+      format: 'number',
+    },
+    {
+      label: 'Pageviews',
+      value: Number(posthogMetrics.value.summary.pageviews ?? 0),
+      format: 'number',
+    },
+    {
+      label: 'Sessions',
+      value: Number(posthogMetrics.value.summary.sessions ?? 0),
+      format: 'number',
+    },
   ]
 })
 
@@ -133,7 +164,13 @@ const breadcrumbItems = computed(() => [
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <UBadge
             v-if="snapshot"
-            :color="snapshot.health.status === 'up' ? 'success' : snapshot.health.status === 'down' ? 'error' : 'neutral'"
+            :color="
+              snapshot.health.status === 'up'
+                ? 'success'
+                : snapshot.health.status === 'down'
+                  ? 'error'
+                  : 'neutral'
+            "
             variant="subtle"
             size="sm"
           >
@@ -171,11 +208,7 @@ const breadcrumbItems = computed(() => [
     />
 
     <div v-if="snapshot" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <UCard
-        v-for="provider in providerBadges"
-        :key="`${provider.label}-card`"
-        class="rounded-2xl"
-      >
+      <UCard v-for="provider in providerBadges" :key="`${provider.label}-card`" class="rounded-2xl">
         <div class="flex items-start justify-between gap-3">
           <div>
             <p class="text-xs uppercase tracking-[0.12em] text-muted">{{ provider.label }}</p>
@@ -223,7 +256,12 @@ const breadcrumbItems = computed(() => [
     />
 
     <div v-if="posthogCards.length" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
-      <AnalyticsStatCard v-for="card in posthogCards" :key="`ph-${card.label}`" v-bind="card" compact />
+      <AnalyticsStatCard
+        v-for="card in posthogCards"
+        :key="`ph-${card.label}`"
+        v-bind="card"
+        compact
+      />
     </div>
 
     <div class="grid gap-4 md:grid-cols-2">

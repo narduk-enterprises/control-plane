@@ -16,11 +16,8 @@ const { user, logout } = useAuth()
 const breadcrumbItems = [{ label: 'Dashboard', to: '/' }, { label: 'Settings' }]
 
 const analyticsStore = useAnalyticsStore()
-const {
-  integrationHealth,
-  integrationHealthError,
-  integrationHealthStatus,
-} = storeToRefs(analyticsStore)
+const { integrationHealth, integrationHealthError, integrationHealthStatus } =
+  storeToRefs(analyticsStore)
 
 onMounted(() => {
   void analyticsStore.fetchIntegrationHealth()
@@ -44,7 +41,8 @@ const integrations = computed(() => {
     {
       name: 'GA Provisioning',
       icon: 'i-lucide-activity',
-      status: health.services.find((service) => service.key === 'ga_account_id')?.status ?? 'missing',
+      status:
+        health.services.find((service) => service.key === 'ga_account_id')?.status ?? 'missing',
       hint:
         health.services.find((service) => service.key === 'ga_account_id')?.message ?? 'Missing',
     },
@@ -362,13 +360,19 @@ const {
         <div>
           <p class="text-xs uppercase tracking-[0.12em] text-muted">GA Measurement IDs</p>
           <p class="mt-1 text-lg font-semibold text-default">
-            {{ integrationHealth.fleet.appsWithGaMeasurementId }}/{{ integrationHealth.fleet.totalApps }}
+            {{ integrationHealth.fleet.appsWithGaMeasurementId }}/{{
+              integrationHealth.fleet.totalApps
+            }}
           </p>
         </div>
         <div>
           <p class="text-xs uppercase tracking-[0.12em] text-muted">Last Snapshot</p>
           <p class="mt-1 text-sm font-medium text-default">
-            {{ integrationHealth.lastSnapshotAt ? new Date(integrationHealth.lastSnapshotAt).toLocaleString() : 'No canonical snapshot yet' }}
+            {{
+              integrationHealth.lastSnapshotAt
+                ? new Date(integrationHealth.lastSnapshotAt).toLocaleString()
+                : 'No canonical snapshot yet'
+            }}
           </p>
         </div>
       </div>

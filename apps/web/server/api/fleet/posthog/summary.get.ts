@@ -1,7 +1,4 @@
-import {
-  fetchPosthogSummaryEnvelope,
-  toHttpError,
-} from '#server/utils/fleet-analytics'
+import { fetchPosthogSummaryEnvelope, toHttpError } from '#server/utils/fleet-analytics'
 import { getFleetApps } from '#server/data/fleet-registry'
 import { z } from 'zod'
 

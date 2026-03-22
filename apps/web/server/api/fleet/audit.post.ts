@@ -131,10 +131,9 @@ export default defineEventHandler(async (event) => {
           status: actualGaId ? 'warning' : 'skipped',
           expected: null,
           actual: actualGaId,
-          message:
-            actualGaId
-              ? `Found "${actualGaId}" on site but fleet registry has no ga_measurement_id set`
-              : 'No ga_measurement_id configured in fleet registry',
+          message: actualGaId
+            ? `Found "${actualGaId}" on site but fleet registry has no ga_measurement_id set`
+            : 'No ga_measurement_id configured in fleet registry',
         })
       }
 

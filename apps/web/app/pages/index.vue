@@ -8,7 +8,11 @@ import type { FleetRegistryApp } from '~/types/fleet'
 useSeo({
   title: 'Dashboard',
   description: 'Operational dashboard with the canonical 30-day analytics snapshot.',
-  ogImage: { title: 'Narduk Control Plane Dashboard', description: 'Fleet operations.', icon: '⚙️' },
+  ogImage: {
+    title: 'Narduk Control Plane Dashboard',
+    description: 'Fleet operations.',
+    icon: '⚙️',
+  },
 })
 useWebPageSchema({
   name: 'Narduk Control Plane — Dashboard',
@@ -16,12 +20,7 @@ useWebPageSchema({
 })
 
 const analyticsStore = useAnalyticsStore()
-const {
-  apps: fleetApps,
-  getAppStatus,
-  refreshStatuses,
-  forceRefreshApps,
-} = useFleet()
+const { apps: fleetApps, getAppStatus, refreshStatuses, forceRefreshApps } = useFleet()
 
 const thirtyDayRange = computed(() => {
   const end = new Date()

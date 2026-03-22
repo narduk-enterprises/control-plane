@@ -124,7 +124,10 @@ function toneFor(severity: string) {
     </template>
 
     <div v-if="!isCollapsed" class="space-y-3">
-      <div v-if="loading && !issues.length && !insights.length" class="flex items-center gap-2 text-sm text-muted">
+      <div
+        v-if="loading && !issues.length && !insights.length"
+        class="flex items-center gap-2 text-sm text-muted"
+      >
         <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
         Analyzing provider health…
       </div>
@@ -136,7 +139,10 @@ function toneFor(severity: string) {
           class="flex flex-col gap-1 rounded-xl border border-default/60 bg-default/5 px-3 py-3 sm:flex-row sm:items-start sm:justify-between"
         >
           <div class="flex items-start gap-2">
-            <UIcon :name="iconFor(issue.severity)" :class="['mt-0.5 size-4', toneFor(issue.severity)]" />
+            <UIcon
+              :name="iconFor(issue.severity)"
+              :class="['mt-0.5 size-4', toneFor(issue.severity)]"
+            />
             <div>
               <p class="text-sm text-default">
                 <span class="font-medium">{{ issue.provider }}:</span>
@@ -144,7 +150,10 @@ function toneFor(severity: string) {
               </p>
             </div>
           </div>
-          <NuxtLink :to="`/analytics/${issue.app}`" class="text-xs font-medium text-primary hover:underline">
+          <NuxtLink
+            :to="`/analytics/${issue.app}`"
+            class="text-xs font-medium text-primary hover:underline"
+          >
             {{ issue.app }}
           </NuxtLink>
         </li>
@@ -159,10 +168,16 @@ function toneFor(severity: string) {
           class="flex flex-col gap-1 rounded-xl border border-default/60 bg-default/5 px-3 py-3 sm:flex-row sm:items-start sm:justify-between"
         >
           <div class="flex items-start gap-2">
-            <UIcon :name="iconFor(insight.severity)" :class="['mt-0.5 size-4', toneFor(insight.severity)]" />
+            <UIcon
+              :name="iconFor(insight.severity)"
+              :class="['mt-0.5 size-4', toneFor(insight.severity)]"
+            />
             <p class="text-sm text-default">{{ insight.message }}</p>
           </div>
-          <NuxtLink :to="`/analytics/${insight.appName}`" class="text-xs font-medium text-primary hover:underline">
+          <NuxtLink
+            :to="`/analytics/${insight.appName}`"
+            class="text-xs font-medium text-primary hover:underline"
+          >
             {{ insight.appName }}
           </NuxtLink>
         </li>

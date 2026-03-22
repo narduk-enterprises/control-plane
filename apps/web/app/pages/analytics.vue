@@ -15,11 +15,7 @@ const analyticsStore = useAnalyticsStore()
 const { preset, startDate, endDate } = storeToRefs(analyticsStore)
 const dateState = useAnalyticsDateRange('30d')
 
-const {
-  apps: fleetApps,
-  getAppStatus,
-  refreshStatusesRaw,
-} = useFleet()
+const { apps: fleetApps, getAppStatus, refreshStatusesRaw } = useFleet()
 
 const { data: indexnowSummary, refresh: refreshIndexnowSummary } = useFleetIndexnowSummary()
 const { submitting: indexnowSubmitting, submitAll: submitAllIndexnow } = useBatchIndexnow(fleetApps)
@@ -198,7 +194,10 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
             size="sm"
             :color="(indexnowSummary.appsWithIndexnow ?? 0) > 0 ? 'success' : 'neutral'"
           >
-            {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{ indexnowSummary.totalFleetSize ?? 0 }} apps
+            {{ indexnowSummary.appsWithIndexnow ?? 0 }}/{{
+              indexnowSummary.totalFleetSize ?? 0
+            }}
+            apps
           </UBadge>
           <span class="hidden sm:inline">
             {{ indexnowSummary.totalSubmissions?.toLocaleString() ?? 0 }} total pings

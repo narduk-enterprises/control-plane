@@ -9,7 +9,9 @@ export function useFleetApps(options?: { includeInactive?: boolean }) {
   const rawApps = computed<FleetRegistryApp[]>(() =>
     options?.includeInactive ? allApps.value : activeApps.value,
   )
-  const apps = computed(() => [...rawApps.value].sort((left, right) => left.name.localeCompare(right.name)))
+  const apps = computed(() =>
+    [...rawApps.value].sort((left, right) => left.name.localeCompare(right.name)),
+  )
   const status = computed(() => (options?.includeInactive ? allAppsStatus.value : appsStatus.value))
 
   onMounted(() => {

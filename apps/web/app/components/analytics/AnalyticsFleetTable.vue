@@ -42,7 +42,8 @@ const sortedApps = computed(() => {
       return sortDir === 'asc' ? compare : -compare
     }
 
-    const compare = metricValue(props.snapshotMap[left.name] ?? null, sortKey) -
+    const compare =
+      metricValue(props.snapshotMap[left.name] ?? null, sortKey) -
       metricValue(props.snapshotMap[right.name] ?? null, sortKey)
     return sortDir === 'asc' ? compare : -compare
   })
@@ -74,7 +75,12 @@ function toggleSort(key: string) {
 
 function providerCount(snapshot: FleetAnalyticsSnapshot | null) {
   if (!snapshot) return '0/4'
-  const statuses = [snapshot.ga.status, snapshot.gsc.status, snapshot.posthog.status, snapshot.indexnow.status]
+  const statuses = [
+    snapshot.ga.status,
+    snapshot.gsc.status,
+    snapshot.posthog.status,
+    snapshot.indexnow.status,
+  ]
   return `${statuses.filter((status) => status === 'healthy').length}/4`
 }
 </script>
@@ -86,28 +92,58 @@ function providerCount(snapshot: FleetAnalyticsSnapshot | null) {
       <thead>
         <tr class="border-b border-default bg-default/5">
           <th class="px-3 py-2 text-left">
-            <UButton variant="ghost" color="neutral" size="xs" class="cursor-pointer" @click="toggleSort('name')">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              class="cursor-pointer"
+              @click="toggleSort('name')"
+            >
               App
             </UButton>
           </th>
           <th class="px-3 py-2 text-left">Providers</th>
           <th class="px-3 py-2 text-right">
-            <UButton variant="ghost" color="neutral" size="xs" class="cursor-pointer" @click="toggleSort('users')">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              class="cursor-pointer"
+              @click="toggleSort('users')"
+            >
               Users
             </UButton>
           </th>
           <th class="px-3 py-2 text-right">
-            <UButton variant="ghost" color="neutral" size="xs" class="cursor-pointer" @click="toggleSort('pageviews')">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              class="cursor-pointer"
+              @click="toggleSort('pageviews')"
+            >
               Pageviews
             </UButton>
           </th>
           <th class="px-3 py-2 text-right">
-            <UButton variant="ghost" color="neutral" size="xs" class="cursor-pointer" @click="toggleSort('clicks')">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              class="cursor-pointer"
+              @click="toggleSort('clicks')"
+            >
               GSC Clicks
             </UButton>
           </th>
           <th class="px-3 py-2 text-right">
-            <UButton variant="ghost" color="neutral" size="xs" class="cursor-pointer" @click="toggleSort('events')">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              class="cursor-pointer"
+              @click="toggleSort('events')"
+            >
               Events
             </UButton>
           </th>
@@ -121,7 +157,10 @@ function providerCount(snapshot: FleetAnalyticsSnapshot | null) {
           class="border-b border-default/50 transition-colors hover:bg-default/5"
         >
           <td class="px-3 py-3">
-            <NuxtLink :to="`/analytics/${row.app.name}`" class="font-medium text-primary hover:underline">
+            <NuxtLink
+              :to="`/analytics/${row.app.name}`"
+              class="font-medium text-primary hover:underline"
+            >
               {{ row.app.name }}
             </NuxtLink>
           </td>
@@ -141,7 +180,12 @@ function providerCount(snapshot: FleetAnalyticsSnapshot | null) {
             {{ row.events.toLocaleString() }}
           </td>
           <td class="px-3 py-3">
-            <UBadge v-if="row.status" :color="row.status.status === 'up' ? 'success' : 'error'" variant="subtle" size="xs">
+            <UBadge
+              v-if="row.status"
+              :color="row.status.status === 'up' ? 'success' : 'error'"
+              variant="subtle"
+              size="xs"
+            >
               {{ row.status.status }}
             </UBadge>
             <span v-else class="text-xs text-muted">Unknown</span>

@@ -13,8 +13,12 @@ const props = defineProps<{
 const gaUsers = computed(() => props.snapshot?.ga.metrics?.summary?.activeUsers ?? 0)
 const gaPageviews = computed(() => props.snapshot?.ga.metrics?.summary?.screenPageViews ?? 0)
 const gscClicks = computed(() => props.snapshot?.gsc.metrics?.totals?.clicks ?? 0)
-const posthogEvents = computed(() => Number(props.snapshot?.posthog.metrics?.summary?.event_count ?? 0))
-const posthogUsers = computed(() => Number(props.snapshot?.posthog.metrics?.summary?.unique_users ?? 0))
+const posthogEvents = computed(() =>
+  Number(props.snapshot?.posthog.metrics?.summary?.event_count ?? 0),
+)
+const posthogUsers = computed(() =>
+  Number(props.snapshot?.posthog.metrics?.summary?.unique_users ?? 0),
+)
 const userDelta = computed(() => props.snapshot?.ga.metrics?.deltas?.users)
 
 const providerBadges = computed(() => [
@@ -44,12 +48,13 @@ function badgeColor(status: string) {
 }
 
 const hasAnyMetrics = computed(() => {
-  return !!props.snapshot && (
-    gaUsers.value > 0 ||
-    gaPageviews.value > 0 ||
-    gscClicks.value > 0 ||
-    posthogEvents.value > 0 ||
-    timeSeries.value.length > 0
+  return (
+    !!props.snapshot &&
+    (gaUsers.value > 0 ||
+      gaPageviews.value > 0 ||
+      gscClicks.value > 0 ||
+      posthogEvents.value > 0 ||
+      timeSeries.value.length > 0)
   )
 })
 </script>

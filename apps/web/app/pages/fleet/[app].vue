@@ -153,13 +153,17 @@ const breadcrumbItems = computed(() => [
         <template #header>
           <h2 class="text-sm font-medium text-default">PostHog App Name</h2>
         </template>
-        <p class="font-medium text-default">{{ appRecord.posthogAppName || 'Host-based mapping' }}</p>
+        <p class="font-medium text-default">
+          {{ appRecord.posthogAppName || 'Host-based mapping' }}
+        </p>
       </UCard>
       <UCard>
         <template #header>
           <h2 class="text-sm font-medium text-default">Snapshot Range</h2>
         </template>
-        <p class="font-medium text-default">{{ thirtyDayRange.startDate }} to {{ thirtyDayRange.endDate }}</p>
+        <p class="font-medium text-default">
+          {{ thirtyDayRange.startDate }} to {{ thirtyDayRange.endDate }}
+        </p>
       </UCard>
     </div>
 

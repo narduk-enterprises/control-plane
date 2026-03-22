@@ -121,17 +121,17 @@ const fleetColumns: TableColumn<FleetApp>[] = [
     cell: ({ row }) => {
       const app = row.original
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
-          h(UTooltip, { text: 'Open Analytics Snapshot' }, () => [
-            h(UButton, {
-              to: `/analytics/${app.name}`,
-              size: 'xs',
-              variant: 'ghost',
-              color: 'neutral',
-              icon: 'i-lucide-bar-chart-3',
-              'aria-label': 'Analytics',
-              class: 'cursor-pointer',
-            }),
-          ]),
+        h(UTooltip, { text: 'Open Analytics Snapshot' }, () => [
+          h(UButton, {
+            to: `/analytics/${app.name}`,
+            size: 'xs',
+            variant: 'ghost',
+            color: 'neutral',
+            icon: 'i-lucide-bar-chart-3',
+            'aria-label': 'Analytics',
+            class: 'cursor-pointer',
+          }),
+        ]),
         h(UTooltip, { text: 'Open Operational View' }, () => [
           h(UButton, {
             to: `/fleet/${app.name}`,

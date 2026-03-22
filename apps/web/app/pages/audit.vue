@@ -103,10 +103,16 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       v-if="reconcileSummary"
       class="mb-6"
       icon="i-lucide-database-zap"
-      :title="reconcileSummary.mode === 'write' ? 'Registry reconciled from live apps' : 'Dry-run reconcile preview'"
-      :description="reconcileSummary.mode === 'write'
-        ? `${reconcileSummary.updatedCount} measurement ID${reconcileSummary.updatedCount === 1 ? '' : 's'} updated in D1.`
-        : `${reconcileSummary.candidates.length} live measurement ID${reconcileSummary.candidates.length === 1 ? '' : 's'} differ from the current registry.`"
+      :title="
+        reconcileSummary.mode === 'write'
+          ? 'Registry reconciled from live apps'
+          : 'Dry-run reconcile preview'
+      "
+      :description="
+        reconcileSummary.mode === 'write'
+          ? `${reconcileSummary.updatedCount} measurement ID${reconcileSummary.updatedCount === 1 ? '' : 's'} updated in D1.`
+          : `${reconcileSummary.candidates.length} live measurement ID${reconcileSummary.candidates.length === 1 ? '' : 's'} differ from the current registry.`
+      "
       color="info"
       variant="subtle"
     />

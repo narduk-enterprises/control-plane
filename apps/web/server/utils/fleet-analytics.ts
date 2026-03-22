@@ -114,7 +114,10 @@ function normalizeTimestampRange(input: { startDate?: string; endDate?: string }
   }
 }
 
-function providerSource(meta: AnalyticsCacheMeta, fetchedAt: string | undefined): AnalyticsDataSource {
+function providerSource(
+  meta: AnalyticsCacheMeta,
+  fetchedAt: string | undefined,
+): AnalyticsDataSource {
   if (!fetchedAt) return 'none'
   if (meta.stale) return 'cache'
   return Date.now() - new Date(fetchedAt).getTime() < 10_000 ? 'live' : 'cache'
@@ -137,7 +140,11 @@ function createProviderSnapshot<TMetrics>(
   }
 }
 
-function createProviderError(statusCode: number, message: string, data?: unknown): Error & {
+function createProviderError(
+  statusCode: number,
+  message: string,
+  data?: unknown,
+): Error & {
   statusCode: number
   data?: unknown
 } {
@@ -149,7 +156,10 @@ function createProviderError(statusCode: number, message: string, data?: unknown
 
 function mapProviderFailure(
   error: unknown,
-): Pick<AnalyticsProviderSnapshot<never>, 'status' | 'message' | 'source' | 'stale' | 'lastUpdatedAt'> {
+): Pick<
+  AnalyticsProviderSnapshot<never>,
+  'status' | 'message' | 'source' | 'stale' | 'lastUpdatedAt'
+> {
   const message = error instanceof Error ? error.message : 'Unknown provider error'
   const statusCode =
     typeof error === 'object' && error !== null && 'statusCode' in error
@@ -218,7 +228,8 @@ function hasGscData(metrics: FleetAnalyticsGscMetrics | null): boolean {
   const totals = metrics.totals
   return (
     !!totals &&
-    (((totals.clicks ?? 0) > 0 || (totals.impressions ?? 0) > 0) ||
+    ((totals.clicks ?? 0) > 0 ||
+      (totals.impressions ?? 0) > 0 ||
       metrics.queries.length > 0 ||
       metrics.timeSeries.length > 0)
   )
@@ -399,10 +410,7 @@ async function runGaReport(
         sessions: pctChange(summary.sessions, prev.sessions),
         pageviews: pctChange(summary.screenPageViews, prev.screenPageViews),
         bounceRate: pctChange(summary.bounceRate, prev.bounceRate),
-        avgSessionDuration: pctChange(
-          summary.averageSessionDuration,
-          prev.averageSessionDuration,
-        ),
+        avgSessionDuration: pctChange(summary.averageSessionDuration, prev.averageSessionDuration),
         newUsers: pctChange(summary.newUsers, prev.newUsers),
       }
     }
@@ -455,7 +463,11 @@ async function tryGscQuery(
   siteUrl: string,
   range: AnalyticsRange,
   dimension: GscDimension,
-): Promise<{ dimensionalData: Record<string, unknown>; totalData: Record<string, unknown> | null; siteUrl: string } | null> {
+): Promise<{
+  dimensionalData: Record<string, unknown>
+  totalData: Record<string, unknown> | null
+  siteUrl: string
+} | null> {
   const encoded = encodeURIComponent(siteUrl)
   try {
     const [dimensionalData, totalData] = await Promise.all([
@@ -666,9 +678,7 @@ async function runGscSeries(
   }
 }
 
-async function runPosthogSummary(
-  apps: FleetApp[],
-): Promise<FleetPosthogSummaryResponse['apps']> {
+async function runPosthogSummary(apps: FleetApp[]): Promise<FleetPosthogSummaryResponse['apps']> {
   const config = useRuntimeConfig()
   const apiKey = config.posthogApiKey as string
   const projectId = config.posthogProjectId as string
@@ -870,7 +880,9 @@ async function runPosthogReport(
   ])
 
   const batchedRows = batchedData.results ?? []
-  const uiHost = host.includes('us.i.posthog.com') ? 'https://us.posthog.com' : 'https://eu.posthog.com'
+  const uiHost = host.includes('us.i.posthog.com')
+    ? 'https://us.posthog.com'
+    : 'https://eu.posthog.com'
 
   return {
     app: app.name,
@@ -1004,7 +1016,9 @@ async function getStatusMap(event: H3Event): Promise<Map<string, AppStatus>> {
   return new Map(rows.map((row) => [row.app, row]))
 }
 
-function indexnowSnapshot(statusRecord?: AppStatus): AnalyticsProviderSnapshot<FleetAnalyticsIndexnowMetrics> {
+function indexnowSnapshot(
+  statusRecord?: AppStatus,
+): AnalyticsProviderSnapshot<FleetAnalyticsIndexnowMetrics> {
   const metrics: FleetAnalyticsIndexnowMetrics = {
     lastSubmission: statusRecord?.indexnowLastSubmission ?? null,
     totalSubmissions: statusRecord?.indexnowTotalSubmissions ?? 0,
@@ -1250,8 +1264,7 @@ export async function buildFleetAnalyticsSnapshot(
   range: AnalyticsRange,
   options: SnapshotBuildOptions = {},
 ): Promise<FleetAnalyticsDetailResponse> {
-  const app =
-    typeof appOrSlug === 'string' ? await getFleetAppByName(event, appOrSlug) : appOrSlug
+  const app = typeof appOrSlug === 'string' ? await getFleetAppByName(event, appOrSlug) : appOrSlug
   if (!app) throw createProviderError(404, 'App not found')
 
   const statusMap = await getStatusMap(event)

@@ -109,7 +109,12 @@ const providerStatuses = computed(() => {
     </div>
 
     <div v-if="statCards.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      <AnalyticsStatCard v-for="card in statCards" :key="card.label" v-bind="card" :loading="loading" />
+      <AnalyticsStatCard
+        v-for="card in statCards"
+        :key="card.label"
+        v-bind="card"
+        :loading="loading"
+      />
     </div>
 
     <div
