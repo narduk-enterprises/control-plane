@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { readBody, getHeader, createError } from 'h3'
 import { eq } from 'drizzle-orm'
 import { fleetApps, provisionJobs } from '#server/database/schema'
+import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 import { createD1Database } from '#server/utils/provision-cloudflare'
 import {
   createDopplerProject,
@@ -120,6 +121,7 @@ export default defineEventHandler(async (event) => {
       updatedAt: now,
     })
   }
+  await invalidateFleetAppListCache(event)
 
   // ── 2. Create provision job ──
   const provisionId = `prov_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -409,6 +411,7 @@ export default defineEventHandler(async (event) => {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(fleetApps.name, name))
+      await invalidateFleetAppListCache(event)
     }
   } catch (err: unknown) {
     // Analytics failures are non-fatal — log but continue

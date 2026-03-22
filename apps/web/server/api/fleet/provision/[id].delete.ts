@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { getHeader, createError, getRouterParam } from 'h3'
 import { fleetApps, provisionJobs } from '#server/database/schema'
+import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
 const querySchema = z.object({
   deleteRepo: z.enum(['true', 'false']).optional().default('false'),
@@ -77,6 +78,7 @@ export default defineEventHandler(async (event) => {
 
   // 2. Delete fleet_apps entry
   await db.delete(fleetApps).where(eq(fleetApps.name, job.appName))
+  await invalidateFleetAppListCache(event)
   cleaned.push(`fleet_apps entry '${job.appName}' deleted`)
 
   // 3. Delete provision job

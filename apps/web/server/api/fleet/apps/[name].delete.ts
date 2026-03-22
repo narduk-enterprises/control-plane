@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { fleetApps } from '#server/database/schema'
+import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
 const querySchema = z.object({
   hard: z.enum(['true', 'false']).optional(),
@@ -35,6 +36,7 @@ export default defineEventHandler(async (event) => {
 
   if (query.hard === 'true') {
     await db.delete(fleetApps).where(eq(fleetApps.name, appName))
+    await invalidateFleetAppListCache(event)
     return { ok: true, app: appName, action: 'deleted' }
   }
 
@@ -42,5 +44,6 @@ export default defineEventHandler(async (event) => {
     .update(fleetApps)
     .set({ isActive: false, updatedAt: new Date().toISOString() })
     .where(eq(fleetApps.name, appName))
+  await invalidateFleetAppListCache(event)
   return { ok: true, app: appName, action: 'deactivated' }
 })

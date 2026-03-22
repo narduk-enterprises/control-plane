@@ -46,6 +46,11 @@ async function setCache(
     .run()
 }
 
+async function deleteCache(db: D1Database, key: string): Promise<number> {
+  const result = await db.prepare('DELETE FROM kv_cache WHERE key = ?').bind(key).run()
+  return result.meta?.changes ?? 0
+}
+
 export interface D1CacheMeta {
   cachedAt: string
   stale: boolean
@@ -166,4 +171,21 @@ export async function cleanExpiredCache(event: H3Event): Promise<number> {
   const nowSec = Math.floor(Date.now() / 1000)
   const result = await d1.prepare('DELETE FROM kv_cache WHERE expires_at < ?').bind(nowSec).run()
   return result.meta?.changes ?? 0
+}
+
+export async function deleteD1CacheKey(event: H3Event, key: string): Promise<number> {
+  const d1 = getD1CacheDB(event)
+  if (!d1) return 0
+  return deleteCache(d1, key)
+}
+
+export async function deleteD1CacheKeys(event: H3Event, keys: readonly string[]): Promise<number> {
+  if (keys.length === 0) return 0
+
+  let deleted = 0
+  for (const key of keys) {
+    deleted += await deleteD1CacheKey(event, key)
+  }
+
+  return deleted
 }

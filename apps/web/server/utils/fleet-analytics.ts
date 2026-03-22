@@ -3,8 +3,12 @@ import { createError as createH3Error, type H3Event } from 'h3'
 import { z } from 'zod'
 import { getD1CacheDB, withD1Cache } from '#layer/server/utils/d1Cache'
 import { GA_SCOPES, GSC_SCOPES, GoogleApiError, googleApiFetch } from '#layer/server/utils/google'
-import type { FleetApp } from '#server/data/fleet-registry'
-import { getFleetAppByName, getFleetApps } from '#server/data/fleet-registry'
+import {
+  getFleetAppByName,
+  getFleetApps,
+  invalidateFleetAppListCache,
+  type FleetApp,
+} from '#server/data/fleet-registry'
 import { appStatus, fleetApps } from '#server/database/schema'
 import type { AppStatus } from '#server/database/schema'
 import type {
@@ -1481,6 +1485,10 @@ export async function reconcileAuditMeasurementIds(
       })
       .where(eq(fleetApps.name, item.app))
     updated++
+  }
+
+  if (updated > 0) {
+    await invalidateFleetAppListCache(event)
   }
 
   return updated

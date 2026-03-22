@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { readBody } from 'h3'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { fleetApps } from '#server/database/schema'
+import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
 const bodySchema = z.object({
   name: z
@@ -64,6 +65,8 @@ export default defineEventHandler(async (event) => {
     createdAt: now,
     updatedAt: now,
   })
+
+  await invalidateFleetAppListCache(event)
 
   return { ok: true, app: name }
 })

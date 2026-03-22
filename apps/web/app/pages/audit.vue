@@ -3,11 +3,12 @@ import type { AuditResponse, AuditResult } from '~/types/audit'
 
 useSeo({
   title: 'Fleet Audit',
-  description: 'Audit fleet app configurations — PostHog, GA, APP_NAME verification.',
+  description: 'Audit fleet app runtime config, GA4 provider health, and Search Console access.',
 })
 useWebPageSchema({
   name: 'Narduk Control Plane — Fleet Audit',
-  description: 'Verify analytics and app configuration across the fleet.',
+  description:
+    'Verify live runtime config plus GA4 and Search Console provider health across the fleet.',
 })
 
 const auditResponse = ref<AuditResponse | null>(null)
@@ -71,7 +72,8 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">Fleet Audit</h1>
         <p class="mt-1 text-sm text-muted">
-          Verify PostHog, Google Analytics, and app name configuration across all fleet apps
+          Verify live runtime config plus GA4 and Search Console provider health across all fleet
+          apps
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -217,8 +219,8 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
         <UIcon name="i-lucide-shield-check" class="mx-auto mb-4 size-14 text-muted/40" />
         <p class="text-base font-medium text-default">Fleet Configuration Audit</p>
         <p class="mx-auto mt-2 max-w-md text-sm text-muted">
-          Click "Run Audit" to fetch each app's production HTML and verify PostHog, Google
-          Analytics, and app name configurations match the fleet registry.
+          Click "Run Audit" to fetch each app&apos;s production HTML and compare it with the
+          canonical GA4 and Search Console provider health snapshot for the fleet.
         </p>
       </div>
     </UCard>

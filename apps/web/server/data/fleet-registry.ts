@@ -8,10 +8,13 @@
  */
 import { eq } from 'drizzle-orm'
 import { fleetApps } from '#server/database/schema'
+import { deleteD1CacheKeys } from '#layer/server/utils/d1Cache'
 import type { FleetApp } from '#server/database/schema'
 import type { H3Event } from 'h3'
 
 export type { FleetApp }
+
+const FLEET_APP_CACHE_KEYS = ['fleet-apps-list', 'fleet-apps-list-all'] as const
 
 /**
  * Get all active fleet apps from D1, sorted by name.
@@ -41,4 +44,8 @@ export async function getFleetAppByName(
   const db = useDatabase(event)
   const rows = await db.select().from(fleetApps).where(eq(fleetApps.name, name)).limit(1).all()
   return rows[0]
+}
+
+export async function invalidateFleetAppListCache(event: H3Event): Promise<number> {
+  return deleteD1CacheKeys(event, FLEET_APP_CACHE_KEYS)
 }

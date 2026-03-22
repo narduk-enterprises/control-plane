@@ -3,6 +3,7 @@ import { readBody } from 'h3'
 import { eq } from 'drizzle-orm'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { fleetApps } from '#server/database/schema'
+import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
 const bodySchema = z.object({
   url: z.string().url().optional(),
@@ -59,6 +60,7 @@ export default defineEventHandler(async (event) => {
   if (parsed.data.isActive !== undefined) updates.isActive = parsed.data.isActive
 
   await db.update(fleetApps).set(updates).where(eq(fleetApps.name, appName))
+  await invalidateFleetAppListCache(event)
 
   return { ok: true, app: appName }
 })

@@ -1,22 +1,20 @@
 import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { getFleetApps } from '#server/data/fleet-registry'
-import { reconcileAuditMeasurementIds } from '#server/utils/fleet-analytics'
-
-interface AuditCheck {
-  name: string
-  status: 'pass' | 'fail' | 'warning' | 'skipped'
-  expected: string | null
-  actual: string | null
-  message: string
-}
-
-interface AuditResult {
-  app: string
-  url: string
-  checks: AuditCheck[]
-  fetchError?: string
-}
+import {
+  buildFleetAnalyticsSummary,
+  reconcileAuditMeasurementIds,
+} from '#server/utils/fleet-analytics'
+import { getDopplerSecrets } from '#server/utils/provision-doppler'
+import {
+  buildAnalyticsProviderChecks,
+  buildAuditChecks,
+  buildSelfAuditSignals,
+  extractAuditSignalsFromHtml,
+  shouldUseSelfAudit,
+  type AuditReconcileCandidate,
+  type AuditResult,
+} from '#server/utils/fleet-audit'
 
 const bodySchema = z
   .object({
@@ -38,16 +36,33 @@ export default defineEventHandler(async (event) => {
   const persist = body.success ? body.data?.persist === true : false
 
   const apps = await getFleetApps(event)
-  const reconcileCandidates: Array<{
-    app: string
-    previousMeasurementId: string | null
-    liveMeasurementId: string
-  }> = []
+  const reconcileCandidates: AuditReconcileCandidate[] = []
+  const auditEnd = new Date()
+  const auditStart = new Date(auditEnd)
+  auditStart.setDate(auditStart.getDate() - 7)
+  const analyticsSummary = await buildFleetAnalyticsSummary(
+    event,
+    {
+      startDate: auditStart.toISOString().slice(0, 10),
+      endDate: auditEnd.toISOString().slice(0, 10),
+    },
+    false,
+  ).catch((error) => {
+    console.error('Fleet audit analytics summary failed:', error)
+    return null
+  })
+  const snapshotMap = analyticsSummary?.apps ?? {}
 
   const results = await Promise.all(
     // eslint-disable-next-line narduk/no-map-async-in-server -- intentional parallel audit across the fleet
     apps.map(async (app): Promise<AuditResult> => {
-      let html = ''
+      const providerChecks = buildAnalyticsProviderChecks(snapshotMap[app.name])
+
+      if (shouldUseSelfAudit(event, app)) {
+        const { checks, reconcileCandidate } = buildAuditChecks(app, buildSelfAuditSignals(event))
+        if (reconcileCandidate) reconcileCandidates.push(reconcileCandidate)
+        return { app: app.name, url: app.url, checks: [...checks, ...providerChecks] }
+      }
 
       try {
         const response = await fetch(app.url, {
@@ -60,105 +75,61 @@ export default defineEventHandler(async (event) => {
           return {
             app: app.name,
             url: app.url,
-            checks: [],
+            checks: providerChecks,
             fetchError: `HTTP ${response.status} ${response.statusText}`,
           }
         }
 
-        html = await response.text()
+        const html = await response.text()
+        const { checks, reconcileCandidate } = buildAuditChecks(
+          app,
+          extractAuditSignalsFromHtml(html),
+        )
+        if (reconcileCandidate) reconcileCandidates.push(reconcileCandidate)
+        return { app: app.name, url: app.url, checks: [...checks, ...providerChecks] }
       } catch (error: unknown) {
         return {
           app: app.name,
           url: app.url,
-          checks: [],
+          checks: providerChecks,
           fetchError: error instanceof Error ? error.message : String(error),
         }
       }
-
-      const checks: AuditCheck[] = []
-
-      const actualPhKey =
-        html.match(/posthogPublicKey["']?\s*[:=]\s*["']([^"']+)["']/i)?.[1] ?? null
-      checks.push({
-        name: 'PostHog API Key',
-        status: actualPhKey ? 'pass' : 'warning',
-        expected: null,
-        actual: actualPhKey,
-        message: actualPhKey
-          ? `Found PostHog key: ${actualPhKey.slice(0, 12)}...`
-          : 'No posthogPublicKey found in serialized runtime config',
-      })
-
-      const actualAppName = html.match(/appName["']?\s*[:=]\s*["']([^"']+)["']/i)?.[1] ?? null
-      checks.push({
-        name: 'PostHog App Name',
-        status: actualAppName ? 'pass' : 'warning',
-        expected: null,
-        actual: actualAppName,
-        message: actualAppName
-          ? `appName: "${actualAppName}"`
-          : 'appName not found in serialized runtime config',
-      })
-
-      const actualGaId =
-        html.match(/gaMeasurementId["']?\s*[:=]\s*["'](G-[A-Z0-9]+)["']/i)?.[1] ?? null
-      const expectedGaId = app.gaMeasurementId
-
-      if (actualGaId && actualGaId !== expectedGaId) {
-        reconcileCandidates.push({
-          app: app.name,
-          previousMeasurementId: expectedGaId ?? null,
-          liveMeasurementId: actualGaId,
-        })
-      }
-
-      if (expectedGaId) {
-        checks.push({
-          name: 'GA Measurement ID',
-          status: actualGaId === expectedGaId ? 'pass' : actualGaId ? 'fail' : 'warning',
-          expected: expectedGaId,
-          actual: actualGaId,
-          message:
-            actualGaId === expectedGaId
-              ? 'Matches fleet registry'
-              : actualGaId
-                ? `Mismatch: expected "${expectedGaId}", got "${actualGaId}"`
-                : `Expected "${expectedGaId}" but not found — redeploy app to pick up GA_MEASUREMENT_ID`,
-        })
-      } else {
-        checks.push({
-          name: 'GA Measurement ID',
-          status: actualGaId ? 'warning' : 'skipped',
-          expected: null,
-          actual: actualGaId,
-          message: actualGaId
-            ? `Found "${actualGaId}" on site but fleet registry has no ga_measurement_id set`
-            : 'No ga_measurement_id configured in fleet registry',
-        })
-      }
-
-      const title = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? null
-      checks.push({
-        name: 'Page Title',
-        status: title ? 'pass' : 'warning',
-        expected: null,
-        actual: title,
-        message: title ? `Title: "${title}"` : 'No <title> tag found',
-      })
-
-      return { app: app.name, url: app.url, checks }
     }),
   )
 
-  const updatedCount = persist
-    ? await reconcileAuditMeasurementIds(
-        event,
-        reconcileCandidates.map((candidate) => ({
-          app: candidate.app,
-          gaMeasurementId: candidate.liveMeasurementId,
-        })),
-      )
-    : 0
+  let verifiedUpdates = reconcileCandidates.map((candidate) => ({
+    app: candidate.app,
+    gaMeasurementId: candidate.liveMeasurementId,
+  }))
+
+  if (persist) {
+    const dopplerToken = useRuntimeConfig(event).dopplerApiToken
+    if (dopplerToken) {
+      const appsByName = new Map(apps.map((app) => [app.name, app]))
+      const verified: Array<{ app: string; gaMeasurementId: string } | null> = []
+      for (const candidate of verifiedUpdates) {
+        const app = appsByName.get(candidate.app)
+        if (!app) {
+          verified.push(null)
+          continue
+        }
+
+        try {
+          const secrets = await getDopplerSecrets(dopplerToken, app.dopplerProject, 'prd')
+          verified.push(
+            secrets.GA_MEASUREMENT_ID?.trim() === candidate.gaMeasurementId ? candidate : null,
+          )
+        } catch {
+          verified.push(null)
+        }
+      }
+
+      verifiedUpdates = verified.filter((candidate) => candidate !== null)
+    }
+  }
+
+  const updatedCount = persist ? await reconcileAuditMeasurementIds(event, verifiedUpdates) : 0
 
   return {
     results: results.sort((left, right) => left.app.localeCompare(right.app)),

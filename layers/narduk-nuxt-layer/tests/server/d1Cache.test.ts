@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { withD1Cache, cleanExpiredCache } from '../../server/utils/d1Cache'
+import { withD1Cache, cleanExpiredCache, deleteD1CacheKeys } from '../../server/utils/d1Cache'
 
 // Mock createError auto-import
 vi.stubGlobal('createError', (opts: { statusCode: number; message: string }) => {
@@ -85,5 +85,27 @@ describe('cleanExpiredCache', () => {
     const event = { context: {} } as never
     const result = await cleanExpiredCache(event)
     expect(result).toBe(0)
+  })
+})
+
+describe('deleteD1CacheKeys', () => {
+  it('deletes each requested key when D1 is available', async () => {
+    const run = vi.fn().mockResolvedValue({ meta: { changes: 1 } })
+    const bind = vi.fn().mockReturnValue({ run })
+    const prepare = vi.fn().mockReturnValue({ bind })
+    const event = {
+      context: {
+        cloudflare: {
+          env: { DB: { prepare } },
+        },
+      },
+    } as never
+
+    const deleted = await deleteD1CacheKeys(event, ['fleet-apps-list', 'fleet-apps-list-all'])
+
+    expect(deleted).toBe(2)
+    expect(prepare).toHaveBeenCalledTimes(2)
+    expect(bind).toHaveBeenNthCalledWith(1, 'fleet-apps-list')
+    expect(bind).toHaveBeenNthCalledWith(2, 'fleet-apps-list-all')
   })
 })
