@@ -1,12 +1,16 @@
 import { defineStore } from 'pinia'
 import type {
   AnalyticsInsight,
+  AnalyticsProviderSnapshot,
   AnalyticsRange,
   FleetAnalyticsDetailResponse,
   FleetAnalyticsSummaryResponse,
   FleetIntegrationHealthResponse,
 } from '~/types/analytics'
 import type { AnalyticsDatePreset as DatePreset, LoadStatus } from '~/types/store'
+
+const AUTO_REFRESH_DELAY_MS = 2_500
+const MAX_AUTO_REFRESH_ATTEMPTS = 3
 
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0] ?? ''
@@ -62,8 +66,29 @@ function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Unexpected analytics error'
 }
 
+function providerIsStale(provider: AnalyticsProviderSnapshot<unknown>) {
+  return provider.status === 'stale' || provider.stale
+}
+
+export function detailNeedsFollowUpRefresh(detail: FleetAnalyticsDetailResponse) {
+  return [
+    detail.ga,
+    detail.gsc,
+    detail.posthog,
+    detail.indexnow,
+  ].some((provider) => providerIsStale(provider))
+}
+
+export function summaryNeedsFollowUpRefresh(summary: FleetAnalyticsSummaryResponse) {
+  return Object.values(summary.apps).some((snapshot) => detailNeedsFollowUpRefresh(snapshot))
+}
+
 export const useAnalyticsStore = defineStore('analytics', () => {
   const appFetch = useAppFetch()
+  const summaryRefreshTimers: Record<string, number | undefined> = {}
+  const summaryRefreshAttempts: Record<string, number> = {}
+  const detailRefreshTimers: Record<string, number | undefined> = {}
+  const detailRefreshAttempts: Record<string, number> = {}
 
   const initialized = ref(false)
   const preset = ref<DatePreset>('30d')
@@ -104,16 +129,80 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     endDate.value = range.endDate
   }
 
-  async function fetchSummary(options?: { range?: AnalyticsRange; force?: boolean }) {
+  function clearSummaryFollowUp(key: string) {
+    const timer = summaryRefreshTimers[key]
+    if (timer && import.meta.client) {
+      clearTimeout(timer)
+    }
+    summaryRefreshTimers[key] = undefined
+    summaryRefreshAttempts[key] = 0
+  }
+
+  function clearDetailFollowUp(key: string) {
+    const timer = detailRefreshTimers[key]
+    if (timer && import.meta.client) {
+      clearTimeout(timer)
+    }
+    detailRefreshTimers[key] = undefined
+    detailRefreshAttempts[key] = 0
+  }
+
+  function scheduleSummaryFollowUp(range: AnalyticsRange) {
+    if (!import.meta.client) return
+
+    const key = rangeKey(range)
+    if (summaryRefreshTimers[key]) return
+    if ((summaryRefreshAttempts[key] ?? 0) >= MAX_AUTO_REFRESH_ATTEMPTS) return
+
+    summaryRefreshAttempts[key] = (summaryRefreshAttempts[key] ?? 0) + 1
+    summaryRefreshTimers[key] = window.setTimeout(async () => {
+      summaryRefreshTimers[key] = undefined
+      try {
+        await fetchSummary({ range, force: true, background: true })
+      } catch {
+        // Keep the last rendered snapshot; the error alert path already covers hard failures.
+      }
+    }, AUTO_REFRESH_DELAY_MS)
+  }
+
+  function scheduleDetailFollowUp(appName: string, range: AnalyticsRange) {
+    if (!import.meta.client) return
+
+    const key = detailKey(appName, range)
+    if (detailRefreshTimers[key]) return
+    if ((detailRefreshAttempts[key] ?? 0) >= MAX_AUTO_REFRESH_ATTEMPTS) return
+
+    detailRefreshAttempts[key] = (detailRefreshAttempts[key] ?? 0) + 1
+    detailRefreshTimers[key] = window.setTimeout(async () => {
+      detailRefreshTimers[key] = undefined
+      try {
+        await fetchDetail(appName, { range, force: true, background: true })
+      } catch {
+        // Keep the last rendered snapshot; the error alert path already covers hard failures.
+      }
+    }, AUTO_REFRESH_DELAY_MS)
+  }
+
+  async function fetchSummary(options?: {
+    range?: AnalyticsRange
+    force?: boolean
+    background?: boolean
+  }) {
     const range = options?.range ?? currentRange()
     const key = rangeKey(range)
+    const existing = summaries.value[key]
 
-    if (!options?.force && summaries.value[key]) {
-      return summaries.value[key]
+    if (!options?.force && existing) {
+      if (summaryNeedsFollowUpRefresh(existing)) {
+        scheduleSummaryFollowUp(range)
+      }
+      return existing
     }
 
-    summaryStatuses.value[key] = 'pending'
-    summaryErrors.value[key] = null
+    if (!options?.background) {
+      summaryStatuses.value[key] = 'pending'
+      summaryErrors.value[key] = null
+    }
 
     try {
       const data = await appFetch<FleetAnalyticsSummaryResponse>('/api/fleet/analytics/summary', {
@@ -125,27 +214,41 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       })
       summaries.value = { ...summaries.value, [key]: data }
       summaryStatuses.value[key] = 'success'
+      summaryErrors.value[key] = null
+      if (summaryNeedsFollowUpRefresh(data)) {
+        scheduleSummaryFollowUp(range)
+      } else {
+        clearSummaryFollowUp(key)
+      }
       return data
     } catch (error) {
-      summaryStatuses.value[key] = 'error'
-      summaryErrors.value[key] = toErrorMessage(error)
+      if (!options?.background) {
+        summaryStatuses.value[key] = 'error'
+        summaryErrors.value[key] = toErrorMessage(error)
+      }
       throw error
     }
   }
 
   async function fetchDetail(
     appName: string,
-    options?: { range?: AnalyticsRange; force?: boolean },
+    options?: { range?: AnalyticsRange; force?: boolean; background?: boolean },
   ) {
     const range = options?.range ?? currentRange()
     const key = detailKey(appName, range)
+    const existing = details.value[key]
 
-    if (!options?.force && details.value[key]) {
-      return details.value[key]
+    if (!options?.force && existing) {
+      if (detailNeedsFollowUpRefresh(existing)) {
+        scheduleDetailFollowUp(appName, range)
+      }
+      return existing
     }
 
-    detailStatuses.value[key] = 'pending'
-    detailErrors.value[key] = null
+    if (!options?.background) {
+      detailStatuses.value[key] = 'pending'
+      detailErrors.value[key] = null
+    }
 
     try {
       const data = await appFetch<FleetAnalyticsDetailResponse>(
@@ -160,10 +263,18 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       )
       details.value = { ...details.value, [key]: data }
       detailStatuses.value[key] = 'success'
+      detailErrors.value[key] = null
+      if (detailNeedsFollowUpRefresh(data)) {
+        scheduleDetailFollowUp(appName, range)
+      } else {
+        clearDetailFollowUp(key)
+      }
       return data
     } catch (error) {
-      detailStatuses.value[key] = 'error'
-      detailErrors.value[key] = toErrorMessage(error)
+      if (!options?.background) {
+        detailStatuses.value[key] = 'error'
+        detailErrors.value[key] = toErrorMessage(error)
+      }
       throw error
     }
   }
