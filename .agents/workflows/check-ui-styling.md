@@ -77,31 +77,12 @@ Nuxt UI tokens (e.g. text-foreground) by `atx/no-invalid-nuxt-ui-token`.
    - Verify that the UI configuration is correctly structured for v4 (e.g.,
      configuring `primary` and `neutral` under `ui.colors`).
 
-9. **Check Nuxt UI Pro component adoption for landing pages**
-   - Landing pages should use Pro layout primitives instead of custom div-heavy
-     structures:
-     - `UPageHero` for hero sections (not raw flex/grid containers)
-     - `UPageSection` for content sections (not bare `<section>` tags)
-     - `UPageFeature` for feature showcases
-     - `UPageCTA` for call-to-action blocks
-     - `UHeader` / `UFooter` for navigation and footers // turbo
-       `grep -rnl 'PageHero\|PageSection\|PageFeature\|PageCTA\|UHeader\|UFooter' app/pages/ app/layouts/ 2>/dev/null || echo "No Pro landing page components found — verify if landing pages exist"`
-   - If the app has marketing/landing pages built with raw HTML instead of Pro
-     components, flag for refactoring.
-
-10. **Check dashboard layout compliance**
-    - Admin or dashboard pages should use Pro dashboard primitives:
-      - `UDashboardGroup` for the outer layout with sidebar state management
-      - `UDashboardSidebar` for collapsible side navigation
-      - `UDashboardPanel` for resizable content panels
-      - `UDashboardNavbar` for the top navigation bar // turbo
-        `grep -rnl 'DashboardGroup\|DashboardSidebar\|DashboardPanel\|DashboardNavbar' app/pages/ app/layouts/ 2>/dev/null || echo "No Pro dashboard components found — verify if dashboard pages exist"`
-    - If the app has dashboard pages built with custom sidebar/panel layouts,
-      flag for migration to Pro components.
-
-11. **Check Input Sizing**
+9. **Check Input Sizing**
     - Input components like `<UTextarea>` and `<UInput>` do not take 100% of
       their container's width by default, which can result in squished or ugly
       inputs. Always apply `class="w-full"` to inputs unless explicitly
       designing a narrow inline field. // turbo
       `grep -rn '<UInput\|<UTextarea' app/ 2>/dev/null | grep -v 'w-full' | head -10 || echo "No inputs missing w-full found (pass)"`
+
+For page-building component adoption and layout-pattern drift, use
+`/audit-nuxt-ui-4` instead of duplicating those checks here.

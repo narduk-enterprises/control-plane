@@ -19,7 +19,7 @@ from the official Nuxt UI 4 / Tailwind v4 best practices. Sources:
 > **Related workflows:**
 >
 > - `/check-ui-styling` — Quick-pass Tailwind lint check
-> - `/audit-nuxt-ui-4` — Pro component adoption audit
+> - `/audit-nuxt-ui-4` — Nuxt UI 4 component adoption audit
 > - `/nuxt-check-fix-2` — Full Nuxt 4 compliance & runtime warning audit
 
 // turbo-all

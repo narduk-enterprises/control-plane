@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { data: ogData, status: ogStatus, error: ogError } = useOgImageData()
+const ogSections = computed(() => normalizeOgPreviewSections(ogData.value))
 
 const toast = useToast()
 
@@ -47,14 +48,14 @@ if (ogError.value) {
           </div>
         </div>
 
-        <div v-else-if="!ogData || ogData.length === 0" class="py-12 text-center text-muted">
+        <div v-else-if="ogSections.length === 0" class="py-12 text-center text-muted">
           No OG image preview categories found.
         </div>
 
         <div v-else class="space-y-8">
-          <div v-for="(category, index) in ogData" :key="index" class="space-y-4">
+          <div v-for="(category, index) in ogSections" :key="index" class="space-y-4">
             <h3 class="text-xl font-semibold text-default border-b border-default pb-2">
-              {{ category.title }}
+              {{ category.title ?? category.category ?? 'Untitled' }}
             </h3>
             <div v-if="category.items.length === 0" class="text-sm text-muted italic">
               No items discovered in this category.

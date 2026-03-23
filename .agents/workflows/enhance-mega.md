@@ -477,27 +477,28 @@ loading, and responsive sizing.
 
 ---
 
-## Phase 5: Pro Component Adoption Audit
+## Phase 5: Page-Building Component Adoption Audit
 
-Verify the app uses Nuxt UI Pro primitives instead of reinventing layout:
+Verify the app uses Nuxt UI 4 page-building primitives instead of reinventing
+layout:
 
 ### 5a. Landing Pages
 
 // turbo
-`grep -rnl 'PageHero\|PageSection\|PageFeature\|PageCTA\|PageGrid\|PageColumns' app/ 2>/dev/null || echo "No Pro landing components"`
+`grep -rnl 'PageHero\|PageSection\|PageFeature\|PageCTA\|PageGrid\|PageColumns' app/ 2>/dev/null || echo "No landing page-building components"`
 
-If landing pages exist but use raw `<div>` layouts, **refactor to Pro
+If landing pages exist but use raw `<div>` layouts, **refactor to Nuxt UI
 components**.
 
 ### 5b. Dashboard Pages
 
 // turbo
-`grep -rnl 'DashboardGroup\|DashboardSidebar\|DashboardPanel\|DashboardNavbar\|DashboardToolbar' app/ 2>/dev/null || echo "No Pro dashboard components"`
+`grep -rnl 'DashboardGroup\|DashboardSidebar\|DashboardPanel\|DashboardNavbar\|DashboardToolbar' app/ 2>/dev/null || echo "No dashboard layout components"`
 
 ### 5c. Layout Components
 
 // turbo
-`grep -rnl 'UHeader\|UFooter\|UMain\|UContainer' app/ 2>/dev/null || echo "No Pro layout components"`
+`grep -rnl 'UHeader\|UFooter\|UMain\|UContainer' app/ 2>/dev/null || echo "No shared layout components"`
 
 ### 5d. UApp Wrapper
 
@@ -676,7 +677,7 @@ An interface that moves with purpose feels alive and premium. Motion should:
 | Counters & stats    | Count-up animation          | Custom `useCountUp` composable                      |
 | Toast notifications | Slide in from top-right     | Nuxt UI built-in                                    |
 | Modal/dialog enter  | Scale + fade                | Nuxt UI built-in                                    |
-| Sidebar collapse    | Width transition            | Nuxt UI Pro built-in                                |
+| Sidebar collapse    | Width transition            | Nuxt UI built-in                                    |
 | Tab switching       | Cross-fade                  | `transition-opacity duration-150`                   |
 | Dropdown menus      | Scale from origin point     | Nuxt UI built-in                                    |
 | Progress indicators | Smooth width transition     | `transition-all duration-300`                       |
@@ -800,7 +801,7 @@ Run through EVERY item. Zero tolerance for failures.
 - [ ] OG images present
 - [ ] Correct heading hierarchy
 
-### Pro Component Adoption
+### Page-Building Component Adoption
 
 - [ ] Landing pages use `UPageHero`, `UPageSection`, `UPageCTA`, etc.
 - [ ] Dashboard pages use `UDashboardGroup`, `UDashboardSidebar`, etc.

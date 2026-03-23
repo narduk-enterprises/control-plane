@@ -1,3 +1,4 @@
+---
 description:
   Comprehensive Nuxt UI 4 component adoption audit — checks page-building
   primitives, layout consistency, state handling, responsiveness, dark mode,
@@ -8,12 +9,12 @@ description:
 
 This workflow audits whether the app correctly leverages Nuxt UI 4's
 page-building primitives instead of reinventing layout patterns with raw HTML.
-It validates component adoption, visual consistency, state handling, and premium
-feel across devices and color modes.
+It validates component adoption, visual consistency, state handling, and polish
+across devices and color modes.
 
-> **Prerequisite:** All Nuxt UI Pro components (Dashboard\*, Page\*, Pricing\*,
-> Blog\*, Auth\*, Chat\*, Editor\*) are included in `@nuxt/ui` v4. No separate
-> package needed.
+> **Prerequisite:** The Dashboard\*, Page\*, Pricing\*, Blog\*, Auth\*,
+> Chat\*, and Editor\* primitives ship in `@nuxt/ui` v4. No separate package is
+> needed.
 
 > **Related workflows:**
 >
@@ -22,15 +23,15 @@ feel across devices and color modes.
 
 ---
 
-## 1. Pro Component Adoption
+## 1. Page-Building Component Adoption
 
-Check that the app leverages Nuxt UI Pro's page-building primitives instead of
+Check that the app leverages Nuxt UI 4's page-building primitives instead of
 reinventing layout patterns with raw HTML.
 
 ### Landing / Marketing Pages
 
 // turbo
-`grep -rnl 'PageHero\|PageSection\|PageFeature\|PageCTA\|PageGrid\|PageColumns' app/pages/ app/components/ 2>/dev/null || echo "No Pro landing components found"`
+`grep -rnl 'PageHero\|PageSection\|PageFeature\|PageCTA\|PageGrid\|PageColumns' app/pages/ app/components/ 2>/dev/null || echo "No landing page-building components found"`
 
 Expected components for marketing pages:
 
@@ -47,7 +48,7 @@ components, flag for refactoring.
 ### Dashboard / Admin Pages
 
 // turbo
-`grep -rnl 'DashboardGroup\|DashboardSidebar\|DashboardPanel\|DashboardNavbar\|DashboardToolbar' app/pages/ app/layouts/ app/components/ 2>/dev/null || echo "No Pro dashboard components found"`
+`grep -rnl 'DashboardGroup\|DashboardSidebar\|DashboardPanel\|DashboardNavbar\|DashboardToolbar' app/pages/ app/layouts/ app/components/ 2>/dev/null || echo "No dashboard layout components found"`
 
 Expected components for admin/dashboard pages:
 
@@ -61,7 +62,7 @@ Expected components for admin/dashboard pages:
 ### Layout Components
 
 // turbo
-`grep -rnl 'UHeader\|UFooter\|UMain\|UContainer' app/layouts/ app/components/ app/pages/ 2>/dev/null || echo "No Pro layout components found"`
+`grep -rnl 'UHeader\|UFooter\|UMain\|UContainer' app/layouts/ app/components/ app/pages/ 2>/dev/null || echo "No shared layout components found"`
 
 Expected:
 
@@ -73,7 +74,7 @@ Expected:
 ### Content Pages
 
 // turbo
-`grep -rnl 'ContentNavigation\|ContentSearch\|ContentToc\|ContentSurround' app/ 2>/dev/null || echo "No Pro content components found"`
+`grep -rnl 'ContentNavigation\|ContentSearch\|ContentToc\|ContentSurround' app/ 2>/dev/null || echo "No content helper components found"`
 
 Applicable if the app uses `@nuxt/content`:
 
@@ -219,7 +220,7 @@ Present findings grouped by severity:
 | Severity        | Category                                                            | What to check |
 | --------------- | ------------------------------------------------------------------- | ------------- |
 | 🔴 Critical     | Missing UApp wrapper, no error handling, broken mobile layout       |
-| 🟠 High         | Custom layouts where Pro components exist, no empty/loading states  |
+| 🟠 High         | Custom layouts where Nuxt UI 4 page-building components fit, no empty/loading states |
 | 🟡 Medium       | Missing dark mode toggle, inconsistent spacing, no page transitions |
 | 🟢 Nice-to-have | Motion polish, glassmorphism, micro-animations                      |
 
@@ -228,7 +229,7 @@ before making changes.
 
 ---
 
-## Pro Component Quick Reference
+## Component Quick Reference
 
 | Component           | Purpose                          | Key Props                            |
 | ------------------- | -------------------------------- | ------------------------------------ |

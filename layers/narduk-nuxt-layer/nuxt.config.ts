@@ -45,6 +45,8 @@ const buildVersion =
   appVersion
 const buildTime = process.env.BUILD_TIME || new Date().toISOString()
 const colorModePreference = process.env.NUXT_COLOR_MODE_PREFERENCE || 'system'
+const localNuxtPort = Number(process.env.NUXT_PORT || 3000)
+const localSiteUrl = `http://127.0.0.1:${Number.isFinite(localNuxtPort) ? localNuxtPort : 3000}`
 
 export default defineNuxtConfig({
   alias: {
@@ -113,7 +115,7 @@ export default defineNuxtConfig({
   },
 
   site: {
-    url: process.env.SITE_URL || 'http://127.0.0.1:3000',
+    url: process.env.SITE_URL || localSiteUrl,
     name: process.env.APP_NAME || 'Nuxt 4 App',
     description: 'A Nuxt 4 application deployed on Cloudflare Workers.',
   },

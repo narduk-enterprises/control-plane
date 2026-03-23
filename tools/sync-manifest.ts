@@ -48,7 +48,9 @@ export const BOOTSTRAP_SYNC_FILES = ['guardrail-exceptions.json'] as const
 export const RECURSIVE_SYNC_DIRECTORIES = [
   'packages/eslint-config',
   '.agents/workflows',
-  // Compatibility mirrors. Author skill changes in .codex first, then sync out.
+  // Compatibility mirrors. Shared ui-ux-pro-max payload lives under
+  // `.cursor/skills/`; other tool directories keep their own wrapper docs and
+  // symlink the shared data/scripts payload.
   '.agent',
   '.codex',
   '.cursor/skills',

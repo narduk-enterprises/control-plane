@@ -151,6 +151,35 @@ async function main() {
         console.error(`  ❌ Missing Doppler secrets: ${missing.join(', ')}`)
         allGood = false
       }
+
+      try {
+        const agentAdminApiKey = execSync(
+          `doppler secrets get AGENT_ADMIN_API_KEY --project ${APP_NAME} --config prd --plain`,
+          { encoding: 'utf-8', stdio: 'pipe' },
+        ).trim()
+
+        if (agentAdminApiKey.startsWith('nk_')) {
+          console.log(`  ✅ AGENT_ADMIN_API_KEY present for agent/admin automation.`)
+        } else {
+          console.warn(
+            '  ⚠️ AGENT_ADMIN_API_KEY is present but does not look like a layer API key (expected raw nk_... token).',
+          )
+          console.warn(
+            '     Mint it via /api/auth/api-keys as an admin, then store the returned rawKey in Doppler.',
+          )
+          console.warn(
+            '     Fleet apps can also be repaired from the template repo with `pnpm run backfill:agent-admin-keys -- --projects=<app-name> --force`.',
+          )
+        }
+      } catch {
+        console.warn('  ⚠️ Recommended Doppler secret missing: AGENT_ADMIN_API_KEY')
+        console.warn(
+          '     Mint it once via /api/auth/api-keys as an admin and store the raw nk_... token in Doppler.',
+        )
+        console.warn(
+          '     Fleet apps can also be backfilled from the template repo with `pnpm run backfill:agent-admin-keys -- --projects=<app-name>`.',
+        )
+      }
     } catch {
       console.error('  ❌ Failed to fetch Doppler secrets.')
       allGood = false

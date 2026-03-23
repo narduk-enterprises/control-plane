@@ -16,8 +16,9 @@ template.
      content sites
    - **SQL database** (Cloudflare D1 via Drizzle ORM) — great for CRUD apps,
      dashboards, user-generated content
-   - **Rich UI components** (Nuxt UI 4 with Pro components — Dashboard, Page,
-     Pricing, Blog, Auth, Chat, Editor)
+   - **Rich UI components** (Nuxt UI 4 including the page-building primitives
+     formerly branded as Pro — Dashboard, Page, Pricing, Blog, Auth, Chat,
+     Editor)
    - **Monorepo architecture** (apps + shared packages)
    - **Edge-first** — sub-50ms responses globally, ideal for tools people Google
      for
@@ -284,9 +285,9 @@ Build the app inside `apps/web`. Features:
 
 - [UI requirements...]
 - **Requirement:** Use the inherited layer design tokens, Nuxt UI 4 components
-  (including Pro components: `PageHero`, `PageSection`, `PageFeature`, `PageCTA`
-  for landing pages; `DashboardGroup`, `DashboardSidebar`, `DashboardPanel` for
-  admin interfaces), and Tailwind v4.
+  (including page-building components such as `PageHero`, `PageSection`,
+  `PageFeature`, `PageCTA` for landing pages and `DashboardGroup`,
+  `DashboardSidebar`, `DashboardPanel` for admin interfaces), and Tailwind v4.
 
 ### ⚠️ CRITICAL: Database Schema Extension Pattern
 

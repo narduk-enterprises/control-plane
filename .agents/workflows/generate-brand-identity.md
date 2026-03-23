@@ -468,7 +468,7 @@ schemaOrg: {
 
 This is where the brand comes alive. Don't just configure — **design**.
 
-### 5a. Page Building with Nuxt UI Pro Components
+### 5a. Page Building with Nuxt UI 4 Components
 
 Use Nuxt UI v4's page-building primitives — never hand-roll what the framework
 provides:

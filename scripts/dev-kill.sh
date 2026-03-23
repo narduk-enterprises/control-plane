@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Kill local dev servers for this repo (current NUXT_PORT plus legacy defaults)
+# Kill dev servers for this monorepo (web + showcase apps on ports 3000, 3010-3016)
 set -e
 for port in "${NUXT_PORT:-3000}" 3000 3010 3011 3012 3013 3014 3015 3016; do
   pid=$(lsof -ti :"$port" 2>/dev/null) || true

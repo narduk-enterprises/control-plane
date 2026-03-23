@@ -18,10 +18,10 @@ not suppress warnings**; we root-cause and fix them.
 
 ## Step 1: Run the Fleet Quality Check
 
-1. Run `pnpm quality:fleet` from the monorepo root for a fleet baseline.
+1. Run `pnpm run quality:fleet` from the monorepo root for a fleet baseline.
 2. **Fleet Blitz (Optional)**: If there are many fixable warnings, run
-   `pnpm quality:fleet --fix` to automatically resolve what can be automated
-   across the whole fleet.
+   `pnpm run quality:fleet -- --fix` to automatically resolve what can be
+   automated across the whole fleet.
 
 ## Step 2: Target One Failing App
 
@@ -29,12 +29,14 @@ Focus on the **lowest hanging fruit** or the most critical failure first.
 
 1. Pick an app from the summary failure list.
 2. Run targeted quality to see details:
-   `pnpm quality:fleet --filter=APP_NAME --no-pull`.
+   `pnpm run quality:fleet -- --filter=APP_NAME --no-pull`.
 
 ## Step 3: Run Local Quality & Fix
 
-1. `cd` into the app (e.g., `cd ~/new-code/template-apps/APP_NAME/apps/web`).
-2. Run `pnpm run quality` (or `pnpm run quality --fix`).
+1. `cd` into the app repo root (e.g., `cd ~/new-code/template-apps/APP_NAME`).
+2. Run `pnpm run quality`.
+3. If you want auto-fixes first, run `pnpm run quality:fix` before re-running
+   `pnpm run quality`.
 
 ## Step 4: Categorize and Fix Issues
 
@@ -55,15 +57,14 @@ Attack in this order:
 ## Step 5: Verify & Commit
 
 1. Verify it runs clean: `pnpm run quality`.
-2. Commit and push:
+2. Commit if appropriate for the repo you are fixing:
 
 ```bash
-git add .
+git add -A
 git commit -m "chore: resolve quality warnings and errors"
-git push origin main
 ```
 
 ## Step 6: Verify Fleet Resolution
 
 Return to monorepo root and verify the app is now green in the fleet summary:
-`pnpm quality:fleet --filter=APP_NAME --no-pull`
+`pnpm run quality:fleet -- --filter=APP_NAME --no-pull`

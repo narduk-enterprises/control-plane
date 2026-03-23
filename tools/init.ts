@@ -84,6 +84,36 @@ function isDopplerAvailable(): boolean {
 }
 const DOPPLER_AVAILABLE = isDopplerAvailable()
 
+const APP_DERIVED_NUXT_PORT_BASE = 3200
+const APP_DERIVED_NUXT_PORT_SPAN = 2000
+
+function deriveDefaultNuxtPort(appName: string): number {
+  let hash = 0
+
+  for (const char of appName) {
+    hash = (hash * 33 + char.charCodeAt(0)) >>> 0
+  }
+
+  return APP_DERIVED_NUXT_PORT_BASE + (hash % APP_DERIVED_NUXT_PORT_SPAN)
+}
+
+function resolveLocalNuxtPort(): number {
+  const raw = process.env.NUXT_PORT?.trim()
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10)
+    if (Number.isInteger(parsed) && parsed >= 1024 && parsed <= 65535) {
+      return parsed
+    }
+
+    console.warn(`⚠️ Invalid NUXT_PORT='${raw}'. Falling back to an app-derived local port.`)
+  }
+
+  return deriveDefaultNuxtPort(APP_NAME)
+}
+
+const LOCAL_NUXT_PORT = resolveLocalNuxtPort()
+const LOCAL_SITE_URL = `http://localhost:${LOCAL_NUXT_PORT}`
+
 // Boilerplate targets to replace
 // Order matters: more-specific patterns must come before less-specific ones
 // Display name: "Nuxt 4 Demo" is the default app name in nuxt.config.ts (site.name,
@@ -513,7 +543,8 @@ async function main() {
 
 1. Setup environment variables (e.g. via Doppler)
 2. Run database migration: \`pnpm run db:migrate\`
-3. Start dev server: \`pnpm run dev\`
+3. Start dev server: \`doppler run -- pnpm run dev\`
+4. Local URL: \`${LOCAL_SITE_URL}\`
 
 ## Deployment
 
@@ -650,12 +681,15 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
       // Mirror secrets to dev config so local development works immediately.
       // Override SITE_URL to localhost for dev environment.
       const devSet = toSet.map((s) => {
-        if (s.startsWith("SITE_URL='")) return `SITE_URL='http://localhost:3000'`
+        if (s.startsWith("SITE_URL='")) return `SITE_URL='${LOCAL_SITE_URL}'`
         return s
       })
       // Ensure SITE_URL is always present in dev even if it wasn't in the prd toSet
       if (!devSet.some((s) => s.startsWith("SITE_URL='"))) {
-        devSet.push(`SITE_URL='http://localhost:3000'`)
+        devSet.push(`SITE_URL='${LOCAL_SITE_URL}'`)
+      }
+      if (!devSet.some((s) => s.startsWith("NUXT_PORT='"))) {
+        devSet.push(`NUXT_PORT='${LOCAL_NUXT_PORT}'`)
       }
       if (devSet.length > 0) {
         try {
@@ -675,6 +709,12 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
       try {
         const devExisting = getDopplerSecretNames(APP_NAME, 'dev')
         const devBackfill: string[] = []
+        if (!devExisting.has('SITE_URL')) {
+          devBackfill.push(`SITE_URL='${LOCAL_SITE_URL}'`)
+        }
+        if (!devExisting.has('NUXT_PORT')) {
+          devBackfill.push(`NUXT_PORT='${LOCAL_NUXT_PORT}'`)
+        }
         for (const [key, val] of Object.entries(hubRefs)) {
           if (!devExisting.has(key)) {
             devBackfill.push(`${key}='${val}'`)
@@ -1080,6 +1120,9 @@ jobs:
       const playwrightConfigPath = path.join(ROOT_DIR, 'playwright.config.ts')
       const playwrightContent = `import { defineConfig, devices } from '@playwright/test'
 
+const nuxtPort = Number(process.env.NUXT_PORT || ${LOCAL_NUXT_PORT})
+const baseURL = \`http://localhost:\${Number.isFinite(nuxtPort) ? nuxtPort : ${LOCAL_NUXT_PORT}}\`
+
 export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -1095,7 +1138,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'pnpm run dev',
-    url: 'http://localhost:3000',
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 30_000,
   },
@@ -1103,7 +1146,7 @@ export default defineConfig({
     {
       name: 'web',
       testDir: 'apps/web/tests/e2e',
-      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3000' },
+      use: { ...devices['Desktop Chrome'], baseURL },
     },
   ],
 })
@@ -1198,7 +1241,10 @@ export default defineConfig({
   console.log('\nNext steps:')
   console.log(`  1. pnpm run validate        # Confirm infrastructure`)
   console.log(`  2. pnpm run db:migrate      # Apply shared layer + app schema to local D1`)
-  console.log(`  3. doppler run -- pnpm dev   # Start dev server`)
+  console.log(`  3. doppler run -- pnpm dev  # Start dev server on ${LOCAL_SITE_URL}`)
+  console.log(
+    `  4. Mint AGENT_ADMIN_API_KEY via /api/auth/api-keys once an admin account exists; store the raw nk_... token in Doppler for agent/admin automation`,
+  )
   if (!hasGitRemote) {
     console.log(`\n  ⚠️  DEPLOYMENT BLOCKED: Add a git remote and re-run with --repair:`)
     console.log(
