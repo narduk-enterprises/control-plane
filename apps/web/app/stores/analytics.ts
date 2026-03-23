@@ -12,6 +12,7 @@ import type { AnalyticsDatePreset as DatePreset, LoadStatus } from '~/types/stor
 
 const AUTO_REFRESH_DELAY_MS = 2_500
 const MAX_AUTO_REFRESH_ATTEMPTS = 3
+const INTEGRATION_HEALTH_MAX_AGE_MS = 5 * 60 * 1000
 
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0] ?? ''
@@ -106,6 +107,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   const detailRevalidating = ref<Record<string, boolean>>({})
 
   const integrationHealth = ref<FleetIntegrationHealthResponse | null>(null)
+  const integrationHealthFetchedAt = ref<number | null>(null)
   const integrationHealthStatus = ref<LoadStatus>('idle')
   const integrationHealthError = ref<string | null>(null)
 
@@ -295,7 +297,15 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   }
 
   async function fetchIntegrationHealth(force = false) {
-    if (!force && integrationHealth.value) return integrationHealth.value
+    const now = Date.now()
+    if (
+      !force &&
+      integrationHealth.value &&
+      integrationHealthFetchedAt.value != null &&
+      now - integrationHealthFetchedAt.value < INTEGRATION_HEALTH_MAX_AGE_MS
+    ) {
+      return integrationHealth.value
+    }
 
     integrationHealthStatus.value = 'pending'
     integrationHealthError.value = null
@@ -303,6 +313,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     try {
       const data = await appFetch<FleetIntegrationHealthResponse>('/api/fleet/integrations/health')
       integrationHealth.value = data
+      integrationHealthFetchedAt.value = Date.now()
       integrationHealthStatus.value = 'success'
       return data
     } catch (error) {

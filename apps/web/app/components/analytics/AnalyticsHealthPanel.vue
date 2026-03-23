@@ -14,6 +14,12 @@ const props = defineProps<{
   snapshotMap: Record<string, FleetAnalyticsSnapshot | null>
   insights: AnalyticsInsight[]
   loading?: boolean
+  /** Background revalidation while showing the last snapshot */
+  revalidating?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'refresh'): void
 }>()
 
 const isCollapsed = ref(false)
@@ -100,30 +106,53 @@ function toneFor(severity: string) {
 <template>
   <UCard v-if="issues.length || insights.length || loading" class="mb-6 bg-elevated/30">
     <template #header>
-      <UButton
-        variant="ghost"
-        color="neutral"
-        class="flex w-full items-center justify-between gap-2 text-left -mx-2 cursor-pointer"
-        @click="isCollapsed = !isCollapsed"
-      >
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-heart-pulse" class="size-5 text-primary" />
-          <span class="font-medium text-default">Fleet Health</span>
-          <UBadge v-if="counts.critical > 0" color="error" variant="subtle" size="sm">
-            {{ counts.critical }} critical
-          </UBadge>
-          <UBadge v-if="counts.warning > 0" color="warning" variant="subtle" size="sm">
-            {{ counts.warning }} warning{{ counts.warning === 1 ? '' : 's' }}
-          </UBadge>
-        </div>
-        <UIcon
-          :name="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-          class="size-4 text-muted"
-        />
-      </UButton>
+      <div class="flex w-full items-center gap-1 -mx-2">
+        <UButton
+          variant="ghost"
+          color="neutral"
+          class="flex min-w-0 flex-1 items-center justify-between gap-2 text-left cursor-pointer"
+          @click="isCollapsed = !isCollapsed"
+        >
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <UIcon name="i-lucide-heart-pulse" class="size-5 shrink-0 text-primary" />
+            <span class="font-medium text-default">Fleet Health</span>
+            <UBadge v-if="counts.critical > 0" color="error" variant="subtle" size="sm">
+              {{ counts.critical }} critical
+            </UBadge>
+            <UBadge v-if="counts.warning > 0" color="warning" variant="subtle" size="sm">
+              {{ counts.warning }} warning{{ counts.warning === 1 ? '' : 's' }}
+            </UBadge>
+          </div>
+          <UIcon
+            :name="isCollapsed ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+            class="size-4 shrink-0 text-muted"
+          />
+        </UButton>
+        <UTooltip text="Refresh fleet health">
+          <UButton
+            icon="i-lucide-refresh-cw"
+            variant="ghost"
+            color="neutral"
+            size="sm"
+            class="shrink-0"
+            :loading="loading"
+            :disabled="loading"
+            aria-label="Refresh fleet health"
+            @click.stop="emit('refresh')"
+          />
+        </UTooltip>
+      </div>
     </template>
 
     <div v-if="!isCollapsed" class="space-y-3">
+      <div
+        v-if="revalidating && (issues.length || insights.length)"
+        class="flex items-center gap-2 text-xs text-muted"
+      >
+        <UIcon name="i-lucide-loader-2" class="size-3.5 animate-spin" />
+        Refreshing provider snapshot…
+      </div>
+
       <div
         v-if="loading && !issues.length && !insights.length"
         class="flex items-center gap-2 text-sm text-muted"

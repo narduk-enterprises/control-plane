@@ -8,6 +8,8 @@ useWebPageSchema({
   description: 'Fleet-wide analytics command center.',
 })
 
+const activeTab = ref<'overview' | 'fleet' | 'indexnow'>('overview')
+
 const {
   preset,
   startDate,
@@ -26,8 +28,14 @@ const {
   serverStale,
   freshness,
   refreshAll,
+  refreshFleetHealth,
   batchSubmitIndexnow,
-} = useAnalyticsHub()
+} = useAnalyticsHub({
+  loadFleetSnapshots: computed(
+    () => activeTab.value === 'overview' || activeTab.value === 'fleet',
+  ),
+  loadIntegrationHealth: computed(() => activeTab.value === 'overview'),
+})
 
 const toast = useToast()
 
@@ -43,7 +51,6 @@ async function onBatchIndexnow() {
   })
 }
 
-const activeTab = ref<'overview' | 'fleet' | 'indexnow'>('overview')
 const statusFilter = ref<'all' | 'up' | 'down'>('all')
 const sortKey = ref('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
@@ -156,7 +163,9 @@ const tabs = [
           :snapshot-map="snapshotMap"
           :insights="insights"
           :loading="summaryLoading"
+          :summary-revalidating="summaryRevalidating"
           :summary="summary"
+          @refresh-fleet-health="refreshFleetHealth"
         />
         <AnalyticsHubFleetSection
           v-else-if="activeTab === 'fleet'"

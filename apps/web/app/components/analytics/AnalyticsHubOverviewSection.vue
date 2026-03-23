@@ -11,7 +11,12 @@ defineProps<{
   snapshotMap: Record<string, FleetAnalyticsSnapshot | null>
   insights: AnalyticsInsight[]
   loading: boolean
+  summaryRevalidating: boolean
   summary: FleetAnalyticsSummaryResponse | null
+}>()
+
+const emit = defineEmits<{
+  (e: 'refreshFleetHealth'): void
 }>()
 </script>
 
@@ -23,6 +28,8 @@ defineProps<{
       :snapshot-map="snapshotMap"
       :insights="insights"
       :loading="loading"
+      :revalidating="summaryRevalidating"
+      @refresh="emit('refreshFleetHealth')"
     />
     <AnalyticsFleetBanner :summary="summary" :loading="loading" />
   </div>

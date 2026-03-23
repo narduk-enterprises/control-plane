@@ -1,11 +1,33 @@
 import { storeToRefs } from 'pinia'
 import { useAnalyticsStore } from '~/stores/analytics'
 
+export interface UseAnalyticsHubOptions {
+  /**
+   * When false, skip fleet analytics summary fetches (e.g. IndexNow-only tab).
+   * Cached store data is left intact for when this becomes true again.
+   */
+  loadFleetSnapshots?: MaybeRefOrGetter<boolean>
+  /**
+   * Integration health powers the overview “Server integrations” card only.
+   * Defaults to the same value as `loadFleetSnapshots` when omitted.
+   */
+  loadIntegrationHealth?: MaybeRefOrGetter<boolean>
+}
+
 /**
  * Orchestrates fleet analytics hub data: range, summary load, background revalidate, integration health.
  * Pages stay thin; the Pinia store holds cached summaries.
  */
-export function useAnalyticsHub() {
+export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
+  const loadFleetSnapshotsRef = computed(() => toValue(options.loadFleetSnapshots ?? true))
+  const loadIntegrationHealthRef = computed(() => {
+    if (options.loadIntegrationHealth !== undefined) {
+      // eslint-disable-next-line narduk/no-composable-conditional-hooks -- false positive: toValue unwraps Ref/getter from options, not a conditional composable
+      return toValue(options.loadIntegrationHealth)
+    }
+    return loadFleetSnapshotsRef.value
+  })
+
   const analyticsStore = useAnalyticsStore()
   const { preset, startDate, endDate } = storeToRefs(analyticsStore)
   const dateState = useAnalyticsDateRange('30d')
@@ -44,7 +66,17 @@ export function useAnalyticsHub() {
   async function refreshAll() {
     await Promise.all([
       analyticsStore.fetchSummary({ range: range.value, force: true, background: true }),
+      analyticsStore.fetchIntegrationHealth(true),
       refreshStatusesRaw(),
+    ])
+  }
+
+  /** Explicit refresh for Fleet Health + integration cards (blocking UI pending state). */
+  async function refreshFleetHealth() {
+    if (preset.value === '1h') return
+    await Promise.all([
+      analyticsStore.fetchSummary({ range: range.value, force: true, background: false }),
+      analyticsStore.fetchIntegrationHealth(true),
     ])
   }
 
@@ -54,17 +86,29 @@ export function useAnalyticsHub() {
     return counts
   }
 
-  watch(range, () => {
-    if (preset.value !== '1h') {
+  function loadFleetDataIfNeeded() {
+    if (preset.value === '1h') return
+    if (loadFleetSnapshotsRef.value) {
       void loadSummary(false, false)
     }
-  })
+    if (loadIntegrationHealthRef.value) {
+      void analyticsStore.fetchIntegrationHealth()
+    }
+  }
+
+  watch(
+    [loadFleetSnapshotsRef, loadIntegrationHealthRef, startDate, endDate, preset],
+    () => {
+      loadFleetDataIfNeeded()
+    },
+    { immediate: true },
+  )
 
   let visibilityTimer: ReturnType<typeof setTimeout> | undefined
 
   function onVisibility() {
     if (typeof document === 'undefined' || document.visibilityState !== 'visible') return
-    if (preset.value === '1h') return
+    if (preset.value === '1h' || !loadFleetSnapshotsRef.value) return
     if (visibilityTimer) clearTimeout(visibilityTimer)
     visibilityTimer = setTimeout(() => {
       void analyticsStore.fetchSummary({ range: range.value, force: true, background: true })
@@ -73,8 +117,6 @@ export function useAnalyticsHub() {
 
   onMounted(() => {
     void refreshStatusesRaw()
-    void loadSummary(false, false)
-    void analyticsStore.fetchIntegrationHealth()
     if (import.meta.client) {
       document.addEventListener('visibilitychange', onVisibility)
     }
@@ -111,6 +153,7 @@ export function useAnalyticsHub() {
     freshness,
     loadSummary,
     refreshAll,
+    refreshFleetHealth,
     batchSubmitIndexnow,
   }
 }
