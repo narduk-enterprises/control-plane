@@ -31,9 +31,7 @@ const {
   refreshFleetHealth,
   batchSubmitIndexnow,
 } = useAnalyticsHub({
-  loadFleetSnapshots: computed(
-    () => activeTab.value === 'overview' || activeTab.value === 'fleet',
-  ),
+  loadFleetSnapshots: computed(() => activeTab.value === 'overview' || activeTab.value === 'fleet'),
   loadIntegrationHealth: computed(() => activeTab.value === 'overview'),
 })
 
