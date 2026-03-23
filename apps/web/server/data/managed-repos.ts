@@ -39,7 +39,7 @@ export const MANAGED_REPOS = [
   {
     name: 'bluebonnet-status-online',
     githubRepo: 'narduk-enterprises/bluebonnet-status-online',
-    dopplerProject: 'bluebonnet-status',
+    dopplerProject: 'bluebonnet-status-online',
     publicUrl: 'https://bluebonnetstatus.online',
     gaPropertyId: '529344053',
     gaMeasurementId: 'G-5ENBL8VP0S',
