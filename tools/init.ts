@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url'
  * 4. Resets README.md (skipped in --repair mode)
  * 5. Provisions Doppler project and syncs hub secrets (additive only)
  * 6. Sets Doppler CI token on GitHub (skips if token exists)
- * 7. Runs analytics provisioning pipeline (each service skips if configured)
+ * 7. Reports control-plane-managed analytics state and local follow-up guidance
  * 8. Generates favicon assets for apps/web/public from source SVG
  * 9. Cleans up template-specific example apps and configuration.
  * 10. Done — script is kept for future re-runs
@@ -222,9 +222,7 @@ async function main() {
         process.exit(1)
       }
     } catch {
-      console.warn(
-        '\n⚠️  No git remote detected — GitHub secret and fleet registration steps will be skipped.',
-      )
+      console.warn('\n⚠️  No git remote detected — GitHub secret setup will be skipped.')
       console.warn('   After adding a remote, re-run with --repair to complete those steps.\n')
     }
   }
@@ -827,7 +825,7 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
   }
 
   // 7. Analytics Provisioning (each service internally skips if already configured)
-  console.log('\nStep 7/10: Bootstrapping Google Analytics & IndexNow...')
+  console.log('\nStep 7/10: Control-plane managed analytics...')
   if (process.env.GA_PROPERTY_ID && process.env.GA_MEASUREMENT_ID) {
     console.log('  ⏭ GA4 pre-provisioned by Control Plane API.')
     console.log(`  📋 Property ID: ${process.env.GA_PROPERTY_ID}`)
@@ -835,65 +833,14 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     if (process.env.INDEXNOW_KEY) {
       console.log(`  📋 IndexNow Key: ${process.env.INDEXNOW_KEY}`)
     }
-    completed.push('Analytics provisioning (pre-provisioned)')
-  } else if (!DOPPLER_AVAILABLE) {
-    console.log('  ⏭ Doppler CLI not configured; skipping analytics provisioning.')
-    console.log('     Run `doppler setup` and re-run with --repair to complete this step.')
-    deferred.push('Analytics provisioning (needs Doppler)')
+    completed.push('Analytics provisioning (control plane)')
   } else {
-    try {
-      const toolsDir = path.join(ROOT_DIR, 'tools')
-      if (await fs.stat(path.join(toolsDir, 'setup-analytics.ts')).catch(() => null)) {
-        // Pre-check: analytics setup requires these keys in Doppler.
-        // If they're not set yet, defer gracefully instead of letting the
-        // analytics script hard-exit with process.exit(1).
-        const analyticsSecrets = getDopplerSecretNames(APP_NAME, 'prd')
-        const requiredAnalyticsKeys = ['GA_ACCOUNT_ID', 'SITE_URL', 'GSC_SERVICE_ACCOUNT_JSON']
-        const missingAnalytics = requiredAnalyticsKeys.filter((k) => !analyticsSecrets.has(k))
-
-        if (missingAnalytics.length > 0) {
-          console.log('  ⏭ Deferring analytics setup — missing Doppler secrets:')
-          missingAnalytics.forEach((k) => console.log(`    • ${k}`))
-          console.log(
-            `  Once set, run: doppler run --project ${APP_NAME} --config prd -- npx jiti tools/setup-analytics.ts all`,
-          )
-          deferred.push('Analytics provisioning (missing Doppler secrets)')
-        } else {
-          console.log('  Installing ephemeral dependencies (googleapis, google-auth-library)...')
-          execSync('pnpm add -w --save-dev googleapis google-auth-library', {
-            encoding: 'utf-8',
-            stdio: 'pipe',
-          })
-
-          console.log('  Executing Narduk Analytics provisioning pipeline...')
-          // Run against the app's own Doppler project (prd config) so SITE_URL, GSC creds,
-          // and hub references all resolve correctly. Command is `all`, not `setup:all`.
-          // DOPPLER_PROJECT and DOPPLER_CONFIG are passed explicitly so writeSetupSecret()
-          // writes to prd (not the dev config from doppler.yaml).
-          execSync(
-            `doppler run --project ${APP_NAME} --config prd -- npx jiti tools/setup-analytics.ts all`,
-            {
-              stdio: 'inherit',
-              env: {
-                ...process.env,
-                APP_NAME,
-                DOPPLER_PROJECT: APP_NAME,
-                DOPPLER_CONFIG: 'prd',
-                GSC_USER_EMAIL: process.env.GSC_USER_EMAIL || '',
-              },
-            },
-          )
-          console.log(`  ✅ Analytics & Search Console setup successful.`)
-          completed.push('Analytics provisioning')
-        }
-      } else {
-        console.log('  ⚠️ tools/setup-analytics.ts missing. Skipping analytics.')
-        failed.push('Analytics provisioning (setup-analytics.ts missing)')
-      }
-    } catch (error: any) {
-      console.warn(`  ⚠️ Failed to execute analytics pipeline: ${error.message}`)
-      failed.push('Analytics provisioning')
-    }
+    console.log('  ⏭ Initial GA4, GSC, and IndexNow provisioning is handled by the control plane.')
+    console.log('     The template setup script no longer provisions analytics directly.')
+    console.log(
+      `     If GSC ownership still needs to be finalized after deploy, run: doppler run --project ${APP_NAME} --config prd -- npx tsx tools/gsc-verify.ts`,
+    )
+    deferred.push('Analytics provisioning (use control plane)')
   }
 
   // 8. Generate Favicons for apps/web
@@ -1182,61 +1129,7 @@ export default defineConfig({
     }
   }
 
-  // 9.5. Fleet Registration
-  // When running via the provision-app.yml GitHub Action, the control plane has
-  // already registered this app in the fleet. When running manually, we guide
-  // the user to provision via the control plane API instead.
-  console.log('\nStep 9.5/10: Fleet registration...')
-  const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
-  if (process.env.PROVISION_ID) {
-    // Running inside provision-app.yml — fleet registration already done by control plane
-    console.log('  ✅ Fleet registration handled by control plane (provision pipeline).')
-    completed.push('Fleet registry (via control plane)')
-  } else {
-    const controlPlaneApiKey = process.env.CONTROL_PLANE_API_KEY?.trim()
-    if (!controlPlaneApiKey) {
-      console.log('  ⏭ Fleet registration skipped — use the control plane provision API:')
-      console.log(`     POST ${CONTROL_PLANE_URL}/api/fleet/provision`)
-      console.log(`     Or register manually at ${CONTROL_PLANE_URL}/fleet/manage`)
-      deferred.push('Fleet registry (use control plane provision API)')
-    } else {
-      try {
-        const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${controlPlaneApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: APP_NAME,
-            url: SITE_URL,
-            dopplerProject: APP_NAME,
-            githubRepo: hasGitRemote ? githubRepoSlug : `narduk-enterprises/${APP_NAME}`,
-            gaPropertyId: null,
-            posthogAppName: null,
-          }),
-        })
-        if (res.ok) {
-          console.log(`  ✅ Registered ${APP_NAME} with control plane fleet registry.`)
-          completed.push('Fleet registry')
-        } else if (res.status === 409) {
-          console.log(`  ⏭ ${APP_NAME} already registered in fleet registry.`)
-          completed.push('Fleet registry')
-        } else {
-          const text = await res.text().catch(() => '')
-          console.warn(`  ⚠️ Fleet registration returned ${res.status}: ${text}`)
-          console.warn(`     Register manually at ${CONTROL_PLANE_URL}/fleet/manage`)
-          failed.push('Fleet registry')
-        }
-      } catch (err: any) {
-        console.warn(`  ⚠️ Could not register with control plane: ${err.message}`)
-        console.warn(`     Register manually at ${CONTROL_PLANE_URL}/fleet/manage`)
-        failed.push('Fleet registry')
-      }
-    }
-  }
-
-  console.log('\nStep 9.75/10: Installing git hooks...')
+  console.log('\nStep 9.5/10: Installing git hooks...')
   try {
     execSync('git config core.hooksPath .githooks', {
       cwd: ROOT_DIR,

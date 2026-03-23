@@ -6,19 +6,19 @@ description:
 
 # Enhance UI/UX
 
-This workflow uses the `ui-ux-pro-max` skill (installed via `uipro` CLI) to
+This workflow uses the `ui-ux-pro-max` skill to
 audit and enhance the visual quality, interaction design, and accessibility of
 the app. It applies the skill's professional UI rules and pre-delivery checklist
 to catch common issues that make interfaces look unpolished.
 
-> **Prerequisite:** The `uipro` skill must be installed. Run
-> `uipro init --ai antigravity` from the project root if
-> `.codex/skills/ui-ux-pro-max/` does not exist.
+> **Prerequisite:** The template ships this skill under `.codex/skills/` and
+> mirror directories. If it is missing in a downstream app, sync from the
+> template instead of bootstrapping a separate Antigravity-only install.
 
 > **Related workflows:**
 >
 > - `/enhance-design-system` — Generate design system using uipro skill
-> - `/audit-nuxt-ui-pro` — Nuxt UI Pro component adoption audit
+> - `/audit-nuxt-ui-4` — Nuxt UI 4 component adoption audit
 > - `/check-ui-styling` — Tailwind v4 CSS import order and token usage
 
 ---

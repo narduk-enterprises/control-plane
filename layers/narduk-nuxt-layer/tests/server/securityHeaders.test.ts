@@ -90,9 +90,17 @@ describe('securityHeaders middleware', () => {
     expect(csp).toContain("object-src 'none'")
   })
 
+  it('includes blob: in worker-src for bundled workers', () => {
+    const csp = renderCsp()
+    const workerSrc = getDirective(csp, 'worker-src')
+
+    expect(workerSrc).toContain("'self'")
+    expect(workerSrc).toContain('blob:')
+  })
+
   it('supports frame-src and worker-src overrides', () => {
     mockConfig.public.cspFrameSrc = 'https://embed.example.com, https://embed.example.com'
-    mockConfig.public.cspWorkerSrc = 'blob:, blob:'
+    mockConfig.public.cspWorkerSrc = 'https://workers.cdn.example.com'
 
     const csp = renderCsp()
     const frameSrc = getDirective(csp, 'frame-src')
@@ -102,6 +110,7 @@ describe('securityHeaders middleware', () => {
     expect(frameSrc.match(/https:\/\/embed\.example\.com/g)).toHaveLength(1)
 
     expect(workerSrc).toContain("'self'")
-    expect(workerSrc.match(/blob:/g)).toHaveLength(1)
+    expect(workerSrc).toContain('blob:')
+    expect(workerSrc).toContain('https://workers.cdn.example.com')
   })
 })

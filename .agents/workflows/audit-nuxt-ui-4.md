@@ -1,12 +1,12 @@
----
 description:
-  Comprehensive Nuxt UI Pro component adoption audit — checks Pro primitives,
-  layout consistency, state handling, responsiveness, dark mode, and polish
+  Comprehensive Nuxt UI 4 component adoption audit — checks page-building
+  primitives, layout consistency, state handling, responsiveness, dark mode,
+  and polish
 ---
 
-# Nuxt UI Pro Audit
+# Nuxt UI 4 Audit
 
-This workflow audits whether the app correctly leverages Nuxt UI Pro's
+This workflow audits whether the app correctly leverages Nuxt UI 4's
 page-building primitives instead of reinventing layout patterns with raw HTML.
 It validates component adoption, visual consistency, state handling, and premium
 feel across devices and color modes.
@@ -17,8 +17,6 @@ feel across devices and color modes.
 
 > **Related workflows:**
 >
-> - `/build-landing-page` — Step-by-step Pro landing page builder
-> - `/build-dashboard` — Dashboard scaffolding with Pro Dashboard components
 > - `/enhance-design-system` — Design system generation using uipro skill
 > - `/enhance-ui-ux` — UX enhancement & polish using uipro skill
 

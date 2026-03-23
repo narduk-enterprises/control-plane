@@ -13,9 +13,9 @@ design, and bulletproof pre-delivery validation into a single, relentless
 pipeline. When this workflow runs, the app should emerge looking like a $50M
 startup product.
 
-> **Prerequisite:** The `uipro` skill must be installed. Run
-> `uipro init --ai antigravity` from the project root if
-> `.codex/skills/ui-ux-pro-max/` does not exist.
+> **Prerequisite:** The template ships this skill under `.codex/skills/` and
+> mirror directories. If it is missing in a downstream app, sync from the
+> template instead of bootstrapping a separate Antigravity-only install.
 
 > **Your mandate:** You are the lead designer AND the lead engineer. Do not hold
 > back. Do not ask "should I add this?" — add it. Do not wonder "is this too
@@ -31,10 +31,8 @@ startup product.
 >
 > - `/enhance-design-system` — Subset: design system only
 > - `/enhance-ui-ux` — Subset: UX audit only
-> - `/audit-nuxt-ui-pro` — Pro component adoption
+> - `/audit-nuxt-ui-4` — Nuxt UI 4 component adoption
 > - `/generate-brand-identity` — Logo, favicon, brand assets
-> - `/build-landing-page` — Pro landing page scaffolding
-> - `/build-dashboard` — Pro dashboard scaffolding
 > - `/check-ui-styling` — Tailwind v4 compliance
 
 ---

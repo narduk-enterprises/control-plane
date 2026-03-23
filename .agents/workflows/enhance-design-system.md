@@ -6,18 +6,18 @@ description:
 
 # Enhance Design System
 
-This workflow uses the `ui-ux-pro-max` skill (installed via `uipro` CLI) to
+This workflow uses the `ui-ux-pro-max` skill to
 generate a comprehensive, project-specific design system. The design system
 provides curated styles, color palettes, typography, effects, and anti-patterns
 tailored to your app's domain.
 
-> **Prerequisite:** The `uipro` skill must be installed. Run
-> `uipro init --ai antigravity` from the project root if
-> `.codex/skills/ui-ux-pro-max/` does not exist.
+> **Prerequisite:** The template ships this skill under `.codex/skills/` and
+> mirror directories. If it is missing in a downstream app, sync from the
+> template instead of bootstrapping a separate Antigravity-only install.
 
 > **Related workflows:**
 >
-> - `/audit-nuxt-ui-pro` — Nuxt UI Pro component adoption audit
+> - `/audit-nuxt-ui-4` — Nuxt UI 4 component adoption audit
 > - `/enhance-ui-ux` — UX enhancement & polish using uipro skill
 > - `/generate-brand-identity` — Full brand identity workflow (logo, colors,
 >   fonts)

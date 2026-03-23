@@ -37,6 +37,9 @@ const BASELINE_CONNECT_SRC = [
 
 const DEV_CONNECT_SRC = ['http:', 'https:', 'ws:', 'wss:']
 
+/** Libraries that bundle workers (maps, PDF, wasm helpers) often use blob: URLs. */
+const BASELINE_WORKER_SRC = ["'self'", 'blob:']
+
 function parseCspSources(value: string | undefined): string[] {
   if (!value) return []
 
@@ -89,7 +92,7 @@ export default defineEventHandler((event) => {
   )
   const finalWorkerSrc = buildDirective(
     'worker-src',
-    mergeCspSources(["'self'"], parseCspSources(config.public.cspWorkerSrc)),
+    mergeCspSources(BASELINE_WORKER_SRC, parseCspSources(config.public.cspWorkerSrc)),
   )
 
   const diagnosticHeaders: Record<string, string> = {}

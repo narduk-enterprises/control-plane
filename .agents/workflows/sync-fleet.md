@@ -112,19 +112,7 @@ pnpm run sync:fleet -- --skip-quality --auto-commit --jobs=8
 
 ---
 
-## 3. (Optional) Sync workflows to fleet
-
-If agent workflow files (`.agents/workflows/`) were updated:
-
-// turbo
-
-```bash
-cd ~/new-code/narduk-nuxt-template && npx tsx tools/sync-workflows-to-fleet.ts --apply --prune
-```
-
----
-
-## 4. (Optional) Sync Doppler canonical secrets
+## 3. (Optional) Sync Doppler canonical secrets
 
 If secrets in `0_global-canonical-tokens` changed:
 
@@ -136,7 +124,7 @@ cd ~/new-code/narduk-nuxt-template && npx tsx tools/sync-canonical-to-fleet.ts -
 
 ---
 
-## 5. Post-sync health check (single app)
+## 4. Post-sync health check (single app)
 
 // turbo
 

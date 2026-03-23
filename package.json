@@ -46,7 +46,8 @@
     "hooks:install": "node tools/install-git-hooks.cjs",
     "guardrails:repo": "npx tsx tools/check-guardrails.ts",
     "quality:check": "pnpm run guardrails:repo && turbo run quality --filter='./apps/*'",
-    "check": "pnpm run quality:check"
+    "check": "pnpm run quality:check",
+    "skills:link": "npx tsx tools/ensure-skills-links.ts"
   },
   "pnpm": {
     "overrides": {

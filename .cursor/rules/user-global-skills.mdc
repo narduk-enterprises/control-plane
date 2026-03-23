@@ -1,0 +1,12 @@
+---
+description: User-global skill library path for Cursor agents
+alwaysApply: true
+---
+
+# User skill library
+
+The repo root has `.skills`, a symlink to `~/.skills`, maintained by `pnpm run skills:link` and by template sync.
+
+The same library is reachable as `home` under `.cursor/skills/`, `.codex/skills/`, and `.agent/skills/` (each `home` symlink points at repo `.skills`) so Codex, Google Antigravity, and other tools stay aligned.
+
+When work matches packaged guidance in that tree, read the relevant `SKILL.md` (and any referenced scripts or data) under `.skills/` instead of guessing. Template-owned skills remain in sibling folders under those `skills` directories (not under `home`).

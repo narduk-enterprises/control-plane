@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
+import { ensureSkillsLinks } from './ensure-skills-links'
 import {
   BOOTSTRAP_SYNC_FILES,
   FLEET_ROOT_SCRIPT_PATCHES,
@@ -782,6 +783,10 @@ export async function runAppSync(options: RunAppSyncOptions) {
     ensureDopplerYaml(options.appDir, dryRun, log)
     ensureGitHooksPath(options.appDir, dryRun, log)
   }
+
+  log('')
+  log('  Skills: linking ~/.skills and agent bridges...')
+  ensureSkillsLinks(options.appDir, { dryRun, log })
 
   // Record template HEAD for drift checks and fleet audit — must run for layer-only
   // sync too, otherwise check-drift-ci keeps comparing against a stale SHA.
