@@ -12,6 +12,7 @@ import {
 import { appStatus, fleetApps } from '#server/database/schema'
 import type { AppStatus } from '#server/database/schema'
 import type {
+  AnalyticsTopListItem,
   AnalyticsCacheMeta,
   AnalyticsDataSource,
   AnalyticsInsight,
@@ -33,6 +34,8 @@ import type {
   FleetIntegrationHealthResponse,
   FleetPosthogResponse,
   FleetPosthogSummaryResponse,
+  GaSummary,
+  GaTimeSeriesPoint,
   GaDeltas,
   GscDimension,
   GscInspection,
@@ -163,6 +166,119 @@ function normalizeTimestampRange(input: { startDate?: string; endDate?: string }
   }
 }
 
+function isTimestampInput(value: string | undefined): boolean {
+  return Boolean(value?.includes('T'))
+}
+
+function isTimestampRange(range: AnalyticsRange): boolean {
+  return isTimestampInput(range.startDate) || isTimestampInput(range.endDate)
+}
+
+function formatUtcTimeLabel(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'UTC',
+  }).format(date)
+}
+
+function formatUtcBucketLabel(date: Date, unit: 'minute' | 'hour' | 'day'): string {
+  if (unit === 'day') return date.toISOString().slice(0, 10)
+  if (unit === 'hour') {
+    const hour = String(date.getUTCHours()).padStart(2, '0')
+    return `${hour}:00`
+  }
+  return formatUtcTimeLabel(date)
+}
+
+function mapTopList(
+  rows: Array<{
+    dimensionValues?: Array<{ value: string }>
+    metricValues?: Array<{ value: string }>
+  }>,
+  fallbackName: string,
+  metricIndex = 0,
+): AnalyticsTopListItem[] {
+  return rows
+    .map((row) => ({
+      name: String(row.dimensionValues?.[0]?.value || fallbackName),
+      count: Number(row.metricValues?.[metricIndex]?.value ?? 0),
+    }))
+    .filter((row) => row.count > 0)
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+}
+
+function buildRealtimeSeries(
+  end: Date,
+  minutesBack: number,
+  rows: Array<{
+    dimensionValues?: Array<{ value: string }>
+    metricValues?: Array<{ value: string }>
+  }>,
+): GaTimeSeriesPoint[] {
+  const byMinute = new Map<number, number>()
+  for (const row of rows) {
+    const minute = Number(row.dimensionValues?.[0]?.value ?? Number.NaN)
+    if (Number.isNaN(minute)) continue
+    byMinute.set(minute, Number(row.metricValues?.[0]?.value ?? 0))
+  }
+
+  const points: GaTimeSeriesPoint[] = []
+  for (let minute = minutesBack - 1; minute >= 0; minute--) {
+    const bucketTime = new Date(end.getTime() - minute * 60_000)
+    points.push({
+      date: formatUtcBucketLabel(bucketTime, 'minute'),
+      value: byMinute.get(minute) ?? 0,
+    })
+  }
+  return points
+}
+
+function classifyPosthogSeriesUnit(
+  range: ReturnType<typeof normalizeTimestampRange>,
+): 'minute' | 'hour' | 'day' {
+  const durationMs = range.end.getTime() - range.start.getTime()
+  if (durationMs <= 6 * 60 * 60 * 1000) return 'minute'
+  if (durationMs <= 36 * 60 * 60 * 1000) return 'hour'
+  return 'day'
+}
+
+function buildPosthogTimeSeriesQuery(
+  timeAndAppFilter: string,
+  unit: 'minute' | 'hour' | 'day',
+): string {
+  if (unit === 'minute') {
+    return `
+      SELECT formatDateTime(toStartOfInterval(timestamp, INTERVAL 5 minute), '%H:%i') AS date,
+             countIf(event = '$pageview') AS pageviews
+      FROM events
+      ${timeAndAppFilter}
+      GROUP BY date
+      ORDER BY date ASC
+    `
+  }
+
+  if (unit === 'hour') {
+    return `
+      SELECT formatDateTime(toStartOfHour(timestamp), '%H:00') AS date,
+             countIf(event = '$pageview') AS pageviews
+      FROM events
+      ${timeAndAppFilter}
+      GROUP BY date
+      ORDER BY date ASC
+    `
+  }
+
+  return `
+    SELECT toDate(timestamp) AS date, countIf(event = '$pageview') AS pageviews
+    FROM events
+    ${timeAndAppFilter}
+    GROUP BY date
+    ORDER BY date ASC
+  `
+}
+
 function providerSource(
   meta: AnalyticsCacheMeta,
   fetchedAt: string | undefined,
@@ -264,10 +380,20 @@ function mapProviderFailure(
 }
 
 function hasGaData(metrics: FleetAnalyticsGaMetrics | null): boolean {
-  if (!metrics?.summary) return false
+  if (!metrics) return false
+  if (
+    metrics.topPages.length > 0 ||
+    metrics.topCountries.length > 0 ||
+    metrics.topDevices.length > 0 ||
+    metrics.topEvents.length > 0
+  ) {
+    return true
+  }
+  if (!metrics.summary) return false
   return (
     (metrics.summary.activeUsers ?? 0) > 0 ||
     (metrics.summary.screenPageViews ?? 0) > 0 ||
+    (metrics.summary.eventCount ?? 0) > 0 ||
     metrics.timeSeries.length > 0
   )
 }
@@ -280,6 +406,8 @@ function hasGscData(metrics: FleetAnalyticsGscMetrics | null): boolean {
     ((totals.clicks ?? 0) > 0 ||
       (totals.impressions ?? 0) > 0 ||
       metrics.queries.length > 0 ||
+      metrics.pages.length > 0 ||
+      metrics.searchAppearances.length > 0 ||
       metrics.timeSeries.length > 0)
   )
 }
@@ -289,6 +417,7 @@ function hasPosthogData(metrics: FleetAnalyticsPosthogMetrics | null): boolean {
   return (
     Number(metrics.summary.event_count ?? 0) > 0 ||
     Number(metrics.summary.pageviews ?? 0) > 0 ||
+    metrics.topEvents.length > 0 ||
     metrics.timeSeries.length > 0
   )
 }
@@ -316,6 +445,27 @@ export function parseAnalyticsQuery(event: H3Event): {
   return { ...range, force: query.force === 'true' }
 }
 
+export function parseAnalyticsFlexibleQuery(event: H3Event): {
+  startDate: string
+  endDate: string
+  force: boolean
+} {
+  const parsed = analyticsQuerySchema.safeParse(getQuery(event))
+  const query = parsed.success ? parsed.data : {}
+
+  if (isTimestampInput(query.startDate) || isTimestampInput(query.endDate)) {
+    const range = normalizeTimestampRange(query)
+    return {
+      startDate: range.start.toISOString(),
+      endDate: range.end.toISOString(),
+      force: query.force === 'true',
+    }
+  }
+
+  const range = normalizeCalendarRange(query)
+  return { ...range, force: query.force === 'true' }
+}
+
 export function parseAnalyticsAppParam(event: H3Event): string {
   const appSlug = getRouterParam(event, 'app')
   if (!appSlug) throw createProviderError(400, 'Missing app')
@@ -338,58 +488,320 @@ export function toHttpError(error: unknown) {
   })
 }
 
-async function runGaReport(
-  app: FleetApp,
-  range: AnalyticsRange,
-): Promise<Omit<FleetGAResponse, 'fetchedAt'>> {
-  const propertyId = app.gaPropertyId
-  if (!propertyId) {
-    throw createProviderError(
-      503,
-      `GA4: No property ID configured for ${app.name}. Add it via the control plane at /fleet/manage.`,
-    )
+async function executeGaCoreReport(
+  propertyId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await googleApiFetch(
+    `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+    GA_SCOPES,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>
+}
+
+async function executeGaRealtimeReport(
+  propertyId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await googleApiFetch(
+    `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`,
+    GA_SCOPES,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>
+}
+
+function computeGaDeltas(
+  summary: GaSummary | null,
+  previousTotals?: Array<{ value: string }>,
+): GaDeltas | null {
+  if (!summary || !previousTotals) return null
+
+  const previous = {
+    activeUsers: Number(previousTotals[0]?.value ?? 0),
+    newUsers: Number(previousTotals[1]?.value ?? 0),
+    sessions: Number(previousTotals[2]?.value ?? 0),
+    screenPageViews: Number(previousTotals[3]?.value ?? 0),
+    bounceRate: Number(previousTotals[4]?.value ?? 0),
+    averageSessionDuration: Number(previousTotals[5]?.value ?? 0),
   }
 
+  const pctChange = (current: number, prior: number) =>
+    prior === 0 ? (current > 0 ? 100 : 0) : ((current - prior) / prior) * 100
+
+  return {
+    users: pctChange(summary.activeUsers, previous.activeUsers),
+    sessions: pctChange(summary.sessions, previous.sessions),
+    pageviews: pctChange(summary.screenPageViews, previous.screenPageViews),
+    bounceRate: pctChange(summary.bounceRate, previous.bounceRate),
+    avgSessionDuration: pctChange(summary.averageSessionDuration, previous.averageSessionDuration),
+    newUsers: pctChange(summary.newUsers, previous.newUsers),
+  }
+}
+
+function isGaRealtimeWindowError(error: unknown): boolean {
+  if (!(error instanceof GoogleApiError)) return false
+  const payload = JSON.stringify(error.body ?? '').toLowerCase()
+  const message = error.message.toLowerCase()
+  return (
+    error.status === 400 &&
+    (payload.includes('30 minutes') ||
+      payload.includes('60 minutes') ||
+      payload.includes('startminutesago') ||
+      payload.includes('endminutesago') ||
+      message.includes('minute'))
+  )
+}
+
+function throwGaProviderError(error: unknown, propertyId: string, appName: string): never {
+  if (error instanceof GoogleApiError) {
+    if (error.status === 403) {
+      throw createProviderError(
+        403,
+        `GA4: Service account does not have access to property ${propertyId} (${appName}). Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com Viewer role in GA4 Admin → Property Access Management.`,
+        error.body,
+      )
+    }
+
+    if (
+      error.message.includes('not configured') ||
+      JSON.stringify(error.body ?? '').includes('not configured')
+    ) {
+      throw createProviderError(
+        503,
+        'GA4 not configured: set GSC_SERVICE_ACCOUNT_JSON and GA_PROPERTY_ID for fleet analytics.',
+        error.body,
+      )
+    }
+
+    throw createProviderError(error.status, `GA4 API error: ${error.message}`, error.body)
+  }
+
+  const message = error instanceof Error ? error.message : 'Unknown GA4 error'
+  if (message.includes('not configured')) {
+    throw createProviderError(
+      503,
+      'GA4 not configured: set GSC_SERVICE_ACCOUNT_JSON and GA_PROPERTY_ID for fleet analytics.',
+    )
+  }
+  throw createProviderError(500, `GA4 unexpected error: ${message}`)
+}
+
+async function runGaRealtimeReport(
+  app: FleetApp,
+  propertyId: string,
+  range: ReturnType<typeof normalizeTimestampRange>,
+): Promise<Omit<FleetGAResponse, 'fetchedAt'>> {
+  const requestedMinutes = Math.max(
+    1,
+    Math.ceil((range.end.getTime() - range.start.getTime()) / 60_000),
+  )
+
+  const fetchRealtimeWindow = async (minutesBack: number, note: string | null) => {
+    const minuteRange = {
+      startMinutesAgo: Math.max(minutesBack - 1, 0),
+      endMinutesAgo: 0,
+    }
+
+    const [summaryData, seriesData, pagesData, countriesData, devicesData, eventsData] =
+      await Promise.all([
+        executeGaRealtimeReport(propertyId, {
+          minuteRanges: [minuteRange],
+          metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }, { name: 'eventCount' }],
+        }),
+        executeGaRealtimeReport(propertyId, {
+          minuteRanges: [minuteRange],
+          dimensions: [{ name: 'minutesAgo' }],
+          metrics: [{ name: 'screenPageViews' }],
+          orderBys: [{ dimension: { dimensionName: 'minutesAgo' } }],
+          limit: minutesBack,
+        }),
+        executeGaRealtimeReport(propertyId, {
+          minuteRanges: [minuteRange],
+          dimensions: [{ name: 'unifiedScreenName' }],
+          metrics: [{ name: 'screenPageViews' }],
+          orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+          limit: 10,
+        }),
+        executeGaRealtimeReport(propertyId, {
+          minuteRanges: [minuteRange],
+          dimensions: [{ name: 'country' }],
+          metrics: [{ name: 'activeUsers' }],
+          orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+          limit: 10,
+        }),
+        executeGaRealtimeReport(propertyId, {
+          minuteRanges: [minuteRange],
+          dimensions: [{ name: 'deviceCategory' }],
+          metrics: [{ name: 'activeUsers' }],
+          orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+          limit: 10,
+        }),
+        executeGaRealtimeReport(propertyId, {
+          minuteRanges: [minuteRange],
+          dimensions: [{ name: 'eventName' }],
+          metrics: [{ name: 'eventCount' }],
+          orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
+          limit: 10,
+        }),
+      ])
+
+    const summaryMetrics =
+      (summaryData.rows as Array<{ metricValues?: Array<{ value: string }> }> | undefined)?.[0]
+        ?.metricValues ??
+      (summaryData.totals as Array<{ metricValues?: Array<{ value: string }> }> | undefined)?.[0]
+        ?.metricValues ??
+      []
+
+    return {
+      app: app.name,
+      propertyId,
+      summary: {
+        activeUsers: Number(summaryMetrics[0]?.value ?? 0),
+        newUsers: 0,
+        sessions: 0,
+        screenPageViews: Number(summaryMetrics[1]?.value ?? 0),
+        bounceRate: 0,
+        averageSessionDuration: 0,
+        engagedSessions: 0,
+        engagementRate: 0,
+        eventCount: Number(summaryMetrics[2]?.value ?? 0),
+      },
+      deltas: null,
+      timeSeries: buildRealtimeSeries(
+        range.end,
+        minutesBack,
+        (seriesData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+      ),
+      topPages: mapTopList(
+        (pagesData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+        'Untitled page',
+      ),
+      topCountries: mapTopList(
+        (countriesData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+        'Unknown country',
+      ),
+      topDevices: mapTopList(
+        (devicesData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+        'Unknown device',
+      ),
+      topEvents: mapTopList(
+        (eventsData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+        'Unknown event',
+      ),
+      note,
+      startDate: range.start.toISOString(),
+      endDate: range.end.toISOString(),
+    }
+  }
+
+  const requestedWindow = Math.min(requestedMinutes, 60)
+  try {
+    return await fetchRealtimeWindow(requestedWindow, null)
+  } catch (error) {
+    if (requestedWindow > 30 && isGaRealtimeWindowError(error)) {
+      return await fetchRealtimeWindow(
+        30,
+        'GA4 realtime on standard properties only exposes the freshest 30 minutes. Showing that live window instead of a full 60-minute rollup.',
+      )
+    }
+    throw error
+  }
+}
+
+async function runGaCoreReport(
+  app: FleetApp,
+  propertyId: string,
+  range: AnalyticsRange,
+): Promise<Omit<FleetGAResponse, 'fetchedAt'>> {
   const { prevStartDate, prevEndDate } = getGaPreviousRange(range)
   const hostname = new URL(app.url).hostname
   const isSingleDay = range.startDate === range.endDate
   const timeDimension = isSingleDay ? 'dateHour' : 'date'
+  const dimensionFilter = {
+    filter: {
+      fieldName: 'hostName',
+      inListFilter: {
+        values: [hostname],
+      },
+    },
+  }
 
   try {
-    const data = (await googleApiFetch(
-      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
-      GA_SCOPES,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          dateRanges: [
-            { startDate: range.startDate, endDate: range.endDate, name: 'current' },
-            { startDate: prevStartDate, endDate: prevEndDate, name: 'previous' },
-          ],
-          dimensions: [{ name: timeDimension }],
-          metrics: [
-            { name: 'activeUsers' },
-            { name: 'newUsers' },
-            { name: 'sessions' },
-            { name: 'screenPageViews' },
-            { name: 'bounceRate' },
-            { name: 'averageSessionDuration' },
-            { name: 'engagedSessions' },
-            { name: 'engagementRate' },
-            { name: 'eventCount' },
-          ],
-          metricAggregations: ['TOTAL'],
-          dimensionFilter: {
-            filter: {
-              fieldName: 'hostName',
-              inListFilter: {
-                values: [hostname],
-              },
-            },
-          },
-        }),
-      },
-    )) as Record<string, unknown>
+    const [data, pagesData, countriesData, devicesData, eventsData] = await Promise.all([
+      executeGaCoreReport(propertyId, {
+        dateRanges: [
+          { startDate: range.startDate, endDate: range.endDate, name: 'current' },
+          { startDate: prevStartDate, endDate: prevEndDate, name: 'previous' },
+        ],
+        dimensions: [{ name: timeDimension }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'newUsers' },
+          { name: 'sessions' },
+          { name: 'screenPageViews' },
+          { name: 'bounceRate' },
+          { name: 'averageSessionDuration' },
+          { name: 'engagedSessions' },
+          { name: 'engagementRate' },
+          { name: 'eventCount' },
+        ],
+        metricAggregations: ['TOTAL'],
+        dimensionFilter,
+      }),
+      executeGaCoreReport(propertyId, {
+        dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
+        dimensions: [{ name: 'unifiedPagePathScreen' }],
+        metrics: [{ name: 'screenPageViews' }],
+        dimensionFilter,
+        orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+        limit: 10,
+      }),
+      executeGaCoreReport(propertyId, {
+        dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
+        dimensions: [{ name: 'country' }],
+        metrics: [{ name: 'activeUsers' }],
+        dimensionFilter,
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 10,
+      }),
+      executeGaCoreReport(propertyId, {
+        dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
+        dimensions: [{ name: 'deviceCategory' }],
+        metrics: [{ name: 'activeUsers' }],
+        dimensionFilter,
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+        limit: 10,
+      }),
+      executeGaCoreReport(propertyId, {
+        dateRanges: [{ startDate: range.startDate, endDate: range.endDate }],
+        dimensions: [{ name: 'eventName' }],
+        metrics: [{ name: 'eventCount' }],
+        dimensionFilter,
+        orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
+        limit: 10,
+      }),
+    ])
 
     const totals = data.totals as Array<{ metricValues?: Array<{ value: string }> }> | undefined
     const rows = data.rows as
@@ -441,71 +853,70 @@ async function runGaReport(
         }
       : null
 
-    let deltas: GaDeltas | null = null
-    if (summary && previousTotals) {
-      const prev = {
-        activeUsers: Number(previousTotals[0]?.value ?? 0),
-        sessions: Number(previousTotals[2]?.value ?? 0),
-        screenPageViews: Number(previousTotals[3]?.value ?? 0),
-        bounceRate: Number(previousTotals[4]?.value ?? 0),
-        averageSessionDuration: Number(previousTotals[5]?.value ?? 0),
-        newUsers: Number(previousTotals[1]?.value ?? 0),
-      }
-      const pctChange = (current: number, previous: number) =>
-        previous === 0 ? (current > 0 ? 100 : 0) : ((current - previous) / previous) * 100
-
-      deltas = {
-        users: pctChange(summary.activeUsers, prev.activeUsers),
-        sessions: pctChange(summary.sessions, prev.sessions),
-        pageviews: pctChange(summary.screenPageViews, prev.screenPageViews),
-        bounceRate: pctChange(summary.bounceRate, prev.bounceRate),
-        avgSessionDuration: pctChange(summary.averageSessionDuration, prev.averageSessionDuration),
-        newUsers: pctChange(summary.newUsers, prev.newUsers),
-      }
-    }
-
     return {
       app: app.name,
       propertyId,
       summary,
-      deltas,
+      deltas: computeGaDeltas(summary, previousTotals),
       timeSeries,
+      topPages: mapTopList(
+        (pagesData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+        '/',
+      ),
+      topCountries: mapTopList(
+        (countriesData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+        'Unknown country',
+      ),
+      topDevices: mapTopList(
+        (devicesData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+        'Unknown device',
+      ),
+      topEvents: mapTopList(
+        (eventsData.rows as Array<{
+          dimensionValues?: Array<{ value: string }>
+          metricValues?: Array<{ value: string }>
+        }>) ?? [],
+        'Unknown event',
+      ),
+      note: null,
       startDate: range.startDate,
       endDate: range.endDate,
     }
   } catch (error: unknown) {
-    if (error instanceof GoogleApiError) {
-      if (error.status === 403) {
-        throw createProviderError(
-          403,
-          `GA4: Service account does not have access to property ${propertyId} (${app.name}). Grant analytics-admin@narduk-analytics.iam.gserviceaccount.com Viewer role in GA4 Admin → Property Access Management.`,
-          error.body,
-        )
-      }
-
-      if (
-        error.message.includes('not configured') ||
-        JSON.stringify(error.body ?? '').includes('not configured')
-      ) {
-        throw createProviderError(
-          503,
-          'GA4 not configured: set GSC_SERVICE_ACCOUNT_JSON and GA_PROPERTY_ID for fleet analytics.',
-          error.body,
-        )
-      }
-
-      throw createProviderError(error.status, `GA4 API error: ${error.message}`, error.body)
-    }
-
-    const message = error instanceof Error ? error.message : 'Unknown GA4 error'
-    if (message.includes('not configured')) {
-      throw createProviderError(
-        503,
-        'GA4 not configured: set GSC_SERVICE_ACCOUNT_JSON and GA_PROPERTY_ID for fleet analytics.',
-      )
-    }
-    throw createProviderError(500, `GA4 unexpected error: ${message}`)
+    throwGaProviderError(error, propertyId, app.name)
   }
+}
+
+async function runGaReport(
+  app: FleetApp,
+  range: AnalyticsRange,
+): Promise<Omit<FleetGAResponse, 'fetchedAt'>> {
+  const propertyId = app.gaPropertyId
+  if (!propertyId) {
+    throw createProviderError(
+      503,
+      `GA4: No property ID configured for ${app.name}. Add it via the control plane at /fleet/manage.`,
+    )
+  }
+
+  if (isTimestampRange(range)) {
+    try {
+      return await runGaRealtimeReport(app, propertyId, normalizeTimestampRange(range))
+    } catch (error) {
+      throwGaProviderError(error, propertyId, app.name)
+    }
+  }
+
+  return await runGaCoreReport(app, propertyId, range)
 }
 
 async function tryGscQuery(
@@ -635,10 +1046,8 @@ async function runGscQuery(
     }
 
     const rows = ((result.dimensionalData.rows as Array<Record<string, unknown>>) ?? []) as GscRow[]
-    const totalsRow =
-      (((result.totalData?.rows as Array<Record<string, unknown>> | undefined) ?? [])[0] as
-        | GscTotals
-        | undefined) ?? null
+    const totalsRow = (((result.totalData?.rows as Array<Record<string, unknown>> | undefined) ??
+      [])[0] as GscTotals | undefined) ?? { clicks: 0, impressions: 0, ctr: 0, position: 0 }
 
     let inspectionResult: GscInspection | null = null
     try {
@@ -668,9 +1077,8 @@ async function runGscQuery(
       startDate: range.startDate,
       endDate: range.endDate,
       dimension,
-      ...(usedFallback
-        ? { gscSiteUrl: result.siteUrl, note: 'Used URL-prefix fallback (not sc-domain)' }
-        : {}),
+      gscSiteUrl: result.siteUrl,
+      note: usedFallback ? 'Using the URL-prefix Search Console property for this app.' : undefined,
     }
   } catch (error: unknown) {
     if (error instanceof GoogleApiError) {
@@ -906,16 +1314,17 @@ async function runPosthogReport(
       topReferrers: [],
       topCountries: [],
       topBrowsers: [],
+      topEvents: [],
       replaysUrl: '',
       startDate: range.startDate,
       endDate: range.endDate,
     }
   }
 
-  const timeSeriesQuery = `
-    SELECT toDate(timestamp) AS date, countIf(event = '$pageview') AS pageviews
-    FROM events ${timeAndAppFilter} GROUP BY date ORDER BY date ASC
-  `
+  const timeSeriesQuery = buildPosthogTimeSeriesQuery(
+    timeAndAppFilter,
+    classifyPosthogSeriesUnit(range),
+  )
 
   const batchedTopQuery = `
     SELECT 'page' AS dimension, properties.$pathname AS name, count() AS cnt
@@ -938,6 +1347,12 @@ async function runPosthogReport(
 
     SELECT 'browser' AS dimension, properties.$browser AS name, count(DISTINCT distinct_id) AS cnt
     FROM events ${timeAndAppFilter} AND properties.$browser IS NOT NULL
+    GROUP BY name ORDER BY cnt DESC LIMIT 10
+
+    UNION ALL
+
+    SELECT 'event' AS dimension, event AS name, count() AS cnt
+    FROM events ${timeAndAppFilter}
     GROUP BY name ORDER BY cnt DESC LIMIT 10
   `
 
@@ -971,6 +1386,9 @@ async function runPosthogReport(
     topBrowsers: batchedRows
       .filter((row) => row[0] === 'browser')
       .map((row) => ({ name: String(row[1] || 'Unknown'), count: Number(row[2] ?? 0) })),
+    topEvents: batchedRows
+      .filter((row) => row[0] === 'event')
+      .map((row) => ({ name: String(row[1] || 'Unknown event'), count: Number(row[2] ?? 0) })),
     replaysUrl: `${uiHost}/project/${projectId}/replays?properties=[{"key":"$host","value":["${encodeURIComponent(appHost)}"],"operator":"exact","type":"event"}]`,
     startDate: range.startDate,
     endDate: range.endDate,
@@ -985,9 +1403,13 @@ export async function fetchGaEnvelope(
 ): Promise<ProviderEnvelope<FleetGAResponse>> {
   const cacheKey = `ga-app-${app.name}-${range.startDate}-${range.endDate}`
   const today = formatDate(new Date())
-  const isTodayRange = range.endDate === today
-  const ttlSeconds = isTodayRange ? 15 * 60 : 6 * 3600
-  const staleWindowSeconds = isTodayRange ? 15 * 60 : 2 * 3600
+  const realtimeRange = isTimestampRange(range)
+  const normalizedEndDate = realtimeRange
+    ? new Date(range.endDate).toISOString().slice(0, 10)
+    : range.endDate
+  const isTodayRange = normalizedEndDate === today
+  const ttlSeconds = realtimeRange ? 60 : isTodayRange ? 15 * 60 : 6 * 3600
+  const staleWindowSeconds = realtimeRange ? 60 : isTodayRange ? 15 * 60 : 2 * 3600
 
   return (await withD1Cache(
     event,
@@ -1047,16 +1469,20 @@ export async function fetchPosthogEnvelope(
   query: { startDate?: string; endDate?: string; summaryOnly?: boolean; force?: boolean },
 ): Promise<ProviderEnvelope<FleetPosthogResponse>> {
   const range = normalizeTimestampRange(query)
+  const durationMs = range.end.getTime() - range.start.getTime()
+  const ttlSeconds =
+    durationMs <= 6 * 60 * 60 * 1000 ? 60 : durationMs <= 36 * 60 * 60 * 1000 ? 5 * 60 : 30 * 60
+  const staleWindowSeconds = ttlSeconds
   return (await withD1Cache(
     event,
     `posthog-app-${app.name}-${query.summaryOnly ? 'summary' : 'full'}-${range.start.toISOString().slice(0, 19)}-${range.end.toISOString().slice(0, 19)}`,
-    30 * 60,
+    ttlSeconds,
     async () => ({
       ...(await runPosthogReport(app, range, query.summaryOnly ?? false)),
       fetchedAt: new Date().toISOString(),
     }),
     query.force ?? false,
-    { staleWindowSeconds: 30 * 60, returnMeta: true },
+    { staleWindowSeconds, returnMeta: true },
   )) as ProviderEnvelope<FleetPosthogResponse>
 }
 
@@ -1113,6 +1539,11 @@ function buildGaSnapshot(
     summary: result.data.summary,
     deltas: result.data.deltas,
     timeSeries: result.data.timeSeries,
+    topPages: result.data.topPages ?? [],
+    topCountries: result.data.topCountries ?? [],
+    topDevices: result.data.topDevices ?? [],
+    topEvents: result.data.topEvents ?? [],
+    note: result.data.note ?? null,
   }
 
   if (result._meta.stale) {
@@ -1128,7 +1559,9 @@ function buildGaSnapshot(
   return createProviderSnapshot(
     hasGaData(metrics) ? 'healthy' : 'no_data',
     metrics,
-    hasGaData(metrics) ? null : 'GA4 returned no traffic for the selected range.',
+    hasGaData(metrics)
+      ? metrics.note
+      : (metrics.note ?? 'GA4 returned no traffic for the selected range.'),
     result._meta,
     result.data.fetchedAt,
   )
@@ -1142,7 +1575,9 @@ function buildGscSnapshot(
   const metrics: FleetAnalyticsGscMetrics = {
     totals: queryResult.data.totals,
     queries: queryResult.data.rows,
+    pages: [],
     devices: deviceResult?.data.rows ?? [],
+    searchAppearances: [],
     timeSeries: seriesResult?.data.timeSeries ?? [],
     inspection: queryResult.data.inspection,
     siteUrl: queryResult.data.gscSiteUrl ?? null,
@@ -1150,6 +1585,7 @@ function buildGscSnapshot(
   }
 
   const stale = queryResult._meta.stale || deviceResult?._meta.stale || seriesResult?._meta.stale
+  const hasInspection = Boolean(metrics.inspection?.indexStatusResult)
   let message: string | null = metrics.note
   if (!seriesResult) {
     message = message ?? 'Search Console time series is unavailable for this app.'
@@ -1162,7 +1598,9 @@ function buildGscSnapshot(
       ? 'Search Console data is stale and is refreshing in the background.'
       : hasGscData(metrics)
         ? message
-        : 'Search Console returned no clicks or impressions for the selected range.',
+        : hasInspection
+          ? 'Search Console has indexing context for this app, but no clicks or impressions yet for the selected range.'
+          : 'Search Console returned no clicks or impressions for the selected range.',
     queryResult._meta,
     queryResult.data.fetchedAt,
   )
@@ -1178,6 +1616,7 @@ function buildPosthogSnapshot(
     topReferrers: result.data.topReferrers ?? [],
     topCountries: result.data.topCountries ?? [],
     topBrowsers: result.data.topBrowsers ?? [],
+    topEvents: result.data.topEvents ?? [],
     replaysUrl: result.data.replaysUrl ?? null,
   }
 

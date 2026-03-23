@@ -12,18 +12,6 @@ const route = useRoute()
 const router = useRouter()
 const appName = computed(() => String(route.params.app ?? ''))
 
-const {
-  preset,
-  startDate,
-  endDate,
-  dateState,
-  snapshot,
-  detailLoading,
-  detailError,
-  detailRevalidating,
-  refreshDetail,
-} = useAnalyticsAppDetail(appName)
-
 useSeo({
   title: `${appName.value} — Analytics`,
   description: `Canonical analytics snapshot for ${appName.value}.`,
@@ -48,11 +36,39 @@ const currentSurface = computed<AnalyticsSurface>({
   },
 })
 
-const isDateBoundSurface = computed(() => currentSurface.value !== 'indexing')
-const surfaceBlocksSelectedRange = computed(
-  () => currentSurface.value !== 'indexing' && preset.value === '1h',
+const snapshotEnabled = computed(
+  () => currentSurface.value === 'overview' || currentSurface.value === 'indexing',
 )
-const dateBarLoading = computed(() => detailLoading.value || detailRevalidating.value)
+
+const {
+  preset,
+  startDate,
+  endDate,
+  dateState,
+  snapshot,
+  detailLoading,
+  detailError,
+  detailRevalidating,
+  refreshDetail,
+} = useAnalyticsAppDetail(appName, { enabled: snapshotEnabled })
+
+const isDateBoundSurface = computed(() => currentSurface.value !== 'indexing')
+const {
+  gaMetrics,
+  posthogMetrics,
+  gscMetrics,
+  currentLoading,
+  currentError,
+  surfaceBlocksSelectedRange,
+  blockedRangeMessage,
+  refreshCurrentSurface,
+} = useAnalyticsAppSurfaceData(appName, currentSurface)
+
+const dateBarLoading = computed(() =>
+  currentSurface.value === 'overview'
+    ? detailLoading.value || detailRevalidating.value
+    : currentLoading.value,
+)
 
 const overviewCards = computed(() => {
   if (!snapshot.value) return []
@@ -99,8 +115,14 @@ const overviewCards = computed(() => {
         ? `Project ${snapshot.value.app.posthogAppName}`
         : 'Using app slug fallback',
       metrics: [
-        { label: 'Events', value: String(Number(posthogSummary?.event_count ?? 0).toLocaleString()) },
-        { label: 'Users', value: String(Number(posthogSummary?.unique_users ?? 0).toLocaleString()) },
+        {
+          label: 'Events',
+          value: String(Number(posthogSummary?.event_count ?? 0).toLocaleString()),
+        },
+        {
+          label: 'Users',
+          value: String(Number(posthogSummary?.unique_users ?? 0).toLocaleString()),
+        },
       ],
     },
     {
@@ -187,7 +209,7 @@ const breadcrumbItems = computed(() => [
         v-model:start-date="startDate"
         v-model:end-date="endDate"
         @preset="dateState.setPreset($event)"
-        @refresh="refreshDetail"
+        @refresh="currentSurface === 'overview' ? refreshDetail() : refreshCurrentSurface()"
       />
     </div>
 
@@ -196,17 +218,23 @@ const breadcrumbItems = computed(() => [
     <UAlert
       v-if="surfaceBlocksSelectedRange"
       icon="i-lucide-info"
-      title="Last hour is not supported for canonical analytics snapshots"
-      description="App analytics snapshots use daily GA4 and Search Console granularity. Switch to a longer range."
+      :title="blockedRangeMessage?.title"
+      :description="blockedRangeMessage?.description"
       color="info"
       variant="subtle"
     />
 
     <AnalyticsErrorAlert
-      v-if="detailError"
-      provider="App snapshot"
-      :error="detailError"
-      @retry="refreshDetail"
+      v-if="currentSurface === 'overview' ? detailError : currentError"
+      :provider="
+        currentSurface === 'overview'
+          ? 'App snapshot'
+          : currentSurface === 'ga' || currentSurface === 'gsc' || currentSurface === 'posthog'
+            ? providerLabel(currentSurface)
+            : 'App detail'
+      "
+      :error="currentSurface === 'overview' ? detailError : (currentError ?? null)"
+      @retry="currentSurface === 'overview' ? refreshDetail() : refreshCurrentSurface()"
     />
 
     <template v-if="!surfaceBlocksSelectedRange">
@@ -234,21 +262,24 @@ const breadcrumbItems = computed(() => [
 
       <AnalyticsGaDetailSection
         v-else-if="currentSurface === 'ga'"
-        :metrics="snapshot?.ga.metrics ?? null"
+        :metrics="gaMetrics"
+        :loading="currentLoading"
         :start-date="startDate"
         :end-date="endDate"
       />
 
       <AnalyticsGscDetailSection
         v-else-if="currentSurface === 'gsc'"
-        :metrics="snapshot?.gsc.metrics ?? null"
+        :metrics="gscMetrics"
+        :loading="currentLoading"
         :start-date="startDate"
         :end-date="endDate"
       />
 
       <AnalyticsPosthogDetailSection
         v-else-if="currentSurface === 'posthog'"
-        :metrics="snapshot?.posthog.metrics ?? null"
+        :metrics="posthogMetrics"
+        :loading="currentLoading"
       />
 
       <AnalyticsIndexingDetailSection

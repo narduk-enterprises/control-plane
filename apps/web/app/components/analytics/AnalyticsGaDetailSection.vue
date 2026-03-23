@@ -5,44 +5,69 @@ const props = defineProps<{
   metrics: FleetAnalyticsGaMetrics | null
   startDate: string
   endDate: string
+  loading?: boolean
 }>()
 
 const cards = computed<StatCardConfig[]>(() => {
   const summary = props.metrics?.summary
-  const deltas = props.metrics?.deltas
   if (!summary) return []
 
   return [
-    { label: 'Users', value: summary.activeUsers, delta: deltas?.users, format: 'number' },
-    { label: 'Sessions', value: summary.sessions, delta: deltas?.sessions, format: 'number' },
+    {
+      label: 'Users',
+      value: summary.activeUsers,
+      delta: props.metrics?.deltas?.users,
+      format: 'number',
+    },
     {
       label: 'Pageviews',
       value: summary.screenPageViews,
-      delta: deltas?.pageviews,
+      delta: props.metrics?.deltas?.pageviews,
+      format: 'number',
+    },
+    {
+      label: 'Events',
+      value: summary.eventCount,
       format: 'number',
     },
     { label: 'Engagement', value: summary.engagementRate, format: 'percent' },
   ]
 })
+
+const breakdowns = computed(() => [
+  {
+    title: 'Top Pages / Screens',
+    icon: 'i-lucide-file-text',
+    items: props.metrics?.topPages ?? [],
+  },
+  {
+    title: 'Top Countries',
+    icon: 'i-lucide-globe',
+    items: props.metrics?.topCountries ?? [],
+  },
+  {
+    title: 'Top Devices',
+    icon: 'i-lucide-smartphone',
+    items: props.metrics?.topDevices ?? [],
+  },
+  {
+    title: 'Top Events',
+    icon: 'i-lucide-sparkles',
+    items: props.metrics?.topEvents ?? [],
+  },
+])
+
+const chartTitle = computed(() => `GA4 Views · ${props.startDate} to ${props.endDate}`)
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div v-if="cards.length" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
-      <AnalyticsStatCard v-for="card in cards" :key="card.label" v-bind="card" compact />
-    </div>
-
-    <UCard v-if="metrics?.timeSeries?.length">
-      <template #header>
-        <h2 class="text-sm font-medium text-default">GA4 Pageviews</h2>
-      </template>
-      <AnalyticsLineChart :data="metrics.timeSeries" :title="`${startDate} to ${endDate}`" />
-    </UCard>
-
-    <UCard v-if="!metrics?.summary && !metrics?.timeSeries?.length">
-      <p class="text-sm text-muted">
-        No GA4 metrics were returned for this range. Check property access or widen the date range.
-      </p>
-    </UCard>
-  </div>
+  <AnalyticsTrafficDetailShell
+    :cards="cards"
+    :chart-data="metrics?.timeSeries ?? []"
+    :chart-title="chartTitle"
+    :note="metrics?.note"
+    :breakdowns="breakdowns"
+    :loading="loading"
+    empty-message="No GA4 metrics were returned for this range. Check property access or widen the date range."
+  />
 </template>

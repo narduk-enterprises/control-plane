@@ -1,12 +1,20 @@
 import { storeToRefs } from 'pinia'
 import { useAnalyticsStore } from '~/stores/analytics'
 
-export function useAnalyticsAppDetail(appName: MaybeRefOrGetter<string>) {
+export interface UseAnalyticsAppDetailOptions {
+  enabled?: MaybeRefOrGetter<boolean>
+}
+
+export function useAnalyticsAppDetail(
+  appName: MaybeRefOrGetter<string>,
+  options: UseAnalyticsAppDetailOptions = {},
+) {
   const analyticsStore = useAnalyticsStore()
   const { preset, startDate, endDate } = storeToRefs(analyticsStore)
   const dateState = useAnalyticsDateRange('30d')
 
   const name = computed(() => toValue(appName))
+  const enabled = computed(() => toValue(options.enabled ?? true))
 
   const range = computed(() => ({ startDate: startDate.value, endDate: endDate.value }))
 
@@ -24,11 +32,12 @@ export function useAnalyticsAppDetail(appName: MaybeRefOrGetter<string>) {
   )
 
   async function loadDetail(force = false, background = false) {
-    if (!name.value || preset.value === '1h') return
+    if (!enabled.value || !name.value || preset.value === '1h') return
     await analyticsStore.fetchDetail(name.value, { range: range.value, force, background })
   }
 
-  watch([name, range], () => {
+  watch([name, range, enabled], () => {
+    if (!enabled.value) return
     void loadDetail(false, false)
   })
 
@@ -36,7 +45,7 @@ export function useAnalyticsAppDetail(appName: MaybeRefOrGetter<string>) {
 
   function onVisibility() {
     if (typeof document === 'undefined' || document.visibilityState !== 'visible') return
-    if (!name.value || preset.value === '1h') return
+    if (!enabled.value || !name.value || preset.value === '1h') return
     if (visibilityTimer) clearTimeout(visibilityTimer)
     visibilityTimer = setTimeout(() => {
       void analyticsStore.fetchDetail(name.value, {
@@ -48,7 +57,9 @@ export function useAnalyticsAppDetail(appName: MaybeRefOrGetter<string>) {
   }
 
   onMounted(() => {
-    void loadDetail(false, false)
+    if (enabled.value) {
+      void loadDetail(false, false)
+    }
     if (import.meta.client) {
       document.addEventListener('visibilitychange', onVisibility)
     }

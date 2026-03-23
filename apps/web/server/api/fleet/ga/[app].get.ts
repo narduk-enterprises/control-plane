@@ -2,7 +2,7 @@ import { getFleetAppByName } from '#server/data/fleet-registry'
 import {
   fetchGaEnvelope,
   parseAnalyticsAppParam,
-  parseAnalyticsQuery,
+  parseAnalyticsFlexibleQuery,
   toHttpError,
 } from '#server/utils/fleet-analytics'
 
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'App not found' })
   }
 
-  const query = parseAnalyticsQuery(event)
+  const query = parseAnalyticsFlexibleQuery(event)
 
   try {
     const result = await fetchGaEnvelope(

@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 
 const sortedItems = computed(() =>
-  [...(props.items ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+  [...(props.items ?? [])].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
 )
 
 const columns = [

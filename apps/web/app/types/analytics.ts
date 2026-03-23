@@ -45,6 +45,11 @@ export interface AnalyticsProviderSnapshot<TMetrics = unknown> {
   metrics: TMetrics | null
 }
 
+export interface AnalyticsTopListItem {
+  name: string
+  count: number
+}
+
 // ── GA4 ──────────────────────────────────────────────────────────────
 
 export interface GaSummary {
@@ -80,6 +85,11 @@ export interface FleetGAResponse {
   summary: GaSummary | null
   deltas: GaDeltas | null
   timeSeries: GaTimeSeriesPoint[]
+  topPages: AnalyticsTopListItem[]
+  topCountries: AnalyticsTopListItem[]
+  topDevices: AnalyticsTopListItem[]
+  topEvents: AnalyticsTopListItem[]
+  note: string | null
   startDate: string
   endDate: string
   fetchedAt: string
@@ -90,6 +100,11 @@ export interface FleetAnalyticsGaMetrics {
   summary: GaSummary | null
   deltas: GaDeltas | null
   timeSeries: GaTimeSeriesPoint[]
+  topPages: AnalyticsTopListItem[]
+  topCountries: AnalyticsTopListItem[]
+  topDevices: AnalyticsTopListItem[]
+  topEvents: AnalyticsTopListItem[]
+  note: string | null
 }
 
 // ── GSC ──────────────────────────────────────────────────────────────
@@ -116,8 +131,14 @@ export interface GscInspection {
   indexStatusResult?: {
     verdict?: string
     coverageState?: string
+    robotsTxtState?: string
+    indexingState?: string
+    pageFetchState?: string
     crawledAs?: string
     lastCrawlTime?: string
+    googleCanonical?: string
+    userCanonical?: string
+    sitemap?: string[]
   }
 }
 
@@ -161,7 +182,9 @@ export interface FleetGscSeriesResponse {
 export interface FleetAnalyticsGscMetrics {
   totals: GscTotals | null
   queries: GscRow[]
+  pages: GscRow[]
   devices: GscRow[]
+  searchAppearances: GscRow[]
   timeSeries: GscSeriesPoint[]
   inspection: GscInspection | null
   siteUrl: string | null
@@ -170,10 +193,7 @@ export interface FleetAnalyticsGscMetrics {
 
 // ── PostHog ──────────────────────────────────────────────────────────
 
-export interface PosthogTopItem {
-  name: string
-  count: number
-}
+export type PosthogTopItem = AnalyticsTopListItem
 
 export interface FleetPosthogResponse {
   app: string
@@ -183,6 +203,7 @@ export interface FleetPosthogResponse {
   topReferrers: PosthogTopItem[]
   topCountries: PosthogTopItem[]
   topBrowsers: PosthogTopItem[]
+  topEvents: PosthogTopItem[]
   replaysUrl: string
   startDate: string
   endDate: string
@@ -210,6 +231,7 @@ export interface FleetAnalyticsPosthogMetrics {
   topReferrers: PosthogTopItem[]
   topCountries: PosthogTopItem[]
   topBrowsers: PosthogTopItem[]
+  topEvents: PosthogTopItem[]
   replaysUrl: string | null
 }
 

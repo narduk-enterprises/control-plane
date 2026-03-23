@@ -15,7 +15,11 @@ const querySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
+  const config = useRuntimeConfig()
+  const cronHeader = getHeader(event, 'x-internal-cron')
+  if (!(config.cronSecret && cronHeader === config.cronSecret)) {
+    await requireAdmin(event)
+  }
   await enforceRateLimit(event, 'fleet-gsc-series', 30, 60_000)
 
   const appSlug = parseAnalyticsAppParam(event)
