@@ -15,6 +15,7 @@ export interface FleetGscSeriesResponse {
   compareTimeSeries?: GscSeriesRow[]
   startDate: string
   endDate: string
+  fetchedAt: string
 }
 
 export function useFleetGscSeries(

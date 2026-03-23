@@ -7,6 +7,7 @@ import {
   providerLabel,
   providerStatusColor,
 } from '~/utils/analyticsPresentation'
+import { formatAnalyticsFreshness } from '~/utils/analyticsFreshness'
 
 const route = useRoute()
 const router = useRouter()
@@ -59,6 +60,7 @@ const {
   gscMetrics,
   currentLoading,
   currentError,
+  currentFetchedAt,
   surfaceBlocksSelectedRange,
   blockedRangeMessage,
   refreshCurrentSurface,
@@ -68,6 +70,11 @@ const dateBarLoading = computed(() =>
   currentSurface.value === 'overview'
     ? detailLoading.value || detailRevalidating.value
     : currentLoading.value,
+)
+const dateBarFreshness = computed(() =>
+  currentSurface.value === 'overview'
+    ? formatAnalyticsFreshness(snapshot.value?.generatedAt ?? null)
+    : formatAnalyticsFreshness(currentFetchedAt.value),
 )
 
 const overviewCards = computed(() => {
@@ -205,6 +212,7 @@ const breadcrumbItems = computed(() => [
         :preset-options="dateState.presetOptions"
         :active-preset="preset"
         :loading="dateBarLoading"
+        :freshness="dateBarFreshness"
         show-refresh
         v-model:start-date="startDate"
         v-model:end-date="endDate"

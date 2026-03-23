@@ -1,5 +1,6 @@
 import { storeToRefs } from 'pinia'
 import { useAnalyticsStore } from '~/stores/analytics'
+import { formatAnalyticsFreshness } from '~/utils/analyticsFreshness'
 
 export interface UseAnalyticsHubOptions {
   /**
@@ -54,12 +55,7 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
   const serverStale = computed(() => summaryMeta.value?.stale === true)
 
   const freshness = computed(() => {
-    const generatedAt = summary.value?.generatedAt
-    if (!generatedAt) return null
-    const diffMinutes = Math.round((Date.now() - new Date(generatedAt).getTime()) / 60_000)
-    if (diffMinutes < 1) return 'Updated just now'
-    if (diffMinutes < 60) return `Updated ${diffMinutes} min ago`
-    return `Updated ${new Date(generatedAt).toLocaleTimeString()}`
+    return formatAnalyticsFreshness(summary.value?.generatedAt ?? null)
   })
 
   async function loadSummary(force = false, background = false) {

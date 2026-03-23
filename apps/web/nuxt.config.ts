@@ -4,7 +4,7 @@ import { resolve, dirname } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const localNuxtPort = Number(process.env.NUXT_PORT || 3000)
-const localSiteUrl = `http://localhost:${Number.isFinite(localNuxtPort) ? localNuxtPort : 3000}`
+const localSiteUrl = `http://127.0.0.1:${Number.isFinite(localNuxtPort) ? localNuxtPort : 3000}`
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({

@@ -47,6 +47,17 @@ export function useAnalyticsAppSurfaceData(
   )
   const gscSeries = useFleetGscSeries(name, startDate, endDate, { force: forceReload })
 
+  function newestTimestamp(...timestamps: Array<string | null | undefined>) {
+    const latestMs = timestamps.reduce<number | null>((current, timestamp) => {
+      if (!timestamp) return current
+      const next = new Date(timestamp).getTime()
+      if (Number.isNaN(next)) return current
+      return current == null ? next : Math.max(current, next)
+    }, null)
+
+    return latestMs == null ? null : new Date(latestMs).toISOString()
+  }
+
   const gaMetrics = computed<FleetAnalyticsGaMetrics | null>(() => {
     const data = gaRequest.data.value
     if (!data) return null
@@ -155,6 +166,25 @@ export function useAnalyticsAppSurfaceData(
     }
   })
 
+  const currentFetchedAt = computed(() => {
+    switch (surface.value) {
+      case 'ga':
+        return gaRequest.data.value?.fetchedAt ?? null
+      case 'gsc':
+        return newestTimestamp(
+          gscQuery.data.value?.fetchedAt,
+          gscPages.data.value?.fetchedAt,
+          gscDevices.data.value?.fetchedAt,
+          gscSearchAppearance.data.value?.fetchedAt,
+          gscSeries.data.value?.fetchedAt,
+        )
+      case 'posthog':
+        return posthogRequest.data.value?.fetchedAt ?? null
+      default:
+        return null
+    }
+  })
+
   async function loadGa() {
     await gaRequest.load()
   }
@@ -237,6 +267,7 @@ export function useAnalyticsAppSurfaceData(
     gscMetrics,
     currentLoading,
     currentError,
+    currentFetchedAt,
     surfaceBlocksSelectedRange,
     blockedRangeMessage,
     refreshCurrentSurface,
