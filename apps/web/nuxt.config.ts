@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const localNuxtPort = Number(process.env.NUXT_PORT || 3000)
+const localSiteUrl = `http://localhost:${Number.isFinite(localNuxtPort) ? localNuxtPort : 3000}`
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -32,6 +34,10 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
 
+  devServer: {
+    port: Number.isFinite(localNuxtPort) ? localNuxtPort : 3000,
+  },
+
   runtimeConfig: {
     session: {
       password:
@@ -57,7 +63,7 @@ export default defineNuxtConfig({
     dopplerApiToken: process.env.DOPPLER_API_TOKEN || '',
     gscUserEmail: process.env.GSC_USER_EMAIL || '',
     public: {
-      appUrl: process.env.SITE_URL || 'https://control-plane.nard.uk',
+      appUrl: process.env.SITE_URL || localSiteUrl,
       appName: process.env.APP_NAME || 'Narduk Control Plane',
       posthogPublicKey: process.env.POSTHOG_PUBLIC_KEY || '',
       posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
@@ -69,7 +75,7 @@ export default defineNuxtConfig({
   },
 
   site: {
-    url: process.env.SITE_URL || 'https://control-plane.nard.uk',
+    url: process.env.SITE_URL || localSiteUrl,
     name: 'Narduk Control Plane',
     description:
       'Fleet dashboard for narduk-enterprises apps — GSC, PostHog, IndexNow, Google Indexing.',
@@ -80,14 +86,14 @@ export default defineNuxtConfig({
     identity: {
       type: 'Organization',
       name: 'Narduk Control Plane',
-      url: process.env.SITE_URL || 'https://control-plane.nard.uk',
+      url: process.env.SITE_URL || localSiteUrl,
       logo: '/favicon.svg',
     },
   },
 
   image: {
     cloudflare: {
-      baseURL: process.env.SITE_URL || 'https://control-plane.nard.uk',
+      baseURL: process.env.SITE_URL || localSiteUrl,
     },
   },
 })

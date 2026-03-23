@@ -125,6 +125,7 @@ function copyBuildCommand(job: ProvisionJob) {
     `**App:** ${job.displayName} (${job.appName})`,
     `**URL:** ${job.appUrl}`,
     `**Repo:** ${job.githubRepo}`,
+    `**Local Dev:** http://localhost:${job.nuxtPort ?? 3000}`,
     ``,
     `Run the /build-provisioned-app workflow to get started.`,
   ].join('\n')
@@ -163,8 +164,8 @@ const breadcrumbItems = computed(() => [
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">Provision App</h1>
         <p class="mt-1 text-sm text-muted">
-          Create a new fleet app from the template — GitHub repo, D1, Doppler, analytics, and first
-          deploy.
+          Create a new fleet app from the template — GitHub repo, D1, Doppler, a dedicated local
+          dev port, analytics, and first deploy.
         </p>
       </div>
       <UButton
@@ -217,8 +218,8 @@ const breadcrumbItems = computed(() => [
       <template #footer>
         <div class="flex items-center justify-between">
           <p class="text-xs text-muted">
-            This creates a GitHub repo, D1 database, Doppler project, GA4 property, and deploys the
-            template.
+            This creates a GitHub repo, D1 database, Doppler project, unique NUXT_PORT, GA4
+            property, and deploys the template.
           </p>
           <UButton
             icon="i-lucide-rocket"
@@ -255,6 +256,9 @@ const breadcrumbItems = computed(() => [
               <div>
                 <h3 class="font-semibold text-default">{{ job.displayName }}</h3>
                 <p class="text-xs text-muted">{{ job.appName }} · {{ job.appUrl }}</p>
+                <p v-if="job.nuxtPort" class="text-xs text-muted">
+                  Local dev: http://localhost:{{ job.nuxtPort }}
+                </p>
               </div>
               <UBadge :color="statusColor(job.status)" variant="subtle" class="shrink-0">
                 {{ statusLabel(job.status) }}
@@ -307,6 +311,7 @@ const breadcrumbItems = computed(() => [
             </div>
             <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
               <span>{{ job.appName }}</span>
+              <span v-if="job.nuxtPort">localhost:{{ job.nuxtPort }}</span>
               <span v-if="job.githubRepo" class="flex items-center gap-1">
                 <UIcon name="i-lucide-github" class="size-3" />
                 {{ job.githubRepo }}

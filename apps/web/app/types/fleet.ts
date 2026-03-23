@@ -5,6 +5,7 @@ export interface FleetRegistryApp {
   name: string
   url: string
   dopplerProject: string
+  nuxtPort?: number | null
   gaPropertyId?: string | null
   gaMeasurementId?: string | null
   posthogAppName?: string | null

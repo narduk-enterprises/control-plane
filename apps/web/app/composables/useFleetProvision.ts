@@ -9,6 +9,7 @@ export interface ProvisionJob {
   displayName: string
   appUrl: string
   githubRepo: string
+  nuxtPort?: number | null
   status: string
   deployedUrl?: string | null
   gaPropertyId?: string | null

@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS `fleet_apps` (
   `name`             TEXT PRIMARY KEY NOT NULL,
   `url`              TEXT NOT NULL,
   `doppler_project`  TEXT NOT NULL,
+  `nuxt_port`        INTEGER,
   `ga_property_id`   TEXT,
   `ga_measurement_id` TEXT,
   `posthog_app_name` TEXT,
@@ -88,6 +89,7 @@ CREATE TABLE IF NOT EXISTS `provision_jobs` (
   `display_name`   TEXT NOT NULL,
   `app_url`        TEXT NOT NULL,
   `github_repo`    TEXT NOT NULL,
+  `nuxt_port`      INTEGER,
   `status`         TEXT NOT NULL DEFAULT 'pending',
   `deployed_url`   TEXT,
   `ga_property_id` TEXT,
@@ -124,3 +126,6 @@ CREATE TABLE IF NOT EXISTS `gsc_sitemap_submit_log` (
 );
 
 CREATE INDEX IF NOT EXISTS idx_gsc_sitemap_submit_log_submitted_at ON gsc_sitemap_submit_log(submitted_at);
+
+ALTER TABLE fleet_apps ADD COLUMN nuxt_port INTEGER;
+ALTER TABLE provision_jobs ADD COLUMN nuxt_port INTEGER;

@@ -1,24 +1,13 @@
 #!/usr/bin/env bash
-# Starts `pnpm dev` (web + showcase) and blocks until both ports respond, then
-# holds until Playwright tears down this process (trap kills child dev servers).
+# Starts `pnpm dev` and blocks until the configured web port responds, then
+# holds until Playwright tears down this process (trap kills child dev server).
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
+WEB_PORT="${NUXT_PORT:-3000}"
 
 pnpm run dev:kill
-
-# When this script is started under `doppler run` (see playwright-webserver-dev.sh), the env
-# already contains hub secrets. Showcase's normal `pnpm dev` runs `doppler run` again, which can
-# replace the environment and drop keys not present in the spoke `dev` config — use `dev:app`
-# so Nuxt inherits the outer process env (MapKit token route then works in E2E).
-# Avoid nested `doppler run` for showcase when env already has MapKit material (see outer script).
-if [ -n "${APPLE_SECRET_KEY:-}" ] || [ -n "${MAPKIT_TOKEN:-}" ] || [ -n "${APPLE_MAPKIT_TOKEN:-}" ]; then
-  pnpm exec concurrently -n web,showcase -c cyan,blue \
-    "pnpm --filter web dev" \
-    "pnpm --filter showcase run dev:app" &
-else
-  pnpm dev &
-fi
+pnpm dev &
 DEV_PID=$!
 
 HOLD_PID=''
@@ -31,7 +20,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-pnpm exec wait-on -t 180000 -i 750 http://127.0.0.1:3000 http://127.0.0.1:3010
+pnpm exec wait-on -t 180000 -i 750 "http://127.0.0.1:${WEB_PORT}"
 
 tail -f /dev/null &
 HOLD_PID=$!

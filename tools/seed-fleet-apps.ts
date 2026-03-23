@@ -9,14 +9,16 @@
  */
 
 import { getPublicFleetApps } from '../apps/web/server/data/managed-repos'
+import { deriveSeedNuxtPort } from '../apps/web/server/utils/nuxt-port'
 
 function sqlString(value: string | null): string {
   return value === null ? 'NULL' : `'${value.replace(/'/g, "''")}'`
 }
 
 const nowExpr = "STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')"
-const lines = getPublicFleetApps().map((app) => {
-  return `INSERT OR REPLACE INTO fleet_apps (name, url, doppler_project, ga_property_id, ga_measurement_id, posthog_app_name, github_repo, is_active, created_at, updated_at) VALUES (${sqlString(app.name)}, ${sqlString(app.url)}, ${sqlString(app.dopplerProject)}, ${sqlString(app.gaPropertyId)}, ${sqlString(app.gaMeasurementId)}, ${sqlString(app.posthogAppName)}, ${sqlString(app.githubRepo)}, ${app.isActive ? 1 : 0}, ${nowExpr}, ${nowExpr});`
+const lines = getPublicFleetApps().map((app, index) => {
+  const nuxtPort = deriveSeedNuxtPort(index)
+  return `INSERT INTO fleet_apps (name, url, doppler_project, nuxt_port, ga_property_id, ga_measurement_id, posthog_app_name, github_repo, is_active, created_at, updated_at) VALUES (${sqlString(app.name)}, ${sqlString(app.url)}, ${sqlString(app.dopplerProject)}, ${nuxtPort}, ${sqlString(app.gaPropertyId)}, ${sqlString(app.gaMeasurementId)}, ${sqlString(app.posthogAppName)}, ${sqlString(app.githubRepo)}, ${app.isActive ? 1 : 0}, ${nowExpr}, ${nowExpr}) ON CONFLICT(name) DO UPDATE SET url = excluded.url, doppler_project = excluded.doppler_project, nuxt_port = COALESCE(fleet_apps.nuxt_port, excluded.nuxt_port), ga_property_id = excluded.ga_property_id, ga_measurement_id = excluded.ga_measurement_id, posthog_app_name = excluded.posthog_app_name, github_repo = excluded.github_repo, is_active = excluded.is_active, updated_at = excluded.updated_at;`
 })
 
 console.log('-- Fleet Apps Seed Data')

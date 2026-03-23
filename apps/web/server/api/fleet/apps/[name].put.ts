@@ -7,6 +7,7 @@ import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 const bodySchema = z.object({
   url: z.string().url().optional(),
   dopplerProject: z.string().min(1).optional(),
+  nuxtPort: z.union([z.coerce.number().int().min(1024).max(65535), z.null()]).optional(),
   gaPropertyId: z.string().nullish(),
   gaMeasurementId: z.string().nullish(),
   posthogAppName: z.string().nullish(),
@@ -43,6 +44,22 @@ export default defineAdminMutation(
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() }
     if (body.url !== undefined) updates.url = body.url
     if (body.dopplerProject !== undefined) updates.dopplerProject = body.dopplerProject
+    if (body.nuxtPort !== undefined) {
+      const conflicts = await db
+        .select({ name: fleetApps.name, nuxtPort: fleetApps.nuxtPort })
+        .from(fleetApps)
+        .all()
+      if (
+        body.nuxtPort !== null &&
+        conflicts.some((app) => app.name !== appName && app.nuxtPort === body.nuxtPort)
+      ) {
+        throw createError({
+          statusCode: 409,
+          message: `NUXT_PORT '${body.nuxtPort}' is already assigned to another app.`,
+        })
+      }
+      updates.nuxtPort = body.nuxtPort
+    }
     if (body.gaPropertyId !== undefined) updates.gaPropertyId = body.gaPropertyId ?? null
     if (body.gaMeasurementId !== undefined) updates.gaMeasurementId = body.gaMeasurementId ?? null
     if (body.posthogAppName !== undefined) updates.posthogAppName = body.posthogAppName ?? null

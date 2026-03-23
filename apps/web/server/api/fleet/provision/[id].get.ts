@@ -37,6 +37,7 @@ export default defineEventHandler(async (event) => {
     displayName: job.displayName,
     appUrl: job.appUrl,
     githubRepo: job.githubRepo,
+    nuxtPort: job.nuxtPort,
     status: job.status,
     deployedUrl: job.deployedUrl,
     gaPropertyId: job.gaPropertyId,

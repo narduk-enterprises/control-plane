@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const nuxtPort = Number(process.env.NUXT_PORT || 3000)
+const baseURL = `http://localhost:${Number.isFinite(nuxtPort) ? nuxtPort : 3000}`
+
 export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -15,7 +18,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'pnpm run dev',
-    url: 'http://localhost:3000',
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 60_000,
   },
@@ -23,7 +26,7 @@ export default defineConfig({
     {
       name: 'web',
       testDir: 'apps/web/tests/e2e',
-      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3000' },
+      use: { ...devices['Desktop Chrome'], baseURL },
     },
   ],
 })

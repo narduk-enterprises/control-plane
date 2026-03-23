@@ -13,6 +13,7 @@ export const fleetApps = sqliteTable('fleet_apps', {
   name: text('name').primaryKey(),
   url: text('url').notNull(),
   dopplerProject: text('doppler_project').notNull(),
+  nuxtPort: integer('nuxt_port'),
   gaPropertyId: text('ga_property_id'),
   gaMeasurementId: text('ga_measurement_id'),
   posthogAppName: text('posthog_app_name'),
@@ -82,6 +83,7 @@ export const provisionJobs = sqliteTable('provision_jobs', {
   displayName: text('display_name').notNull(),
   appUrl: text('app_url').notNull(),
   githubRepo: text('github_repo').notNull(),
+  nuxtPort: integer('nuxt_port'),
   status: text('status').notNull().default('pending'), // pending → cloning → initializing → deploying → complete | failed
   deployedUrl: text('deployed_url'),
   gaPropertyId: text('ga_property_id'),

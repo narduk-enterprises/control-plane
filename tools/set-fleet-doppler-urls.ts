@@ -5,6 +5,7 @@
  * Usage:
  *   npx tsx tools/set-fleet-doppler-urls.ts             # set SITE_URL in all fleet projects
  *   npx tsx tools/set-fleet-doppler-urls.ts --dry-run   # print what would be set
+ *   npx tsx tools/set-fleet-doppler-urls.ts --sync-dev-ports
  *   npx tsx tools/set-fleet-doppler-urls.ts --sync-analytics          # push analytics hub refs
  *   npx tsx tools/set-fleet-doppler-urls.ts --sync-analytics --dry-run
  *   npx tsx tools/set-fleet-doppler-urls.ts --ensure-indexnow         # set INDEXNOW_KEY (prd, and dev if empty) when missing
@@ -21,6 +22,7 @@ import { execSync } from 'node:child_process'
 
 const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
 const dryRun = process.argv.includes('--dry-run')
+const syncDevPorts = process.argv.includes('--sync-dev-ports')
 const syncAnalytics = process.argv.includes('--sync-analytics')
 const ensureIndexnow = process.argv.includes('--ensure-indexnow')
 
@@ -40,6 +42,7 @@ interface FleetApp {
   name: string
   url: string
   dopplerProject: string
+  nuxtPort?: number | null
 }
 
 function fleetApiHeaders(): Record<string, string> {
@@ -248,25 +251,51 @@ async function main() {
   // ── Default: SITE_URL sync ─────────────────────────────────────────────
   console.log(
     dryRun
-      ? 'Fleet Doppler SITE_URL (dry run — no changes)'
-      : 'Setting SITE_URL in fleet Doppler projects (prd)',
+      ? `Fleet Doppler SITE_URL${syncDevPorts ? ' + dev port' : ''} (dry run — no changes)`
+      : `Setting SITE_URL${syncDevPorts ? ' + dev NUXT_PORT/SITE_URL' : ''} in fleet Doppler projects`,
   )
   console.log('────────────────────────────────────────────────────────')
 
   let ok = 0
   let fail = 0
   for (const app of apps) {
+    const localSiteUrl = app.nuxtPort ? `http://localhost:${app.nuxtPort}` : null
+
     if (dryRun) {
       console.log(`  ${app.name.padEnd(28)} SITE_URL=${app.url}`)
+      if (syncDevPorts) {
+        if (app.nuxtPort) {
+          console.log(`  ${''.padEnd(28)} dev NUXT_PORT=${app.nuxtPort} SITE_URL=${localSiteUrl}`)
+        } else {
+          console.log(`  ${''.padEnd(28)} dev NUXT_PORT missing in fleet registry`)
+        }
+      }
       ok++
       continue
     }
+
     const success = setSecret(app.dopplerProject, 'prd', 'SITE_URL', app.url)
-    if (success) {
-      console.log(`  ✅ ${app.name.padEnd(28)} SITE_URL=${app.url}`)
+    const devPortSuccess =
+      !syncDevPorts ||
+      (!!app.nuxtPort &&
+        !!localSiteUrl &&
+        setSecret(app.dopplerProject, 'dev', 'NUXT_PORT', String(app.nuxtPort)) &&
+        setSecret(app.dopplerProject, 'dev', 'SITE_URL', localSiteUrl))
+
+    if (success && devPortSuccess) {
+      const devNote =
+        syncDevPorts && app.nuxtPort
+          ? ` | dev: NUXT_PORT=${app.nuxtPort} SITE_URL=${localSiteUrl}`
+          : ''
+      console.log(`  ✅ ${app.name.padEnd(28)} SITE_URL=${app.url}${devNote}`)
       ok++
+    } else if (syncDevPorts && !app.nuxtPort) {
+      console.log(`  ❌ ${app.name.padEnd(28)} missing nuxtPort in fleet registry`)
+      fail++
     } else {
-      console.log(`  ❌ ${app.name.padEnd(28)} failed to set (no write access or project missing?)`)
+      console.log(
+        `  ❌ ${app.name.padEnd(28)} failed to set${syncDevPorts ? ' prd/dev values' : ' value'} (no write access or project missing?)`,
+      )
       fail++
     }
   }

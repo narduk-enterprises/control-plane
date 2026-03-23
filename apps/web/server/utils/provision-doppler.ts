@@ -182,7 +182,8 @@ const HUB_KEYS_TO_SYNC = [
  * when hub values rotate.
  *
  * Hub secrets: always synced as cross-project references (overwritten).
- * Per-app secrets: only set if MISSING in spoke (don't clobber on retries).
+ * Per-app secrets: APP_NAME/SITE_URL are always synced; secret values are only
+ * set if missing so retries do not rotate them unexpectedly.
  */
 export async function syncHubSecrets(
   apiToken: string,
@@ -201,6 +202,7 @@ export async function syncHubSecrets(
   }
 
   const secretsToSet: Record<string, string> = {}
+  const PER_APP_KEYS_TO_ALWAYS_SYNC = new Set(['APP_NAME', 'SITE_URL'])
 
   // Hub secrets: write as cross-project references (always overwrite to fix any stale values)
   for (const key of HUB_KEYS_TO_SYNC) {
@@ -209,7 +211,7 @@ export async function syncHubSecrets(
 
   // Per-app secrets: only set if MISSING in spoke (don't clobber existing values)
   for (const [key, value] of Object.entries(perAppSecrets)) {
-    if (!existingSpokeSecrets[key]) {
+    if (PER_APP_KEYS_TO_ALWAYS_SYNC.has(key) || !existingSpokeSecrets[key]) {
       secretsToSet[key] = value
     }
   }
@@ -226,6 +228,7 @@ export async function syncHubSecrets(
  * per-app secrets from `prd`, with SITE_URL overridden to localhost.
  *
  * This ensures `doppler run -- pnpm dev` works immediately after provisioning.
+ * APP_NAME, SITE_URL, and NUXT_PORT are always refreshed in `dev`.
  */
 export async function syncDevConfig(
   apiToken: string,
@@ -233,6 +236,7 @@ export async function syncDevConfig(
   hubConfig: string,
   spokeProject: string,
   perAppSecrets: Record<string, string>,
+  options: { siteUrl?: string } = {},
 ): Promise<{ synced: number }> {
   // Read existing dev secrets to avoid clobbering
   let existingDevSecrets: Record<string, string> = {}
@@ -243,6 +247,7 @@ export async function syncDevConfig(
   }
 
   const secretsToSet: Record<string, string> = {}
+  const DEV_KEYS_TO_ALWAYS_SYNC = new Set(['APP_NAME', 'SITE_URL', 'NUXT_PORT'])
 
   // Hub secrets: same cross-project references as prd
   for (const key of HUB_KEYS_TO_SYNC) {
@@ -252,10 +257,10 @@ export async function syncDevConfig(
   // Per-app secrets: only set if missing, with SITE_URL override for local dev
   const devAppSecrets = {
     ...perAppSecrets,
-    SITE_URL: 'http://localhost:3000',
+    SITE_URL: options.siteUrl || 'http://localhost:3000',
   }
   for (const [key, value] of Object.entries(devAppSecrets)) {
-    if (!existingDevSecrets[key]) {
+    if (DEV_KEYS_TO_ALWAYS_SYNC.has(key) || !existingDevSecrets[key]) {
       secretsToSet[key] = value
     }
   }

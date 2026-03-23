@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { defineAdminMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { fleetApps } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
+import { allocateFleetNuxtPort } from '#server/utils/nuxt-port'
 
 const bodySchema = z.object({
   name: z
@@ -12,6 +13,7 @@ const bodySchema = z.object({
     .regex(/^[a-z0-9-]+$/, 'Must be lowercase alphanumeric with hyphens'),
   url: z.string().url(),
   dopplerProject: z.string().min(1).optional(),
+  nuxtPort: z.coerce.number().int().min(1024).max(65535).optional(),
   gaPropertyId: z.string().nullish(),
   gaMeasurementId: z.string().nullish(),
   posthogAppName: z.string().nullish(),
@@ -29,7 +31,16 @@ export default defineAdminMutation(
     parseBody: async (event) => readValidatedMutationBody(event, bodySchema.parse),
   },
   async ({ event, body }) => {
-    const { name, url, gaPropertyId, gaMeasurementId, posthogAppName, githubRepo, isActive } = body
+    const {
+      name,
+      url,
+      nuxtPort,
+      gaPropertyId,
+      gaMeasurementId,
+      posthogAppName,
+      githubRepo,
+      isActive,
+    } = body
     const dopplerProject = body.dopplerProject ?? name
     const now = new Date().toISOString()
 
@@ -46,10 +57,27 @@ export default defineAdminMutation(
       throw createError({ statusCode: 409, message: `App '${name}' already exists.` })
     }
 
+    const otherApps = await db.select({ nuxtPort: fleetApps.nuxtPort }).from(fleetApps).all()
+    const resolvedNuxtPort =
+      nuxtPort !== undefined
+        ? nuxtPort
+        : allocateFleetNuxtPort(otherApps.map((app) => app.nuxtPort))
+
+    if (
+      nuxtPort !== undefined &&
+      otherApps.some((app) => app.nuxtPort !== null && app.nuxtPort === resolvedNuxtPort)
+    ) {
+      throw createError({
+        statusCode: 409,
+        message: `NUXT_PORT '${resolvedNuxtPort}' is already assigned to another app.`,
+      })
+    }
+
     await db.insert(fleetApps).values({
       name,
       url,
       dopplerProject,
+      nuxtPort: resolvedNuxtPort,
       gaPropertyId: gaPropertyId ?? null,
       gaMeasurementId: gaMeasurementId ?? null,
       posthogAppName: posthogAppName ?? null,
@@ -61,6 +89,6 @@ export default defineAdminMutation(
 
     await invalidateFleetAppListCache(event)
 
-    return { ok: true, app: name }
+    return { ok: true, app: name, nuxtPort: resolvedNuxtPort }
   },
 )

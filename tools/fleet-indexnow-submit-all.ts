@@ -11,7 +11,9 @@
  *   FLEET_INDEXNOW_DELAY_MS=7000 \
  *   npx tsx tools/fleet-indexnow-submit-all.ts
  */
-const base = (process.env.CONTROL_PLANE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+const localPort = Number(process.env.NUXT_PORT || 3000)
+const localBaseUrl = `http://localhost:${Number.isFinite(localPort) ? localPort : 3000}`
+const base = (process.env.CONTROL_PLANE_URL ?? localBaseUrl).replace(/\/$/, '')
 const token = process.env.CONTROL_PLANE_API_KEY ?? process.env.FLEET_API_KEY ?? ''
 
 const DEFAULT_DELAY_MS = 7_000
