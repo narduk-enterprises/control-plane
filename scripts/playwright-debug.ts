@@ -38,8 +38,8 @@ async function debugGA() {
 
   // Check if dataLayer exists
   const dl = await page.evaluate(() => {
-    // @ts-ignore
-    return window.dataLayer
+    const win = window as Window & { dataLayer?: unknown }
+    return win.dataLayer ?? null
   })
   console.log('[dataLayer]:', JSON.stringify(dl, null, 2))
 

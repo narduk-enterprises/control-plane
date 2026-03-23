@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { getFleetApps } from '#server/data/fleet-registry'
 import {
   buildFleetAnalyticsSummary,
@@ -29,6 +30,7 @@ const bodySchema = z
  * discovered from deployed sites are written back to the fleet registry.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-audit', 10, 60_000)
   await requireAdmin(event)
 
   const bodyInput = await readBody(event).catch(() => null)

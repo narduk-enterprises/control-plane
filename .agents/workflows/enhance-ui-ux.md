@@ -13,7 +13,7 @@ to catch common issues that make interfaces look unpolished.
 
 > **Prerequisite:** The `uipro` skill must be installed. Run
 > `uipro init --ai antigravity` from the project root if
-> `.agent/skills/ui-ux-pro-max/` does not exist.
+> `.codex/skills/ui-ux-pro-max/` does not exist.
 
 > **Related workflows:**
 >
@@ -44,19 +44,19 @@ Search for common UX issues specific to the app:
 
 ```bash
 # Animation best practices
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "animation transition micro-animation" --domain ux
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "animation transition micro-animation" --domain ux
 
 # Accessibility fundamentals
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "accessibility contrast keyboard focus" --domain ux
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "accessibility contrast keyboard focus" --domain ux
 
 # Loading and performance UX
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "loading skeleton empty-state error" --domain ux
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "loading skeleton empty-state error" --domain ux
 
 # Z-index and layering
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "z-index stacking modal overlay" --domain ux
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "z-index stacking modal overlay" --domain ux
 
 # Web interface guidelines
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "aria semantic focus keyboard" --domain web
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "aria semantic focus keyboard" --domain web
 ```
 
 ---

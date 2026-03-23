@@ -1,5 +1,6 @@
 import { checkSingleFleetAppStatus } from '#server/utils/fleet-status'
 import { requireAdmin } from '#layer/server/utils/auth'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 
 /**
  * POST /api/fleet/status/[app]/refresh
@@ -8,6 +9,7 @@ import { requireAdmin } from '#layer/server/utils/auth'
  * Performs HEAD/GET check and upserts the result into the `app_status` table.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-status-refresh', 10, 60_000)
   await requireAdmin(event)
 
   const appName = getRouterParam(event, 'app')

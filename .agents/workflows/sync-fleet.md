@@ -74,7 +74,7 @@ cd ~/new-code/template-apps/<app-name> && git diff --stat && git add -A && git c
 ```
 
 > [!TIP] To sync multiple specific apps, repeat steps 2a for each, or use the
-> `--apps` flag in step 2b.
+> `--repos=` flag in step 2b.
 
 ---
 
@@ -83,31 +83,31 @@ cd ~/new-code/template-apps/<app-name> && git diff --stat && git add -A && git c
 // turbo
 
 ```bash
-cd ~/new-code/narduk-nuxt-template && bash scripts/sync-fleet-local.sh --auto-commit
+cd ~/new-code/narduk-nuxt-template && pnpm run sync:fleet -- --auto-commit
 ```
 
 ### Available flags
 
-| Flag                 | Description                               |
-| -------------------- | ----------------------------------------- |
-| `--dry-run`          | Preview changes without writing           |
-| `--skip-quality`     | Skip `pnpm quality` per app               |
-| `--auto-commit`      | Auto-commit each app after sync           |
-| `--apps "app1,app2"` | Sync only specific apps (comma-separated) |
-| `--jobs N`           | Number of parallel workers (default: 4)   |
-| `--sequential`       | Disable parallelism (same as `--jobs 1`)  |
+| Flag                | Description                               |
+| ------------------- | ----------------------------------------- |
+| `--dry-run`         | Preview changes without writing           |
+| `--skip-quality`    | Skip `pnpm quality` per app               |
+| `--auto-commit`     | Auto-commit each app after sync           |
+| `--repos=app1,app2` | Sync only specific apps (comma-separated) |
+| `--jobs=N`          | Number of parallel workers (default: 4)   |
+| `--allow-dirty-app` | Sync on top of local app changes          |
 
 ### Examples
 
 ```bash
 # Dry-run all apps
-bash scripts/sync-fleet-local.sh --dry-run
+pnpm run sync:fleet -- --dry-run
 
 # Sync two specific apps with auto-commit
-bash scripts/sync-fleet-local.sh --apps "tide-check,flashcard-pro" --auto-commit
+pnpm run sync:fleet -- --repos=tide-check,flashcard-pro --auto-commit
 
 # Full fleet, skip quality, 8 workers
-bash scripts/sync-fleet-local.sh --skip-quality --auto-commit --jobs 8
+pnpm run sync:fleet -- --skip-quality --auto-commit --jobs=8
 ```
 
 ---

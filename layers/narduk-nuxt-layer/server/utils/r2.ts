@@ -58,7 +58,7 @@ export function useR2(event: H3Event, bindingName = 'BUCKET'): R2Bucket {
 export async function uploadToR2(
   event: H3Event,
   key: string,
-  data: ArrayBuffer | ReadableStream | string,
+  data: ArrayBuffer | ArrayBufferView | ReadableStream | string,
   contentType?: string,
   bindingName = 'BUCKET',
 ): Promise<string> {

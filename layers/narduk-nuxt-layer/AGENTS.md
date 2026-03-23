@@ -50,7 +50,7 @@ server/
   middleware/         # CSRF protection, D1 injection
   routes/             # Dynamic routes (IndexNow key verification)
   utils/              # Cloudflare bindings (database, KV, R2, rate limiting)
-drizzle/              # SQL migration files
+drizzle/              # SQL migration files for layer-owned tables only
 scripts/              # Utility scripts (favicon generation)
 .agents/workflows/    # Antigravity audit workflows (run via /slash-commands)
 ```
@@ -95,12 +95,18 @@ Sitemap and robots.txt are automatic. OG image templates live in
 - **Thin Components, Thick Composables** — components subscribe to composables,
   pass props down, emit events up. No inline fetch or complex logic in
   templates.
+- **Tabs** — prefer `app/components/AppTabs.vue` plus
+  `app/composables/usePersistentTab.ts` instead of repeating route and storage
+  watchers in each downstream app.
 - **SSR-safe state** — use `useState()` or Pinia stores. Never use bare `ref()`
   at module scope (causes cross-request leaks).
 - **Data fetching** — always use `useAsyncData` or `useFetch`, never raw
   `$fetch` in `<script setup>`.
 - **Client-only code** — wrap `window`/`document` access in `onMounted` or
   `<ClientOnly>`.
+- **Database ownership** — this layer owns the shared D1 schema and the SQL in
+  `drizzle/`. Downstream apps must apply these migrations via their standard
+  `db:migrate` script and must not copy them into `apps/web/drizzle/`.
 
 ## Integrating this Layer into a New Project
 
@@ -169,7 +175,8 @@ apps **inherit these automatically** and do not need to repeat them:
 - `app/error.vue` — Branded error page (404/500)
 - `app/assets/css/main.css` — Tailwind v4 `@theme` tokens, glass/card utility
   classes
-- `app/composables/useSeo.ts`, `useSchemaOrg.ts`
+- `app/composables/useSeo.ts`, `useSchemaOrg.ts`, `usePersistentTab.ts`
+- `app/components/AppTabs.vue`
 - `app/plugins/gtag.client.ts`, `posthog.client.ts`, `fetch.client.ts`
 - `app/types/api.ts`, `runtime-config.d.ts`
 

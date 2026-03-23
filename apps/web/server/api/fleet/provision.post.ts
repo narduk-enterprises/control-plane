@@ -3,6 +3,7 @@ import { readBody, getHeader, createError } from 'h3'
 import { eq } from 'drizzle-orm'
 import { fleetApps, provisionJobs } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { createD1Database } from '#server/utils/provision-cloudflare'
 import {
   createDopplerProject,
@@ -57,6 +58,8 @@ const bodySchema = z.object({
  * All steps are idempotent — safe to retry on partial failure or re-provision.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-provision', 5, 60_000)
+
   // ── Auth: shared PROVISION_API_KEY ──
   const config = useRuntimeConfig(event)
   const authHeader = getHeader(event, 'authorization')
@@ -314,7 +317,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // CONTROL_PLANE_URL: derive from runtime or use canonical
-    const controlPlaneUrl = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
+    const controlPlaneUrl = config.public.appUrl || 'https://control-plane.nard.uk'
     secretsToSet.push({ name: 'CONTROL_PLANE_URL', value: controlPlaneUrl })
 
     // Set all secrets

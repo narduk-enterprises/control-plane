@@ -7,7 +7,7 @@
     "build": "nuxt build",
     "predev": "wrangler d1 execute control-plane-db --local --file=drizzle/migrations.sql",
     "dev": "nuxt dev",
-    "db:migrate": "bash ../../tools/db-migrate.sh control-plane-db --local --dir drizzle",
+    "db:migrate": "bash ../../tools/db-migrate.sh control-plane-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle",
     "db:seed": "wrangler d1 execute control-plane-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql",
     "db:seed:fleet": "wrangler d1 execute control-plane-db --local --file=../../tools/seed-fleet-apps.sql",
     "db:studio": "drizzle-kit studio",
@@ -21,8 +21,9 @@
     "test:hydration": "node scripts/hydration-smoke.mjs",
     "test:integration": "vitest run --config vitest.config.ts",
     "quality": "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
-    "db:reset": "bash ../../tools/db-migrate.sh control-plane-db --local --dir drizzle --reset && pnpm run db:seed",
-    "db:ready": "pnpm run db:migrate && pnpm run db:seed"
+    "db:reset": "bash ../../tools/db-migrate.sh control-plane-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle --reset && pnpm run db:seed",
+    "db:ready": "pnpm run db:migrate && pnpm run db:seed",
+    "db:verify": "node node_modules/@narduk-enterprises/narduk-nuxt-template-layer/testing/verify-local-db.mjs ."
   },
   "dependencies": {
     "@pinia/nuxt": "^0.11.2",
@@ -36,7 +37,7 @@
     "pinia": "^3.0.4",
     "vue-chartjs": "^5.3.3",
     "zod": "^4.3.6",
-    "@narduk-enterprises/eslint-config": "^1.0.12"
+    "@narduk-enterprises/eslint-config": "^1.0.14"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260226.0",

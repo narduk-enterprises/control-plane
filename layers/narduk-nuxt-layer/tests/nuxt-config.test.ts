@@ -5,6 +5,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 const nuxtConfigPath = resolve(import.meta.dirname, '../nuxt.config.ts')
 const originalColorModePreference = process.env.NUXT_COLOR_MODE_PREFERENCE
 type LayerNuxtConfig = {
+  $development?: {
+    runtimeConfig?: {
+      logLevel?: string
+      session?: {
+        password?: string
+        cookie?: {
+          secure?: boolean
+        }
+      }
+    }
+  }
   colorMode?: {
     preference?: string
     fallback?: string
@@ -12,6 +23,15 @@ type LayerNuxtConfig = {
   icon?: {
     clientBundle?: unknown
     serverBundle?: unknown
+  }
+  runtimeConfig?: {
+    logLevel?: string
+    session?: {
+      password?: string
+      cookie?: {
+        secure?: boolean
+      }
+    }
   }
 }
 
@@ -42,13 +62,13 @@ afterEach(() => {
 })
 
 describe('layer nuxt config', () => {
-  it('defaults color mode to dark for deterministic fleet rendering', async () => {
+  it('defaults color mode preference to system', async () => {
     delete process.env.NUXT_COLOR_MODE_PREFERENCE
 
     const config = await loadNuxtConfig()
 
     expect(config.colorMode).toMatchObject({
-      preference: 'dark',
+      preference: 'system',
       fallback: 'dark',
     })
   })
@@ -70,6 +90,30 @@ describe('layer nuxt config', () => {
     expect(config.icon?.clientBundle).toBeUndefined()
     expect(config.icon?.serverBundle).toEqual({
       collections: ['lucide'],
+    })
+  })
+
+  it('keeps auth cookies secure by default and relaxes them only in development', async () => {
+    const config = await loadNuxtConfig()
+
+    expect(config.runtimeConfig).toMatchObject({
+      logLevel: 'warn',
+      session: {
+        password: '',
+        cookie: {
+          secure: true,
+        },
+      },
+    })
+
+    expect(config.$development?.runtimeConfig).toMatchObject({
+      logLevel: 'debug',
+      session: {
+        password: 'layer-auth-dev-session-secret-min-32-chars',
+        cookie: {
+          secure: false,
+        },
+      },
     })
   })
 })

@@ -46,11 +46,6 @@ async function setCache(
     .run()
 }
 
-async function deleteCache(db: D1Database, key: string): Promise<number> {
-  const result = await db.prepare('DELETE FROM kv_cache WHERE key = ?').bind(key).run()
-  return result.meta?.changes ?? 0
-}
-
 export interface D1CacheMeta {
   cachedAt: string
   stale: boolean
@@ -61,31 +56,6 @@ export interface WithD1CacheOptions {
   staleWindowSeconds?: number
   /** If true, return value is wrapped as { data: T, _meta: D1CacheMeta } */
   returnMeta?: boolean
-}
-
-type WaitUntilFn = (promise: Promise<unknown>) => void
-
-function getWaitUntil(event: H3Event): WaitUntilFn | null {
-  const cloudflareCtx = (
-    event.context.cloudflare as
-      | {
-          ctx?: {
-            waitUntil?: WaitUntilFn
-          }
-        }
-      | undefined
-  )?.ctx
-
-  if (typeof cloudflareCtx?.waitUntil === 'function') {
-    return cloudflareCtx.waitUntil.bind(cloudflareCtx)
-  }
-
-  const eventContext = event.context as { waitUntil?: WaitUntilFn }
-  if (typeof eventContext.waitUntil === 'function') {
-    return eventContext.waitUntil.bind(eventContext)
-  }
-
-  return null
 }
 
 /**
@@ -123,7 +93,6 @@ export async function withD1Cache<T>(
   const { staleWindowSeconds = 0, returnMeta = false } = options
   const d1 = getD1CacheDB(event)
   const nowSec = Math.floor(Date.now() / 1000)
-  const waitUntil = getWaitUntil(event)
 
   const wrap = (data: T, stale: boolean): T | { data: T; _meta: D1CacheMeta } => {
     if (!returnMeta) return data
@@ -149,7 +118,8 @@ export async function withD1Cache<T>(
         if (withinStale) {
           log.debug(`Cache STALE ${cacheKey}`)
           const parsed = JSON.parse(row.value) as T
-          const refreshPromise = Promise.resolve()
+          // Background refresh (fire-and-forget)
+          void Promise.resolve()
             .then(() => fetcher())
             .then((fresh) => {
               if (d1 && fresh !== undefined) {
@@ -160,14 +130,6 @@ export async function withD1Cache<T>(
             .catch((err) =>
               log.error(`Background refresh failed ${cacheKey}`, { error: String(err) }),
             )
-
-          if (waitUntil) {
-            waitUntil(refreshPromise)
-          } else {
-            // Non-Cloudflare runtimes can still best-effort refresh without a request lifecycle hook.
-            void refreshPromise
-          }
-
           return wrap(parsed, true)
         }
       }
@@ -204,21 +166,4 @@ export async function cleanExpiredCache(event: H3Event): Promise<number> {
   const nowSec = Math.floor(Date.now() / 1000)
   const result = await d1.prepare('DELETE FROM kv_cache WHERE expires_at < ?').bind(nowSec).run()
   return result.meta?.changes ?? 0
-}
-
-export async function deleteD1CacheKey(event: H3Event, key: string): Promise<number> {
-  const d1 = getD1CacheDB(event)
-  if (!d1) return 0
-  return deleteCache(d1, key)
-}
-
-export async function deleteD1CacheKeys(event: H3Event, keys: readonly string[]): Promise<number> {
-  if (keys.length === 0) return 0
-
-  let deleted = 0
-  for (const key of keys) {
-    deleted += await deleteD1CacheKey(event, key)
-  }
-
-  return deleted
 }

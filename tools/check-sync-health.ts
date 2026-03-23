@@ -1,6 +1,5 @@
 #!/usr/bin/env npx tsx
 
-import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -30,7 +29,8 @@ const ROOT_PACKAGE_PATH = join(ROOT_DIR, 'package.json')
 const LAYER_PACKAGE_PATH = join(ROOT_DIR, 'layers', 'narduk-nuxt-layer', 'package.json')
 const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
-const INSTALLED_NUXT_OG_IMAGE = join(ROOT_DIR, 'node_modules', 'nuxt-og-image', 'package.json')
+const LOCKFILE_PATH = join(ROOT_DIR, 'pnpm-lock.yaml')
+const PNPM_VIRTUAL_STORE_DIR = join(ROOT_DIR, 'node_modules', '.pnpm')
 const REFERENCE_BASELINES = [
   '.template-reference/apps/web/AGENTS.md',
   '.template-reference/tools/AGENTS.md',
@@ -78,9 +78,37 @@ function getExpectedNuxtOgImageVersion(pkg: PackageJson): string | null {
   return pkg.pnpm?.overrides?.['nuxt-og-image'] || pkg.overrides?.['nuxt-og-image'] || null
 }
 
-function getInstalledPackageVersion(packageJsonPath: string): string | null {
-  const pkg = readJson<{ version?: string }>(packageJsonPath)
-  return pkg?.version || null
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function listVirtualStoreVersions(packageName: string): string[] {
+  if (!existsSync(PNPM_VIRTUAL_STORE_DIR)) return []
+
+  const prefix = `${packageName}@`
+  return [
+    ...new Set(
+      readdirSync(PNPM_VIRTUAL_STORE_DIR)
+        .filter((entry) => entry.startsWith(prefix))
+        .map((entry) => entry.slice(prefix.length).split('_')[0] ?? '')
+        .filter(Boolean),
+    ),
+  ].sort()
+}
+
+function listLockfileVersions(packageName: string): string[] {
+  if (!existsSync(LOCKFILE_PATH)) return []
+
+  const content = readFileSync(LOCKFILE_PATH, 'utf8')
+  const pattern = new RegExp(`${escapeRegExp(packageName)}@([^:(\\s]+)`, 'g')
+  const versions = new Set<string>()
+
+  for (const match of content.matchAll(pattern)) {
+    const version = match[1]?.trim()
+    if (version) versions.add(version)
+  }
+
+  return [...versions].sort()
 }
 
 function findDsStore(dir: string, base = dir): string[] {
@@ -100,18 +128,6 @@ function findDsStore(dir: string, base = dir): string[] {
   }
 
   return matches
-}
-
-function run(command: string): string | null {
-  try {
-    return execSync(command, {
-      cwd: ROOT_DIR,
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim()
-  } catch {
-    return null
-  }
 }
 
 function checkFontsCompatibility(rootPkg: PackageJson, layerPkg: PackageJson | null): CheckResult {
@@ -152,34 +168,27 @@ function checkNuxtOgImageInstall(rootPkg: PackageJson): CheckResult {
     }
   }
 
-  if (!existsSync(INSTALLED_NUXT_OG_IMAGE)) {
+  const installedVersions = listVirtualStoreVersions('nuxt-og-image')
+  if (installedVersions.length === 0) {
     return {
       status: 'warn',
-      summary: 'nuxt-og-image not installed',
+      summary: 'nuxt-og-image not present in the pnpm virtual store',
       detail: 'Run `pnpm install --frozen-lockfile` before shipping.',
     }
   }
 
-  const installed = getInstalledPackageVersion(INSTALLED_NUXT_OG_IMAGE)
-  if (!installed) {
+  if (!installedVersions.includes(expected)) {
     return {
       status: 'fail',
-      summary: 'unable to read installed nuxt-og-image version',
-    }
-  }
-
-  if (installed !== expected) {
-    return {
-      status: 'fail',
-      summary: `installed nuxt-og-image ${installed} does not match expected ${expected}`,
+      summary: `installed nuxt-og-image versions ${installedVersions.join(', ')} do not include expected ${expected}`,
       detail:
-        'The install state is stale or corrupted. Reinstall dependencies and verify node_modules symlinks.',
+        'The install state is stale or corrupted. Reinstall dependencies and verify the pnpm virtual store.',
     }
   }
 
   return {
     status: 'pass',
-    summary: `installed nuxt-og-image matches expected ${expected}`,
+    summary: `nuxt-og-image ${expected} is present in the pnpm virtual store`,
   }
 }
 
@@ -244,37 +253,35 @@ function checkReferenceBaselines(): CheckResult {
   }
 }
 
-function checkLockfileState(): CheckResult {
-  const pnpmWhy = run('pnpm why nuxt-og-image')
-  const installed = getInstalledPackageVersion(INSTALLED_NUXT_OG_IMAGE)
-
-  if (!pnpmWhy || !installed) {
+function checkLockfileState(rootPkg: PackageJson): CheckResult {
+  const expected = getExpectedNuxtOgImageVersion(rootPkg)
+  if (!expected) {
     return {
       status: 'warn',
-      summary: 'unable to compare pnpm graph to installed nuxt-og-image',
+      summary: 'no nuxt-og-image override declared',
     }
   }
 
-  const match = pnpmWhy.match(/nuxt-og-image\s+([^\s]+)/)
-  const resolved = match?.[1] || null
-  if (!resolved) {
+  const lockedVersions = listLockfileVersions('nuxt-og-image')
+  if (lockedVersions.length === 0) {
     return {
       status: 'warn',
-      summary: 'unable to parse pnpm why output for nuxt-og-image',
+      summary: 'nuxt-og-image not present in pnpm-lock.yaml',
+      detail: 'Run `pnpm install --frozen-lockfile` to refresh the lockfile state.',
     }
   }
 
-  if (resolved !== installed) {
+  if (!lockedVersions.includes(expected)) {
     return {
       status: 'fail',
-      summary: `installed nuxt-og-image ${installed} differs from pnpm graph ${resolved}`,
-      detail: 'node_modules is out of sync with the dependency graph.',
+      summary: `pnpm-lock.yaml versions ${lockedVersions.join(', ')} do not include expected ${expected}`,
+      detail: 'The lockfile is out of sync with the declared override.',
     }
   }
 
   return {
     status: 'pass',
-    summary: 'pnpm graph matches installed nuxt-og-image',
+    summary: `pnpm-lock.yaml includes nuxt-og-image ${expected}`,
   }
 }
 
@@ -289,7 +296,7 @@ function main() {
   const checks: Array<[string, CheckResult]> = [
     ['fonts', checkFontsCompatibility(rootPkg, layerPkg)],
     ['nuxt-og-image install', checkNuxtOgImageInstall(rootPkg)],
-    ['pnpm graph', checkLockfileState()],
+    ['pnpm lockfile', checkLockfileState(rootPkg)],
     ['og-image config', checkOgImageConfig()],
     ['public junk', checkPublicJunk()],
     ['reference baselines', checkReferenceBaselines()],

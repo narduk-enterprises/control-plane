@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { users } from '../../database/schema'
+import { users } from '#layer/server/database/schema'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 
 const bodySchema = z.object({
   name: z.string().optional(),
@@ -13,6 +14,7 @@ const bodySchema = z.object({
  * Apps can extend this route if they need additional fields.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'auth-profile', 30, 60_000)
   const user = await requireAuth(event)
   const db = useDatabase(event)
 

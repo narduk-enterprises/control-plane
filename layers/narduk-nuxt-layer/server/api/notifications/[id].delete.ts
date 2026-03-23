@@ -3,7 +3,10 @@
  *
  * Delete a single notification. Owner-only.
  */
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
+
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'notifications', 60, 60_000)
   const user = await requireAuth(event)
   const notificationId = getRouterParam(event, 'id')
 

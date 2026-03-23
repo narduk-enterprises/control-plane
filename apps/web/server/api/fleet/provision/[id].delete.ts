@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { getHeader, createError, getRouterParam } from 'h3'
 import { fleetApps, provisionJobs } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 
 const querySchema = z.object({
   deleteRepo: z.enum(['true', 'false']).optional().default('false'),
@@ -18,6 +19,8 @@ const querySchema = z.object({
  *   ?deleteRepo=true  — also delete the GitHub repo (default: false)
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-provision-callback', 10, 60_000)
+
   // Auth
   const config = useRuntimeConfig(event)
   const authHeader = getHeader(event, 'authorization')

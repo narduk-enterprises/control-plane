@@ -70,8 +70,7 @@ Audit GitHub Actions workflows for correctness and completeness.
 
 1. **Workflow inventory** // turbo
    - Run `ls .github/workflows/`
-   - Expect: `ci.yml` (quality-only), `version-bump.yml`,
-     `weekly-drift-check.yml` (minimum)
+   - Expect at minimum: `ci.yml` (quality-only) and `weekly-drift-check.yml`
 
 2. **CI (pull requests)**
    - Must run: `pnpm install --frozen-lockfile`, lint, typecheck
@@ -85,9 +84,11 @@ Audit GitHub Actions workflows for correctness and completeness.
      (uncommitted changes)
    - `pnpm run ship` script must exist in root package.json
 
-4. **Layer publishing**
-   - Must auto-bump version and publish on layer changes (template repo only)
-   - Commit message should include `[skip ci]` to avoid deploy loops
+4. **Shared package publishing**
+   - Shared packages (for example `narduk-eslint-config`) must publish from
+     their own repository workflow, not from this template repo
+   - Local rollout should update package versions in the template, then sync the
+     fleet
 
 **Scoring:** 10 = all checks pass. -1 for each: missing workflow, no build in
 CI, wrong cache paths, no concurrency control, no path guards, no dirty-repo

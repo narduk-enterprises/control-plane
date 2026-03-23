@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { readBody } from 'h3'
 import { requireAdmin } from '#layer/server/utils/auth'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { fleetApps } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
@@ -24,6 +25,7 @@ const bodySchema = z.object({
  * Add a new fleet app to the registry.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-apps', 20, 60_000)
   await requireAdmin(event)
 
   const body = await readBody(event)

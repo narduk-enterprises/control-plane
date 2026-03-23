@@ -4,7 +4,7 @@
  */
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
 
-export * from '../../../../layers/narduk-nuxt-layer/server/database/schema'
+export * from '#layer/server/database/schema'
 
 // ─── Fleet Apps Registry ────────────────────────────────────
 // Public app registry used by status/audit/analytics APIs. Seeded from the

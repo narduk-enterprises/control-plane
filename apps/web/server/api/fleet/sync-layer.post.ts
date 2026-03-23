@@ -1,4 +1,5 @@
 import { requireAdmin } from '#layer/server/utils/auth'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { z } from 'zod'
 import { getSyncManagedRepos } from '#server/data/managed-repos'
 
@@ -14,6 +15,7 @@ const WORKFLOW_FILE = 'template-sync-bot.yml'
  * Body: { dryRun?: boolean, repos?: string[] }
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-sync-layer', 5, 60_000)
   await requireAdmin(event)
 
   const body = await readValidatedBody(

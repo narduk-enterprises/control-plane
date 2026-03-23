@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { readBody, getHeader, createError, getRouterParam } from 'h3'
 import { provisionJobs } from '#server/database/schema'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 
 const bodySchema = z.object({
   status: z.enum(['pending', 'cloning', 'initializing', 'deploying', 'complete', 'failed']),
@@ -14,6 +15,8 @@ const bodySchema = z.object({
  * Auth'd via PROVISION_API_KEY.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-provision-callback', 120, 60_000)
+
   // Auth
   const config = useRuntimeConfig(event)
   const authHeader = getHeader(event, 'authorization')

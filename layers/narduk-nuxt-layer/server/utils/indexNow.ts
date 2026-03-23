@@ -62,10 +62,7 @@ export async function notifyIndexNow(
     siteHost ||
     (() => {
       try {
-        const siteUrl =
-          ((config.public as Record<string, unknown>)?.siteUrl as string) ||
-          process.env.SITE_URL ||
-          ''
+        const siteUrl = ((config.public as Record<string, unknown>)?.siteUrl as string) || ''
         return new URL(siteUrl).host
       } catch {
         return ''

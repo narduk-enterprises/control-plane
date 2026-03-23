@@ -35,6 +35,8 @@ export function defineSharedNotificationsContract(
   const { appName = 'app', basePath = '/' } = options
 
   test.describe(`${appName} shared notifications contract`, () => {
+    test.describe.configure({ mode: 'serial' })
+
     test.beforeAll(async ({ browser, baseURL }) => {
       if (!baseURL) {
         throw new Error('Shared notifications contract requires Playwright baseURL.')

@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { fleetApps } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
@@ -14,6 +15,7 @@ const querySchema = z.object({
  * Pass ?hard=true to permanently delete.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-apps', 10, 60_000)
   await requireAdmin(event)
 
   const appName = getRouterParam(event, 'name')

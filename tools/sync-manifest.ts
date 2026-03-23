@@ -2,11 +2,17 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
 export const VERBATIM_SYNC_FILES = [
+  'doppler.template.yaml',
+  'guardrail-exceptions.json',
   '.githooks/pre-commit',
+  'tools/install-git-hooks.cjs',
   'tools/gsc-toolbox.ts',
   'tools/setup-analytics.ts',
   'tools/update-layer.ts',
   'tools/validate.ts',
+  'tools/guardrails.ts',
+  'tools/check-guardrails.ts',
+  'tools/audit-fleet-guardrails.ts',
   'tools/sync-template.ts',
   'tools/sync-core.ts',
   'tools/sync-manifest.ts',
@@ -19,6 +25,9 @@ export const VERBATIM_SYNC_FILES = [
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
   'scripts/dev-kill.sh',
+  'scripts/playwright-webserver-dev.sh',
+  'scripts/_playwright-webserver-dev-inner.sh',
+  'scripts/run-mapkit-e2e.sh',
   '.github/workflows/weekly-drift-check.yml',
   'turbo.json',
   'pnpm-workspace.yaml',
@@ -28,6 +37,7 @@ export const VERBATIM_SYNC_FILES = [
   'apps/web/.npmrc',
   'apps/web/eslint.config.mjs',
   'prettier.config.mjs',
+  '.prettierignore',
   '.editorconfig',
   '.vscode/settings.json',
   '.vscode/extensions.json',
@@ -36,6 +46,7 @@ export const VERBATIM_SYNC_FILES = [
 export const RECURSIVE_SYNC_DIRECTORIES = [
   'packages/eslint-config',
   '.agents/workflows',
+  // Compatibility mirrors. Author skill changes in .codex first, then sync out.
   '.agent',
   '.codex',
   '.cursor/skills',
@@ -55,10 +66,6 @@ export const STALE_SYNC_PATHS = [
   'tools/check-setup.js',
   '.cursor/.DS_Store',
   '.cursor/rules/nuxt-v4-template.mdc',
-  '.agent/skills/ui-ux-pro-max/scripts/__pycache__',
-  '.codex/skills/ui-ux-pro-max/scripts/__pycache__',
-  '.cursor/skills/ui-ux-pro-max/scripts/__pycache__',
-  '.github/prompts/ui-ux-pro-max/scripts/__pycache__',
   '.env',
   '.env.local',
   '.env.example',
@@ -78,23 +85,25 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   prebuild: 'node tools/check-setup.cjs',
   predeploy: 'node tools/check-setup.cjs',
   preship:
-    'node tools/check-setup.cjs && pnpm install --frozen-lockfile && npx tsx tools/check-drift-ci.ts && npx tsx tools/check-sync-health.ts && pnpm run quality',
+    'node tools/check-setup.cjs && pnpm install --frozen-lockfile && npx tsx tools/check-drift-ci.ts && npx tsx tools/check-sync-health.ts && pnpm run quality:check',
   ship: 'npx tsx tools/ship.ts',
   'sync-template': 'npx tsx tools/sync-template.ts .',
   'update-layer': 'npx tsx tools/update-layer.ts',
   'check:sync-health': 'npx tsx tools/check-sync-health.ts',
+  'hooks:install': 'node tools/install-git-hooks.cjs',
+  'guardrails:repo': 'npx tsx tools/check-guardrails.ts',
   clean:
     "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
   'clean:install': 'pnpm run clean && pnpm install && pnpm run db:ready:all',
   'dev:kill': 'sh scripts/dev-kill.sh',
   'generate:favicons': 'npx tsx tools/generate-favicons.ts',
   tail: 'npx tsx tools/tail.ts',
-  quality: "pnpm run quality:fix && turbo run quality --filter='./apps/*'",
+  quality: 'pnpm run quality:fix && pnpm run quality:check',
+  'quality:check': "pnpm run guardrails:repo && turbo run quality --filter='./apps/*'",
   'quality:fix': 'turbo run lint --force -- --fix && pnpm run format',
-  format:
-    'prettier --write "**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}" --ignore-path .gitignore',
-  'format:check':
-    'prettier --check "**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}" --ignore-path .gitignore',
+  check: 'pnpm run quality:check',
+  format: 'prettier --write "**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}"',
+  'format:check': 'prettier --check "**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}"',
 }
 
 export const FLEET_WEB_SCRIPT_PATCHES: Readonly<Record<string, string>> = {

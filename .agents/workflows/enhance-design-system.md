@@ -13,7 +13,7 @@ tailored to your app's domain.
 
 > **Prerequisite:** The `uipro` skill must be installed. Run
 > `uipro init --ai antigravity` from the project root if
-> `.agent/skills/ui-ux-pro-max/` does not exist.
+> `.codex/skills/ui-ux-pro-max/` does not exist.
 
 > **Related workflows:**
 >
@@ -53,23 +53,23 @@ Identify:
 Run the design system generator with project-specific keywords:
 
 ```bash
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "<product_type> <industry> <style_keywords>" --design-system -p "<App Name>"
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product_type> <industry> <style_keywords>" --design-system -p "<App Name>"
 ```
 
 **Examples:**
 
 ```bash
 # SaaS dashboard
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "saas dashboard analytics professional" --design-system -p "Loadtest"
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "saas dashboard analytics professional" --design-system -p "Loadtest"
 
 # E-commerce storefront
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "ecommerce industrial catalog professional" --design-system -p "Circuit Breakers"
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "ecommerce industrial catalog professional" --design-system -p "Circuit Breakers"
 
 # Content/blog site
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "content blog local news community" --design-system -p "Austin Texas Net"
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "content blog local news community" --design-system -p "Austin Texas Net"
 
 # Trading app
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "fintech trading stocks gamification dark" --design-system -p "Stonx"
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "fintech trading stocks gamification dark" --design-system -p "Stonx"
 ```
 
 The output includes:
@@ -88,7 +88,7 @@ The output includes:
 To save for future sessions and page-specific overrides:
 
 ```bash
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>"
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>"
 ```
 
 This creates:
@@ -99,8 +99,8 @@ This creates:
 **For page-specific overrides:**
 
 ```bash
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>" --page "dashboard"
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>" --page "landing"
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>" --page "dashboard"
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>" --page "landing"
 ```
 
 ---
@@ -111,19 +111,19 @@ Get deeper recommendations for specific design concerns:
 
 ```bash
 # Typography alternatives
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "elegant modern professional" --domain typography
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "elegant modern professional" --domain typography
 
 # Color palette options
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "saas professional" --domain color
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "saas professional" --domain color
 
 # Style exploration
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "glassmorphism dark gradient" --domain style
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "glassmorphism dark gradient" --domain style
 
 # Chart recommendations (for data-heavy apps)
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "real-time dashboard analytics" --domain chart
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "real-time dashboard analytics" --domain chart
 
 # Landing page structure
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "hero social-proof pricing" --domain landing
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "hero social-proof pricing" --domain landing
 ```
 
 ---
@@ -133,7 +133,7 @@ python3 .agent/skills/ui-ux-pro-max/scripts/search.py "hero social-proof pricing
 For Vue/Nuxt implementation best practices:
 
 ```bash
-python3 .agent/skills/ui-ux-pro-max/scripts/search.py "layout responsive form animation" --stack vue
+python3 .codex/skills/ui-ux-pro-max/scripts/search.py "layout responsive form animation" --stack vue
 ```
 
 Available stacks: `html-tailwind`, `react`, `nextjs`, `vue`, `svelte`,

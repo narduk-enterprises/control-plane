@@ -671,6 +671,29 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
           console.warn(`  ⚠️ Failed to sync dev config: ${devError.message}`)
         }
       }
+
+      // When prd was already in sync, toSet is empty and the dev mirror above only adds SITE_URL.
+      // Local `doppler run` uses `dev`, so MapKit and other hub-backed keys never appear — backfill.
+      try {
+        const devExisting = getDopplerSecretNames(APP_NAME, 'dev')
+        const devBackfill: string[] = []
+        for (const [key, val] of Object.entries(hubRefs)) {
+          if (!devExisting.has(key)) {
+            devBackfill.push(`${key}='${val}'`)
+          }
+        }
+        if (devBackfill.length > 0) {
+          execSync(
+            `doppler secrets set ${devBackfill.join(' ')} --project ${APP_NAME} --config dev`,
+            { stdio: 'pipe' },
+          )
+          console.log(
+            `  ✅ Backfilled ${devBackfill.length} hub reference(s) into dev: ${devBackfill.map((s) => s.slice(0, s.indexOf('='))).join(', ')}`,
+          )
+        }
+      } catch (backfillError: any) {
+        console.warn(`  ⚠️ Failed to backfill dev hub references: ${backfillError.message}`)
+      }
     } catch (error: any) {
       console.warn(`  ⚠️ Failed to sync hub credentials: ${error.message}`)
       failed.push('Doppler hub secret sync')
@@ -1213,6 +1236,19 @@ export default defineConfig({
     }
   }
 
+  console.log('\nStep 9.75/10: Installing git hooks...')
+  try {
+    execSync('git config core.hooksPath .githooks', {
+      cwd: ROOT_DIR,
+      stdio: 'pipe',
+    })
+    console.log('  ✅ git core.hooksPath set to .githooks')
+    completed.push('Git hooks')
+  } catch (error: any) {
+    console.warn(`  ⚠️ Could not install git hooks: ${error.message}`)
+    deferred.push('Git hooks (run: git config core.hooksPath .githooks)')
+  }
+
   // 10. Done (script is kept for re-runs)
   // Write the bootstrap sentinel so pre* hooks allow dev/build/deploy
   await fs.writeFile(
@@ -1268,7 +1304,7 @@ export default defineConfig({
 
   console.log('\nNext steps:')
   console.log(`  1. pnpm run validate        # Confirm infrastructure`)
-  console.log(`  2. pnpm run db:migrate      # Apply base schema to local D1`)
+  console.log(`  2. pnpm run db:migrate      # Apply shared layer + app schema to local D1`)
   console.log(`  3. doppler run -- pnpm dev   # Start dev server`)
   if (!hasGitRemote) {
     console.log(`\n  ⚠️  DEPLOYMENT BLOCKED: Add a git remote and re-run with --repair:`)

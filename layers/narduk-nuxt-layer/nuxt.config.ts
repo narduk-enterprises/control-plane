@@ -44,7 +44,7 @@ const buildVersion =
   readGitSha() ||
   appVersion
 const buildTime = process.env.BUILD_TIME || new Date().toISOString()
-const colorModePreference = process.env.NUXT_COLOR_MODE_PREFERENCE || 'dark'
+const colorModePreference = process.env.NUXT_COLOR_MODE_PREFERENCE || 'system'
 
 export default defineNuxtConfig({
   alias: {
@@ -87,13 +87,11 @@ export default defineNuxtConfig({
     cronSecret: process.env.CRON_SECRET || '',
     ownerTagSecret: process.env.OWNER_TAG_SECRET || '',
     /** Log level for server route logging. Supports: debug | info | warn | error | silent. Set LOG_LEVEL in env. */
-    logLevel: process.env.LOG_LEVEL || (import.meta.dev ? 'debug' : 'warn'),
+    logLevel: process.env.LOG_LEVEL || 'warn',
     session: {
-      password:
-        process.env.NUXT_SESSION_PASSWORD ||
-        (import.meta.dev ? 'layer-auth-dev-session-secret-min-32-chars' : ''),
+      password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {
-        secure: !import.meta.dev,
+        secure: true,
       },
     },
     appleTeamId: process.env.APPLE_TEAM_ID || '',
@@ -101,12 +99,6 @@ export default defineNuxtConfig({
     appleSecretKey: process.env.APPLE_SECRET_KEY || '',
     mapkitServerApiKey: process.env.MAPKIT_SERVER_API_KEY || '',
     public: {
-      /** Canonical site URL — required by IndexNow submit and OG URLs. */
-      appUrl: process.env.SITE_URL || '',
-      appName: process.env.APP_NAME || '',
-      posthogPublicKey: process.env.POSTHOG_PUBLIC_KEY || '',
-      /** Served at /{key}.txt via layer route; set INDEXNOW_KEY in Doppler. */
-      indexNowKey: process.env.INDEXNOW_KEY || '',
       mapkitToken: process.env.MAPKIT_TOKEN || '',
       appVersion,
       buildVersion,
@@ -149,12 +141,25 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
 
+  $development: {
+    runtimeConfig: {
+      logLevel: process.env.LOG_LEVEL || 'debug',
+      session: {
+        password: process.env.NUXT_SESSION_PASSWORD || 'layer-auth-dev-session-secret-min-32-chars',
+        cookie: {
+          // Safari rejects Secure cookies on local HTTP, so relax this only for `nuxt dev`.
+          secure: false,
+        },
+      },
+    },
+  },
+
   ui: {
     colorMode: true,
   },
 
-  // Keep the initial palette deterministic across downstream apps. System preference
-  // caused fleet-wide mismatches for single-theme surfaces after layer syncs.
+  // Default follows the OS. Set NUXT_COLOR_MODE_PREFERENCE to light or dark for
+  // deterministic SSR, screenshots, or fleet-wide single-theme surfaces.
   colorMode: {
     preference: colorModePreference,
     fallback: 'dark',

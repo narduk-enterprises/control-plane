@@ -44,8 +44,10 @@ export default defineEventHandler(async (event) => {
   for (const file of files) {
     const ext = normalizeExtension(file.type!)
     const key = `uploads/${crypto.randomUUID()}.${ext}`
+    const payload = new ArrayBuffer(file.data.byteLength)
+    new Uint8Array(payload).set(file.data)
 
-    await uploadToR2(event, key, file.data.buffer as ArrayBuffer, file.type!)
+    await uploadToR2(event, key, payload, file.type!)
 
     results.push({ key, url: `/images/${key}` })
   }

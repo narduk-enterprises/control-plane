@@ -1,0 +1,4 @@
+# pnpm v9+ lockfile uses YAML keys Prettier cannot parse
+pnpm-lock.yaml
+# Accidental ESLint output dumps (not valid JSON for Prettier)
+**/eslint-results.json

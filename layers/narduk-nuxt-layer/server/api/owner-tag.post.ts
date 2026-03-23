@@ -16,6 +16,7 @@
  *     -d '{"secret":"<OWNER_TAG_SECRET>","enabled":false}'
  */
 import { z } from 'zod'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 
 const ownerTagSchema = z.object({
   secret: z.string(),
@@ -23,6 +24,7 @@ const ownerTagSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'owner-tag', 10, 60_000)
   const config = useRuntimeConfig(event)
   const ownerSecret = config.ownerTagSecret
 

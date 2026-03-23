@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { readBody } from 'h3'
 import { requireAdmin } from '#layer/server/utils/auth'
+import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 
 const bodySchema = z.object({
   name: z
@@ -22,6 +23,7 @@ const bodySchema = z.object({
  * Called by the browser UI — proxies to POST /api/fleet/provision with the server-side API key.
  */
 export default defineEventHandler(async (event) => {
+  await enforceRateLimit(event, 'fleet-provision-ui', 10, 60_000)
   await requireAdmin(event)
 
   const body = await readBody(event)
