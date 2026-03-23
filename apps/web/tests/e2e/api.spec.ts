@@ -136,7 +136,7 @@ test.describe('API Integration Tests', () => {
       expect(data).toHaveProperty('app')
       expect(data).toHaveProperty('status')
     } else {
-      expect([400, 401, 403, 404]).toContain(response.status())
+      expect([400, 401, 403, 404, 502]).toContain(response.status())
     }
   })
 

@@ -40,6 +40,7 @@
     "verify:cron": "doppler run -p control-plane -c prd -- npx tsx tools/verify-analytics-cron.ts",
     "verify:cron:dev": "doppler run -p control-plane -c dev -- npx tsx tools/verify-analytics-cron.ts",
     "check:sync-health": "npx tsx tools/check-sync-health.ts",
+    "fleet:indexnow:all": "npx tsx tools/fleet-indexnow-submit-all.ts",
     "quality:fix": "turbo run lint --force -- --fix && pnpm run format"
   },
   "pnpm": {

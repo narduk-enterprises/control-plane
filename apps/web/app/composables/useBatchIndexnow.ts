@@ -10,24 +10,31 @@ interface FleetApp {
 export function useBatchIndexnow(apps: MaybeRefOrGetter<FleetApp[]>) {
   const submitting = ref(false)
   const submitted = ref(0)
+  const failed = ref(0)
 
-  async function submitAll() {
+  async function submitAll(): Promise<{ ok: number; fail: number }> {
     submitting.value = true
     submitted.value = 0
+    failed.value = 0
     try {
       const appList = toValue(apps)
       for (const app of appList) {
         try {
-          await $fetch(`/api/fleet/indexnow/${encodeURIComponent(app.name)}`, { method: 'POST' })
+          await $fetch(`/api/fleet/indexnow/${encodeURIComponent(app.name)}`, {
+            method: 'POST',
+            body: {},
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          })
           submitted.value++
         } catch {
-          // Skip apps that don't have IndexNow configured
+          failed.value++
         }
       }
+      return { ok: submitted.value, fail: failed.value }
     } finally {
       submitting.value = false
     }
   }
 
-  return { submitting, submitted, submitAll }
+  return { submitting, submitted, failed, submitAll }
 }

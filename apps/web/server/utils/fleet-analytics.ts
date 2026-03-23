@@ -1078,7 +1078,9 @@ function indexnowSnapshot(
   return createProviderSnapshot(
     hasAnyIndexnow ? 'healthy' : 'no_data',
     metrics,
-    hasAnyIndexnow ? null : 'No IndexNow submission recorded yet.',
+    hasAnyIndexnow
+      ? 'Last ping from this dashboard succeeded. IndexNow only returns HTTP status from the engine (no clicks or impressions).'
+      : 'No fleet ping recorded in this dashboard yet. Pings sent only inside each app are not tracked here—use Submit All or per-app IndexNow.',
     undefined,
     statusRecord?.checkedAt ?? null,
   )

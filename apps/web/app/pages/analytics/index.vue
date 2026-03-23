@@ -29,6 +29,20 @@ const {
   batchSubmitIndexnow,
 } = useAnalyticsHub()
 
+const toast = useToast()
+
+async function onBatchIndexnow() {
+  const { ok, fail } = await batchSubmitIndexnow()
+  toast.add({
+    title: 'IndexNow',
+    description:
+      fail === 0
+        ? `Pinged ${ok} app(s); summary updated.`
+        : `Succeeded: ${ok}. Failed: ${fail} (check app INDEXNOW_KEY / deploy).`,
+    color: fail === 0 ? 'success' : 'warning',
+  })
+}
+
 const activeTab = ref<'overview' | 'fleet' | 'indexnow'>('overview')
 const statusFilter = ref<'all' | 'up' | 'down'>('all')
 const sortKey = ref('name')
@@ -162,7 +176,7 @@ const tabs = [
           key="analytics-tab-indexnow"
           :indexnow-summary="indexnowSummary ?? null"
           :indexnow-submitting="indexnowSubmitting"
-          @batch-submit="batchSubmitIndexnow"
+          @batch-submit="onBatchIndexnow"
         />
       </KeepAlive>
     </template>

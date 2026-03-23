@@ -48,9 +48,10 @@ export function useAnalyticsHub() {
     ])
   }
 
-  async function batchSubmitIndexnow() {
-    await submitAllIndexnow()
+  async function batchSubmitIndexnow(): Promise<{ ok: number; fail: number }> {
+    const counts = await submitAllIndexnow()
     await refreshIndexnowSummary()
+    return counts
   }
 
   watch(range, () => {
