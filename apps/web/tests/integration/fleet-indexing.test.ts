@@ -95,4 +95,24 @@ describe('Fleet Indexing & IndexNow', () => {
       expect(typeof data.totalFleetSize).toBe('number')
     })
   })
+
+  // ── IndexNow ping history (admin) ──────────────────────────────────
+  describe('GET /api/fleet/indexnow/history', () => {
+    authIt('returns an array of ping log rows', async () => {
+      const res = await apiFetch('/api/fleet/indexnow/history?limit=10')
+      assertNot500(res.status, 'GET /api/fleet/indexnow/history')
+
+      if (res.status === 200) {
+        const data = (await res.json()) as unknown[]
+        expect(Array.isArray(data)).toBe(true)
+        if (data.length > 0) {
+          const row = data[0] as Record<string, unknown>
+          expect(row).toHaveProperty('id')
+          expect(row).toHaveProperty('app')
+          expect(row).toHaveProperty('pingedAt')
+          expect(row).toHaveProperty('ok')
+        }
+      }
+    })
+  })
 })

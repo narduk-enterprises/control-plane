@@ -40,6 +40,18 @@ export const appStatus = sqliteTable('app_status', {
   indexnowLastSubmittedCount: integer('indexnow_last_submitted_count'),
 })
 
+// ─── IndexNow ping audit (fleet proxy) ─────────────────────
+export const indexnowPingLog = sqliteTable('indexnow_ping_log', {
+  id: text('id').primaryKey(),
+  app: text('app').notNull(),
+  pingedAt: text('pinged_at').notNull(),
+  ok: integer('ok', { mode: 'boolean' }).notNull(),
+  downstreamStatus: integer('downstream_status'),
+  urlCount: integer('url_count'),
+  targetUrl: text('target_url'),
+  message: text('message'),
+})
+
 // ─── KV Cache ───────────────────────────────────────────────
 export const kvCache = sqliteTable('kv_cache', {
   key: text('key').primaryKey(),
@@ -76,3 +88,5 @@ export type KvCache = typeof kvCache.$inferSelect
 export type NewKvCache = typeof kvCache.$inferInsert
 export type ProvisionJob = typeof provisionJobs.$inferSelect
 export type NewProvisionJob = typeof provisionJobs.$inferInsert
+export type IndexnowPingLog = typeof indexnowPingLog.$inferSelect
+export type NewIndexnowPingLog = typeof indexnowPingLog.$inferInsert

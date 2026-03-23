@@ -36,9 +36,11 @@ const {
 })
 
 const toast = useToast()
+const indexnowHistoryRefreshKey = ref(0)
 
 async function onBatchIndexnow() {
   const { ok, fail } = await batchSubmitIndexnow()
+  indexnowHistoryRefreshKey.value += 1
   toast.add({
     title: 'IndexNow',
     description:
@@ -183,6 +185,7 @@ const tabs = [
           key="analytics-tab-indexnow"
           :indexnow-summary="indexnowSummary ?? null"
           :indexnow-submitting="indexnowSubmitting"
+          :history-refresh-key="indexnowHistoryRefreshKey"
           @batch-submit="onBatchIndexnow"
         />
       </KeepAlive>

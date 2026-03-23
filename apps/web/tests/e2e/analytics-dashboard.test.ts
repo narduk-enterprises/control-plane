@@ -93,7 +93,7 @@ test.describe('Analytics Dashboard', () => {
     await page.waitForTimeout(2000)
   })
 
-  test('IndexNow tab shows Submit All button', async ({ page }) => {
+  test('IndexNow tab shows Submit All and ping history', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
     await openIndexNowTab(page)
 
@@ -102,6 +102,8 @@ test.describe('Analytics Dashboard', () => {
 
     const submitAllBtn = page.locator('button:has-text("Submit All")')
     await expect(submitAllBtn).toBeVisible()
+
+    await expect(page.locator('text=Ping history').first()).toBeVisible({ timeout: 10000 })
   })
 
   test('overview tab can show fleet health panel', async ({ page }) => {

@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
 
   const app = await getFleetAppByName(event, appSlug)
   if (!app) throw createError({ statusCode: 404, message: 'App not found' })
+  const appName = app.name
 
   const body = await readBody(event).catch(() => ({}))
   const parsed = bodySchema.safeParse(body)
@@ -34,28 +35,67 @@ export default defineEventHandler(async (event) => {
       ? 'Fleet app does not expose /api/indexnow/submit. Ensure the app uses the Narduk template layer or implements this endpoint.'
       : undefined
 
-  if (!res.ok) {
-    const errMsg =
-      message ?? downstreamMessage ?? `Target /api/indexnow/submit returned HTTP ${res.status}`
-    throw createError({
-      statusCode: res.status === 404 ? 404 : 502,
-      message: errMsg,
-      data: { app: app.name, targetUrl, status: res.status, response: data },
+  const db = useDatabase(event)
+  const { indexnowPingLog: pingTable, appStatus: appStatusTable } =
+    await import('#server/database/schema')
+  const { eq, sql } = await import('drizzle-orm')
+
+  const pingedAt = new Date().toISOString()
+  const logId = crypto.randomUUID()
+
+  async function writePingLog(params: {
+    ok: boolean
+    downstreamStatus: number
+    urlCount: number | null
+    message: string | null
+  }) {
+    const msg =
+      params.message && params.message.length > 500
+        ? `${params.message.slice(0, 497)}…`
+        : params.message
+    await db.insert(pingTable).values({
+      id: logId,
+      app: appName,
+      pingedAt,
+      ok: params.ok,
+      downstreamStatus: params.downstreamStatus,
+      urlCount: params.urlCount,
+      targetUrl,
+      message: msg,
     })
   }
 
-  const db = useDatabase(event)
-  const { eq, sql } = await import('drizzle-orm')
-  const appStatusTable = (await import('#server/database/schema')).appStatus
+  if (!res.ok) {
+    const errMsg =
+      message ?? downstreamMessage ?? `Target /api/indexnow/submit returned HTTP ${res.status}`
+    await writePingLog({
+      ok: false,
+      downstreamStatus: res.status,
+      urlCount: null,
+      message: errMsg,
+    })
+    throw createError({
+      statusCode: res.status === 404 ? 404 : 502,
+      message: errMsg,
+      data: { app: appName, targetUrl, status: res.status, response: data },
+    })
+  }
 
   await db
     .update(appStatusTable)
     .set({
-      indexnowLastSubmission: new Date().toISOString(),
+      indexnowLastSubmission: pingedAt,
       indexnowTotalSubmissions: sql`${appStatusTable.indexnowTotalSubmissions} + 1`,
       indexnowLastSubmittedCount: (data.submitted as number) ?? 0,
     })
-    .where(eq(appStatusTable.app, app.name))
+    .where(eq(appStatusTable.app, appName))
 
-  return { app: app.name, status: res.status, targetUrl, response: data, message }
+  await writePingLog({
+    ok: true,
+    downstreamStatus: res.status,
+    urlCount: (data.submitted as number) ?? 0,
+    message: null,
+  })
+
+  return { app: appName, status: res.status, targetUrl, response: data, message }
 })
