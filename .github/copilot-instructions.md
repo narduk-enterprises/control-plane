@@ -10,14 +10,27 @@ for Cursor, Codex, GitHub Copilot, and Google Antigravity. When a task fits a
 packaged skill there, read its `SKILL.md` and any referenced assets from that
 tree before improvising.
 
+### Installing new skills
+
+```bash
+# From a GitHub repo (open standard)
+npx skills add https://github.com/<owner>/<repo> --skill <name>
+
+# Interactive scaffolding via agent workflow
+/skill-create
+```
+
+See `docs/agents/skills.md` for full architecture, fleet distribution, and the
+skills inventory.
+
 ## Architecture & Monorepo
 
 - **PNPM Workspace**: The main application lives in `apps/web/`.
 - **Shared Layer**: `layers/narduk-nuxt-layer/` provides standard modules (Nuxt
   UI 4, SEO, Auth), security middleware, and styling. **Do NOT recreate** what
   the layer already provides.
-- **Example Apps**: Reference `apps/showcase/` or `apps/example-*/` for working
-  implementations.
+- **Reference Apps**: Use `apps/showcase/` for the in-repo verification app and
+  `narduk-nuxt-template-examples` for full-featured reference implementations.
 
 ## Key Rules & Constraints
 
@@ -49,10 +62,13 @@ tree before improvising.
 
 ## Start & Automations
 
-- **CRITICAL**: If starting a new derived project, run `pnpm setup` first.
-  Verify `git remote -v` does NOT point to
-  `narduk-enterprises/narduk-nuxt-template`. If you are intentionally working on
-  the template repository itself, that remote is expected.
+- **CRITICAL**: If starting a new derived project, begin from the generated
+  starter surface, not this authoring workspace. Use the control plane, a
+  published starter repo, or `pnpm run export:starter -- ../my-app --force`,
+  then run `pnpm setup` inside that generated app. Verify `git remote -v` does
+  NOT point to `narduk-enterprises/narduk-nuxt-template`. If you are
+  intentionally working on the template repository itself, that remote is
+  expected.
 - **Secrets**: Use Doppler. Secrets are consumed via `process.env.SECRET_NAME`
   in `nuxt.config.ts`.
 - Run `/check-*` and `/audit-*` AI workflows (in `.agents/workflows/`) for

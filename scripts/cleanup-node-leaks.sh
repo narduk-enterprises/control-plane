@@ -22,13 +22,13 @@ kill_orphan_workerd() {
   fi
 }
 
-# Leaked Playwright MCP: Cursor / npx spawns many copies of the same binary over reconnects.
+  # Leaked Playwright MCP: Cursor may spawn many copies of the same binary over reconnects.
 # E2E uses @playwright/test/cli.js — not this path.
 kill_leaked_playwright_mcp() {
   if ! command -v pkill >/dev/null 2>&1; then
     return 0
   fi
-  # Match .../node_modules/.bin/playwright-mcp (npx cache + project installs)
+  # Match .../node_modules/.bin/playwright-mcp (project installs in this workspace)
   if pkill -TERM -f '[/]node_modules/\.bin/playwright-mcp' 2>/dev/null; then
     sleep 1
     pkill -KILL -f '[/]node_modules/\.bin/playwright-mcp' 2>/dev/null || true

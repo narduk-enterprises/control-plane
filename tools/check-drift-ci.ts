@@ -1,7 +1,7 @@
-import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runCommand } from './command'
 import {
   GENERATED_SYNC_FILES,
   RECURSIVE_SYNC_DIRECTORIES,
@@ -17,9 +17,9 @@ const TEMPLATE_URL = 'https://github.com/narduk-enterprises/narduk-nuxt-template
 
 const strict = process.argv.includes('--strict')
 
-function run(command: string): string {
+function run(command: string, args: string[]): string {
   try {
-    return execSync(command, {
+    return runCommand(command, args, {
       cwd: ROOT_DIR,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -30,7 +30,7 @@ function run(command: string): string {
 }
 
 function isTemplateRepo(): boolean {
-  const url = run('git config --get remote.origin.url')
+  const url = run('git', ['config', '--get', 'remote.origin.url'])
   return url.includes('narduk-enterprises/narduk-nuxt-template')
 }
 
@@ -45,7 +45,7 @@ function getTemplateRef(): string {
 
 function getFileAtRef(ref: string, relativePath: string): string | null {
   try {
-    return execSync(`git show ${ref}:${relativePath}`, {
+    return runCommand('git', ['show', `${ref}:${relativePath}`], {
       cwd: ROOT_DIR,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -57,7 +57,7 @@ function getFileAtRef(ref: string, relativePath: string): string | null {
 
 function listFilesAtRef(ref: string, directory: string): string[] {
   try {
-    return execSync(`git ls-tree -r --name-only ${ref} ${directory}`, {
+    return runCommand('git', ['ls-tree', '-r', '--name-only', ref, directory], {
       cwd: ROOT_DIR,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -112,11 +112,11 @@ async function main() {
     process.exit(0)
   }
 
-  const remotes = run('git remote -v')
+  const remotes = run('git', ['remote', '-v'])
   if (!remotes.includes('template')) {
-    run(`git remote add template ${TEMPLATE_URL}`)
+    run('git', ['remote', 'add', 'template', TEMPLATE_URL])
   }
-  run('git fetch template main --depth=1')
+  run('git', ['fetch', 'template', 'main', '--depth=1'])
 
   const ref = getTemplateRef()
   const trackedFiles = buildTrackedFiles(ref)

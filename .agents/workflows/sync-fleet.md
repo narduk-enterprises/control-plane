@@ -6,7 +6,7 @@ description:
 # Sync Fleet
 
 Pushes template infrastructure files and layer code from `narduk-nuxt-template`
-to fleet apps in `~/new-code/template-apps/`.
+to fleet apps in `~/new-code/template-apps/` using fresh clones by default.
 
 > [!IMPORTANT] All commands run from the **template repo root**:
 > `~/new-code/narduk-nuxt-template`
@@ -20,20 +20,6 @@ Ask: **"Sync all fleet apps, or a specific app? (e.g. `tide-check`)"**
 - If the user names one or more apps → use the **Single / Filtered** path (Step
   2a).
 - If the user says "all" → use the **Full Fleet** path (Step 2b).
-
----
-
-## 1. Ensure template is clean
-
-// turbo
-
-```bash
-cd ~/new-code/narduk-nuxt-template && git status --porcelain
-```
-
-If output is non-empty, stop and tell the user:
-
-> Template has uncommitted changes. Commit or stash before syncing.
 
 ---
 
@@ -90,12 +76,17 @@ cd ~/new-code/narduk-nuxt-template && pnpm run sync:fleet -- --auto-commit
 
 | Flag                | Description                               |
 | ------------------- | ----------------------------------------- |
+| `--no-fresh-clone`  | Reuse existing local clone directory instead of re-cloning |
 | `--dry-run`         | Preview changes without writing           |
 | `--skip-quality`    | Skip `pnpm quality` per app               |
 | `--auto-commit`     | Auto-commit each app after sync           |
 | `--repos=app1,app2` | Sync only specific apps (comma-separated) |
 | `--jobs=N`          | Number of parallel workers (default: 4)   |
 | `--allow-dirty-app` | Sync on top of local app changes          |
+
+`sync-fleet` now uses fresh clones by default, so local dirty state in
+`~/new-code/template-apps` is not used as a precondition. Pass
+`--no-fresh-clone` to run against the current local checkout instead.
 
 ### Examples
 

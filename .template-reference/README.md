@@ -5,6 +5,7 @@ copies** for files that are intentionally allowed to stay app-local.
 
 They exist so each app can keep a customized:
 
+- `AGENTS.md`
 - `apps/web/AGENTS.md`
 - `tools/AGENTS.md`
 - `CONTRIBUTING.md`
@@ -15,6 +16,7 @@ while still having a current template baseline to diff against.
 Typical workflow in a downstream app:
 
 ```bash
+diff -u .template-reference/AGENTS.md AGENTS.md
 diff -u .template-reference/apps/web/AGENTS.md apps/web/AGENTS.md
 diff -u .template-reference/tools/AGENTS.md tools/AGENTS.md
 diff -u .template-reference/CONTRIBUTING.md CONTRIBUTING.md

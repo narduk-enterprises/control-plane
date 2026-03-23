@@ -136,12 +136,28 @@ export function defineSharedNotificationsContract(
       await page.goto('/')
       await waitForHydration(page)
 
-      // Register fresh user and check they start with 0 notifications
-      const email = createUniqueEmail(`${appName}-patch`)
-      await registerAndLogin(page, { name: 'Patch User', email, password: 'password123' })
+      await loginAsAdmin(page)
 
       const countBefore = await fetchUnreadCountViaApi(page)
-      expect(countBefore).toBe(0)
+      expect(countBefore).toBeGreaterThan(0)
+
+      const data = await fetchNotificationsViaApi(page)
+      const unread = data.notifications.find((n: { isRead: boolean }) => !n.isRead)
+
+      expect(unread).toBeDefined()
+
+      const response = await page.evaluate(async (id: string) => {
+        const response = await fetch(`/api/notifications/${id}`, {
+          method: 'PATCH',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        return response.status
+      }, unread!.id)
+
+      expect(response).toBe(200)
+
+      const countAfter = await fetchUnreadCountViaApi(page)
+      expect(countAfter).toBeLessThanOrEqual(countBefore - 1)
     })
 
     test('DELETE /api/notifications/:id requires authentication', async ({ page }) => {

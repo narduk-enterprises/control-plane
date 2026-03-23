@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S pnpm exec tsx
 /**
  * Wires each agent’s `skills` directory to the global library at ~/.skills:
  * - `.cursor/skills`, `.codex/skills`, `.agent/skills`, `.github/skills` → ~/.skills
@@ -98,7 +98,8 @@ function ensureSymlink(
     try {
       rmSync(linkPath, { recursive: true, force: true })
     } catch (err: unknown) {
-      const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : ''
+      const code =
+        err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : ''
       if (code !== 'ENOENT') {
         throw err
       }

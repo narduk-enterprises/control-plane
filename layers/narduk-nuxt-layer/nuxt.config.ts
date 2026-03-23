@@ -1,7 +1,7 @@
-import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
 
 function readPackageVersion(): string {
   const candidates = [
@@ -25,7 +25,7 @@ function readPackageVersion(): string {
 
 function readGitSha(): string {
   try {
-    return execSync('git rev-parse --short=12 HEAD', {
+    return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
       cwd: process.cwd(),
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],

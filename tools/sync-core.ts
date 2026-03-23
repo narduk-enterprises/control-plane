@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process'
 import {
   copyFileSync,
   existsSync,
@@ -14,6 +13,7 @@ import {
 } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
 import { ensureSkillsLinks } from './ensure-skills-links'
+import { runCommand } from './command'
 import {
   BOOTSTRAP_SYNC_FILES,
   FLEET_ROOT_SCRIPT_PATCHES,
@@ -49,13 +49,20 @@ function createCounters(): SyncCounters {
   return { copied: 0, skipped: 0, removed: 0 }
 }
 
-function run(command: string, cwd: string) {
-  execSync(command, { cwd, stdio: 'inherit' })
+function run(command: string, args: string[], cwd: string) {
+  runCommand(command, args, {
+    cwd,
+    stdio: 'inherit',
+  })
 }
 
-function getOutput(command: string, cwd: string): string {
+function getOutput(command: string, args: string[], cwd: string): string {
   try {
-    return execSync(command, { cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+    return runCommand(command, args, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim()
   } catch {
     return ''
   }
@@ -232,7 +239,7 @@ function ensureTemplateState(
 ) {
   if (dryRun || allowDirtyTemplate) return
 
-  const status = getOutput('git status --porcelain', templateDir)
+  const status = getOutput('git', ['status', '--porcelain'], templateDir)
   if (status) {
     log('❌ Template repository has uncommitted changes.')
     log('   Commit or stash changes before syncing the fleet.')
@@ -248,7 +255,7 @@ function ensureAppState(
 ) {
   if (dryRun || allowDirtyApp) return
 
-  const status = getOutput('git status --porcelain', appDir)
+  const status = getOutput('git', ['status', '--porcelain'], appDir)
   if (status) {
     log('❌ App repository has uncommitted changes.')
     log('   Commit or stash changes before syncing, or re-run with --allow-dirty-app.')
@@ -377,6 +384,41 @@ function patchRootPackage(
         }
 
         pkg.scripts = pkg.scripts || {}
+        for (const scriptName of [
+          'dev:workspace',
+          'dev:showcase',
+          'dev:showcase:no-doppler',
+          'dev:e2e',
+          'db:ready:all',
+          'build:showcase',
+          'deploy:showcase',
+          'test:e2e:showcase',
+          'test:e2e:mapkit',
+          'quality:fleet',
+          'sync:fleet',
+          'sync:fleet:fast',
+          'sync:fleet:dry',
+          'status:fleet',
+          'ship:fleet',
+          'migrate-to-org',
+          'check:reach',
+          'check:fleet-doppler',
+          'validate:fleet',
+          'backfill:packages-read',
+          'tail:fleet',
+          'fetch:fleet',
+          'audit:fleet-themes',
+          'audit:fleet-guardrails',
+          'backfill:secrets',
+          'predeploy',
+          'tail',
+        ]) {
+          if (scriptName in pkg.scripts) {
+            delete pkg.scripts[scriptName]
+            changed = true
+          }
+        }
+
         for (const [name, command] of Object.entries(FLEET_ROOT_SCRIPT_PATCHES)) {
           if (pkg.scripts[name] !== command) {
             pkg.scripts[name] = command
@@ -460,6 +502,10 @@ function patchWebPackage(
 
       pkg.scripts = pkg.scripts || {}
       if (mode === 'full') {
+        if (pkg.name !== 'web') {
+          pkg.name = 'web'
+          changed = true
+        }
         for (const [name, command] of Object.entries(FLEET_WEB_SCRIPT_PATCHES)) {
           if (pkg.scripts[name] !== command) {
             pkg.scripts[name] = command
@@ -599,13 +645,13 @@ function ensureGitHooksPath(
 ): boolean {
   if (!existsSync(join(appDir, '.githooks'))) return false
 
-  const current = getOutput('git config --get core.hooksPath', appDir)
+  const current = getOutput('git', ['config', '--get', 'core.hooksPath'], appDir)
   const normalized = current.replace(/\/+$/, '').replace(/^\.\//, '')
   if (normalized === '.githooks') return false
 
   log('  UPDATE: git core.hooksPath -> .githooks')
   if (!dryRun) {
-    execSync('git config core.hooksPath .githooks', {
+    runCommand('git', ['config', 'core.hooksPath', '.githooks'], {
       cwd: appDir,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -615,12 +661,7 @@ function ensureGitHooksPath(
 
 function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => void): boolean {
   const npmrcPath = join(appDir, '.npmrc')
-  const defaultContent = [
-    '@narduk-enterprises:registry=https://npm.pkg.github.com',
-    '',
-    'strict-peer-dependencies=false',
-    '',
-  ].join('\n')
+  const defaultContent = ['@narduk-enterprises:registry=https://npm.pkg.github.com', ''].join('\n')
 
   if (!existsSync(npmrcPath)) {
     log('  ADD: .npmrc')
@@ -649,17 +690,6 @@ function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => v
     .filter((line) => !line.includes('//npm.pkg.github.com/:_authToken='))
     .filter((line) => !line.includes('Auth token injected via CI env'))
   content = sanitizedLines.join('\n')
-
-  if (content.includes('strict-peer-dependencies=true')) {
-    content = content.replace('strict-peer-dependencies=true', 'strict-peer-dependencies=false')
-  }
-
-  if (!content.includes('strict-peer-dependencies=false')) {
-    if (!content.endsWith('\n')) {
-      content += '\n'
-    }
-    content += 'strict-peer-dependencies=false\n'
-  }
 
   content = `${content
     .split('\n')
@@ -727,7 +757,7 @@ function rewriteLayerRepository(
   const layerPackagePath = join(appDir, 'layers/narduk-nuxt-layer/package.json')
   if (!existsSync(layerPackagePath)) return false
 
-  const originUrl = getOutput('git remote get-url origin', appDir)
+  const originUrl = getOutput('git', ['remote', 'get-url', 'origin'], appDir)
   if (!originUrl) return false
 
   let touched = false
@@ -801,7 +831,7 @@ function runInstallAndQuality(
 
   log('')
   log('Phase 5: Installing dependencies...')
-  run('pnpm install --no-frozen-lockfile', appDir)
+  run('pnpm', ['install', '--no-frozen-lockfile'], appDir)
 
   if (skipQuality) {
     log('')
@@ -811,7 +841,7 @@ function runInstallAndQuality(
 
   log('')
   log('Phase 6: Running quality gate...')
-  run('pnpm run quality:check', appDir)
+  run('pnpm', ['run', 'quality:check'], appDir)
 }
 
 export async function runAppSync(options: RunAppSyncOptions) {
@@ -828,7 +858,7 @@ export async function runAppSync(options: RunAppSyncOptions) {
   ensureTemplateState(options.templateDir, allowDirtyTemplate, dryRun, log)
 
   ensureAppState(options.appDir, allowDirtyApp, dryRun, log)
-  const templateSha = getOutput('git rev-parse HEAD', options.templateDir)
+  const templateSha = getOutput('git', ['rev-parse', 'HEAD'], options.templateDir)
 
   log('')
   log(
@@ -886,7 +916,7 @@ export async function runAppSync(options: RunAppSyncOptions) {
   if (!dryRun && strict && mode === 'full') {
     log('')
     log('Phase 7: Verifying drift state...')
-    run('npx tsx tools/check-drift-ci.ts --strict', options.appDir)
+    run('pnpm', ['exec', 'tsx', 'tools/check-drift-ci.ts', '--strict'], options.appDir)
   }
 
   log('')

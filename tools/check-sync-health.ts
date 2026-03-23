@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S pnpm exec tsx
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -32,6 +32,7 @@ const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
 const LOCKFILE_PATH = join(ROOT_DIR, 'pnpm-lock.yaml')
 const PNPM_VIRTUAL_STORE_DIR = join(ROOT_DIR, 'node_modules', '.pnpm')
 const REFERENCE_BASELINES = [
+  '.template-reference/AGENTS.md',
   '.template-reference/apps/web/AGENTS.md',
   '.template-reference/tools/AGENTS.md',
   '.template-reference/CONTRIBUTING.md',

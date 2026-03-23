@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S pnpm exec tsx
 
 import { join, resolve } from 'node:path'
 import { auditRepoGuardrails, formatGuardrailReport, writeGuardrailArtifact } from './guardrails'

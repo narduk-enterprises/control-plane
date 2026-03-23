@@ -1,32 +1,30 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { CommandOptions, runCommand } from './command'
 
 /**
  * INIT.TS — Nuxt v4 Template Initialization Script (Idempotent)
  * ----------------------------------------------------------------
- * Automates the transformation of a fresh `narduk-nuxt-template` clone into a ready-to-deploy app.
+ * Provisions a generated starter repo into a ready-to-deploy app.
  * Safe to re-run — all steps check for existing state before making changes.
  *
  * Usage:
  *   pnpm run setup -- --name="my-app" --display="My App Name" --url="https://myapp.com"
  *
- * Re-run (repair mode — skip string replacement and README):
+ * Re-run (repair mode — skip template remote guard wording only):
  *   pnpm run setup -- --name="my-app" --display="My App Name" --url="https://myapp.com" --repair
  *
  * What this does:
- * 1. Safely finds and replaces all boilerplate strings (skipped in --repair mode)
+ * 1. Replaces explicit starter placeholders in known metadata/config files
  * 2. Provisions the Cloudflare D1 database (skips if exists)
  * 3. Rewrites `wrangler.json` with the D1 database ID
- * 4. Resets README.md (skipped in --repair mode)
- * 5. Provisions Doppler project and syncs hub secrets (additive only)
- * 6. Sets Doppler CI token on GitHub (skips if token exists)
- * 7. Reports control-plane-managed analytics state and local follow-up guidance
- * 8. Generates favicon assets for apps/web/public from source SVG
- * 9. Cleans up template-specific example apps and configuration.
- * 10. Done — script is kept for future re-runs
+ * 4. Provisions Doppler project and syncs hub secrets (additive only)
+ * 5. Sets Doppler CI token on GitHub (skips if token exists)
+ * 6. Reports control-plane-managed analytics state and local follow-up guidance
+ * 7. Generates favicon assets for apps/web/public from source SVG
+ * 8. Installs git hooks, writes setup sentinels, and records template provenance
  */
 
 // --- 1. Argument Parsing ---
@@ -76,13 +74,39 @@ if (!/^[a-z0-9][a-z0-9-]*$/.test(APP_NAME)) {
 // Detect Doppler CLI availability
 function isDopplerAvailable(): boolean {
   try {
-    execSync('doppler --version', { encoding: 'utf-8', stdio: 'pipe' })
+    runCommand('doppler', ['--version'], { encoding: 'utf-8', stdio: 'pipe' })
     return true
   } catch {
     return false
   }
 }
 const DOPPLER_AVAILABLE = isDopplerAvailable()
+
+function runOutput(command: string, args: string[], options: CommandOptions = {}) {
+  return runCommand(command, args, {
+    encoding: options.encoding ?? 'utf-8',
+    stdio: options.stdio ?? ['pipe', 'pipe', 'pipe'],
+    cwd: options.cwd || ROOT_DIR,
+    env: options.env,
+  })
+}
+
+function runQuiet(command: string, args: string[], options: CommandOptions = {}) {
+  try {
+    return runOutput(command, args, options).trim()
+  } catch {
+    return ''
+  }
+}
+
+function runInherit(command: string, args: string[], options: CommandOptions = {}) {
+  return runCommand(command, args, {
+    encoding: options.encoding ?? 'utf-8',
+    stdio: options.stdio ?? 'inherit',
+    cwd: options.cwd || ROOT_DIR,
+    env: options.env,
+  })
+}
 
 const APP_DERIVED_NUXT_PORT_BASE = 3200
 const APP_DERIVED_NUXT_PORT_SPAN = 2000
@@ -114,86 +138,70 @@ function resolveLocalNuxtPort(): number {
 const LOCAL_NUXT_PORT = resolveLocalNuxtPort()
 const LOCAL_SITE_URL = `http://localhost:${LOCAL_NUXT_PORT}`
 
-// Boilerplate targets to replace
-// Order matters: more-specific patterns must come before less-specific ones
-// Display name: "Nuxt 4 Demo" is the default app name in nuxt.config.ts (site.name,
-// schemaOrg.identity.name, runtimeConfig fallback) and generate-favicons.mjs. The layer's
-// app.vue reads runtimeConfig.public.appName at runtime, but these build-time values also
-// need to be replaced so SEO metadata matches the project from the first deploy.
-// The layer's scoped package name must NEVER be replaced — it's a stable
-// published identity shared across all consuming apps. We match it first
-// (identity replacement) so the generic `narduk-nuxt-template` pattern below
-// cannot corrupt it.
-const LAYER_PACKAGE = '@narduk-enterprises/narduk-nuxt-template-layer'
-const LAYER_PACKAGE_PLACEHOLDER = '__LAYER_PKG_PLACEHOLDER__'
-const REPLACEMENTS = [
-  // 1. Temporarily replace the protected layer package name with a safe placeholder
-  { from: /@narduk-enterprises\/narduk-nuxt-template-layer/g, to: LAYER_PACKAGE_PLACEHOLDER },
+const STARTER_PLACEHOLDER_FILES = [
+  'doppler.template.yaml',
+  'package.json',
+  'README.md',
+  'apps/web/package.json',
+  'apps/web/nuxt.config.ts',
+  'apps/web/wrangler.json',
+  'apps/web/public/site.webmanifest',
+] as const
 
-  // 2. Perform all standard project renames
-  { from: /narduk-nuxt-template-examples-db/g, to: `${APP_NAME}-examples-db` },
-  { from: /narduk-nuxt-template-examples/g, to: `${APP_NAME}-examples` },
-  { from: /narduk-nuxt-template-db/g, to: `${APP_NAME}-db` },
-  { from: /narduk-nuxt-template/g, to: APP_NAME },
-  { from: /https:\/\/narduk-nuxt-template\.workers\.dev/g, to: SITE_URL },
-  { from: /https:\/\/nard\.uk/g, to: SITE_URL },
-  // Display names: replace both variants so SEO metadata, OG images, and manifest
-  // all reflect the new project name from the first deploy.
-  { from: /Nuxt 4 Template/g, to: DISPLAY_NAME },
-  { from: /Nuxt 4 Demo/g, to: DISPLAY_NAME },
-  // Template-specific site description — replace with a generic one the agent can customize.
+const STARTER_REPLACEMENTS = [
+  { from: /__APP_NAME__/g, to: APP_NAME },
+  { from: /__DISPLAY_NAME__/g, to: DISPLAY_NAME },
+  { from: /__SITE_URL__/g, to: SITE_URL },
   {
-    from: /A production-ready demo template showcasing Nuxt 4, Nuxt UI 4, Tailwind CSS 4, and Cloudflare Workers with D1 database\./g,
+    from: /__APP_DESCRIPTION__/g,
     to: `${DISPLAY_NAME} — powered by Nuxt 4 and Cloudflare Workers.`,
   },
-
-  // 3. Restore the protected layer package name
-  { from: new RegExp(LAYER_PACKAGE_PLACEHOLDER, 'g'), to: LAYER_PACKAGE },
-]
+] as const
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 
 // --- Helper Functions ---
 
-async function walkDir(dir: string): Promise<string[]> {
-  const omitDirs = new Set([
-    'node_modules',
-    '.git',
-    '.nuxt',
-    '.output',
-    'dist',
-    'playwright-report',
-    'test-results',
-    '.DS_Store',
-  ])
-  const files: string[] = []
+async function applyStarterPlaceholders(): Promise<number> {
+  let changedFiles = 0
 
-  const entries = await fs.readdir(dir, { withFileTypes: true })
+  for (const relativePath of STARTER_PLACEHOLDER_FILES) {
+    const absolutePath = path.join(ROOT_DIR, relativePath)
+    let original = ''
 
-  for (const entry of entries) {
-    if (omitDirs.has(entry.name)) continue
+    try {
+      original = await fs.readFile(absolutePath, 'utf-8')
+    } catch {
+      continue
+    }
 
-    const fullPath = path.join(dir, entry.name)
-    if (entry.isDirectory()) {
-      files.push(...(await walkDir(fullPath)))
-    } else {
-      // Exclude binary formats and images
-      if (!entry.name.match(/\.(png|jpe?g|gif|webp|svg|ico|ttf|woff2?|sqlite|db)$/i)) {
-        files.push(fullPath)
-      }
+    let content = original
+    for (const replacement of STARTER_REPLACEMENTS) {
+      content = content.replace(replacement.from, replacement.to)
+    }
+
+    if (content !== original) {
+      await fs.writeFile(absolutePath, content, 'utf-8')
+      changedFiles += 1
     }
   }
-  return files
+
+  return changedFiles
 }
 
 /** Get existing Doppler secret names for a project/config. */
 function getDopplerSecretNames(project: string, config: string): Set<string> {
   try {
-    const output = execSync(
-      `doppler secrets --project ${project} --config ${config} --only-names --plain`,
-      { encoding: 'utf-8', stdio: 'pipe' },
-    )
+    const output = runOutput('doppler', [
+      'secrets',
+      '--project',
+      project,
+      '--config',
+      config,
+      '--only-names',
+      '--plain',
+    ])
     return new Set(output.trim().split('\n').filter(Boolean))
   } catch {
     return new Set()
@@ -203,32 +211,14 @@ function getDopplerSecretNames(project: string, config: string): Set<string> {
 // --- execution ---
 
 async function main() {
-  // Auto-detect if already initialized to protect existing projects
-  try {
-    const pkgContent = await fs.readFile(path.join(ROOT_DIR, 'package.json'), 'utf-8')
-    if (!JSON.parse(pkgContent).name.includes('narduk-nuxt-template')) {
-      REPAIR_MODE = true
-    }
-  } catch {
-    // Ignore
-  }
-
   // Determine if there is a target (non-template) git remote available
   let hasGitRemote = false
-  let githubRepoSlug = ''
   try {
-    const remotesCheck = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+    const remotesCheck = runOutput('git', ['remote', '-v']).trim()
     const pushLine = remotesCheck
       .split('\n')
       .find((line) => !line.includes('narduk-nuxt-template') && line.includes('(push)'))
     hasGitRemote = !!pushLine
-    if (pushLine) {
-      const url = pushLine.split(/\s+/)[1] || ''
-      githubRepoSlug = url
-        .replace(/^(https?:\/\/|git@)/, '')
-        .replace(/^github\.com[:/]/, '')
-        .replace(/\.git$/, '')
-    }
   } catch {
     /* no git or no remotes */
   }
@@ -238,17 +228,18 @@ async function main() {
   // Missing git / no remote is a WARNING — Steps 6/9.5 gracefully skip when hasGitRemote is false.
   if (!REPAIR_MODE) {
     try {
-      const remotesCheck = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+      const remotesCheck = runOutput('git', ['remote', '-v']).trim()
       if (remotesCheck.includes('narduk-nuxt-template')) {
         console.error('\n❌ CRITICAL: Template repository detected.')
         console.error(
-          'You must clear the template history and link to your own repository before running setup.',
+          'Run setup inside a generated starter repo or a repo created from that starter.',
         )
-        console.error('\nPlease run the following commands:')
-        console.error('  rm -rf .git')
+        console.error('\nIf you are working from the authoring workspace, export a starter first:')
+        console.error('  pnpm run export:starter -- ../my-app --force')
+        console.error('  cd ../my-app')
         console.error('  git init')
         console.error('  git remote add origin git@github.com:your-username/my-app.git')
-        console.error('\nThen re-run your setup command.\n')
+        console.error('\nThen re-run your setup command there.\n')
         process.exit(1)
       }
     } catch {
@@ -266,127 +257,20 @@ async function main() {
   const deferred: string[] = []
   const failed: string[] = []
 
-  // 1. Recursive String Replacement
-  if (REPAIR_MODE) {
-    console.log('\nStep 1/10: Replacing boilerplate strings... ⏭ skipped (--repair)')
-
-    // Even in repair mode, ensure wrangler.json name and database_name are correct.
-    // These are critical for deployment — if they still say "narduk-nuxt-template",
-    // the worker deploys to the wrong name.
-    const appsForWrangler = await fs
-      .readdir(path.join(ROOT_DIR, 'apps'), { withFileTypes: true })
-      .catch(() => [])
-    for (const entry of appsForWrangler) {
-      if (!entry.isDirectory() || entry.name.startsWith('example-')) continue
-      const wranglerPath = path.join(ROOT_DIR, 'apps', entry.name, 'wrangler.json')
-      try {
-        const content = await fs.readFile(wranglerPath, 'utf-8')
-        const parsed = JSON.parse(content)
-        let changed = false
-        // Replace worker name: template name → app name (with suffix for non-web apps)
-        if (parsed.name && parsed.name.includes('narduk-nuxt-template')) {
-          parsed.name = entry.name === 'web' ? APP_NAME : `${APP_NAME}-${entry.name}`
-          changed = true
-        }
-        // Replace database name
-        if (parsed.d1_databases?.[0]?.database_name?.includes('narduk-nuxt-template')) {
-          parsed.d1_databases[0].database_name = parsed.d1_databases[0].database_name.replace(
-            'narduk-nuxt-template',
-            APP_NAME,
-          )
-          changed = true
-        }
-        if (changed) {
-          await fs.writeFile(wranglerPath, JSON.stringify(parsed, null, 2) + '\n', 'utf-8')
-          console.log(`  ✅ Fixed wrangler.json for apps/${entry.name} (name → ${parsed.name})`)
-        }
-      } catch {
-        /* no wrangler.json */
-      }
-    }
+  // 1. Targeted placeholder replacement
+  console.log(`\nStep 1/8: Applying starter placeholders${REPAIR_MODE ? ' [REPAIR MODE]' : ''}...`)
+  const changedFiles = await applyStarterPlaceholders()
+  if (changedFiles > 0) {
+    console.log(`  ✅ Updated ${changedFiles} starter metadata file(s).`)
+    completed.push('Starter metadata placeholders')
   } else {
-    console.log('\nStep 1/10: Replacing boilerplate strings...')
-    const files = await walkDir(ROOT_DIR)
-    let changedFiles = 0
-
-    for (const file of files) {
-      // Skip this init script so we don't dynamically break the replacements
-      if (file.endsWith('tools/init.ts') || file.endsWith('tools/validate.ts')) continue
-      // Skip documentation files — they reference the template name intentionally
-      if (file.endsWith('.md')) continue
-
-      const original = await fs.readFile(file, 'utf-8')
-      let content = original
-
-      // Protect the layer's package identity — the layer's `name` field must remain
-      // stable because it's a published workspace dependency referenced by consuming apps.
-      const isLayerPkg = /layers\/[^/]+\/package\.json$/.test(file)
-      let preservedName: string | undefined
-      if (isLayerPkg) {
-        try {
-          preservedName = JSON.parse(original).name
-        } catch {
-          /* not valid JSON, skip preservation */
-        }
-      }
-
-      for (const r of REPLACEMENTS) {
-        content = content.replace(r.from, r.to)
-      }
-
-      // Restore the preserved layer package name after replacements
-      if (preservedName && isLayerPkg) {
-        try {
-          const parsed = JSON.parse(content)
-          parsed.name = preservedName
-          content = JSON.stringify(parsed, null, 2) + '\n'
-        } catch {
-          /* not valid JSON after replacement, skip */
-        }
-      }
-
-      if (original !== content) {
-        await fs.writeFile(file, content, 'utf-8')
-        changedFiles++
-      }
-    }
-    console.log(`  ✅ Updated ${changedFiles} files.`)
-    completed.push('String replacement')
-
-    // Targeted .md replacement: update Doppler project names and clone URLs in
-    // CONTRIBUTING.md and example READMEs. We skip:
-    //   - AGENTS.md files (intentional template/clone safety warnings)
-    //   - Root README.md (overwritten in Step 4)
-    //   - layers/ .md files (reference the layer's published package identity)
-    //   - .agents/workflows/ .md files (instructional references to the template)
-    const mdFiles = (await walkDir(ROOT_DIR)).filter(
-      (f) =>
-        f.endsWith('.md') &&
-        !f.endsWith('AGENTS.md') &&
-        f !== path.join(ROOT_DIR, 'README.md') &&
-        !f.includes(`${path.sep}layers${path.sep}`) &&
-        !f.includes(`${path.sep}.agents${path.sep}`),
+    console.log(
+      '  ⏭ No starter placeholders found (already applied or running in authoring workspace).',
     )
-    let mdChanged = 0
-    for (const file of mdFiles) {
-      const original = await fs.readFile(file, 'utf-8')
-      let content = original
-      // Replace Doppler project name and template-specific display names
-      content = content.replace(/narduk-nuxt-template/g, APP_NAME)
-      content = content.replace(/Nuxt 4 Template/g, DISPLAY_NAME)
-      content = content.replace(/Nuxt 4 Demo/g, DISPLAY_NAME)
-      if (original !== content) {
-        await fs.writeFile(file, content, 'utf-8')
-        mdChanged++
-      }
-    }
-    if (mdChanged > 0) {
-      console.log(`  ✅ Updated ${mdChanged} markdown files (Doppler refs, display names).`)
-    }
   }
 
   // 2. Database Provisioning (per-app — each app gets its own D1 database)
-  console.log('\nStep 2/10: Provisioning D1 Databases...')
+  console.log('\nStep 2/8: Provisioning D1 Databases...')
 
   // If D1_DATABASE_ID is pre-provisioned by Control Plane API, skip wrangler creation
   const preProvisionedD1Id = process.env.D1_DATABASE_ID
@@ -414,7 +298,7 @@ async function main() {
     // Try to create first
     try {
       console.log(`  Running: pnpm exec wrangler d1 create ${name}`)
-      execSync(`pnpm exec wrangler d1 create ${name}`, { encoding: 'utf-8', stdio: 'pipe' })
+      runInherit('pnpm', ['exec', 'wrangler', 'd1', 'create', name], { cwd: ROOT_DIR })
       console.log(`  ✅ Database created: ${name}`)
     } catch (error: any) {
       const stderr = error.stderr || ''
@@ -428,9 +312,8 @@ async function main() {
 
     // Always fetch the ID via --json for reliable parsing
     try {
-      const infoOutput = execSync(`pnpm exec wrangler d1 info ${name} --json`, {
+      const infoOutput = runOutput('pnpm', ['exec', 'wrangler', 'd1', 'info', name, '--json'], {
         encoding: 'utf-8',
-        stdio: 'pipe',
       })
       const info = JSON.parse(infoOutput)
       const dbId = info.uuid || info.database_id
@@ -445,7 +328,7 @@ async function main() {
   }
 
   // 3. Link each app to its own dedicated D1 database
-  console.log('\nStep 3/10: Linking Databases to wrangler.json...')
+  console.log('\nStep 3/8: Linking Databases to wrangler.json...')
   const appsDir = path.join(ROOT_DIR, 'apps')
   let appDirs: string[] = []
   try {
@@ -527,36 +410,8 @@ async function main() {
     completed.push('wrangler.json configuration')
   }
 
-  // 4. Reset README
-  if (REPAIR_MODE) {
-    console.log('\nStep 4/10: Resetting README.md... ⏭ skipped (--repair)')
-  } else {
-    console.log('\nStep 4/10: Resetting README.md...')
-    const readmeContent = `# ${DISPLAY_NAME}
-
-**${APP_NAME}** — initialized from \`narduk-nuxt-template\`.
-
-## Live Site
-[${SITE_URL}](${SITE_URL})
-
-## Local Development
-
-1. Setup environment variables (e.g. via Doppler)
-2. Run database migration: \`pnpm run db:migrate\`
-3. Start dev server: \`doppler run -- pnpm run dev\`
-4. Local URL: \`${LOCAL_SITE_URL}\`
-
-## Deployment
-
-Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
-`
-    await fs.writeFile(path.join(ROOT_DIR, 'README.md'), readmeContent, 'utf-8')
-    console.log(`  ✅ Generated fresh README.`)
-    completed.push('README.md')
-  }
-
-  // 5. Doppler Registration (additive — won't clobber existing secrets)
-  console.log('\nStep 5/10: Provisioning Doppler Project...')
+  // 4. Doppler Registration (additive — won't clobber existing secrets)
+  console.log('\nStep 4/8: Provisioning Doppler Project...')
   if (process.env.DOPPLER_PRE_PROVISIONED) {
     console.log('  ⏭ Doppler project pre-provisioned by Control Plane API.')
     completed.push('Doppler project + hub secrets (pre-provisioned)')
@@ -567,10 +422,13 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
   } else {
     console.log(`  Running: doppler projects create ${APP_NAME}`)
     try {
-      execSync(
-        `doppler projects create ${APP_NAME} --description "${DISPLAY_NAME} auto-provisioned"`,
-        { encoding: 'utf-8', stdio: 'pipe' },
-      )
+      runInherit('doppler', [
+        'projects',
+        'create',
+        APP_NAME,
+        '--description',
+        `${DISPLAY_NAME} auto-provisioned`,
+      ])
       console.log(`  ✅ Doppler project created: ${APP_NAME}`)
     } catch (error: any) {
       const stderr = error.stderr || ''
@@ -614,10 +472,16 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
       // Hub refs: verify resolved value matches hub, overwrite if stale
       let hubToken = ''
       try {
-        const hubJson = execSync(
-          'doppler secrets get CLOUDFLARE_API_TOKEN --project narduk-nuxt-template --config prd --json',
-          { encoding: 'utf-8', stdio: 'pipe' },
-        )
+        const hubJson = runOutput('doppler', [
+          'secrets',
+          'get',
+          'CLOUDFLARE_API_TOKEN',
+          '--project',
+          'narduk-nuxt-template',
+          '--config',
+          'prd',
+          '--json',
+        ])
         hubToken = JSON.parse(hubJson).CLOUDFLARE_API_TOKEN?.computed || ''
       } catch {
         /* hub unavailable */
@@ -628,10 +492,16 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
       if (hubToken) {
         let spokeToken = ''
         try {
-          const spokeJson = execSync(
-            `doppler secrets get CLOUDFLARE_API_TOKEN --project ${APP_NAME} --config prd --json`,
-            { encoding: 'utf-8', stdio: 'pipe' },
-          )
+          const spokeJson = runOutput('doppler', [
+            'secrets',
+            'get',
+            'CLOUDFLARE_API_TOKEN',
+            '--project',
+            APP_NAME,
+            '--config',
+            'prd',
+            '--json',
+          ])
           spokeToken = JSON.parse(spokeJson).CLOUDFLARE_API_TOKEN?.computed || ''
         } catch {
           /* not set */
@@ -640,7 +510,7 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         if (spokeToken !== hubToken) {
           // Stale or missing — force all hub refs
           for (const [key, val] of Object.entries(hubRefs)) {
-            toSet.push(`${key}='${val}'`)
+            toSet.push(`${key}=${val}`)
           }
         }
       } else {
@@ -658,19 +528,17 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
       // CRON_SECRET: per-app random value for cron routes (e.g. cache warming)
       if (!existing.has('CRON_SECRET')) {
         const cronSecret = crypto.randomBytes(32).toString('hex')
-        toSet.push(`CRON_SECRET='${cronSecret}'`)
+        toSet.push(`CRON_SECRET=${cronSecret}`)
       }
 
       // NUXT_SESSION_PASSWORD: per-app secure random value for session encryption
       if (!existing.has('NUXT_SESSION_PASSWORD')) {
         const sessionPassword = crypto.randomBytes(32).toString('hex')
-        toSet.push(`NUXT_SESSION_PASSWORD='${sessionPassword}'`)
+        toSet.push(`NUXT_SESSION_PASSWORD=${sessionPassword}`)
       }
 
       if (toSet.length > 0) {
-        execSync(`doppler secrets set ${toSet.join(' ')} --project ${APP_NAME} --config prd`, {
-          stdio: 'pipe',
-        })
+        runInherit('doppler', [...toSet, '--project', APP_NAME, '--config', 'prd'])
         console.log(
           `  ✅ Synced ${toSet.length} credentials (prd): ${toSet.map((s) => s.split('=')[0]).join(', ')}`,
         )
@@ -681,21 +549,19 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
       // Mirror secrets to dev config so local development works immediately.
       // Override SITE_URL to localhost for dev environment.
       const devSet = toSet.map((s) => {
-        if (s.startsWith("SITE_URL='")) return `SITE_URL='${LOCAL_SITE_URL}'`
+        if (s.startsWith('SITE_URL=')) return `SITE_URL=${LOCAL_SITE_URL}`
         return s
       })
       // Ensure SITE_URL is always present in dev even if it wasn't in the prd toSet
-      if (!devSet.some((s) => s.startsWith("SITE_URL='"))) {
-        devSet.push(`SITE_URL='${LOCAL_SITE_URL}'`)
+      if (!devSet.some((s) => s.startsWith('SITE_URL='))) {
+        devSet.push(`SITE_URL=${LOCAL_SITE_URL}`)
       }
-      if (!devSet.some((s) => s.startsWith("NUXT_PORT='"))) {
-        devSet.push(`NUXT_PORT='${LOCAL_NUXT_PORT}'`)
+      if (!devSet.some((s) => s.startsWith('NUXT_PORT='))) {
+        devSet.push(`NUXT_PORT=${LOCAL_NUXT_PORT}`)
       }
       if (devSet.length > 0) {
         try {
-          execSync(`doppler secrets set ${devSet.join(' ')} --project ${APP_NAME} --config dev`, {
-            stdio: 'pipe',
-          })
+          runInherit('doppler', [...devSet, '--project', APP_NAME, '--config', 'dev'])
           console.log(
             `  ✅ Synced ${devSet.length} credentials (dev): ${devSet.map((s) => s.split('=')[0]).join(', ')}`,
           )
@@ -710,21 +576,18 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         const devExisting = getDopplerSecretNames(APP_NAME, 'dev')
         const devBackfill: string[] = []
         if (!devExisting.has('SITE_URL')) {
-          devBackfill.push(`SITE_URL='${LOCAL_SITE_URL}'`)
+          devBackfill.push(`SITE_URL=${LOCAL_SITE_URL}`)
         }
         if (!devExisting.has('NUXT_PORT')) {
-          devBackfill.push(`NUXT_PORT='${LOCAL_NUXT_PORT}'`)
+          devBackfill.push(`NUXT_PORT=${LOCAL_NUXT_PORT}`)
         }
         for (const [key, val] of Object.entries(hubRefs)) {
           if (!devExisting.has(key)) {
-            devBackfill.push(`${key}='${val}'`)
+            devBackfill.push(`${key}=${val}`)
           }
         }
         if (devBackfill.length > 0) {
-          execSync(
-            `doppler secrets set ${devBackfill.join(' ')} --project ${APP_NAME} --config dev`,
-            { stdio: 'pipe' },
-          )
+          runInherit('doppler', [...devBackfill, '--project', APP_NAME, '--config', 'dev'])
           console.log(
             `  ✅ Backfilled ${devBackfill.length} hub reference(s) into dev: ${devBackfill.map((s) => s.slice(0, s.indexOf('='))).join(', ')}`,
           )
@@ -739,8 +602,8 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     completed.push('Doppler project + hub secrets')
   }
 
-  // 6. Doppler Service Token → GitHub Secret (skip if token exists)
-  console.log('\nStep 6/10: Adding Doppler token to GitHub repository...')
+  // 5. Doppler Service Token → GitHub Secret (skip if token exists)
+  console.log('\nStep 5/8: Adding Doppler token to GitHub repository...')
   if (process.env.DOPPLER_PRE_PROVISIONED) {
     console.log('  ⏭ Doppler token + GitHub secrets pre-provisioned by Control Plane API.')
     completed.push('GitHub DOPPLER_TOKEN secret (pre-provisioned)')
@@ -763,10 +626,15 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         // Check if ci-deploy token already exists
         let tokenExists = false
         try {
-          const tokensOutput = execSync(
-            `doppler configs tokens --project ${APP_NAME} --config prd --plain`,
-            { encoding: 'utf-8', stdio: 'pipe' },
-          )
+          const tokensOutput = runOutput('doppler', [
+            'configs',
+            'tokens',
+            '--project',
+            APP_NAME,
+            '--config',
+            'prd',
+            '--plain',
+          ])
           tokenExists = tokensOutput.includes('ci-deploy')
         } catch {
           // If listing fails, proceed with creation attempt
@@ -777,10 +645,17 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
             `  ⏭ ci-deploy token already exists. Skipping to avoid invalidating active CI token.`,
           )
         } else {
-          const dopplerToken = execSync(
-            `doppler configs tokens create ci-deploy --project ${APP_NAME} --config prd --plain`,
-            { encoding: 'utf-8', stdio: 'pipe' },
-          ).trim()
+          const dopplerToken = runOutput('doppler', [
+            'configs',
+            'tokens',
+            'create',
+            'ci-deploy',
+            '--project',
+            APP_NAME,
+            '--config',
+            'prd',
+            '--plain',
+          ]).trim()
 
           if (!dopplerToken) {
             throw new Error('Doppler returned an empty token.')
@@ -789,7 +664,7 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
           // Automatically determine the target GitHub repository (excluding narduk-nuxt-template)
           let targetRepoFlag = ''
           try {
-            const remotesOutput = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' })
+            const remotesOutput = runOutput('git', ['remote', '-v'])
             const remotes = remotesOutput.split('\n').filter(Boolean)
             const targetRemoteLine = remotes.find(
               (line) => !line.includes('narduk-nuxt-template') && line.includes('(push)'),
@@ -801,7 +676,7 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
                 url = url.replace(/^github\.com[:/]/, '')
                 url = url.replace(/\.git$/, '')
                 if (url) {
-                  targetRepoFlag = `--repo "${url}"`
+                  targetRepoFlag = `--repo=${url}`
                   console.log(`  🎯 Automatically selected GitHub repository for secrets: ${url}`)
                 }
               }
@@ -811,10 +686,14 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
           }
 
           // Upload to GitHub as a repository secret via gh CLI
-          execSync(`gh secret set DOPPLER_TOKEN ${targetRepoFlag} --body "${dopplerToken}"`, {
-            encoding: 'utf-8',
-            stdio: 'pipe',
-          })
+          runInherit('gh', [
+            'secret',
+            'set',
+            'DOPPLER_TOKEN',
+            ...(targetRepoFlag ? [targetRepoFlag] : []),
+            '--body',
+            dopplerToken,
+          ])
           console.log(`  ✅ DOPPLER_TOKEN set as GitHub Actions secret.`)
           completed.push('GitHub DOPPLER_TOKEN secret')
         }
@@ -832,8 +711,8 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     }
   }
 
-  // 6.5. Local Doppler Setup (skip if in CI)
-  console.log('\nStep 6.5/10: Configuring local Doppler environment...')
+  // 5.5. Local Doppler Setup (skip if in CI)
+  console.log('\nStep 5.5/8: Configuring local Doppler environment...')
 
   // Write doppler.yaml for local development convenience.
   // Note: this file is gitignored and must be recreated by each developer.
@@ -851,10 +730,7 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     console.log('  ⏭ Running in CI; skipping local Doppler setup command.')
   } else {
     try {
-      execSync(`doppler setup --project ${APP_NAME} --config dev`, {
-        encoding: 'utf-8',
-        stdio: 'pipe',
-      })
+      runInherit('doppler', ['setup', '--project', APP_NAME, '--config', 'dev'])
       console.log(`  ✅ Local Doppler environment configured for project: ${APP_NAME} (dev config)`)
       completed.push('Local Doppler environment')
     } catch (error: any) {
@@ -864,8 +740,8 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     }
   }
 
-  // 7. Analytics Provisioning (each service internally skips if already configured)
-  console.log('\nStep 7/10: Control-plane managed analytics...')
+  // 6. Analytics Provisioning (each service internally skips if already configured)
+  console.log('\nStep 6/8: Control-plane managed analytics...')
   if (process.env.GA_PROPERTY_ID && process.env.GA_MEASUREMENT_ID) {
     console.log('  ⏭ GA4 pre-provisioned by Control Plane API.')
     console.log(`  📋 Property ID: ${process.env.GA_PROPERTY_ID}`)
@@ -878,13 +754,13 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     console.log('  ⏭ Initial GA4, GSC, and IndexNow provisioning is handled by the control plane.')
     console.log('     The template setup script no longer provisions analytics directly.')
     console.log(
-      `     If GSC ownership still needs to be finalized after deploy, run: doppler run --project ${APP_NAME} --config prd -- npx tsx tools/gsc-verify.ts`,
+      `     If GSC ownership still needs to be finalized after deploy, run: doppler run --project ${APP_NAME} --config prd -- pnpm exec tsx tools/gsc-verify.ts`,
     )
     deferred.push('Analytics provisioning (use control plane)')
   }
 
-  // 8. Generate Favicons for apps/web
-  console.log('\nStep 8/10: Generating favicon assets for apps/web...')
+  // 7. Generate Favicons for apps/web
+  console.log('\nStep 7/8: Generating favicon assets for apps/web...')
   try {
     const webPublicDir = path.join(ROOT_DIR, 'apps', 'web', 'public')
     const webFaviconSvg = path.join(webPublicDir, 'favicon.svg')
@@ -895,11 +771,21 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
         .catch(() => false)
     ) {
       console.log('  Installing ephemeral dependencies (sharp)...')
-      execSync('pnpm add -w --save-dev sharp', { encoding: 'utf-8', stdio: 'pipe' })
+      runInherit('pnpm', ['add', '-w', '--save-dev', 'sharp'])
 
-      execSync(
-        `npx tsx tools/generate-favicons.ts --target=apps/web/public --name="${DISPLAY_NAME}" --short-name="${DISPLAY_NAME.slice(0, 12)}"`,
-        { stdio: 'inherit', cwd: ROOT_DIR },
+      runInherit(
+        'pnpm',
+        [
+          'exec',
+          'tsx',
+          'tools/generate-favicons.ts',
+          `--target=apps/web/public`,
+          `--name=${DISPLAY_NAME}`,
+          `--short-name=${DISPLAY_NAME.slice(0, 12)}`,
+        ],
+        {
+          cwd: ROOT_DIR,
+        },
       )
       console.log('  ✅ Favicon assets generated for apps/web.')
     } else {
@@ -911,273 +797,9 @@ Deployment is done locally via \`pnpm run ship\` (see AGENTS.md).
     console.warn('    Run manually: pnpm generate:favicons -- --target=apps/web/public')
   }
 
-  // 9. Template Cleanup
-  // Split into 9a (always run — idempotent cleanup) and 9b (first-run only — config rewrites)
-  console.log('\nStep 9/10: Cleaning up template examples and configs...')
-
-  // 9a: Always run — delete example apps and template-only workflows (idempotent via force: true)
+  console.log('\nStep 8/8: Installing git hooks and finalizing setup...')
   try {
-    const rmOptions = { recursive: true, force: true }
-    const dirsToRemove = [path.join(ROOT_DIR, 'apps', 'showcase')]
-
-    const appsContent = await fs
-      .readdir(path.join(ROOT_DIR, 'apps'), { withFileTypes: true })
-      .catch(() => [])
-    for (const entry of appsContent) {
-      if (entry.isDirectory() && entry.name.startsWith('example-')) {
-        dirsToRemove.push(path.join(ROOT_DIR, 'apps', entry.name))
-      }
-    }
-
-    let removedCount = 0
-    for (const dir of dirsToRemove) {
-      try {
-        await fs.stat(dir)
-        await fs.rm(dir, rmOptions)
-        removedCount++
-      } catch {
-        // Directory doesn't exist — already cleaned
-      }
-    }
-
-    // Remove template-only GitHub workflows (idempotent via force: true)
-    const templateOnlyWorkflows = [
-      'deploy-showcase.yml',
-      'publish-layer.yml',
-      'sync-fleet.yml',
-      'template-sync-bot.yml',
-      'version-bump.yml',
-      'weekly-drift-check.yml',
-    ]
-    for (const wf of templateOnlyWorkflows) {
-      await fs.rm(path.join(ROOT_DIR, '.github', 'workflows', wf), rmOptions)
-    }
-
-    if (removedCount > 0) {
-      console.log(`  ✅ Removed ${removedCount} example/showcase directories.`)
-    } else {
-      console.log('  ⏭ No example apps to clean (already removed).')
-    }
-  } catch (error: any) {
-    console.warn(`  ⚠️ Example cleanup failed: ${error.message}`)
-  }
-
-  // 9b: First-run only — strip plugin test scripts, rewrite CI/playwright configs, prune root scripts
-  if (REPAIR_MODE) {
-    console.log('  ⏭ Config rewrites skipped (--repair)')
-  } else {
-    try {
-      // Prune root package.json scripts
-      const rootPkgPath = path.join(ROOT_DIR, 'package.json')
-      const rootPkgContent = await fs.readFile(rootPkgPath, 'utf-8')
-      const rootPkg = JSON.parse(rootPkgContent)
-      if (rootPkg.scripts) {
-        const scriptsToRemove = Object.keys(rootPkg.scripts).filter(
-          (s) =>
-            s.includes('showcase') ||
-            s.includes('auth') ||
-            s.includes('blog') ||
-            s.includes('marketing') ||
-            s.includes('og-image') ||
-            s.includes('apple-maps') ||
-            s === 'dev:e2e' ||
-            s === 'dev:all' ||
-            s === 'db:ready:all',
-        )
-        for (const script of scriptsToRemove) {
-          delete rootPkg.scripts[script]
-        }
-
-        // Update web filter scripts to target APP_NAME
-        for (const [key, value] of Object.entries(rootPkg.scripts)) {
-          if (typeof value === 'string') {
-            rootPkg.scripts[key] = value.replace(/--filter web\b/g, `--filter ${APP_NAME}`)
-          }
-        }
-
-        await fs.writeFile(rootPkgPath, JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8')
-      }
-
-      // Explicitly rename apps/web/package.json and harden deps/scripts
-      const webPkgPath = path.join(ROOT_DIR, 'apps', 'web', 'package.json')
-      try {
-        const webPkgContent = await fs.readFile(webPkgPath, 'utf-8')
-        const webPkg = JSON.parse(webPkgContent)
-        webPkg.name = APP_NAME
-
-        // Ensure critical deps survive setup (agents need these for typecheck).
-        // Uses ||= so existing version pins are not overwritten.
-        const criticalDeps: Record<string, string> = { 'drizzle-orm': '^0.45.1', zod: '^4.3.6' }
-        const criticalDevDeps: Record<string, string> = {
-          '@cloudflare/workers-types': '^4.20250303.0',
-          '@iconify-json/lucide': '^1.2.94',
-        }
-        webPkg.dependencies = webPkg.dependencies || {}
-        webPkg.devDependencies = webPkg.devDependencies || {}
-        for (const [dep, ver] of Object.entries(criticalDeps)) {
-          webPkg.dependencies[dep] ||= ver
-        }
-        for (const [dep, ver] of Object.entries(criticalDevDeps)) {
-          webPkg.devDependencies[dep] ||= ver
-        }
-
-        // Ensure db:migrate and db:seed scripts reference the correct database name
-        // (guards against partial string-replacement in Step 1)
-        if (webPkg.scripts?.['db:migrate']) {
-          webPkg.scripts['db:migrate'] = webPkg.scripts['db:migrate'].replace(
-            /narduk-nuxt-template-db/g,
-            `${APP_NAME}-db`,
-          )
-        }
-        if (webPkg.scripts?.['db:seed']) {
-          webPkg.scripts['db:seed'] = webPkg.scripts['db:seed'].replace(
-            /narduk-nuxt-template-db/g,
-            `${APP_NAME}-db`,
-          )
-        }
-
-        await fs.writeFile(webPkgPath, JSON.stringify(webPkg, null, 2) + '\n', 'utf-8')
-        console.log(`  ✅ Updated apps/web/package.json (name, deps, scripts)`)
-      } catch {
-        /* ignore */
-      }
-
-      // Strip test and quality scripts from all eslint packages so implementing repositories
-      // don't run internal template tests or lint the linters.
-      const eslintPkgPaths = [
-        path.join(ROOT_DIR, 'packages', 'eslint-config', 'package.json'),
-        path.join(
-          ROOT_DIR,
-          'packages',
-          'eslint-config',
-          'eslint-plugin-nuxt-guardrails',
-          'package.json',
-        ),
-        path.join(ROOT_DIR, 'packages', 'eslint-config', 'eslint-plugin-nuxt-ui', 'package.json'),
-        path.join(
-          ROOT_DIR,
-          'packages',
-          'eslint-config',
-          'eslint-plugin-vue-official-best-practices',
-          'package.json',
-        ),
-      ]
-      for (const pkgPath of eslintPkgPaths) {
-        try {
-          const pkgContent = await fs.readFile(pkgPath, 'utf-8')
-          const pkg = JSON.parse(pkgContent)
-          if (pkg.scripts) {
-            const scriptsToRemove = [
-              'quality',
-              'test',
-              'test:watch',
-              'test:plugins',
-              'lint',
-              'typecheck',
-            ]
-            for (const script of scriptsToRemove) {
-              delete pkg.scripts[script]
-            }
-            await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
-          }
-        } catch (err: any) {
-          // ignore
-        }
-      }
-
-      // Replace ci.yml with a slim version that calls reusable workflows from the template repo.
-      // This eliminates CI drift — when the template updates its workflows, all derived apps benefit.
-      const ciYamlPath = path.join(ROOT_DIR, '.github', 'workflows', 'ci.yml')
-      try {
-        const slimCi = `name: CI
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-concurrency:
-  group: ci-\${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  quality:
-    uses: narduk-enterprises/narduk-nuxt-template/.github/workflows/reusable-quality.yml@main
-`
-        await fs.writeFile(ciYamlPath, slimCi, 'utf-8')
-      } catch (ciErr: any) {
-        console.warn(`  ⚠️ Could not update ci.yml: ${ciErr.message}`)
-      }
-
-      // Remove reusable workflow definitions (they live in the template repo, not derived apps)
-      for (const wf of ['reusable-quality.yml', 'reusable-deploy.yml']) {
-        await fs.rm(path.join(ROOT_DIR, '.github', 'workflows', wf), { force: true })
-      }
-
-      // Rewrite playwright.config.ts to simple web configuration
-      const playwrightConfigPath = path.join(ROOT_DIR, 'playwright.config.ts')
-      const playwrightContent = `import { defineConfig, devices } from '@playwright/test'
-
-const nuxtPort = Number(process.env.NUXT_PORT || ${LOCAL_NUXT_PORT})
-const baseURL = \`http://localhost:\${Number.isFinite(nuxtPort) ? nuxtPort : ${LOCAL_NUXT_PORT}}\`
-
-export default defineConfig({
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  maxFailures: process.env.CI ? undefined : 1,
-  reporter: 'html',
-  timeout: 15_000,
-  expect: { timeout: 2_000 },
-  use: {
-    trace: 'on-first-retry',
-    actionTimeout: 3_000,
-    navigationTimeout: 5_000,
-  },
-  webServer: {
-    command: 'pnpm run dev',
-    url: baseURL,
-    reuseExistingServer: true,
-    timeout: 30_000,
-  },
-  projects: [
-    {
-      name: 'web',
-      testDir: 'apps/web/tests/e2e',
-      use: { ...devices['Desktop Chrome'], baseURL },
-    },
-  ],
-})
-`
-      await fs.writeFile(playwrightConfigPath, playwrightContent, 'utf-8')
-
-      // Sync the lockfile after all package.json modifications in Steps 9a/9b.
-      // Without this, the build agent's first `pnpm install --frozen-lockfile` in CI will fail.
-      console.log('  📦 Syncing lockfile after package.json modifications...')
-      try {
-        execSync('pnpm install --no-frozen-lockfile', { stdio: 'inherit', cwd: ROOT_DIR })
-        console.log('  ✅ Lockfile synced.')
-      } catch (installErr: any) {
-        console.warn(`  ⚠️ pnpm install failed: ${installErr.message}`)
-        console.warn('    Run manually: pnpm install')
-      }
-
-      console.log('  ✅ Cleaned up example apps, workflows, and package/playwright config.')
-      completed.push('Template cleanup + lockfile sync')
-    } catch (error: any) {
-      console.warn(`  ⚠️ Template cleanup failed: ${error.message}`)
-      failed.push('Template cleanup')
-    }
-  }
-
-  console.log('\nStep 9.5/10: Installing git hooks...')
-  try {
-    execSync('git config core.hooksPath .githooks', {
-      cwd: ROOT_DIR,
-      stdio: 'pipe',
-    })
+    runInherit('git', ['config', 'core.hooksPath', '.githooks'], { cwd: ROOT_DIR })
     console.log('  ✅ git core.hooksPath set to .githooks')
     completed.push('Git hooks')
   } catch (error: any) {
@@ -1185,7 +807,6 @@ export default defineConfig({
     deferred.push('Git hooks (run: git config core.hooksPath .githooks)')
   }
 
-  // 10. Done (script is kept for re-runs)
   // Write the bootstrap sentinel so pre* hooks allow dev/build/deploy
   await fs.writeFile(
     path.join(ROOT_DIR, '.setup-complete'),
@@ -1196,11 +817,7 @@ export default defineConfig({
   // Record the template SHA this app was spawned from (used by drift detection in CI)
   let templateSha = ''
   try {
-    templateSha = execSync('git rev-parse HEAD', {
-      encoding: 'utf-8',
-      stdio: 'pipe',
-      cwd: ROOT_DIR,
-    }).trim()
+    templateSha = runOutput('git', ['rev-parse', 'HEAD'], { cwd: ROOT_DIR }).trim()
   } catch {
     /* pre-init state — no commits yet */
   }
@@ -1214,7 +831,7 @@ export default defineConfig({
   ].join('\n')
   await fs.writeFile(path.join(ROOT_DIR, '.template-version'), templateVersionContent, 'utf-8')
 
-  console.log('\nStep 10/10: Complete!')
+  console.log('\nSetup complete.')
 
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('  SETUP SUMMARY')

@@ -1,19 +1,66 @@
-import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { runCommand } from './command'
 
-function run(cmd: string, cwd = process.cwd()) {
-  console.log(`\n> ${cmd}`)
-  execSync(cmd, { stdio: 'inherit', cwd })
+function run(command: string, args: string[] = [], cwd = process.cwd()) {
+  console.log(`\n> ${command} ${args.join(' ')}`.trim())
+  runCommand(command, args, { stdio: 'inherit', cwd })
 }
 
-function runQuiet(cmd: string, cwd = process.cwd()) {
+function runQuiet(command: string, args: string[] = [], cwd = process.cwd()) {
   try {
-    return execSync(cmd, { cwd, stdio: ['ignore', 'pipe', 'ignore'] })
-      .toString()
-      .trim()
+    return runCommand(command, args, {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      cwd,
+    }).trim()
   } catch (e) {
     return ''
+  }
+}
+
+function tokenizeCommand(command: string): string[] {
+  const tokens = command.match(/"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|([^\s"']+)/g)
+  if (!tokens) return []
+
+  return tokens.map((token) => {
+    if (token.startsWith('"') && token.endsWith('"')) {
+      return token.slice(1, -1)
+    }
+    if (token.startsWith("'") && token.endsWith("'")) {
+      return token.slice(1, -1)
+    }
+    return token
+  })
+}
+
+function parseMigrateCommand(rawCommand: string): string[] {
+  if (/[;&|`$<>]/.test(rawCommand)) {
+    throw new Error(`Unsafe db:migrate script: ${rawCommand}`)
+  }
+
+  const tokens = tokenizeCommand(rawCommand)
+  if (tokens.length === 0) {
+    throw new Error('Empty db:migrate script.')
+  }
+
+  return tokens
+}
+
+function buildFleetSyncUrl(baseUrl: string, appName: string): string | null {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*$/.test(appName)) {
+    return null
+  }
+
+  try {
+    const parsed = new URL(baseUrl)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null
+
+    const basePath = (parsed.pathname || '').replace(/\/$/, '')
+    const path = `${basePath}/api/fleet/apps/${encodeURIComponent(appName)}`
+    return `${parsed.origin}${path}`
+  } catch {
+    return null
   }
 }
 
@@ -41,7 +88,7 @@ async function shipApp(appTarget: string) {
   // 1. Build Verification
   console.log(`\n🏗️ Building ${appTarget}...`)
   try {
-    run('doppler run -- pnpm run build', appDir)
+    run('doppler', ['run', '--', 'pnpm', 'run', 'build'], appDir)
   } catch (error) {
     console.error(`\n❌ Build failed for ${appTarget}. Aborting ship to prevent broken commit.`)
     process.exit(1)
@@ -49,26 +96,26 @@ async function shipApp(appTarget: string) {
 
   // 2. Git operations
   console.log(`\n📦 Checking git status...`)
-  run('git add -A')
+  run('git', ['add', '-A'], appDir)
 
   let hasChanges = false
   try {
-    execSync('git diff --cached --quiet')
+    runCommand('git', ['diff', '--cached', '--quiet'], { cwd: appDir })
   } catch (e) {
     hasChanges = true
   }
 
   if (hasChanges) {
     const date = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
-    run(`git commit -m "chore: ship ${date}"`)
+    run('git', ['commit', '-m', `chore: ship ${date}`], appDir)
   } else {
     console.log('No changes to commit.')
   }
 
   console.log(`\n🔄 Fetching remote...`)
-  run('git fetch')
+  run('git', ['fetch'], appDir)
   try {
-    execSync('git merge-base --is-ancestor @{u} HEAD')
+    runCommand('git', ['merge-base', '--is-ancestor', '@{u}', 'HEAD'], { cwd: appDir })
   } catch (e) {
     console.error(
       '\n❌ Remote has changes not in local branch. Run: git pull --rebase && pnpm ship\n',
@@ -77,20 +124,20 @@ async function shipApp(appTarget: string) {
   }
 
   console.log(`\n🚀 Pushing to remote...`)
-  run('git push')
+  run('git', ['push'], appDir)
 
   // 3. Remote Migrations
   if (hasMigrate && pkg) {
     console.log(`\n🗄️ Running remote D1 migrations for ${appTarget}...`)
     const migrateCmd = pkg.scripts['db:migrate'].replaceAll('--local', '--remote')
-    const escaped = migrateCmd.replace(/\$/g, '\\$').replace(/"/g, '\\"')
-    run(`doppler run -- bash -c "${escaped}"`, appDir)
+    const migrateArgs = parseMigrateCommand(migrateCmd)
+    run('doppler', ['run', '--', ...migrateArgs], appDir)
   }
 
   // 4. Deploy
   console.log(`\n☁️ Deploying ${appTarget} to Edge...`)
   try {
-    run('doppler run -- pnpm run deploy', appDir)
+    run('doppler', ['run', '--', 'pnpm', 'run', 'deploy'], appDir)
   } catch (error) {
     console.error(`\n❌ Deploy failed for ${appTarget}.`)
     process.exit(1)
@@ -101,14 +148,30 @@ async function shipApp(appTarget: string) {
   try {
     const controlPlaneUrl =
       process.env.CONTROL_PLANE_URL ||
-      runQuiet('doppler secrets get CONTROL_PLANE_URL --plain', appDir)
-    const siteUrl = process.env.SITE_URL || runQuiet('doppler secrets get SITE_URL --plain', appDir)
+      runQuiet('doppler', ['secrets', 'get', 'CONTROL_PLANE_URL', '--plain'], appDir)
+    const siteUrl =
+      process.env.SITE_URL || runQuiet('doppler', ['secrets', 'get', 'SITE_URL', '--plain'], appDir)
     const appName =
-      process.env.APP_NAME || runQuiet('doppler secrets get APP_NAME --plain', appDir) || appTarget
+      process.env.APP_NAME ||
+      runQuiet('doppler', ['secrets', 'get', 'APP_NAME', '--plain'], appDir) ||
+      appTarget
 
-    if (controlPlaneUrl && siteUrl) {
-      const curlCmd = `curl -s -X PUT "${controlPlaneUrl}/api/fleet/apps/${appName}" -H "Content-Type: application/json" -d '{"url": "${siteUrl}", "isActive": true}'`
-      execSync(curlCmd, { stdio: 'ignore' })
+    const fleetSyncUrl = controlPlaneUrl && buildFleetSyncUrl(controlPlaneUrl.trim(), appName)
+    if (fleetSyncUrl && siteUrl) {
+      runCommand(
+        'curl',
+        [
+          '-s',
+          '-X',
+          'PUT',
+          fleetSyncUrl,
+          '-H',
+          'Content-Type: application/json',
+          '-d',
+          JSON.stringify({ url: siteUrl, isActive: true }),
+        ],
+        { stdio: 'ignore' },
+      )
       console.log(`✅ Fleet registry synced for ${appName}.`)
     } else {
       console.log(`⏭ CONTROL_PLANE_URL or SITE_URL not set — skipping fleet sync.`)

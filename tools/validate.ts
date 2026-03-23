@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { runCommand } from './command'
 
 /**
  * VALIDATE.TS — Nuxt v4 Template Setup Validation Script
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
  * provisioned for the current project.
  *
  * Usage:
- *   npm run validate
+ *   pnpm run validate
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -20,9 +20,14 @@ const ROOT_DIR = path.resolve(__dirname, '..')
 const TEMPLATE_NAME = ['narduk', 'nuxt', 'template'].join('-')
 
 // --- Helper Functions ---
-function checkCommand(command: string, successMessage: string, errorMessage: string) {
+function checkCommand(
+  command: string,
+  args: string[],
+  successMessage: string,
+  errorMessage: string,
+) {
   try {
-    execSync(command, { encoding: 'utf-8', stdio: 'pipe' })
+    runCommand(command, args, { encoding: 'utf-8', stdio: 'pipe' })
     console.log(`  ✅ ${successMessage}`)
     return true
   } catch (error: any) {
@@ -63,7 +68,8 @@ async function main() {
             checkedAny = true
             allGood =
               checkCommand(
-                `npx wrangler d1 info ${dbName}`,
+                'pnpm',
+                ['exec', 'wrangler', 'd1', 'info', dbName],
                 `Database ${dbName} exists (apps/${appDir}).`,
                 `Database ${dbName} not found (apps/${appDir})`,
               ) && allGood
@@ -124,7 +130,8 @@ async function main() {
   console.log('\nStep 3/6: Validating Doppler Configuration...')
   let dopplerOk = true
   dopplerOk = checkCommand(
-    `doppler projects get ${APP_NAME}`,
+    'doppler',
+    ['projects', 'get', APP_NAME],
     `Doppler project ${APP_NAME} exists.`,
     `Doppler project ${APP_NAME} not found`,
   )
@@ -132,8 +139,9 @@ async function main() {
 
   if (dopplerOk) {
     try {
-      const output = execSync(
-        `doppler secrets --project ${APP_NAME} --config prd --only-names --plain`,
+      const output = runCommand(
+        'doppler',
+        ['secrets', '--project', APP_NAME, '--config', 'prd', '--only-names', '--plain'],
         { encoding: 'utf-8', stdio: 'pipe' },
       )
       const existing = new Set(output.trim().split('\n').filter(Boolean))
@@ -153,8 +161,18 @@ async function main() {
       }
 
       try {
-        const agentAdminApiKey = execSync(
-          `doppler secrets get AGENT_ADMIN_API_KEY --project ${APP_NAME} --config prd --plain`,
+        const agentAdminApiKey = runCommand(
+          'doppler',
+          [
+            'secrets',
+            'get',
+            'AGENT_ADMIN_API_KEY',
+            '--project',
+            APP_NAME,
+            '--config',
+            'prd',
+            '--plain',
+          ],
           { encoding: 'utf-8', stdio: 'pipe' },
         ).trim()
 
@@ -200,14 +218,16 @@ async function main() {
 
     for (const { key, hub, config } of hubChecks) {
       try {
-        const hubJson = execSync(
-          `doppler secrets get ${key} --project ${hub} --config ${config} --json`,
+        const hubJson = runCommand(
+          'doppler',
+          ['secrets', 'get', key, '--project', hub, '--config', config, '--json'],
           { encoding: 'utf-8', stdio: 'pipe' },
         )
         const hubValue = JSON.parse(hubJson)[key]?.computed || ''
 
-        const spokeJson = execSync(
-          `doppler secrets get ${key} --project ${APP_NAME} --config prd --json`,
+        const spokeJson = runCommand(
+          'doppler',
+          ['secrets', 'get', key, '--project', APP_NAME, '--config', 'prd', '--json'],
           { encoding: 'utf-8', stdio: 'pipe' },
         )
         const spokeValue = JSON.parse(spokeJson)[key]?.computed || ''
@@ -235,7 +255,7 @@ async function main() {
   // Check if gh CLI is available before attempting to list secrets
   let ghAvailable = false
   try {
-    execSync('gh --version', { encoding: 'utf-8', stdio: 'pipe' })
+    runCommand('gh', ['--version'], { encoding: 'utf-8', stdio: 'pipe' })
     ghAvailable = true
   } catch {
     /* gh not installed */
@@ -247,7 +267,10 @@ async function main() {
   } else {
     let targetRepoFlag = ''
     try {
-      const remotesOutput = execSync('git remote -v', { encoding: 'utf-8', stdio: 'pipe' })
+      const remotesOutput = runCommand('git', ['remote', '-v'], {
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      })
       const remotes = remotesOutput.split('\n').filter(Boolean)
       const targetRemoteLine = remotes.find(
         (line) => !line.includes(TEMPLATE_NAME) && line.includes('(push)'),
@@ -259,7 +282,7 @@ async function main() {
           .replace(/^github\.com[:/]/, '')
           .replace(/\.git$/, '')
         if (url) {
-          targetRepoFlag = `--repo "${url}"`
+          targetRepoFlag = url
           console.log(`  🎯 Checking secrets for repository: ${url}`)
         }
       }
@@ -268,10 +291,11 @@ async function main() {
     }
 
     try {
-      const ghOutput = execSync(`gh secret list ${targetRepoFlag}`, {
-        encoding: 'utf-8',
-        stdio: 'pipe',
-      })
+      const ghOutput = runCommand(
+        'gh',
+        ['secret', 'list', ...(targetRepoFlag ? ['--repo', targetRepoFlag] : [])],
+        { encoding: 'utf-8', stdio: 'pipe' },
+      )
       if (ghOutput.includes('DOPPLER_TOKEN')) {
         console.log(`  ✅ DOPPLER_TOKEN is set in GitHub repository.`)
       } else {

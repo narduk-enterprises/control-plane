@@ -1,8 +1,8 @@
-import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runAppSync } from './sync-core'
+import { runCommand } from './command'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = join(__dirname, '..')
@@ -17,7 +17,7 @@ function resolveTemplateDir(args: string[]): string {
   }
 
   try {
-    const originUrl = execSync('git remote get-url origin', {
+    const originUrl = runCommand('git', ['remote', 'get-url', 'origin'], {
       cwd: ROOT_DIR,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
