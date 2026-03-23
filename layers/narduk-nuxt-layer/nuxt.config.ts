@@ -101,6 +101,12 @@ export default defineNuxtConfig({
     appleSecretKey: process.env.APPLE_SECRET_KEY || '',
     mapkitServerApiKey: process.env.MAPKIT_SERVER_API_KEY || '',
     public: {
+      /** Canonical site URL — required by IndexNow submit and OG URLs. */
+      appUrl: process.env.SITE_URL || '',
+      appName: process.env.APP_NAME || '',
+      posthogPublicKey: process.env.POSTHOG_PUBLIC_KEY || '',
+      /** Served at /{key}.txt via layer route; set INDEXNOW_KEY in Doppler. */
+      indexNowKey: process.env.INDEXNOW_KEY || '',
       mapkitToken: process.env.MAPKIT_TOKEN || '',
       appVersion,
       buildVersion,
