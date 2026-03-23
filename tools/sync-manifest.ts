@@ -45,6 +45,7 @@ export const RECURSIVE_SYNC_DIRECTORIES = [
   '.agents/workflows',
   // ui-ux-pro-max payload lives under `.template-reference/ui-ux-pro-max/`.
   // Per-agent `*/skills` dirs are local symlinks to ~/.skills (see skills:link).
+  '.agents',
   '.agent',
   '.codex',
   '.github/prompts',

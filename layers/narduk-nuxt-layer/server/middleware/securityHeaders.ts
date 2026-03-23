@@ -28,11 +28,6 @@ const BASELINE_CONNECT_SRC = [
   'https://us-assets.i.posthog.com',
   'https://*.apple-mapkit.com',
   'https://*.apple.com',
-  // Nuxt Icon falls back to Iconify's API when an icon is not present in the local bundles.
-  'https://api.iconify.design',
-  // Iconify's public client automatically fails over to these backup hosts.
-  'https://api.simplesvg.com',
-  'https://api.unisvg.com',
 ]
 
 const DEV_CONNECT_SRC = ['http:', 'https:', 'ws:', 'wss:']

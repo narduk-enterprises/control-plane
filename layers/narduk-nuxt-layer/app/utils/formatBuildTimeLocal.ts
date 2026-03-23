@@ -1,7 +1,4 @@
-export function formatBuildTimeLocal(
-  buildTime: string | null | undefined,
-  fallback = '',
-): string {
+export function formatBuildTimeLocal(buildTime: string | null | undefined, fallback = ''): string {
   if (!buildTime) return fallback
 
   const date = new Date(buildTime)

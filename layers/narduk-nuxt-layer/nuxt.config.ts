@@ -65,8 +65,10 @@ export default defineNuxtConfig({
 
   icon: {
     // Downstream apps frequently resolve icon names dynamically from props, CMS data,
-    // or database rows. Scan-only client bundles miss those names and icons disappear
-    // after hydration, so keep the client runtime flexible and only constrain SSR.
+    // or database rows. Keep the client runtime flexible, but serve Lucide from the
+    // local Nuxt endpoint so fleet apps never depend on Iconify's public API or CORS.
+    provider: 'server',
+    fallbackToApi: false,
     serverBundle: {
       collections: ['lucide'],
     },
@@ -107,6 +109,7 @@ export default defineNuxtConfig({
       appVersion,
       buildVersion,
       buildTime,
+      controlPlaneUrl: process.env.CONTROL_PLANE_URL || '',
       gaMeasurementId: process.env.GA_MEASUREMENT_ID || '',
       posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
       cspScriptSrc: process.env.CSP_SCRIPT_SRC || '',
