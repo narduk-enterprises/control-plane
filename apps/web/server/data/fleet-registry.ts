@@ -8,7 +8,7 @@
  */
 import { eq } from 'drizzle-orm'
 import { fleetApps } from '#server/database/schema'
-import { deleteD1CacheKeys } from '#layer/server/utils/d1Cache'
+import { getD1CacheDB } from '#layer/server/utils/d1Cache'
 import type { FleetApp } from '#server/database/schema'
 import type { H3Event } from 'h3'
 
@@ -47,5 +47,14 @@ export async function getFleetAppByName(
 }
 
 export async function invalidateFleetAppListCache(event: H3Event): Promise<number> {
-  return deleteD1CacheKeys(event, FLEET_APP_CACHE_KEYS)
+  const d1 = getD1CacheDB(event)
+  if (!d1) return 0
+
+  const placeholders = FLEET_APP_CACHE_KEYS.map(() => '?').join(', ')
+  const result = await d1
+    .prepare(`DELETE FROM kv_cache WHERE key IN (${placeholders})`)
+    .bind(...FLEET_APP_CACHE_KEYS)
+    .run()
+
+  return result.meta?.changes ?? 0
 }

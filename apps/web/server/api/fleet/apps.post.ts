@@ -1,7 +1,6 @@
 import { z } from 'zod'
-import { readBody } from 'h3'
-import { requireAdmin } from '#layer/server/utils/auth'
-import { enforceRateLimit } from '#layer/server/utils/rateLimit'
+import { eq } from 'drizzle-orm'
+import { defineAdminMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { fleetApps } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
@@ -24,51 +23,44 @@ const bodySchema = z.object({
  * POST /api/fleet/apps
  * Add a new fleet app to the registry.
  */
-export default defineEventHandler(async (event) => {
-  await enforceRateLimit(event, 'fleet-apps', 20, 60_000)
-  await requireAdmin(event)
+export default defineAdminMutation(
+  {
+    rateLimit: { namespace: 'fleet-apps', maxRequests: 20, windowMs: 60_000 },
+    parseBody: async (event) => readValidatedMutationBody(event, bodySchema.parse),
+  },
+  async ({ event, body }) => {
+    const { name, url, gaPropertyId, gaMeasurementId, posthogAppName, githubRepo, isActive } = body
+    const dopplerProject = body.dopplerProject ?? name
+    const now = new Date().toISOString()
 
-  const body = await readBody(event)
-  const parsed = bodySchema.safeParse(body)
-  if (!parsed.success) {
-    throw createError({
-      statusCode: 400,
-      message: `Validation error: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
+    const db = useDatabase(event)
+
+    // Check for existing app
+    const existing = await db
+      .select()
+      .from(fleetApps)
+      .where(eq(fleetApps.name, name))
+      .limit(1)
+      .all()
+    if (existing.length > 0) {
+      throw createError({ statusCode: 409, message: `App '${name}' already exists.` })
+    }
+
+    await db.insert(fleetApps).values({
+      name,
+      url,
+      dopplerProject,
+      gaPropertyId: gaPropertyId ?? null,
+      gaMeasurementId: gaMeasurementId ?? null,
+      posthogAppName: posthogAppName ?? null,
+      githubRepo: githubRepo ?? null,
+      isActive,
+      createdAt: now,
+      updatedAt: now,
     })
-  }
 
-  const { name, url, gaPropertyId, gaMeasurementId, posthogAppName, githubRepo, isActive } =
-    parsed.data
-  const dopplerProject = parsed.data.dopplerProject ?? name
-  const now = new Date().toISOString()
+    await invalidateFleetAppListCache(event)
 
-  const db = useDatabase(event)
-
-  // Check for existing app
-  const existing = await db
-    .select()
-    .from(fleetApps)
-    .where((await import('drizzle-orm')).eq(fleetApps.name, name))
-    .limit(1)
-    .all()
-  if (existing.length > 0) {
-    throw createError({ statusCode: 409, message: `App '${name}' already exists.` })
-  }
-
-  await db.insert(fleetApps).values({
-    name,
-    url,
-    dopplerProject,
-    gaPropertyId: gaPropertyId ?? null,
-    gaMeasurementId: gaMeasurementId ?? null,
-    posthogAppName: posthogAppName ?? null,
-    githubRepo: githubRepo ?? null,
-    isActive,
-    createdAt: now,
-    updatedAt: now,
-  })
-
-  await invalidateFleetAppListCache(event)
-
-  return { ok: true, app: name }
-})
+    return { ok: true, app: name }
+  },
+)

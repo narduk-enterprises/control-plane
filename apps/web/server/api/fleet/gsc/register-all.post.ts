@@ -1,5 +1,6 @@
 import { GSC_SCOPES } from '#layer/server/utils/google'
 import { getFleetApps } from '#server/data/fleet-registry'
+import { definePublicMutation } from '#layer/server/utils/mutation'
 
 /**
  * POST /api/fleet/gsc/register-all
@@ -13,72 +14,74 @@ import { getFleetApps } from '#server/data/fleet-registry'
  * However, service accounts with domain-level verification (via Google Workspace
  * or Cloud Identity) can programmatically claim sites.
  */
-export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig()
-  const cronHeader = getHeader(event, 'x-internal-cron')
-  if (!(config.cronSecret && cronHeader === config.cronSecret)) {
-    await requireAdmin(event)
-  }
-  await enforceRateLimit(event, 'gsc-register', 5, 60_000)
+export default definePublicMutation(
+  { rateLimit: { namespace: 'gsc-register', maxRequests: 5, windowMs: 60_000 } },
+  async ({ event }) => {
+    const config = useRuntimeConfig()
+    const cronHeader = getHeader(event, 'x-internal-cron')
+    if (!(config.cronSecret && cronHeader === config.cronSecret)) {
+      await requireAdmin(event)
+    }
 
-  const apps = await getFleetApps(event)
+    const apps = await getFleetApps(event)
 
-  // Get access token for GSC
-  const { getAccessToken } = await import('#layer/server/utils/google')
-  const token = await getAccessToken(GSC_SCOPES)
+    // Get access token for GSC
+    const { getAccessToken } = await import('#layer/server/utils/google')
+    const token = await getAccessToken(GSC_SCOPES)
 
-  const results: {
-    app: string
-    url: string
-    siteUrl: string
-    status: 'registered' | 'failed'
-    error?: string
-  }[] = []
+    const results: {
+      app: string
+      url: string
+      siteUrl: string
+      status: 'registered' | 'failed'
+      error?: string
+    }[] = []
 
-  for (const app of apps) {
-    const hostname = new URL(app.url).hostname
-    const siteUrl = `sc-domain:${hostname}`
+    for (const app of apps) {
+      const hostname = new URL(app.url).hostname
+      const siteUrl = `sc-domain:${hostname}`
 
-    try {
-      const response = await fetch(
-        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+      try {
+        const response = await fetch(
+          `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}`,
+          {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
           },
-        },
-      )
+        )
 
-      if (response.ok || response.status === 204) {
-        results.push({ app: app.name, url: app.url, siteUrl, status: 'registered' })
-      } else {
-        const body = await response.text().catch(() => '')
+        if (response.ok || response.status === 204) {
+          results.push({ app: app.name, url: app.url, siteUrl, status: 'registered' })
+        } else {
+          const body = await response.text().catch(() => '')
+          results.push({
+            app: app.name,
+            url: app.url,
+            siteUrl,
+            status: 'failed',
+            error: `${response.status}: ${body.slice(0, 200)}`,
+          })
+        }
+      } catch (err: unknown) {
         results.push({
           app: app.name,
           url: app.url,
           siteUrl,
           status: 'failed',
-          error: `${response.status}: ${body.slice(0, 200)}`,
+          error: (err as Error).message,
         })
       }
-    } catch (err: unknown) {
-      results.push({
-        app: app.name,
-        url: app.url,
-        siteUrl,
-        status: 'failed',
-        error: (err as Error).message,
-      })
     }
-  }
 
-  const registered = results.filter((r) => r.status === 'registered').length
-  const failed = results.filter((r) => r.status === 'failed').length
+    const registered = results.filter((r) => r.status === 'registered').length
+    const failed = results.filter((r) => r.status === 'failed').length
 
-  return {
-    summary: { total: results.length, registered, failed },
-    results,
-  }
-})
+    return {
+      summary: { total: results.length, registered, failed },
+      results,
+    }
+  },
+)

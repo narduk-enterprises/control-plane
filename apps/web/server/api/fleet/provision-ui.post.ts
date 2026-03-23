@@ -1,7 +1,5 @@
 import { z } from 'zod'
-import { readBody } from 'h3'
-import { requireAdmin } from '#layer/server/utils/auth'
-import { enforceRateLimit } from '#layer/server/utils/rateLimit'
+import { defineAdminMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 
 const bodySchema = z.object({
   name: z
@@ -22,37 +20,31 @@ const bodySchema = z.object({
  * Session-auth'd wrapper around the PROVISION_API_KEY-protected provision endpoint.
  * Called by the browser UI — proxies to POST /api/fleet/provision with the server-side API key.
  */
-export default defineEventHandler(async (event) => {
-  await enforceRateLimit(event, 'fleet-provision-ui', 10, 60_000)
-  await requireAdmin(event)
+export default defineAdminMutation(
+  {
+    rateLimit: { namespace: 'fleet-provision-ui', maxRequests: 10, windowMs: 60_000 },
+    parseBody: async (event) => readValidatedMutationBody(event, bodySchema.parse),
+  },
+  async ({ event, body }) => {
+    const config = useRuntimeConfig(event)
+    if (!config.provisionApiKey) {
+      throw createError({
+        statusCode: 500,
+        message: 'PROVISION_API_KEY not configured on this control plane instance.',
+      })
+    }
 
-  const body = await readBody(event)
-  const parsed = bodySchema.safeParse(body)
-  if (!parsed.success) {
-    throw createError({
-      statusCode: 400,
-      message: `Validation error: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
+    // Use event.$fetch to preserve Cloudflare platform bindings (D1, KV, etc.)
+    const result = await event.$fetch('/api/fleet/provision', {
+      method: 'POST',
+      body,
+      headers: {
+        Authorization: `Bearer ${config.provisionApiKey}`,
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
     })
-  }
 
-  const config = useRuntimeConfig(event)
-  if (!config.provisionApiKey) {
-    throw createError({
-      statusCode: 500,
-      message: 'PROVISION_API_KEY not configured on this control plane instance.',
-    })
-  }
-
-  // Use event.$fetch to preserve Cloudflare platform bindings (D1, KV, etc.)
-  const result = await event.$fetch('/api/fleet/provision', {
-    method: 'POST',
-    body: parsed.data,
-    headers: {
-      Authorization: `Bearer ${config.provisionApiKey}`,
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-  })
-
-  return result
-})
+    return result
+  },
+)

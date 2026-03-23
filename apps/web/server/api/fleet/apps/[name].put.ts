@@ -1,8 +1,6 @@
 import { z } from 'zod'
-import { readBody } from 'h3'
 import { eq } from 'drizzle-orm'
-import { requireAdmin } from '#layer/server/utils/auth'
-import { enforceRateLimit } from '#layer/server/utils/rateLimit'
+import { defineAdminMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { fleetApps } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
@@ -20,49 +18,40 @@ const bodySchema = z.object({
  * PUT /api/fleet/apps/[name]
  * Update an existing fleet app in the registry.
  */
-export default defineEventHandler(async (event) => {
-  await enforceRateLimit(event, 'fleet-apps', 20, 60_000)
-  await requireAdmin(event)
+export default defineAdminMutation(
+  {
+    rateLimit: { namespace: 'fleet-apps', maxRequests: 20, windowMs: 60_000 },
+    parseBody: async (event) => readValidatedMutationBody(event, bodySchema.parse),
+  },
+  async ({ event, body }) => {
+    const appName = getRouterParam(event, 'name')
+    if (!appName) throw createError({ statusCode: 400, message: 'Missing app name' })
 
-  const appName = getRouterParam(event, 'name')
-  if (!appName) throw createError({ statusCode: 400, message: 'Missing app name' })
+    const db = useDatabase(event)
 
-  const body = await readBody(event)
-  const parsed = bodySchema.safeParse(body)
-  if (!parsed.success) {
-    throw createError({
-      statusCode: 400,
-      message: `Validation error: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
-    })
-  }
+    // Check app exists
+    const existing = await db
+      .select()
+      .from(fleetApps)
+      .where(eq(fleetApps.name, appName))
+      .limit(1)
+      .all()
+    if (existing.length === 0) {
+      throw createError({ statusCode: 404, message: `App '${appName}' not found.` })
+    }
 
-  const db = useDatabase(event)
+    const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() }
+    if (body.url !== undefined) updates.url = body.url
+    if (body.dopplerProject !== undefined) updates.dopplerProject = body.dopplerProject
+    if (body.gaPropertyId !== undefined) updates.gaPropertyId = body.gaPropertyId ?? null
+    if (body.gaMeasurementId !== undefined) updates.gaMeasurementId = body.gaMeasurementId ?? null
+    if (body.posthogAppName !== undefined) updates.posthogAppName = body.posthogAppName ?? null
+    if (body.githubRepo !== undefined) updates.githubRepo = body.githubRepo ?? null
+    if (body.isActive !== undefined) updates.isActive = body.isActive
 
-  // Check app exists
-  const existing = await db
-    .select()
-    .from(fleetApps)
-    .where(eq(fleetApps.name, appName))
-    .limit(1)
-    .all()
-  if (existing.length === 0) {
-    throw createError({ statusCode: 404, message: `App '${appName}' not found.` })
-  }
+    await db.update(fleetApps).set(updates).where(eq(fleetApps.name, appName))
+    await invalidateFleetAppListCache(event)
 
-  const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() }
-  if (parsed.data.url !== undefined) updates.url = parsed.data.url
-  if (parsed.data.dopplerProject !== undefined) updates.dopplerProject = parsed.data.dopplerProject
-  if (parsed.data.gaPropertyId !== undefined)
-    updates.gaPropertyId = parsed.data.gaPropertyId ?? null
-  if (parsed.data.gaMeasurementId !== undefined)
-    updates.gaMeasurementId = parsed.data.gaMeasurementId ?? null
-  if (parsed.data.posthogAppName !== undefined)
-    updates.posthogAppName = parsed.data.posthogAppName ?? null
-  if (parsed.data.githubRepo !== undefined) updates.githubRepo = parsed.data.githubRepo ?? null
-  if (parsed.data.isActive !== undefined) updates.isActive = parsed.data.isActive
-
-  await db.update(fleetApps).set(updates).where(eq(fleetApps.name, appName))
-  await invalidateFleetAppListCache(event)
-
-  return { ok: true, app: appName }
-})
+    return { ok: true, app: appName }
+  },
+)

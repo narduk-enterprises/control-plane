@@ -1,9 +1,10 @@
 import { z } from 'zod'
-import { readBody, getHeader, createError } from 'h3'
+import { createError } from 'h3'
 import { eq } from 'drizzle-orm'
 import { fleetApps, provisionJobs } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
-import { enforceRateLimit } from '#layer/server/utils/rateLimit'
+import { definePublicMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
+import { assertProvisionApiKey } from '#server/utils/provision-api-auth'
 import { createD1Database } from '#server/utils/provision-cloudflare'
 import {
   createDopplerProject,
@@ -57,35 +58,23 @@ const bodySchema = z.object({
  *
  * All steps are idempotent — safe to retry on partial failure or re-provision.
  */
-export default defineEventHandler(async (event) => {
-  await enforceRateLimit(event, 'fleet-provision', 5, 60_000)
-
-  // ── Auth: shared PROVISION_API_KEY ──
-  const config = useRuntimeConfig(event)
-  const authHeader = getHeader(event, 'authorization')
-  const providedKey = authHeader?.replace('Bearer ', '')
-
-  if (!config.provisionApiKey || providedKey !== config.provisionApiKey) {
-    throw createError({
-      statusCode: 401,
-      message: 'Unauthorized — invalid or missing PROVISION_API_KEY',
-    })
-  }
-
-  // ── Validate body ──
-  const body = await readBody(event)
-  const parsed = bodySchema.safeParse(body)
-  if (!parsed.success) {
-    throw createError({
-      statusCode: 400,
-      message: `Validation error: ${parsed.error.issues.map((i) => i.message).join(', ')}`,
-    })
-  }
-
-  const { name, displayName, url, githubOrg } = parsed.data
-  const githubRepo = `${githubOrg}/${name}`
-  const now = new Date().toISOString()
-  const db = useDatabase(event)
+export default definePublicMutation(
+  {
+    rateLimit: { namespace: 'fleet-provision', maxRequests: 5, windowMs: 60_000 },
+    parseBody: async (event) => {
+      assertProvisionApiKey(
+        event,
+        'Unauthorized — invalid or missing PROVISION_API_KEY',
+      )
+      return readValidatedMutationBody(event, bodySchema.parse)
+    },
+  },
+  async ({ event, body }) => {
+    const { name, displayName, url, githubOrg } = body
+    const githubRepo = `${githubOrg}/${name}`
+    const now = new Date().toISOString()
+    const config = useRuntimeConfig(event)
+    const db = useDatabase(event)
 
   /** Helper: update provision job status + optional details */
   async function updateStatus(
@@ -471,4 +460,5 @@ export default defineEventHandler(async (event) => {
     },
     message: `App '${name}' registered and provisioning started. All infrastructure pre-provisioned. Poll GET /api/fleet/provision/${provisionId} for status.`,
   }
-})
+  },
+)
