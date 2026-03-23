@@ -10,6 +10,7 @@ import {
   type FleetApp,
 } from '#server/data/fleet-registry'
 import { appStatus, fleetApps } from '#server/database/schema'
+import { buildPosthogEventWhereClause } from '#server/utils/posthog-query'
 import type { AppStatus } from '#server/database/schema'
 import type {
   AnalyticsTopListItem,
@@ -59,6 +60,11 @@ const HISTORICAL_SUMMARY_STALE_WINDOW_SECONDS = 2 * 24 * 3600
 
 const DETAIL_MODE = 'detail'
 const SUMMARY_MODE = 'summary'
+/**
+ * Bump when analytics query semantics change so cached snapshots refresh
+ * immediately after deploy instead of serving stale provider data.
+ */
+const ANALYTICS_CACHE_VERSION = 'v2'
 
 type SnapshotMode = typeof DETAIL_MODE | typeof SUMMARY_MODE
 
@@ -1156,9 +1162,10 @@ async function runGscSeries(
 
 async function runPosthogSummary(apps: FleetApp[]): Promise<FleetPosthogSummaryResponse['apps']> {
   const config = useRuntimeConfig()
-  const apiKey = config.posthogApiKey as string
-  const projectId = config.posthogProjectId as string
-  const host = (config.posthogHost as string) || 'https://us.i.posthog.com'
+  const apiKey = config.posthogApiKey
+  const projectId = config.posthogProjectId
+  const host = config.posthogHost || 'https://us.i.posthog.com'
+  const internalUsersCohortId = config.posthogInternalUsersCohortId
 
   if (!apiKey || !projectId) {
     throw createProviderError(
@@ -1170,6 +1177,8 @@ async function runPosthogSummary(apps: FleetApp[]): Promise<FleetPosthogSummaryR
   const end = new Date()
   const start = new Date(end)
   start.setDate(start.getDate() - 30)
+  const startISO = start.toISOString().slice(0, 19)
+  const endISO = end.toISOString().slice(0, 19)
 
   const hostToAppMap = new Map<string, string>()
   for (const app of apps) {
@@ -1180,18 +1189,25 @@ async function runPosthogSummary(apps: FleetApp[]): Promise<FleetPosthogSummaryR
     }
   }
 
+  const pageviewWhereClause = buildPosthogEventWhereClause({
+    startISO,
+    endISO,
+    internalUsersCohortId,
+    extraClauses: [
+      "event = '$pageview'",
+      'properties.$host IS NOT NULL',
+      "properties.$host NOT LIKE '%localhost%'",
+      "properties.$host NOT LIKE '%.local%'",
+    ],
+  })
+
   const hogqlQuery = `
     SELECT properties.$host AS app_host,
            count() AS pageviews,
            count(DISTINCT distinct_id) AS unique_users,
            count(DISTINCT properties.$session_id) AS sessions
     FROM events
-    WHERE timestamp >= '${start.toISOString().slice(0, 19)}'
-      AND timestamp <= '${end.toISOString().slice(0, 19)}'
-      AND event = '$pageview'
-      AND properties.$host IS NOT NULL
-      AND properties.$host NOT LIKE '%localhost%'
-      AND properties.$host NOT LIKE '%.local%'
+    ${pageviewWhereClause}
     GROUP BY app_host
     ORDER BY pageviews DESC
   `
@@ -1242,9 +1258,10 @@ async function runPosthogReport(
   summaryOnly: boolean,
 ): Promise<Omit<FleetPosthogResponse, 'fetchedAt'>> {
   const config = useRuntimeConfig()
-  const apiKey = config.posthogApiKey as string
-  const projectId = config.posthogProjectId as string
-  const host = (config.posthogHost as string) || 'https://us.i.posthog.com'
+  const apiKey = config.posthogApiKey
+  const projectId = config.posthogProjectId
+  const host = config.posthogHost || 'https://us.i.posthog.com'
+  const internalUsersCohortId = config.posthogInternalUsersCohortId
 
   if (!apiKey || !projectId) {
     throw createProviderError(
@@ -1254,16 +1271,16 @@ async function runPosthogReport(
   }
 
   const appHost = new URL(app.url).hostname
-  const escapedHost = appHost.replaceAll("'", "\\'")
   const startISO = range.start.toISOString().slice(0, 19)
   const endISO = range.end.toISOString().slice(0, 19)
   const apiUrl = `${host.replace(/\/$/, '')}/api/projects/${projectId}/query/`
 
-  const timeAndAppFilter = `
-    WHERE timestamp >= '${startISO}'
-      AND timestamp <= '${endISO}'
-      AND properties.$host = '${escapedHost}'
-  `
+  const eventWhereClause = buildPosthogEventWhereClause({
+    startISO,
+    endISO,
+    appHost,
+    internalUsersCohortId,
+  })
 
   const summaryQuery = `
     SELECT count() AS event_count,
@@ -1271,7 +1288,7 @@ async function runPosthogReport(
            countIf(event = '$pageview') AS pageviews,
            count(DISTINCT properties.$session_id) AS sessions
     FROM events
-    ${timeAndAppFilter}
+    ${eventWhereClause}
   `
 
   const fetchHogQL = async (query: string) => {
@@ -1322,37 +1339,37 @@ async function runPosthogReport(
   }
 
   const timeSeriesQuery = buildPosthogTimeSeriesQuery(
-    timeAndAppFilter,
+    eventWhereClause,
     classifyPosthogSeriesUnit(range),
   )
 
   const batchedTopQuery = `
     SELECT 'page' AS dimension, properties.$pathname AS name, count() AS cnt
-    FROM events ${timeAndAppFilter} AND event = '$pageview' AND properties.$pathname IS NOT NULL
+    FROM events ${eventWhereClause} AND event = '$pageview' AND properties.$pathname IS NOT NULL
     GROUP BY name ORDER BY cnt DESC LIMIT 10
 
     UNION ALL
 
     SELECT 'referrer' AS dimension, properties.$referrer AS name, count() AS cnt
-    FROM events ${timeAndAppFilter} AND event = '$pageview' AND properties.$referrer IS NOT NULL AND properties.$referrer != ''
+    FROM events ${eventWhereClause} AND event = '$pageview' AND properties.$referrer IS NOT NULL AND properties.$referrer != ''
     GROUP BY name ORDER BY cnt DESC LIMIT 10
 
     UNION ALL
 
     SELECT 'country' AS dimension, properties.$geoip_country_code AS name, count(DISTINCT distinct_id) AS cnt
-    FROM events ${timeAndAppFilter} AND properties.$geoip_country_code IS NOT NULL
+    FROM events ${eventWhereClause} AND properties.$geoip_country_code IS NOT NULL
     GROUP BY name ORDER BY cnt DESC LIMIT 10
 
     UNION ALL
 
     SELECT 'browser' AS dimension, properties.$browser AS name, count(DISTINCT distinct_id) AS cnt
-    FROM events ${timeAndAppFilter} AND properties.$browser IS NOT NULL
+    FROM events ${eventWhereClause} AND properties.$browser IS NOT NULL
     GROUP BY name ORDER BY cnt DESC LIMIT 10
 
     UNION ALL
 
     SELECT 'event' AS dimension, event AS name, count() AS cnt
-    FROM events ${timeAndAppFilter}
+    FROM events ${eventWhereClause}
     GROUP BY name ORDER BY cnt DESC LIMIT 10
   `
 
@@ -1475,7 +1492,7 @@ export async function fetchPosthogEnvelope(
   const staleWindowSeconds = ttlSeconds
   return (await withD1Cache(
     event,
-    `posthog-app-${app.name}-${query.summaryOnly ? 'summary' : 'full'}-${range.start.toISOString().slice(0, 19)}-${range.end.toISOString().slice(0, 19)}`,
+    `posthog-app-${ANALYTICS_CACHE_VERSION}-${app.name}-${query.summaryOnly ? 'summary' : 'full'}-${range.start.toISOString().slice(0, 19)}-${range.end.toISOString().slice(0, 19)}`,
     ttlSeconds,
     async () => ({
       ...(await runPosthogReport(app, range, query.summaryOnly ?? false)),
@@ -1493,7 +1510,7 @@ export async function fetchPosthogSummaryEnvelope(
 ): Promise<ProviderEnvelope<FleetPosthogSummaryResponse>> {
   return (await withD1Cache(
     event,
-    'posthog-summary',
+    `posthog-summary-${ANALYTICS_CACHE_VERSION}`,
     5 * 60,
     async () => ({
       generatedAt: new Date().toISOString(),
@@ -1779,7 +1796,7 @@ export async function buildFleetAnalyticsSnapshot(
   const statusMap = await getStatusMap(event)
   const statusRecord = statusMap.get(app.name)
   const mode = options.mode ?? DETAIL_MODE
-  const cacheKey = `fleet-analytics-app-${mode}-${app.name}-${range.startDate}-${range.endDate}`
+  const cacheKey = `fleet-analytics-app-${mode}-${ANALYTICS_CACHE_VERSION}-${app.name}-${range.startDate}-${range.endDate}`
   const { ttlSeconds, staleWindowSeconds } = snapshotCachePolicy(range)
 
   const response = await withD1Cache(
@@ -1874,7 +1891,7 @@ export async function buildFleetAnalyticsSummary(
   const { ttlSeconds, staleWindowSeconds } = summaryCachePolicy(range)
   const wrapped = (await withD1Cache(
     event,
-    `fleet-analytics-summary-${range.startDate}-${range.endDate}`,
+    `fleet-analytics-summary-${ANALYTICS_CACHE_VERSION}-${range.startDate}-${range.endDate}`,
     ttlSeconds,
     async () => {
       const apps = await getFleetApps(event)

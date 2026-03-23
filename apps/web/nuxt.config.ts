@@ -54,6 +54,7 @@ export default defineNuxtConfig({
     posthogApiKey: process.env.POSTHOG_PERSONAL_API_KEY || '',
     posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
     posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
+    posthogInternalUsersCohortId: process.env.POSTHOG_INTERNAL_USERS_COHORT_ID || '225374',
     gaPropertyId: process.env.GA_PROPERTY_ID || '',
     gaAccountId: process.env.GA_ACCOUNT_ID || '',
     provisionApiKey: process.env.PROVISION_API_KEY || '',
