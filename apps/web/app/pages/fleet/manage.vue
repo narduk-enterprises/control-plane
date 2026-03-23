@@ -295,16 +295,6 @@ function formatUrl(url: string) {
                 @click="toggleActive(app)"
               />
             </UTooltip>
-            <UTooltip text="View Analytics">
-              <UButton
-                :to="`/analytics/${app.name}`"
-                icon="i-lucide-bar-chart-3"
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                class="cursor-pointer"
-              />
-            </UTooltip>
             <UTooltip text="Delete permanently">
               <UButton
                 icon="i-lucide-trash-2"

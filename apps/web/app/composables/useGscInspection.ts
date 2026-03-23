@@ -1,6 +1,6 @@
 /**
  * Composable for GSC URL inspection data formatting.
- * Eliminates duplication between analytics/[app].vue and search.vue.
+ * Shared GSC inspection URL builder for analytics views.
  */
 import type { GscInspection } from '~/composables/useFleetGscQuery'
 

@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia'
 import type { StatCardConfig } from '~/types/analytics'
-import { useAnalyticsStore } from '~/stores/analytics'
 
 const route = useRoute()
 const appName = computed(() => String(route.params.app ?? ''))
-const analyticsStore = useAnalyticsStore()
-const { preset, startDate, endDate } = storeToRefs(analyticsStore)
-const dateState = useAnalyticsDateRange('30d')
+
+const {
+  preset,
+  startDate,
+  endDate,
+  dateState,
+  snapshot,
+  detailLoading,
+  detailError,
+  detailRevalidating,
+  refreshDetail,
+} = useAnalyticsAppDetail(appName)
+
+const dateBarLoading = computed(() => detailLoading.value || detailRevalidating.value)
 
 useSeo({
   title: `${appName.value} — Analytics`,
@@ -17,30 +26,6 @@ useWebPageSchema({
   name: 'App Analytics Snapshot',
   description: 'Single-app analytics view with provider health and drilldowns.',
 })
-
-const range = computed(() => ({ startDate: startDate.value, endDate: endDate.value }))
-const snapshot = computed(() => analyticsStore.getDetail(appName.value, range.value))
-const detailLoading = computed(
-  () => analyticsStore.getDetailStatus(appName.value, range.value) === 'pending',
-)
-const detailError = computed(() => analyticsStore.getDetailError(appName.value, range.value))
-
-async function loadDetail(force = false) {
-  if (!appName.value || preset.value === '1h') return
-  await analyticsStore.fetchDetail(appName.value, { range: range.value, force })
-}
-
-watch([appName, range], () => {
-  void loadDetail()
-})
-
-onMounted(() => {
-  void loadDetail()
-})
-
-async function refreshDetail() {
-  await loadDetail(true)
-}
 
 const gaSummary = computed(() => snapshot.value?.ga.metrics?.summary ?? null)
 const gaDeltas = computed(() => snapshot.value?.ga.metrics?.deltas ?? null)
@@ -185,13 +170,16 @@ const breadcrumbItems = computed(() => [
           >
             {{ provider.label }}
           </UBadge>
+          <UBadge v-if="detailRevalidating" color="primary" variant="subtle" size="sm">
+            Updating…
+          </UBadge>
         </div>
       </div>
 
       <AnalyticsDateBar
         :preset-options="dateState.presetOptions"
         :active-preset="preset"
-        :loading="detailLoading"
+        :loading="dateBarLoading"
         show-refresh
         v-model:start-date="startDate"
         v-model:end-date="endDate"

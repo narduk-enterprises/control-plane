@@ -42,9 +42,18 @@ import type {
 } from '~/types/analytics'
 
 const DAILY_WINDOW_DAYS = 30
-const CANONICAL_SNAPSHOT_TTL_SECONDS = 15 * 60
-const CANONICAL_SNAPSHOT_STALE_WINDOW_SECONDS = 15 * 60
-const SUMMARY_TTL_SECONDS = 5 * 60
+/** Rolling ranges (end date ≥ today): short TTL — data still moving. */
+const ROLLING_SNAPSHOT_TTL_SECONDS = 15 * 60
+const ROLLING_SNAPSHOT_STALE_WINDOW_SECONDS = 15 * 60
+/** Historical ranges (end date before UTC today): keep D1 rows hot for days. */
+const HISTORICAL_SNAPSHOT_TTL_SECONDS = 7 * 24 * 3600
+const HISTORICAL_SNAPSHOT_STALE_WINDOW_SECONDS = 24 * 3600
+
+const ROLLING_SUMMARY_TTL_SECONDS = 5 * 60
+const ROLLING_SUMMARY_STALE_WINDOW_SECONDS = 5 * 60
+const HISTORICAL_SUMMARY_TTL_SECONDS = 14 * 24 * 3600
+const HISTORICAL_SUMMARY_STALE_WINDOW_SECONDS = 2 * 24 * 3600
+
 const DETAIL_MODE = 'detail'
 const SUMMARY_MODE = 'summary'
 
@@ -68,6 +77,42 @@ interface SnapshotBuildOptions {
 
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0] ?? ''
+}
+
+/** True when the range still includes “today” in UTC — metrics may change; use short cache TTL. */
+function isRollingAnalyticsRange(range: AnalyticsRange): boolean {
+  const today = formatDate(new Date())
+  return range.endDate >= today
+}
+
+function snapshotCachePolicy(range: AnalyticsRange): {
+  ttlSeconds: number
+  staleWindowSeconds: number
+} {
+  return isRollingAnalyticsRange(range)
+    ? {
+        ttlSeconds: ROLLING_SNAPSHOT_TTL_SECONDS,
+        staleWindowSeconds: ROLLING_SNAPSHOT_STALE_WINDOW_SECONDS,
+      }
+    : {
+        ttlSeconds: HISTORICAL_SNAPSHOT_TTL_SECONDS,
+        staleWindowSeconds: HISTORICAL_SNAPSHOT_STALE_WINDOW_SECONDS,
+      }
+}
+
+function summaryCachePolicy(range: AnalyticsRange): {
+  ttlSeconds: number
+  staleWindowSeconds: number
+} {
+  return isRollingAnalyticsRange(range)
+    ? {
+        ttlSeconds: ROLLING_SUMMARY_TTL_SECONDS,
+        staleWindowSeconds: ROLLING_SUMMARY_STALE_WINDOW_SECONDS,
+      }
+    : {
+        ttlSeconds: HISTORICAL_SUMMARY_TTL_SECONDS,
+        staleWindowSeconds: HISTORICAL_SUMMARY_STALE_WINDOW_SECONDS,
+      }
 }
 
 function normalizeCalendarRange(input: {
@@ -1275,11 +1320,12 @@ export async function buildFleetAnalyticsSnapshot(
   const statusRecord = statusMap.get(app.name)
   const mode = options.mode ?? DETAIL_MODE
   const cacheKey = `fleet-analytics-app-${mode}-${app.name}-${range.startDate}-${range.endDate}`
+  const { ttlSeconds, staleWindowSeconds } = snapshotCachePolicy(range)
 
   const response = await withD1Cache(
     event,
     cacheKey,
-    CANONICAL_SNAPSHOT_TTL_SECONDS,
+    ttlSeconds,
     async () => {
       const [gaResult, gscQueryResult, posthogResult] = await Promise.all([
         fetchGaEnvelope(event, app, range, options.force).catch((error) => error),
@@ -1353,7 +1399,7 @@ export async function buildFleetAnalyticsSnapshot(
     },
     options.force ?? false,
     {
-      staleWindowSeconds: CANONICAL_SNAPSHOT_STALE_WINDOW_SECONDS,
+      staleWindowSeconds,
     },
   )
 
@@ -1365,10 +1411,11 @@ export async function buildFleetAnalyticsSummary(
   range: AnalyticsRange,
   force = false,
 ): Promise<FleetAnalyticsSummaryResponse> {
-  return (await withD1Cache(
+  const { ttlSeconds, staleWindowSeconds } = summaryCachePolicy(range)
+  const wrapped = (await withD1Cache(
     event,
     `fleet-analytics-summary-${range.startDate}-${range.endDate}`,
-    SUMMARY_TTL_SECONDS,
+    ttlSeconds,
     async () => {
       const apps = await getFleetApps(event)
       const snapshots = await Promise.all(
@@ -1390,8 +1437,13 @@ export async function buildFleetAnalyticsSummary(
       } satisfies FleetAnalyticsSummaryResponse
     },
     force,
-    { staleWindowSeconds: SUMMARY_TTL_SECONDS },
-  )) as FleetAnalyticsSummaryResponse
+    { staleWindowSeconds, returnMeta: true },
+  )) as { data: FleetAnalyticsSummaryResponse; _meta: AnalyticsCacheMeta }
+
+  return {
+    ...wrapped.data,
+    _meta: wrapped._meta,
+  }
 }
 
 export async function buildIntegrationHealth(

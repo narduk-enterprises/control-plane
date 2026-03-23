@@ -265,6 +265,8 @@ export interface FleetAnalyticsSummaryResponse {
   apps: Record<string, FleetAnalyticsSnapshot>
   totals: FleetAnalyticsSummaryTotals
   insights: AnalyticsInsight[]
+  /** Present on API responses when the server used D1 cache metadata (stale-while-revalidate). */
+  _meta?: AnalyticsCacheMeta
 }
 
 export type FleetAnalyticsDetailResponse = FleetAnalyticsSnapshot

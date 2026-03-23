@@ -44,7 +44,7 @@ const fleetColumns: TableColumn<FleetApp>[] = [
       return h(
         NuxtLink,
         {
-          to: `/analytics/${app.name}`,
+          to: `/fleet/${app.name}`,
           class: 'font-medium text-primary hover:underline cursor-pointer',
         },
         () => app.name,
@@ -121,18 +121,7 @@ const fleetColumns: TableColumn<FleetApp>[] = [
     cell: ({ row }) => {
       const app = row.original
       return h('div', { class: 'flex items-center justify-end gap-1' }, [
-        h(UTooltip, { text: 'Open Analytics Snapshot' }, () => [
-          h(UButton, {
-            to: `/analytics/${app.name}`,
-            size: 'xs',
-            variant: 'ghost',
-            color: 'neutral',
-            icon: 'i-lucide-bar-chart-3',
-            'aria-label': 'Analytics',
-            class: 'cursor-pointer',
-          }),
-        ]),
-        h(UTooltip, { text: 'Open Operational View' }, () => [
+        h(UTooltip, { text: 'Open operational view' }, () => [
           h(UButton, {
             to: `/fleet/${app.name}`,
             size: 'xs',
@@ -181,7 +170,7 @@ const fleetColumnsForTable = fleetColumns as any
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">Fleet</h1>
         <p class="mt-1 text-sm text-muted">
-          {{ fleetCountLabel }} — operational status and links into the canonical analytics views
+          {{ fleetCountLabel }} — operational status and quick links
         </p>
       </div>
       <div class="flex items-center gap-2">

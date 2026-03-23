@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type {
+  AnalyticsCacheMeta,
   AnalyticsInsight,
   AnalyticsProviderSnapshot,
   AnalyticsRange,
@@ -96,10 +97,13 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   const summaries = ref<Record<string, FleetAnalyticsSummaryResponse>>({})
   const summaryStatuses = ref<Record<string, LoadStatus>>({})
   const summaryErrors = ref<Record<string, string | null>>({})
+  const summaryMetaByKey = ref<Record<string, AnalyticsCacheMeta | undefined>>({})
+  const summaryRevalidating = ref<Record<string, boolean>>({})
 
   const details = ref<Record<string, FleetAnalyticsDetailResponse>>({})
   const detailStatuses = ref<Record<string, LoadStatus>>({})
   const detailErrors = ref<Record<string, string | null>>({})
+  const detailRevalidating = ref<Record<string, boolean>>({})
 
   const integrationHealth = ref<FleetIntegrationHealthResponse | null>(null)
   const integrationHealthStatus = ref<LoadStatus>('idle')
@@ -199,17 +203,21 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     if (!options?.background) {
       summaryStatuses.value[key] = 'pending'
       summaryErrors.value[key] = null
+    } else {
+      summaryRevalidating.value = { ...summaryRevalidating.value, [key]: true }
     }
 
     try {
-      const data = await appFetch<FleetAnalyticsSummaryResponse>('/api/fleet/analytics/summary', {
+      const raw = await appFetch<FleetAnalyticsSummaryResponse>('/api/fleet/analytics/summary', {
         query: {
           startDate: range.startDate,
           endDate: range.endDate,
           ...(options?.force ? { force: 'true' } : {}),
         },
       })
+      const { _meta, ...data } = raw
       summaries.value = { ...summaries.value, [key]: data }
+      summaryMetaByKey.value = { ...summaryMetaByKey.value, [key]: _meta }
       summaryStatuses.value[key] = 'success'
       summaryErrors.value[key] = null
       if (summaryNeedsFollowUpRefresh(data)) {
@@ -224,6 +232,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         summaryErrors.value[key] = toErrorMessage(error)
       }
       throw error
+    } finally {
+      if (options?.background) {
+        summaryRevalidating.value = { ...summaryRevalidating.value, [key]: false }
+      }
     }
   }
 
@@ -245,6 +257,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     if (!options?.background) {
       detailStatuses.value[key] = 'pending'
       detailErrors.value[key] = null
+    } else {
+      detailRevalidating.value = { ...detailRevalidating.value, [key]: true }
     }
 
     try {
@@ -273,6 +287,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         detailErrors.value[key] = toErrorMessage(error)
       }
       throw error
+    } finally {
+      if (options?.background) {
+        detailRevalidating.value = { ...detailRevalidating.value, [key]: false }
+      }
     }
   }
 
@@ -322,6 +340,18 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     return getSummary(range)?.insights ?? []
   }
 
+  function getSummaryMeta(range?: AnalyticsRange) {
+    return summaryMetaByKey.value[rangeKey(range ?? currentRange())]
+  }
+
+  function isSummaryRevalidating(range?: AnalyticsRange) {
+    return summaryRevalidating.value[rangeKey(range ?? currentRange())] === true
+  }
+
+  function isDetailRevalidating(appName: string, range?: AnalyticsRange) {
+    return detailRevalidating.value[detailKey(appName, range ?? currentRange())] === true
+  }
+
   return {
     preset,
     startDate,
@@ -349,5 +379,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     getDetailStatus,
     getDetailError,
     getInsights,
+    getSummaryMeta,
+    isSummaryRevalidating,
+    isDetailRevalidating,
   }
 })

@@ -9,6 +9,18 @@ import { test, expect } from '@playwright/test'
 
 const BASE = process.env.E2E_BASE_URL || 'https://control-plane.nard.uk'
 
+async function openFleetTab(page: import('@playwright/test').Page) {
+  const fleetTab = page.locator('button:has-text("Fleet")').first()
+  await expect(fleetTab).toBeVisible({ timeout: 10_000 })
+  await fleetTab.click()
+}
+
+async function openIndexNowTab(page: import('@playwright/test').Page) {
+  const tab = page.locator('button:has-text("IndexNow")').first()
+  await expect(tab).toBeVisible({ timeout: 10_000 })
+  await tab.click()
+}
+
 // We need to be authenticated — the analytics page requires admin access
 test.describe('Analytics Dashboard', () => {
   test.beforeEach(async ({ page }) => {
@@ -36,77 +48,54 @@ test.describe('Analytics Dashboard', () => {
     await expect(dateSelector.first()).toBeVisible({ timeout: 10000 })
   })
 
-  test('fleet cards render with app names', async ({ page }) => {
+  test('fleet table renders with app names', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
+    await openFleetTab(page)
 
-    // Wait for loading to finish — cards should appear
-    const firstCard = page.locator('[class*="rounded-xl"]').first()
-    await expect(firstCard).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('th:has-text("App")').first()).toBeVisible({ timeout: 15000 })
 
-    // Should have multiple fleet app cards
-    const cards = page.locator('[class*="rounded-xl"]')
-    const count = await cards.count()
-    expect(count).toBeGreaterThan(0)
-
-    // At least one card should contain an app name we know exists
     const pageContent = await page.textContent('body')
     const knownApps = ['austin-texas-net', 'control-plane', 'tide-check', 'papa-everetts-pizza']
     const foundApp = knownApps.some((app) => pageContent?.includes(app))
     expect(foundApp).toBe(true)
   })
 
-  test('fleet cards show non-zero analytics data after cache population', async ({ page }) => {
+  test('fleet table shows analytics columns after cache population', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
+    await openFleetTab(page)
 
-    // Wait for data to load
     await page.waitForTimeout(5000)
 
-    // Check if any card shows non-zero numbers (Users, PV, Clicks, Events)
-    const body = (await page.textContent('body')) || ''
+    const hasUsers = page.locator('th:has-text("Users"), button:has-text("Users")').first()
+    const hasPageviews = page
+      .locator('th:has-text("Pageviews"), button:has-text("Pageviews")')
+      .first()
+    const hasEvents = page.locator('th:has-text("Events"), button:has-text("Events")').first()
+    const hasClicks = page.locator('text=GSC Clicks').first()
 
-    // Look for typical rendered numbers patterns — at least one card should show data
-    // The AnalyticsFleetCard shows: GA Users, PV (pageviews), Clicks, Events
-    const hasGAUsers = page.locator('text=GA Users').first()
-    const hasPV = page.locator('text=PV').first()
-    const hasEvents = page.locator('text=Events').first()
-    const hasClicks = page.locator('text=Clicks').first()
-
-    // At least one data label should be visible
     const visibleLabels = await Promise.all([
-      hasGAUsers.isVisible({ timeout: 2000 }).catch(() => false),
-      hasPV.isVisible({ timeout: 2000 }).catch(() => false),
+      hasUsers.isVisible({ timeout: 2000 }).catch(() => false),
+      hasPageviews.isVisible({ timeout: 2000 }).catch(() => false),
       hasEvents.isVisible({ timeout: 2000 }).catch(() => false),
       hasClicks.isVisible({ timeout: 2000 }).catch(() => false),
     ])
 
-    const anyDataVisible = visibleLabels.includes(true)
-
-    // If no data labels visible, check if cards just show "No cached data"
-    if (!anyDataVisible) {
-      const noCachedCount = (body.match(/No cached data/g) || []).length
-      // This test will catch if ALL cards show "No cached data" — that's the bug
-      console.log(`Cards showing "No cached data": ${noCachedCount}`)
-      // We expect at least SOME cards to have data after cache population
-      expect(anyDataVisible || noCachedCount === 0).toBe(true)
-    }
+    expect(visibleLabels.some(Boolean)).toBe(true)
   })
 
   test('refresh button is clickable and triggers data load', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
 
-    // Find refresh button (icon-only)
     const refreshBtn = page.locator('button:has([class*="lucide-refresh"])').first()
     await expect(refreshBtn).toBeVisible({ timeout: 5000 })
 
-    // Click it
     await refreshBtn.click()
-
-    // It should show loading state briefly
     await page.waitForTimeout(2000)
   })
 
-  test('IndexNow section is visible with Submit All button', async ({ page }) => {
+  test('IndexNow tab shows Submit All button', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
+    await openIndexNowTab(page)
 
     const indexNowSection = page.locator('text=IndexNow')
     await expect(indexNowSection.first()).toBeVisible({ timeout: 10000 })
@@ -115,16 +104,13 @@ test.describe('Analytics Dashboard', () => {
     await expect(submitAllBtn).toBeVisible()
   })
 
-  test('fleet health panel renders without false warnings', async ({ page }) => {
+  test('overview tab can show fleet health panel', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
 
-    // Wait for page to load
     await page.waitForTimeout(5000)
 
-    // If Fleet Health panel is visible, check it doesn't show false positives
     const healthPanel = page.locator('text=Fleet Health')
     if (await healthPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // Should NOT show "No GA4 property ID configured" for any app anymore
       const noPropertyError = page.locator('text=No GA4 property ID configured')
       const errorCount = await noPropertyError.count()
       expect(errorCount).toBe(0)
@@ -134,10 +120,8 @@ test.describe('Analytics Dashboard', () => {
   test('date range change triggers data reload', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
 
-    // Wait for initial load
     await page.waitForTimeout(3000)
 
-    // On desktop: try clicking "Last 7 Days" button
     const btn7d = page.locator('button:has-text("Last 7 Days")').first()
     if (await btn7d.isVisible({ timeout: 2000 }).catch(() => false)) {
       await btn7d.click()
