@@ -21,9 +21,12 @@ export default defineNuxtPlugin(() => {
 
   window.dataLayer = window.dataLayer || []
 
-  // Must use `arguments` — gtag.js silently drops Array-based pushes
-  function gtag(...args: unknown[]) {
-    window.dataLayer.push(args as unknown as IArguments)
+  // Must use `arguments` — gtag.js silently drops Array-based pushes.
+  // Do NOT use rest params (...args) — they create regular Arrays, not Arguments objects.
+  // eslint-disable-next-line prefer-rest-params -- arguments is required; rest params break gtag.js
+  function gtag() {
+    // eslint-disable-next-line prefer-rest-params -- see above
+    window.dataLayer.push(arguments)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- gtag must be attached to window for GA4 to pick it up; no type definition exists
