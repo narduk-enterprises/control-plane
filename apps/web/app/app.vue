@@ -39,18 +39,26 @@ const navItems = [
 
 const mobileMenuOpen = ref(false)
 const showPrimaryNavigation = computed(() => !guestRoutes.has(route.path))
-const buildTimeLocal = computed(() => {
-  const buildTime = runtimeConfig.buildTime
+const buildTimeLocal = ref<string | null>(null)
+
+function formatBuildTimeLocal(buildTime: string | null | undefined): string | null {
   if (!buildTime) return null
 
   const date = new Date(buildTime)
   if (Number.isNaN(date.getTime())) return buildTime
 
   return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
     timeZoneName: 'short',
   }).format(date)
+}
+
+onMounted(() => {
+  buildTimeLocal.value = window.__NARDUK_BUILD__?.localBuildTime ?? formatBuildTimeLocal(runtimeConfig.buildTime)
 })
 
 watch(route, () => {

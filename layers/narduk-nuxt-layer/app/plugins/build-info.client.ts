@@ -1,17 +1,8 @@
+import { formatBuildTimeLocal } from '../utils/formatBuildTimeLocal'
+
 export default defineNuxtPlugin(() => {
   const config = useRuntimeConfig().public
-  const localBuildTime = (() => {
-    if (!config.buildTime) return 'unknown'
-
-    const date = new Date(config.buildTime)
-    if (Number.isNaN(date.getTime())) return config.buildTime
-
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZoneName: 'short',
-    }).format(date)
-  })()
+  const localBuildTime = formatBuildTimeLocal(config.buildTime, 'unknown')
   const payload = {
     appName: config.appName || 'Unknown App',
     appVersion: config.appVersion || 'unknown',

@@ -1,3 +1,5 @@
+import { formatBuildTimeLocal } from '../utils/formatBuildTimeLocal'
+
 /**
  * Injects build metadata into the document head (SSR + client) so the active
  * deployment can be verified from page source, devtools, or curl.
@@ -7,18 +9,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   const appVersion = config.appVersion || ''
   const buildVersion = config.buildVersion || appVersion || ''
   const buildTime = config.buildTime || ''
-  const buildTimeLocal = (() => {
-    if (!import.meta.client || !buildTime) return ''
-
-    const date = new Date(buildTime)
-    if (Number.isNaN(date.getTime())) return buildTime
-
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZoneName: 'short',
-    }).format(date)
-  })()
+  const buildTimeLocal = import.meta.client ? formatBuildTimeLocal(buildTime) : ''
 
   // `useHead()` needs the Vue app's provide/inject context, not only Nuxt's async context.
   nuxtApp.vueApp.runWithContext(() => {
