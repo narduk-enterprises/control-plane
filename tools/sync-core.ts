@@ -11,6 +11,7 @@ import {
 } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
 import {
+  BOOTSTRAP_SYNC_FILES,
   FLEET_ROOT_SCRIPT_PATCHES,
   FLEET_WEB_SCRIPT_PATCHES,
   GENERATED_SYNC_FILES,
@@ -207,6 +208,11 @@ function syncManagedFiles(
     log('Phase 1: Syncing managed template files...')
     for (const file of VERBATIM_SYNC_FILES) {
       syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
+    }
+    for (const file of BOOTSTRAP_SYNC_FILES) {
+      const targetPath = join(appDir, file)
+      if (existsSync(targetPath)) continue
+      syncFile(join(templateDir, file), targetPath, templateDir, counters, dryRun, log)
     }
   } else {
     log('Phase 1: Syncing vendored layer...')

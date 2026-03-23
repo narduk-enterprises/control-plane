@@ -61,8 +61,17 @@ const FORBIDDEN_REPO_FILE_PATTERNS = [
   { label: 'Doppler local config', pattern: /(^|\/)doppler\.yaml$/ },
   { label: 'Doppler export', pattern: /(^|\/)doppler\.json$/ },
 ] as const
+const JUNK_REPO_FILE_PATTERNS = [
+  { label: 'local sqlite database', pattern: /(^|\/)(?:local|dev|test|tmp|wrangler)\.sqlite(?:3)?$/i },
+  { label: 'sqlite sidecar file', pattern: /(^|\/).+\.sqlite(?:-wal|-shm)$/i },
+  { label: 'Playwright report output', pattern: /(^|\/)playwright-report(\/|$)/ },
+  { label: 'test result output', pattern: /(^|\/)test-results(\/|$)/ },
+  { label: 'typecheck error log', pattern: /(^|\/)typecheck_errors\.log$/ },
+  { label: 'Wrangler state directory', pattern: /(^|\/)\.wrangler\/state(\/|$)/ },
+] as const
 const SUPPRESSION_COMMENT_PATTERN = /(?:\/\/|\/\*|<!--)\s*eslint-disable(?:-(?:next-line|line))?\b/
 const TS_DIRECTIVE_COMMENT_PATTERN = /(?:\/\/|\/\*)\s*@ts-(?:ignore|expect-error|nocheck)\b/
+const MAX_TS_NOCHECK_EXCEPTION_WINDOW_DAYS = 30
 
 function normalizePath(value: string): string {
   return value.replace(/\\/g, '/')
@@ -79,6 +88,22 @@ function getSiteKey(site: Pick<SuppressionSite, 'file' | 'line' | 'kind' | 'rule
 
 function compareIsoDates(left: string, right: string): number {
   return left.localeCompare(right)
+}
+
+function isoDateToUtcDay(value: string): number | null {
+  if (!DATE_PATTERN.test(value)) return null
+
+  const [year, month, day] = value.split('-').map((segment) => Number(segment))
+  if (!year || !month || !day) return null
+
+  return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000)
+}
+
+function getIsoDaySpan(start: string, end: string): number | null {
+  const startDay = isoDateToUtcDay(start)
+  const endDay = isoDateToUtcDay(end)
+  if (startDay === null || endDay === null) return null
+  return endDay - startDay
 }
 
 function isGitRepo(root: string): boolean {
@@ -237,6 +262,16 @@ function loadGuardrailExceptions(root: string): {
       invalidDetails.push(`${prefix}: expiresAt must be YYYY-MM-DD`)
     if (DATE_PATTERN.test(expiresAt) && compareIsoDates(expiresAt, today) < 0) {
       invalidDetails.push(`${prefix}: expired on ${expiresAt}`)
+    }
+    if (
+      kind === 'ts-nocheck' &&
+      DATE_PATTERN.test(createdAt) &&
+      DATE_PATTERN.test(expiresAt) &&
+      (getIsoDaySpan(createdAt, expiresAt) ?? 0) > MAX_TS_NOCHECK_EXCEPTION_WINDOW_DAYS
+    ) {
+      invalidDetails.push(
+        `${prefix}: ts-nocheck expiresAt must be within ${MAX_TS_NOCHECK_EXCEPTION_WINDOW_DAYS} days of createdAt`,
+      )
     }
 
     entries.push({
@@ -409,6 +444,28 @@ function checkForbiddenRepoFiles(repoFiles: string[]): GuardrailFinding[] {
   ]
 }
 
+function checkJunkRepoFiles(repoFiles: string[]): GuardrailFinding[] {
+  const details = repoFiles
+    .map((file) => {
+      const match = JUNK_REPO_FILE_PATTERNS.find(({ pattern }) => pattern.test(file))
+      if (!match) return null
+      return `  ${file} (${match.label})`
+    })
+    .filter((detail): detail is string => Boolean(detail))
+    .sort()
+
+  if (details.length === 0) return []
+
+  return [
+    {
+      ruleId: 'forbidden-junk-files',
+      severity: 'fail',
+      message: `${details.length} tracked or unignored local artifact file(s) found.`,
+      detail: details,
+    },
+  ]
+}
+
 function checkHooksPath(root: string): GuardrailFinding[] {
   if (!isGitRepo(root)) {
     return [
@@ -520,14 +577,34 @@ function checkSuppressionExceptions(root: string, repoFiles: string[]): Guardrai
   return findings
 }
 
+function checkTsNoCheckDebt(root: string, repoFiles: string[]): GuardrailFinding[] {
+  const suppressionScan = scanSuppressionSites(root, repoFiles)
+  const tsNoCheckSites = suppressionScan.sites
+    .filter((site) => site.kind === 'ts-nocheck')
+    .sort((left, right) => left.file.localeCompare(right.file) || left.line - right.line)
+
+  if (tsNoCheckSites.length === 0) return []
+
+  return [
+    {
+      ruleId: 'ts-nocheck-debt',
+      severity: 'warn',
+      message: `${tsNoCheckSites.length} @ts-nocheck site(s) remain in the repo.`,
+      detail: tsNoCheckSites.map((site) => `  ${formatSite(site)}`),
+    },
+  ]
+}
+
 export function auditRepoGuardrails(rootDir: string): GuardrailReport {
   const root = resolve(rootDir)
   const repoFiles = listRepoFiles(root)
   const findings = [
     ...checkGitignore(root),
     ...checkForbiddenRepoFiles(repoFiles),
+    ...checkJunkRepoFiles(repoFiles),
     ...checkHooksPath(root),
     ...checkSuppressionExceptions(root, repoFiles),
+    ...checkTsNoCheckDebt(root, repoFiles),
   ]
 
   const summary = findings.reduce(

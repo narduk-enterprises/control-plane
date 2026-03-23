@@ -39,7 +39,7 @@ export function useDatabase(event: H3Event): DrizzleD1Database<typeof schema> {
  * @example
  * ```ts
  * // apps/web/server/utils/database.ts
- * import * as schema from '#server/database/schema'
+ * import * as schema from '../database/schema'
  * export const useAppDatabase = createAppDatabase(schema)
  * ```
  *

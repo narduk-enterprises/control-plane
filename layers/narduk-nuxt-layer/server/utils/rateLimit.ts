@@ -28,10 +28,17 @@ export interface RateLimitPolicy {
 const MINUTE = 60_000
 
 export const RATE_LIMIT_POLICIES = {
+  adminAiModel: { namespace: 'admin-ai-model', maxRequests: 20, windowMs: MINUTE },
+  adminSystemPrompts: { namespace: 'admin-system-prompts', maxRequests: 20, windowMs: MINUTE },
+  adminUsers: { namespace: 'admin-users', maxRequests: 20, windowMs: MINUTE },
   authLogin: { namespace: 'auth-login', maxRequests: 60, windowMs: MINUTE },
   authRegister: { namespace: 'auth-register', maxRequests: 30, windowMs: MINUTE },
   authChangePassword: { namespace: 'auth-change-password', maxRequests: 30, windowMs: MINUTE },
   authApiKeys: { namespace: 'auth-api-keys', maxRequests: 60, windowMs: MINUTE },
+  authLogout: { namespace: 'auth-logout', maxRequests: 30, windowMs: MINUTE },
+  authProfile: { namespace: 'auth-profile', maxRequests: 30, windowMs: MINUTE },
+  notifications: { namespace: 'notifications', maxRequests: 60, windowMs: MINUTE },
+  ownerTag: { namespace: 'owner-tag', maxRequests: 10, windowMs: MINUTE },
   upload: { namespace: 'upload', maxRequests: 60, windowMs: MINUTE },
   indexNowSubmit: { namespace: 'indexnow', maxRequests: 60, windowMs: MINUTE },
   googleIndexingBatch: {

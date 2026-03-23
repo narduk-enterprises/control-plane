@@ -16,46 +16,53 @@
  * ```
  */
 
-import { RATE_LIMIT_POLICIES, enforceRateLimitPolicy } from '../utils/rateLimit'
+import { defineUserMutation } from '#layer/server/utils/mutation'
+import { RATE_LIMIT_POLICIES } from '../utils/rateLimit'
 import { validateUploadFiles, normalizeExtension } from '../utils/upload'
 
-export default defineEventHandler(async (event) => {
-  const log = useLogger(event).child('Upload')
-  await enforceRateLimitPolicy(event, RATE_LIMIT_POLICIES.upload)
-  await requireAuth(event)
+export default defineUserMutation(
+  {
+    rateLimit: RATE_LIMIT_POLICIES.upload,
+    parseBody: async (event) => {
+      const formData = await readMultipartFormData(event)
+      if (!formData || formData.length === 0) {
+        throw createError({ statusCode: 400, message: 'No file uploaded' })
+      }
 
-  const formData = await readMultipartFormData(event)
-  if (!formData || formData.length === 0) {
-    throw createError({ statusCode: 400, message: 'No file uploaded' })
-  }
+      return formData
+    },
+  },
+  async ({ event, body: formData }) => {
+    const log = useLogger(event).child('Upload')
 
-  // Filter to only file parts (skip non-file fields like text inputs)
-  const files = formData.filter((part) => part.data && part.type)
+    // Filter to only file parts (skip non-file fields like text inputs)
+    const files = formData.filter((part) => part.data && part.type)
 
-  if (files.length === 0) {
-    throw createError({ statusCode: 400, message: 'No valid files in upload' })
-  }
+    if (files.length === 0) {
+      throw createError({ statusCode: 400, message: 'No valid files in upload' })
+    }
 
-  // Validate all files before uploading any
-  validateUploadFiles(files)
+    // Validate all files before uploading any
+    validateUploadFiles(files)
 
-  const results: { key: string; url: string }[] = []
+    const results: { key: string; url: string }[] = []
 
-  for (const file of files) {
-    const ext = normalizeExtension(file.type!)
-    const key = `uploads/${crypto.randomUUID()}.${ext}`
-    const payload = new ArrayBuffer(file.data.byteLength)
-    new Uint8Array(payload).set(file.data)
+    for (const file of files) {
+      const ext = normalizeExtension(file.type!)
+      const key = `uploads/${crypto.randomUUID()}.${ext}`
+      const payload = new ArrayBuffer(file.data.byteLength)
+      new Uint8Array(payload).set(file.data)
 
-    await uploadToR2(event, key, payload, file.type!)
+      await uploadToR2(event, key, payload, file.type!)
 
-    results.push({ key, url: `/images/${key}` })
-  }
+      results.push({ key, url: `/images/${key}` })
+    }
 
-  // Backwards compat: single-file returns object, multi returns array
-  log.info('File(s) uploaded', { count: results.length, keys: results.map((r) => r.key) })
-  if (results.length === 1) {
-    return results[0]
-  }
-  return results
-})
+    // Backwards compat: single-file returns object, multi returns array
+    log.info('File(s) uploaded', { count: results.length, keys: results.map((r) => r.key) })
+    if (results.length === 1) {
+      return results[0]
+    }
+    return results
+  },
+)

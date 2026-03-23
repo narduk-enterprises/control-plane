@@ -3,7 +3,6 @@ import { basename, join } from 'node:path'
 
 export const VERBATIM_SYNC_FILES = [
   'doppler.template.yaml',
-  'guardrail-exceptions.json',
   '.githooks/pre-commit',
   'tools/install-git-hooks.cjs',
   'tools/gsc-toolbox.ts',
@@ -42,6 +41,8 @@ export const VERBATIM_SYNC_FILES = [
   '.vscode/settings.json',
   '.vscode/extensions.json',
 ] as const
+
+export const BOOTSTRAP_SYNC_FILES = ['guardrail-exceptions.json'] as const
 
 export const RECURSIVE_SYNC_DIRECTORIES = [
   'packages/eslint-config',
