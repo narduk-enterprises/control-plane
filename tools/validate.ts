@@ -142,7 +142,7 @@ async function main() {
         'CLOUDFLARE_ACCOUNT_ID',
         'APP_NAME',
         'SITE_URL',
-        // Hourly Worker cron warms GA/GSC/PostHog caches + fleet analytics summary (see server/routes/_cron/fleet-status.ts)
+        // Hourly Worker cron: fleet health, GA/GSC/PostHog cache warm, GSC sitemap fingerprint sync (see server/routes/_cron/fleet-status.ts)
         'CRON_SECRET',
       ]
 

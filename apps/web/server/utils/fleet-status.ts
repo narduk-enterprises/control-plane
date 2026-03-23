@@ -44,6 +44,10 @@ export async function checkAllFleetStatuses(event: H3Event): Promise<AppStatus[]
         indexnowLastSubmission: null,
         indexnowTotalSubmissions: 0,
         indexnowLastSubmittedCount: null,
+        gscSitemapFingerprint: null,
+        gscSitemapCheckedAt: null,
+        gscSitemapLastSubmittedAt: null,
+        gscSitemapTotalSubmissions: 0,
       }
     }),
   )
@@ -98,6 +102,10 @@ export async function checkSingleFleetAppStatus(
     indexnowLastSubmission: null,
     indexnowTotalSubmissions: 0,
     indexnowLastSubmittedCount: null,
+    gscSitemapFingerprint: null,
+    gscSitemapCheckedAt: null,
+    gscSitemapLastSubmittedAt: null,
+    gscSitemapTotalSubmissions: 0,
   }
 
   await db

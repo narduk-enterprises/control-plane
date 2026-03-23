@@ -37,6 +37,9 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
   const { data: indexnowSummary, refresh: refreshIndexnowSummary } = useFleetIndexnowSummary()
   const { submitting: indexnowSubmitting, submitAll: submitAllIndexnow } =
     useBatchIndexnow(fleetApps)
+  const { data: gscSitemapSummary, refresh: refreshGscSitemapSummary } = useFleetGscSitemapSummary()
+  const { submitting: gscSitemapSubmitting, submitAll: submitAllGscSitemap } =
+    useBatchGscSitemap(fleetApps)
 
   const range = computed(() => ({ startDate: startDate.value, endDate: endDate.value }))
 
@@ -83,6 +86,12 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
   async function batchSubmitIndexnow(): Promise<{ ok: number; fail: number }> {
     const counts = await submitAllIndexnow()
     await refreshIndexnowSummary()
+    return counts
+  }
+
+  async function batchSubmitGscSitemap(): Promise<{ ok: number; fail: number }> {
+    const counts = await submitAllGscSitemap()
+    await refreshGscSitemapSummary()
     return counts
   }
 
@@ -142,6 +151,10 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
     refreshIndexnowSummary,
     indexnowSubmitting,
     submitAllIndexnow,
+    gscSitemapSummary,
+    refreshGscSitemapSummary,
+    gscSitemapSubmitting,
+    submitAllGscSitemap,
     range,
     summary,
     snapshotMap,
@@ -155,5 +168,6 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
     refreshAll,
     refreshFleetHealth,
     batchSubmitIndexnow,
+    batchSubmitGscSitemap,
   }
 }

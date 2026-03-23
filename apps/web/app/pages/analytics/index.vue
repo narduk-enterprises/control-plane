@@ -8,7 +8,7 @@ useWebPageSchema({
   description: 'Fleet-wide analytics command center.',
 })
 
-const activeTab = ref<'overview' | 'fleet' | 'indexnow'>('overview')
+const activeTab = ref<'overview' | 'fleet' | 'indexnow' | 'gsc-sitemaps'>('overview')
 
 const {
   preset,
@@ -30,6 +30,9 @@ const {
   refreshAll,
   refreshFleetHealth,
   batchSubmitIndexnow,
+  gscSitemapSummary,
+  gscSitemapSubmitting,
+  batchSubmitGscSitemap,
 } = useAnalyticsHub({
   loadFleetSnapshots: computed(() => activeTab.value === 'overview' || activeTab.value === 'fleet'),
   loadIntegrationHealth: computed(() => activeTab.value === 'overview'),
@@ -37,6 +40,7 @@ const {
 
 const toast = useToast()
 const indexnowHistoryRefreshKey = ref(0)
+const gscSitemapHistoryRefreshKey = ref(0)
 
 async function onBatchIndexnow() {
   const { ok, fail } = await batchSubmitIndexnow()
@@ -47,6 +51,19 @@ async function onBatchIndexnow() {
       fail === 0
         ? `Pinged ${ok} app(s); summary updated.`
         : `Succeeded: ${ok}. Failed: ${fail} (check app INDEXNOW_KEY / deploy).`,
+    color: fail === 0 ? 'success' : 'warning',
+  })
+}
+
+async function onBatchGscSitemap() {
+  const { ok, fail } = await batchSubmitGscSitemap()
+  gscSitemapHistoryRefreshKey.value += 1
+  toast.add({
+    title: 'GSC sitemaps',
+    description:
+      fail === 0
+        ? `Submitted ${ok} app(s); summary updated.`
+        : `Succeeded: ${ok}. Failed: ${fail} (GSC scope, property access, or sitemap URL).`,
     color: fail === 0 ? 'success' : 'warning',
   })
 }
@@ -80,6 +97,7 @@ const tabs = [
   { id: 'overview' as const, label: 'Overview', icon: 'i-lucide-layout-dashboard' },
   { id: 'fleet' as const, label: 'Fleet', icon: 'i-lucide-grid-2x2' },
   { id: 'indexnow' as const, label: 'IndexNow', icon: 'i-lucide-send' },
+  { id: 'gsc-sitemaps' as const, label: 'GSC sitemaps', icon: 'i-lucide-map' },
 ]
 </script>
 
@@ -94,7 +112,8 @@ const tabs = [
           Analytics Dashboard
         </h1>
         <p class="mt-1 text-sm text-muted">
-          GA4, Search Console, PostHog, and IndexNow — cached in D1 with background refresh.
+          GA4, Search Console, PostHog, IndexNow, and GSC sitemap submits — cached in D1 with
+          background refresh.
         </p>
         <div
           v-if="serverStale || summaryRevalidating"
@@ -187,6 +206,14 @@ const tabs = [
           :indexnow-submitting="indexnowSubmitting"
           :history-refresh-key="indexnowHistoryRefreshKey"
           @batch-submit="onBatchIndexnow"
+        />
+        <AnalyticsHubGscSitemapSection
+          v-else-if="activeTab === 'gsc-sitemaps'"
+          key="analytics-tab-gsc-sitemaps"
+          :gsc-sitemap-summary="gscSitemapSummary ?? null"
+          :gsc-sitemap-submitting="gscSitemapSubmitting"
+          :history-refresh-key="gscSitemapHistoryRefreshKey"
+          @batch-submit="onBatchGscSitemap"
         />
       </KeepAlive>
     </template>

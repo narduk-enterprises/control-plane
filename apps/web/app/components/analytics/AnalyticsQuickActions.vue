@@ -6,6 +6,9 @@ const props = defineProps<{
 }>()
 
 const { loading: indexnowLoading, submit: submitIndexnow } = useFleetIndexnow(() => props.appName)
+const { loading: gscSitemapLoading, submit: submitGscSitemap } = useFleetGscSitemap(
+  () => props.appName,
+)
 </script>
 
 <template>
@@ -48,6 +51,16 @@ const { loading: indexnowLoading, submit: submitIndexnow } = useFleetIndexnow(()
         @click="submitIndexnow()"
       >
         IndexNow Submit
+      </UButton>
+      <UButton
+        :loading="gscSitemapLoading"
+        variant="outline"
+        color="neutral"
+        class="cursor-pointer"
+        icon="i-lucide-upload-cloud"
+        @click="submitGscSitemap(true)"
+      >
+        GSC sitemap
       </UButton>
       <NuxtLink :to="`/fleet/${appName}`">
         <UButton variant="ghost" color="neutral" icon="i-lucide-arrow-left" class="cursor-pointer">

@@ -38,6 +38,10 @@ export const appStatus = sqliteTable('app_status', {
   indexnowLastSubmission: text('indexnow_last_submission'),
   indexnowTotalSubmissions: integer('indexnow_total_submissions').notNull().default(0),
   indexnowLastSubmittedCount: integer('indexnow_last_submitted_count'),
+  gscSitemapFingerprint: text('gsc_sitemap_fingerprint'),
+  gscSitemapCheckedAt: text('gsc_sitemap_checked_at'),
+  gscSitemapLastSubmittedAt: text('gsc_sitemap_last_submitted_at'),
+  gscSitemapTotalSubmissions: integer('gsc_sitemap_total_submissions').notNull().default(0),
 })
 
 // ─── IndexNow ping audit (fleet proxy) ─────────────────────
@@ -49,6 +53,17 @@ export const indexnowPingLog = sqliteTable('indexnow_ping_log', {
   downstreamStatus: integer('downstream_status'),
   urlCount: integer('url_count'),
   targetUrl: text('target_url'),
+  message: text('message'),
+})
+
+export const gscSitemapSubmitLog = sqliteTable('gsc_sitemap_submit_log', {
+  id: text('id').primaryKey(),
+  app: text('app').notNull(),
+  submittedAt: text('submitted_at').notNull(),
+  ok: integer('ok', { mode: 'boolean' }).notNull(),
+  trigger: text('trigger').notNull(),
+  sitemapUrl: text('sitemap_url'),
+  gscProperty: text('gsc_property'),
   message: text('message'),
 })
 
@@ -90,3 +105,5 @@ export type ProvisionJob = typeof provisionJobs.$inferSelect
 export type NewProvisionJob = typeof provisionJobs.$inferInsert
 export type IndexnowPingLog = typeof indexnowPingLog.$inferSelect
 export type NewIndexnowPingLog = typeof indexnowPingLog.$inferInsert
+export type GscSitemapSubmitLog = typeof gscSitemapSubmitLog.$inferSelect
+export type NewGscSitemapSubmitLog = typeof gscSitemapSubmitLog.$inferInsert

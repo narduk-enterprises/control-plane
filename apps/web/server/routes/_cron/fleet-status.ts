@@ -8,6 +8,10 @@
  * Triggered by Cloudflare Cron Trigger (every hour: "0 * * * *")
  * via the `[triggers]` block in wrangler.json.
  *
+ * After analytics warming, runs **GSC sitemap sync**: fetch each app’s sitemap.xml,
+ * compare SHA-256 fingerprint to D1, and submit to Search Console when it changed
+ * (requires service account with `webmasters` scope, not just readonly).
+ *
  * Can also be invoked manually: GET /_cron/fleet-status
  *
  * Uses a **time-bounded execution model** to stay within Cloudflare
@@ -16,6 +20,7 @@
  * if health checks consume too much of the budget.
  */
 import { cleanExpiredCache } from '#layer/server/utils/d1Cache'
+import { runFleetGscSitemapCronSync } from '#server/utils/fleet-gsc-sitemap'
 
 /** Wall-clock deadline in ms — abort remaining work before hitting Worker limits */
 const DEADLINE_MS = 25_000
@@ -120,7 +125,20 @@ export default defineEventHandler(async (event) => {
   }
   phases.aggregation = elapsed()
 
-  // Phase 3: Evict expired cache entries to prevent unbounded D1 growth.
+  // Phase 3: GSC sitemap auto-submit when sitemap body changes (same hourly cron).
+  let gscSitemap: Awaited<ReturnType<typeof runFleetGscSitemapCronSync>> | null = null
+  if (remaining() > 3_000) {
+    gscSitemap = await runFleetGscSitemapCronSync(event, {
+      startedAt: startTime,
+      deadlineMs: DEADLINE_MS,
+    })
+    phases.gscSitemapMs = gscSitemap.ms
+  } else {
+    phases.gscSitemapMs = 0
+  }
+  phases.afterGscSitemap = elapsed()
+
+  // Phase 4: Evict expired cache entries to prevent unbounded D1 growth.
   let evicted = 0
   if (remaining() > 1_000) {
     evicted = await cleanExpiredCache(event)
@@ -133,13 +151,14 @@ export default defineEventHandler(async (event) => {
     warmed,
     warmingSkipped,
     aggregated,
+    gscSitemap,
     evicted,
     phases,
     cronSecretConfigured: true,
     timestamp: new Date().toISOString(),
   }
   console.log(
-    `[Cron:fleet-status] done warmed=${warmed} aggregated=${aggregated} evicted=${evicted} totalMs=${phases.total}`,
+    `[Cron:fleet-status] done warmed=${warmed} aggregated=${aggregated} gscSitemap=${gscSitemap ? `scanned=${gscSitemap.scanned} submitted=${gscSitemap.submitted}` : 'skipped'} evicted=${evicted} totalMs=${phases.total}`,
   )
   return payload
 })

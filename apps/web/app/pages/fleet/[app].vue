@@ -43,6 +43,7 @@ const breadcrumbItems = computed(() => [
           Open Analytics
         </UButton>
         <FleetAppIndexnowButton :app-name="appName" />
+        <FleetAppGscSitemapButton :app-name="appName" />
         <UButton
           variant="outline"
           color="neutral"

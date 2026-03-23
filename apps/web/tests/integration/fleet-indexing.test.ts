@@ -80,6 +80,35 @@ describe('Fleet Indexing & IndexNow', () => {
     })
   })
 
+  // ── GSC sitemap submit ─────────────────────────────────────────────
+  describe('POST /api/fleet/gsc-sitemap/:app', () => {
+    authIt('submits or skips GSC sitemap for a fleet app', async () => {
+      const res = await apiFetch(`/api/fleet/gsc-sitemap/${TEST_APP}`, {
+        method: 'POST',
+        body: JSON.stringify({ force: true }),
+      })
+      assertNot500(res.status, `POST /api/fleet/gsc-sitemap/${TEST_APP}`)
+
+      if (res.status === 200) {
+        const data = await res.json()
+        expect(data).toHaveProperty('app', TEST_APP)
+        expect(data).toHaveProperty('action')
+        expect(data).toHaveProperty('sitemapUrl')
+        expect(data).toHaveProperty('fingerprint')
+      } else {
+        expect([400, 401, 403, 502, 503]).toContain(res.status)
+      }
+    })
+
+    authIt('returns 404 for non-existent app', async () => {
+      const res = await apiFetch('/api/fleet/gsc-sitemap/nonexistent-app-xyz', {
+        method: 'POST',
+        body: JSON.stringify({ force: true }),
+      })
+      expect(res.status).toBe(404)
+    })
+  })
+
   // ── IndexNow Summary (no auth required) ────────────────────────────
   describe('GET /api/fleet/indexnow/summary', () => {
     it('returns aggregate IndexNow stats', async () => {
@@ -93,6 +122,42 @@ describe('Fleet Indexing & IndexNow', () => {
       expect(typeof data.totalSubmissions).toBe('number')
       expect(typeof data.appsWithIndexnow).toBe('number')
       expect(typeof data.totalFleetSize).toBe('number')
+    })
+  })
+
+  // ── GSC sitemap summary (no auth required) ─────────────────────────
+  describe('GET /api/fleet/gsc-sitemap/summary', () => {
+    it('returns aggregate GSC sitemap stats', async () => {
+      const res = await apiFetch('/api/fleet/gsc-sitemap/summary')
+      expect(res.status).toBe(200)
+
+      const data = await res.json()
+      expect(data).toHaveProperty('totalSubmissions')
+      expect(data).toHaveProperty('appsWithSubmission')
+      expect(data).toHaveProperty('totalFleetSize')
+      expect(typeof data.totalSubmissions).toBe('number')
+      expect(typeof data.appsWithSubmission).toBe('number')
+      expect(typeof data.totalFleetSize).toBe('number')
+    })
+  })
+
+  // ── GSC sitemap submit history (admin) ─────────────────────────────
+  describe('GET /api/fleet/gsc-sitemap/history', () => {
+    authIt('returns an array of GSC sitemap log rows', async () => {
+      const res = await apiFetch('/api/fleet/gsc-sitemap/history?limit=10')
+      assertNot500(res.status, 'GET /api/fleet/gsc-sitemap/history')
+
+      if (res.status === 200) {
+        const data = (await res.json()) as unknown[]
+        expect(Array.isArray(data)).toBe(true)
+        if (data.length > 0) {
+          const row = data[0] as Record<string, unknown>
+          expect(row).toHaveProperty('id')
+          expect(row).toHaveProperty('app')
+          expect(row).toHaveProperty('submittedAt')
+          expect(row).toHaveProperty('ok')
+        }
+      }
     })
   })
 

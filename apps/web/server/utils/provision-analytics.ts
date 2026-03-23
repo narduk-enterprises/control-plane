@@ -412,9 +412,22 @@ export async function grantGscAccess(
 /**
  * Submit a sitemap to GSC.
  * Idempotent: re-submission is accepted by Google.
+ * For `sc-domain:example.com` properties, pass `sitemapPublicOrigin` (e.g. https://www.example.com)
+ * so the feed URL is a real HTTPS sitemap URL, not `sc-domain:.../sitemap.xml`.
  */
-export async function submitGscSitemap(accessToken: string, siteUrl: string): Promise<void> {
-  const sitemapUrl = `${siteUrl.replace(/\/$/, '')}/sitemap.xml`
+export async function submitGscSitemap(
+  accessToken: string,
+  siteUrl: string,
+  options?: { sitemapPublicOrigin?: string },
+): Promise<void> {
+  let sitemapUrl: string
+  if (siteUrl.startsWith('sc-domain:')) {
+    const host = siteUrl.slice('sc-domain:'.length)
+    const origin = (options?.sitemapPublicOrigin ?? `https://${host}`).replace(/\/$/, '')
+    sitemapUrl = `${origin}/sitemap.xml`
+  } else {
+    sitemapUrl = `${siteUrl.replace(/\/$/, '')}/sitemap.xml`
+  }
 
   const res = await fetch(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`,

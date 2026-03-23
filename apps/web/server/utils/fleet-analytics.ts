@@ -581,6 +581,25 @@ async function tryGscSeries(siteUrl: string, range: AnalyticsRange) {
   }
 }
 
+/** Minimal date range for GSC property probe (read-only). */
+const GSC_PROPERTY_PROBE_RANGE: AnalyticsRange = {
+  startDate: '2020-01-01',
+  endDate: '2020-01-02',
+}
+
+/**
+ * Resolve the Search Console property URL (domain or URL-prefix) that the service account can query.
+ * Used for sitemap submission, which must target the same property string as the API.
+ */
+export async function resolveGscPropertySiteUrl(app: FleetApp): Promise<string | null> {
+  const hostname = new URL(app.url).hostname
+  const scDomain = `sc-domain:${hostname}`
+  const urlPrefix = `${app.url.replace(/\/$/, '')}/`
+  let result = await tryGscQuery(scDomain, GSC_PROPERTY_PROBE_RANGE, 'query')
+  if (!result) result = await tryGscQuery(urlPrefix, GSC_PROPERTY_PROBE_RANGE, 'query')
+  return result?.siteUrl ?? null
+}
+
 function mapGscSeriesRows(rows: Array<Record<string, unknown>>): GscSeriesPoint[] {
   return rows
     .map((row) => ({

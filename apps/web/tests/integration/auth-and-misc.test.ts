@@ -61,6 +61,8 @@ describe('Auth, GitHub & Users', () => {
       { method: 'GET', path: '/api/fleet/analytics/insights' },
       { method: 'POST', path: '/api/fleet/indexing/publish' },
       { method: 'POST', path: '/api/fleet/indexnow/neon-sewer-raid' },
+      { method: 'POST', path: '/api/fleet/gsc-sitemap/neon-sewer-raid' },
+      { method: 'GET', path: '/api/fleet/gsc-sitemap/history' },
       { method: 'GET', path: '/api/fleet/sitemap-analysis/neon-sewer-raid' },
     ]
 
