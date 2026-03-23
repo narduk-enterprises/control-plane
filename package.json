@@ -36,6 +36,9 @@
     "format": "prettier --write \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore",
     "format:check": "prettier --check \"**/*.{ts,mts,vue,js,mjs,json,yaml,yml,css,md}\" --ignore-path .gitignore",
     "tail": "npx tsx tools/tail.ts",
+    "tail:web": "doppler run -p control-plane -c prd -- pnpm --filter web exec wrangler tail control-plane --format pretty",
+    "verify:cron": "doppler run -p control-plane -c prd -- npx tsx tools/verify-analytics-cron.ts",
+    "verify:cron:dev": "doppler run -p control-plane -c dev -- npx tsx tools/verify-analytics-cron.ts",
     "check:sync-health": "npx tsx tools/check-sync-health.ts",
     "quality:fix": "turbo run lint --force -- --fix && pnpm run format"
   },

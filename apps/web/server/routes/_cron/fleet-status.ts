@@ -37,13 +37,21 @@ export default defineEventHandler(async (event) => {
   const baseURL = getRequestURL(event).origin
 
   if (!config.cronSecret) {
+    console.warn(
+      '[Cron:fleet-status] CRON_SECRET is not set — skipping analytics cache warming and summary refresh. Set CRON_SECRET in Doppler (prd) and redeploy.',
+    )
     return {
       ok: true,
       checked: rows.length,
       phases,
+      cronSecretConfigured: false,
       timestamp: new Date().toISOString(),
     }
   }
+
+  console.log(
+    `[Cron:fleet-status] start apps=${rows.length} origin=${baseURL} budgetMs=${DEADLINE_MS}`,
+  )
 
   const end = new Date().toISOString().split('T')[0] ?? ''
   const start = new Date()
@@ -127,7 +135,7 @@ export default defineEventHandler(async (event) => {
   }
   phases.total = elapsed()
 
-  return {
+  const payload = {
     ok: true,
     checked: rows.length,
     warmed,
@@ -135,6 +143,11 @@ export default defineEventHandler(async (event) => {
     aggregated,
     evicted,
     phases,
+    cronSecretConfigured: true,
     timestamp: new Date().toISOString(),
   }
+  console.log(
+    `[Cron:fleet-status] done warmed=${warmed} aggregated=${aggregated} evicted=${evicted} totalMs=${phases.total}`,
+  )
+  return payload
 })

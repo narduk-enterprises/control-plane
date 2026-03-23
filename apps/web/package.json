@@ -15,6 +15,7 @@
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
     "deploy": "nuxt build && wrangler deploy",
+    "tail:prod": "wrangler tail control-plane --format pretty",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
     "test:hydration": "node scripts/hydration-smoke.mjs",

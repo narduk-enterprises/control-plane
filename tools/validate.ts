@@ -142,6 +142,8 @@ async function main() {
         'CLOUDFLARE_ACCOUNT_ID',
         'APP_NAME',
         'SITE_URL',
+        // Hourly Worker cron warms GA/GSC/PostHog caches + fleet analytics summary (see server/routes/_cron/fleet-status.ts)
+        'CRON_SECRET',
       ]
 
       const missing = requiredSecrets.filter((s) => !existing.has(s))
