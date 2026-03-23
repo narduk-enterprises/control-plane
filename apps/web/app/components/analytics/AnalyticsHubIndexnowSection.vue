@@ -19,7 +19,9 @@ const emit = defineEmits<{
       v-if="indexnowSummary"
       class="flex flex-wrap items-center gap-3 rounded-xl border border-default/60 bg-elevated/30 px-4 py-3"
     >
-      <div class="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+      <div
+        class="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2"
+      >
         <div class="flex items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-send" class="size-4 shrink-0 text-primary" />
           <span>IndexNow</span>
