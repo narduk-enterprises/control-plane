@@ -31,7 +31,7 @@ const integrations = computed(() => {
     },
     {
       name: 'PostHog API',
-      icon: 'i-lucide-waveform',
+      icon: 'i-lucide-bar-chart-3',
       status: health.services.find((service) => service.key === 'posthog')?.status ?? 'missing',
       hint: health.services.find((service) => service.key === 'posthog')?.message ?? 'Missing',
     },

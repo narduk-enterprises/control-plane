@@ -39,7 +39,7 @@ const statCards = computed<StatCardConfig[]>(() => {
     {
       label: 'PostHog Events',
       value: totals.value.posthogEvents || undefined,
-      icon: 'i-lucide-waveform',
+      icon: 'i-lucide-bar-chart-3',
       iconColor: 'bg-amber-500/10 text-amber-600',
     },
     {
@@ -77,7 +77,7 @@ const providerStatuses = computed(() => {
       healthy: totals.value.healthyProviders.posthog,
       problem: totals.value.problemProviders.posthog,
       totalApps,
-      icon: 'i-lucide-waveform',
+      icon: 'i-lucide-bar-chart-3',
     },
     {
       key: 'indexnow',

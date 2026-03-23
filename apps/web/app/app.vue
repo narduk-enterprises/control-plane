@@ -1,8 +1,18 @@
 <script setup lang="ts">
 const route = useRoute()
 const colorMode = useColorMode()
-const appName = useRuntimeConfig().public.appName || 'Narduk Control Plane'
+const runtimeConfig = useRuntimeConfig().public
+const appName = runtimeConfig.appName || 'Narduk Control Plane'
+const buildVersion = runtimeConfig.buildVersion || runtimeConfig.appVersion || 'unknown'
 const currentYear = new Date().getFullYear()
+const guestRoutes = new Set(['/login', '/register'])
+
+useHead({
+  titleTemplate(title) {
+    if (!title) return appName
+    return `${title} · ${appName}`
+  },
+})
 
 const colorModeIcon = computed(() => {
   if (colorMode.preference === 'system') return 'i-lucide-monitor'
@@ -28,6 +38,20 @@ const navItems = [
 ]
 
 const mobileMenuOpen = ref(false)
+const showPrimaryNavigation = computed(() => !guestRoutes.has(route.path))
+const buildTimeLocal = computed(() => {
+  const buildTime = runtimeConfig.buildTime
+  if (!buildTime) return null
+
+  const date = new Date(buildTime)
+  if (Number.isNaN(date.getTime())) return buildTime
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZoneName: 'short',
+  }).format(date)
+})
 
 watch(route, () => {
   mobileMenuOpen.value = false
@@ -71,6 +95,7 @@ function isActive(path: string) {
 
           <!-- Desktop nav -->
           <div
+            v-if="showPrimaryNavigation"
             class="hidden md:flex items-center gap-0.5"
             role="navigation"
             aria-label="Main navigation"
@@ -102,6 +127,7 @@ function isActive(path: string) {
               @click="cycleColorMode"
             />
             <UButton
+              v-if="showPrimaryNavigation"
               color="neutral"
               variant="ghost"
               size="sm"
@@ -117,7 +143,7 @@ function isActive(path: string) {
         <!-- Mobile nav -->
         <Transition name="slide-down">
           <div
-            v-if="mobileMenuOpen"
+            v-if="showPrimaryNavigation && mobileMenuOpen"
             class="md:hidden border-t border-default px-3 py-3"
             role="navigation"
             aria-label="Mobile menu"
@@ -156,7 +182,17 @@ function isActive(path: string) {
           <p class="text-sm text-muted">
             &copy; {{ currentYear }} {{ appName }}. All rights reserved.
           </p>
-          <div class="flex items-center gap-4 text-sm text-muted">
+          <div class="flex flex-wrap items-center justify-center gap-4 text-sm text-muted sm:justify-end">
+            <span v-if="buildTimeLocal" class="flex items-center gap-1">
+              <UIcon name="i-lucide-clock-3" class="size-4 text-primary" />
+              Last deployed {{ buildTimeLocal }}
+            </span>
+            <span class="hidden sm:inline">&middot;</span>
+            <span class="flex items-center gap-1">
+              <UIcon name="i-lucide-package-search" class="size-4 text-primary" />
+              {{ buildVersion }}
+            </span>
+            <span class="hidden sm:inline">&middot;</span>
             <NuxtLink
               to="https://github.com/narduk-enterprises"
               target="_blank"

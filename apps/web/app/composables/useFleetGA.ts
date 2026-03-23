@@ -1,7 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import type { FleetGAResponse } from '~/types/analytics'
-
-const CACHE_MAX_AGE = 5 * 60 * 1000 // 5 minutes stale-while-revalidate
+import { getNuxtCachedData, markNuxtFetchedAt } from '~/utils/fetchCache'
 
 /* eslint-disable narduk/no-composable-conditional-hooks -- composable function, not conditional */
 export function useFleetGA(
@@ -11,6 +10,7 @@ export function useFleetGA(
   force: MaybeRefOrGetter<boolean> = false,
 ) {
   const resolvedApp = computed(() => toValue(appName))
+  const nuxtApp = useNuxtApp()
 
   const query = computed(() => ({
     startDate: toValue(startDate),
@@ -26,20 +26,18 @@ export function useFleetGA(
   const { data, error, status, refresh } = useFetch<FleetGAResponse>(
     () => `/api/fleet/ga/${encodeURIComponent(resolvedApp.value || '_')}`,
     {
-      key: fetchKey.value,
+      key: fetchKey,
       query,
       lazy: true,
       server: false,
       watch: false,
       immediate: false,
-      // Stale-while-revalidate: serve cached data, refresh in background
       getCachedData(key, nuxtApp) {
-        const cached = nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
-        if (!cached) return
-        const timestamps = nuxtApp.payload._fetchedAt as Record<string, number> | undefined
-        const fetchedAt = timestamps?.[key]
-        if (fetchedAt && Date.now() - fetchedAt < CACHE_MAX_AGE) return cached
-        return
+        return getNuxtCachedData<FleetGAResponse>(key, nuxtApp)
+      },
+      transform(input) {
+        markNuxtFetchedAt(nuxtApp, fetchKey.value)
+        return input
       },
     },
   )

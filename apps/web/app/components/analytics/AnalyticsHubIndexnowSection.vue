@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getNuxtCachedData, markNuxtFetchedAt } from '~/utils/fetchCache'
+
 export interface IndexnowHistoryRow {
   id: string
   app: string
@@ -25,14 +27,26 @@ const emit = defineEmits<{
   (e: 'batchSubmit'): void
 }>()
 
+const nuxtApp = useNuxtApp()
+
 const {
   data: historyRows,
   pending: historyPending,
   refresh: refreshHistory,
   error: historyError,
 } = useLazyFetch<IndexnowHistoryRow[]>('/api/fleet/indexnow/history', {
+  key: 'fleet-indexnow-history',
+  server: false,
+  immediate: false,
   query: { limit: 100 },
   headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  getCachedData(key, nuxtApp) {
+    return getNuxtCachedData(key, nuxtApp)
+  },
+  transform(input) {
+    markNuxtFetchedAt(nuxtApp, 'fleet-indexnow-history')
+    return input
+  },
 })
 
 watch(

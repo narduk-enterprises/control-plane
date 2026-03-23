@@ -1,14 +1,38 @@
 <script setup lang="ts">
+import type { AnalyticsSurface } from '~/utils/analyticsPresentation'
+import {
+  ANALYTICS_SURFACE_OPTIONS,
+  normalizeAnalyticsSurface,
+} from '~/utils/analyticsPresentation'
+
+const route = useRoute()
+const router = useRouter()
+
 useSeo({
   title: 'Analytics Dashboard',
-  description: 'Fleet-wide analytics: GA4, Search Console, PostHog, and integration health.',
+  description: 'Fleet-wide analytics: GA4, Search Console, PostHog, and indexing operations.',
 })
 useWebPageSchema({
   name: 'Analytics Dashboard',
   description: 'Fleet-wide analytics command center.',
 })
 
-const activeTab = ref<'overview' | 'fleet' | 'indexnow' | 'gsc-sitemaps'>('overview')
+const currentSurface = computed<AnalyticsSurface>({
+  get() {
+    return normalizeAnalyticsSurface(typeof route.query.view === 'string' ? route.query.view : null)
+  },
+  set(value) {
+    const query = { ...route.query }
+    if (value === 'overview') {
+      delete query.view
+    } else {
+      query.view = value
+    }
+    void router.replace({ query })
+  },
+})
+
+const isDateBoundSurface = computed(() => currentSurface.value !== 'indexing')
 
 const {
   preset,
@@ -16,9 +40,6 @@ const {
   endDate,
   dateState,
   fleetApps,
-  getAppStatus,
-  indexnowSummary,
-  indexnowSubmitting,
   summary,
   snapshotMap,
   summaryLoading,
@@ -29,95 +50,34 @@ const {
   freshness,
   refreshAll,
   refreshFleetHealth,
-  batchSubmitIndexnow,
-  gscSitemapSummary,
-  gscSitemapSubmitting,
-  batchSubmitGscSitemap,
 } = useAnalyticsHub({
-  loadFleetSnapshots: computed(() => activeTab.value === 'overview' || activeTab.value === 'fleet'),
-  loadIntegrationHealth: computed(() => activeTab.value === 'overview'),
+  loadFleetSnapshots: computed(() => currentSurface.value !== 'indexing'),
+  loadIntegrationHealth: computed(() => currentSurface.value === 'overview'),
 })
-
-const toast = useToast()
-const indexnowHistoryRefreshKey = ref(0)
-const gscSitemapHistoryRefreshKey = ref(0)
-
-async function onBatchIndexnow() {
-  const { ok, fail } = await batchSubmitIndexnow()
-  indexnowHistoryRefreshKey.value += 1
-  toast.add({
-    title: 'IndexNow',
-    description:
-      fail === 0
-        ? `Pinged ${ok} app(s); summary updated.`
-        : `Succeeded: ${ok}. Failed: ${fail} (check app INDEXNOW_KEY / deploy).`,
-    color: fail === 0 ? 'success' : 'warning',
-  })
-}
-
-async function onBatchGscSitemap() {
-  const { ok, fail } = await batchSubmitGscSitemap()
-  gscSitemapHistoryRefreshKey.value += 1
-  toast.add({
-    title: 'GSC sitemaps',
-    description:
-      fail === 0
-        ? `Submitted ${ok} app(s); summary updated.`
-        : `Succeeded: ${ok}. Failed: ${fail} (GSC scope, property access, or sitemap URL).`,
-    color: fail === 0 ? 'success' : 'warning',
-  })
-}
-
-const statusFilter = ref<'all' | 'up' | 'down'>('all')
-const sortKey = ref('name')
-const sortDir = ref<'asc' | 'desc'>('asc')
 
 const dateBarLoading = computed(() => summaryLoading.value || summaryRevalidating.value)
-
-const filteredApps = computed(() => {
-  let list = fleetApps.value
-  if (statusFilter.value !== 'all') {
-    list = list.filter((app) => getAppStatus(app.name)?.status === statusFilter.value)
-  }
-  return list
-})
-
-const statusMapComputed = computed(() => {
-  const map = new Map()
-  for (const app of filteredApps.value) {
-    const status = getAppStatus(app.name)
-    if (status) map.set(app.name, status)
-  }
-  return map
-})
-
+const surfaceBlocksSelectedRange = computed(
+  () => currentSurface.value !== 'indexing' && preset.value === '1h',
+)
 const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label: 'Analytics' }])
-
-const tabs = [
-  { id: 'overview' as const, label: 'Overview', icon: 'i-lucide-layout-dashboard' },
-  { id: 'fleet' as const, label: 'Fleet', icon: 'i-lucide-grid-2x2' },
-  { id: 'indexnow' as const, label: 'IndexNow', icon: 'i-lucide-send' },
-  { id: 'gsc-sitemaps' as const, label: 'GSC sitemaps', icon: 'i-lucide-map' },
-]
 </script>
 
 <template>
-  <div class="overflow-hidden pb-12">
+  <div class="space-y-6 overflow-hidden pb-12">
     <AppBreadcrumbs :items="breadcrumbItems" />
 
-    <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div class="space-y-2">
         <h1 class="flex items-center gap-2 font-display text-2xl font-semibold text-default">
           <UIcon name="i-lucide-chart-column-big" class="size-6 text-primary" />
           Analytics Dashboard
         </h1>
-        <p class="mt-1 text-sm text-muted">
-          GA4, Search Console, PostHog, IndexNow, and GSC sitemap submits — cached in D1 with
-          background refresh.
+        <p class="text-sm text-muted">
+          Provider-first analytics surfaces with cached fleet snapshots and lazy indexing workspaces.
         </p>
         <div
-          v-if="serverStale || summaryRevalidating"
-          class="mt-2 flex flex-wrap items-center gap-2"
+          v-if="isDateBoundSurface && (serverStale || summaryRevalidating)"
+          class="flex flex-wrap items-center gap-2"
         >
           <UBadge v-if="serverStale" color="warning" variant="subtle" size="sm">
             Serving cached snapshot; refreshing in background
@@ -129,6 +89,7 @@ const tabs = [
       </div>
 
       <AnalyticsDateBar
+        v-if="isDateBoundSurface"
         :preset-options="dateState.presetOptions"
         :active-preset="preset"
         :loading="dateBarLoading"
@@ -141,81 +102,54 @@ const tabs = [
       />
     </div>
 
-    <div class="mb-6 flex flex-wrap gap-1 border-b border-default pb-px">
-      <UButton
-        v-for="tab in tabs"
-        :key="tab.id"
-        size="sm"
-        :color="activeTab === tab.id ? 'primary' : 'neutral'"
-        :variant="activeTab === tab.id ? 'solid' : 'ghost'"
-        :icon="tab.icon"
-        class="cursor-pointer rounded-b-none"
-        @click="activeTab = tab.id"
-      >
-        {{ tab.label }}
-      </UButton>
-    </div>
+    <AnalyticsSectionTabs v-model="currentSurface" :items="ANALYTICS_SURFACE_OPTIONS" />
 
     <UAlert
-      v-if="preset === '1h'"
+      v-if="surfaceBlocksSelectedRange"
       icon="i-lucide-info"
-      title="Last hour is not supported"
-      description="Fleet analytics snapshots use daily GA4 and Search Console granularity. Choose a longer range."
+      title="Last hour is not supported for canonical analytics snapshots"
+      description="Fleet analytics snapshots use daily GA4 and Search Console granularity. Switch to a longer range."
       color="info"
       variant="subtle"
-      class="mb-6"
     />
 
     <AnalyticsErrorAlert
-      v-if="summaryError"
+      v-if="summaryError && currentSurface !== 'indexing'"
       provider="Analytics Snapshot"
       :error="summaryError"
       @retry="refreshAll"
     />
 
-    <template v-if="preset !== '1h'">
-      <KeepAlive>
-        <AnalyticsHubOverviewSection
-          v-if="activeTab === 'overview'"
-          key="analytics-tab-overview"
-          :apps="fleetApps"
-          :snapshot-map="snapshotMap"
-          :insights="insights"
-          :loading="summaryLoading"
-          :summary-revalidating="summaryRevalidating"
-          :summary="summary"
-          @refresh-fleet-health="refreshFleetHealth"
-        />
-        <AnalyticsHubFleetSection
-          v-else-if="activeTab === 'fleet'"
-          key="analytics-tab-fleet"
-          v-model:status-filter="statusFilter"
-          :apps="filteredApps"
-          :snapshot-map="snapshotMap"
-          :status-map="statusMapComputed"
-          :loading="summaryLoading"
-          :sort-key="sortKey"
-          :sort-dir="sortDir"
-          @update:sort-key="sortKey = $event"
-          @update:sort-dir="sortDir = $event"
-        />
-        <AnalyticsHubIndexnowSection
-          v-else-if="activeTab === 'indexnow'"
-          key="analytics-tab-indexnow"
-          :indexnow-summary="indexnowSummary ?? null"
-          :indexnow-submitting="indexnowSubmitting"
-          :history-refresh-key="indexnowHistoryRefreshKey"
-          @batch-submit="onBatchIndexnow"
-        />
-        <AnalyticsHubGscSitemapSection
-          v-else-if="activeTab === 'gsc-sitemaps'"
-          key="analytics-tab-gsc-sitemaps"
-          :gsc-sitemap-summary="gscSitemapSummary ?? null"
-          :gsc-sitemap-submitting="gscSitemapSubmitting"
-          :history-refresh-key="gscSitemapHistoryRefreshKey"
-          @batch-submit="onBatchGscSitemap"
-        />
-      </KeepAlive>
+    <template v-if="!surfaceBlocksSelectedRange">
+      <AnalyticsHubOverviewSection
+        v-if="currentSurface === 'overview'"
+        :apps="fleetApps"
+        :snapshot-map="snapshotMap"
+        :insights="insights"
+        :loading="summaryLoading"
+        :summary-revalidating="summaryRevalidating"
+        :summary="summary"
+        @refresh-fleet-health="refreshFleetHealth"
+      />
+      <AnalyticsGaFleetSection
+        v-else-if="currentSurface === 'ga'"
+        :apps="fleetApps"
+        :snapshot-map="snapshotMap"
+        :loading="summaryLoading"
+      />
+      <AnalyticsGscFleetSection
+        v-else-if="currentSurface === 'gsc'"
+        :apps="fleetApps"
+        :snapshot-map="snapshotMap"
+        :loading="summaryLoading"
+      />
+      <AnalyticsPosthogFleetSection
+        v-else-if="currentSurface === 'posthog'"
+        :apps="fleetApps"
+        :snapshot-map="snapshotMap"
+        :loading="summaryLoading"
+      />
+      <AnalyticsHubIndexingSection v-else :apps="fleetApps" />
     </template>
   </div>
 </template>

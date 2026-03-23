@@ -28,7 +28,7 @@ const { loading: gscSitemapLoading, submit: submitGscSitemap } = useFleetGscSite
       >
         Session Replays
       </UButton>
-      <NuxtLink :to="`/analytics/${appName}#search-console`">
+      <NuxtLink :to="`/analytics/${appName}?view=gsc#search-console`">
         <UButton variant="outline" color="neutral" icon="i-lucide-search" class="cursor-pointer">
           Search Console
         </UButton>

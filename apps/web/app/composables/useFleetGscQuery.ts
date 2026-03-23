@@ -1,5 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import type { GscQueryParams, FleetGscResponse } from '~/types/analytics'
+import { getNuxtCachedData, markNuxtFetchedAt } from '~/utils/fetchCache'
 
 // Re-export types for consumers
 export type {
@@ -10,13 +11,12 @@ export type {
   GscQueryParams,
 } from '~/types/analytics'
 
-const CACHE_MAX_AGE = 5 * 60 * 1000 // 5 minutes stale-while-revalidate
-
 export function useFleetGscQuery(
   appName: MaybeRefOrGetter<string>,
   params: MaybeRefOrGetter<GscQueryParams>,
 ) {
   const resolvedApp = computed(() => toValue(appName))
+  const nuxtApp = useNuxtApp()
 
   const query = computed(() => {
     const p = toValue(params)
@@ -36,19 +36,18 @@ export function useFleetGscQuery(
   const { data, error, pending, refresh } = useFetch<FleetGscResponse>(
     () => `/api/fleet/gsc/${encodeURIComponent(resolvedApp.value || '_')}`,
     {
-      key: fetchKey.value,
+      key: fetchKey,
       query,
       server: false,
       lazy: true,
       watch: false,
       immediate: false,
       getCachedData(key, nuxtApp) {
-        const cached = nuxtApp.payload.data[key] ?? nuxtApp.static.data[key]
-        if (!cached) return
-        const timestamps = nuxtApp.payload._fetchedAt as Record<string, number> | undefined
-        const fetchedAt = timestamps?.[key]
-        if (fetchedAt && Date.now() - fetchedAt < CACHE_MAX_AGE) return cached
-        return
+        return getNuxtCachedData<FleetGscResponse>(key, nuxtApp)
+      },
+      transform(input) {
+        markNuxtFetchedAt(nuxtApp, fetchKey.value)
+        return input
       },
     },
   )

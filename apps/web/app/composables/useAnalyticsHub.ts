@@ -12,6 +12,11 @@ export interface UseAnalyticsHubOptions {
    * Defaults to the same value as `loadFleetSnapshots` when omitted.
    */
   loadIntegrationHealth?: MaybeRefOrGetter<boolean>
+  /**
+   * When true, revalidate fleet statuses on mount instead of only ensuring
+   * cached values exist. Defaults to false to avoid duplicate cold-load fetches.
+   */
+  revalidateStatusesOnMount?: MaybeRefOrGetter<boolean>
 }
 
 /**
@@ -27,19 +32,15 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
     }
     return loadFleetSnapshotsRef.value
   })
+  const revalidateStatusesOnMountRef = computed(() =>
+    toValue(options.revalidateStatusesOnMount ?? false),
+  )
 
   const analyticsStore = useAnalyticsStore()
   const { preset, startDate, endDate } = storeToRefs(analyticsStore)
   const dateState = useAnalyticsDateRange('30d')
 
   const { apps: fleetApps, getAppStatus, refreshStatusesRaw } = useFleet()
-
-  const { data: indexnowSummary, refresh: refreshIndexnowSummary } = useFleetIndexnowSummary()
-  const { submitting: indexnowSubmitting, submitAll: submitAllIndexnow } =
-    useBatchIndexnow(fleetApps)
-  const { data: gscSitemapSummary, refresh: refreshGscSitemapSummary } = useFleetGscSitemapSummary()
-  const { submitting: gscSitemapSubmitting, submitAll: submitAllGscSitemap } =
-    useBatchGscSitemap(fleetApps)
 
   const range = computed(() => ({ startDate: startDate.value, endDate: endDate.value }))
 
@@ -83,18 +84,6 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
     ])
   }
 
-  async function batchSubmitIndexnow(): Promise<{ ok: number; fail: number }> {
-    const counts = await submitAllIndexnow()
-    await refreshIndexnowSummary()
-    return counts
-  }
-
-  async function batchSubmitGscSitemap(): Promise<{ ok: number; fail: number }> {
-    const counts = await submitAllGscSitemap()
-    await refreshGscSitemapSummary()
-    return counts
-  }
-
   function loadFleetDataIfNeeded() {
     if (preset.value === '1h') return
     if (loadFleetSnapshotsRef.value) {
@@ -125,7 +114,9 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
   }
 
   onMounted(() => {
-    void refreshStatusesRaw()
+    if (revalidateStatusesOnMountRef.value) {
+      void refreshStatusesRaw()
+    }
     if (import.meta.client) {
       document.addEventListener('visibilitychange', onVisibility)
     }
@@ -147,14 +138,6 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
     fleetApps,
     getAppStatus,
     refreshStatusesRaw,
-    indexnowSummary,
-    refreshIndexnowSummary,
-    indexnowSubmitting,
-    submitAllIndexnow,
-    gscSitemapSummary,
-    refreshGscSitemapSummary,
-    gscSitemapSubmitting,
-    submitAllGscSitemap,
     range,
     summary,
     snapshotMap,
@@ -167,7 +150,5 @@ export function useAnalyticsHub(options: UseAnalyticsHubOptions = {}) {
     loadSummary,
     refreshAll,
     refreshFleetHealth,
-    batchSubmitIndexnow,
-    batchSubmitGscSitemap,
   }
 }

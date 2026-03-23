@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import type { StatCardConfig } from '~/types/analytics'
+import type { AnalyticsSurface } from '~/utils/analyticsPresentation'
+import {
+  ANALYTICS_SURFACE_OPTIONS,
+  analyticsSurfaceHref,
+  normalizeAnalyticsSurface,
+  providerLabel,
+  providerStatusColor,
+} from '~/utils/analyticsPresentation'
 
 const route = useRoute()
+const router = useRouter()
 const appName = computed(() => String(route.params.app ?? ''))
 
 const {
@@ -16,8 +24,6 @@ const {
   refreshDetail,
 } = useAnalyticsAppDetail(appName)
 
-const dateBarLoading = computed(() => detailLoading.value || detailRevalidating.value)
-
 useSeo({
   title: `${appName.value} — Analytics`,
   description: `Canonical analytics snapshot for ${appName.value}.`,
@@ -27,110 +33,106 @@ useWebPageSchema({
   description: 'Single-app analytics view with provider health and drilldowns.',
 })
 
-const gaSummary = computed(() => snapshot.value?.ga.metrics?.summary ?? null)
-const gaDeltas = computed(() => snapshot.value?.ga.metrics?.deltas ?? null)
-const gaTimeSeries = computed(() => snapshot.value?.ga.metrics?.timeSeries ?? [])
-const gscMetrics = computed(() => snapshot.value?.gsc.metrics ?? null)
-const posthogMetrics = computed(() => snapshot.value?.posthog.metrics ?? null)
+const currentSurface = computed<AnalyticsSurface>({
+  get() {
+    return normalizeAnalyticsSurface(typeof route.query.view === 'string' ? route.query.view : null)
+  },
+  set(value) {
+    const query = { ...route.query }
+    if (value === 'overview') {
+      delete query.view
+    } else {
+      query.view = value
+    }
+    void router.replace({ query })
+  },
+})
+
+const isDateBoundSurface = computed(() => currentSurface.value !== 'indexing')
+const surfaceBlocksSelectedRange = computed(
+  () => currentSurface.value !== 'indexing' && preset.value === '1h',
+)
+const dateBarLoading = computed(() => detailLoading.value || detailRevalidating.value)
+
+const overviewCards = computed(() => {
+  if (!snapshot.value) return []
+
+  const gaSummary = snapshot.value.ga.metrics?.summary
+  const gscTotals = snapshot.value.gsc.metrics?.totals
+  const posthogSummary = snapshot.value.posthog.metrics?.summary
+  const indexnowMetrics = snapshot.value.indexnow.metrics
+
+  return [
+    {
+      key: 'ga',
+      label: providerLabel('ga'),
+      href: analyticsSurfaceHref('ga', appName.value),
+      status: snapshot.value.ga.status,
+      message: snapshot.value.ga.message,
+      hint: snapshot.value.app.gaPropertyId
+        ? `Property ${snapshot.value.app.gaPropertyId}`
+        : 'No GA4 property configured',
+      metrics: [
+        { label: 'Users', value: String(gaSummary?.activeUsers?.toLocaleString() ?? 0) },
+        { label: 'Pageviews', value: String(gaSummary?.screenPageViews?.toLocaleString() ?? 0) },
+      ],
+    },
+    {
+      key: 'gsc',
+      label: providerLabel('gsc'),
+      href: analyticsSurfaceHref('gsc', appName.value),
+      status: snapshot.value.gsc.status,
+      message: snapshot.value.gsc.message,
+      hint: snapshot.value.gsc.metrics?.siteUrl || snapshot.value.app.url,
+      metrics: [
+        { label: 'Clicks', value: String(gscTotals?.clicks?.toLocaleString() ?? 0) },
+        { label: 'Impressions', value: String(gscTotals?.impressions?.toLocaleString() ?? 0) },
+      ],
+    },
+    {
+      key: 'posthog',
+      label: providerLabel('posthog'),
+      href: analyticsSurfaceHref('posthog', appName.value),
+      status: snapshot.value.posthog.status,
+      message: snapshot.value.posthog.message,
+      hint: snapshot.value.app.posthogAppName
+        ? `Project ${snapshot.value.app.posthogAppName}`
+        : 'Using app slug fallback',
+      metrics: [
+        { label: 'Events', value: String(Number(posthogSummary?.event_count ?? 0).toLocaleString()) },
+        { label: 'Users', value: String(Number(posthogSummary?.unique_users ?? 0).toLocaleString()) },
+      ],
+    },
+    {
+      key: 'indexnow',
+      label: providerLabel('indexnow'),
+      href: analyticsSurfaceHref('indexing', appName.value),
+      status: snapshot.value.indexnow.status,
+      message: snapshot.value.indexnow.message,
+      hint: 'IndexNow + sitemap operations',
+      metrics: [
+        {
+          label: 'Submits',
+          value: String(indexnowMetrics?.totalSubmissions?.toLocaleString() ?? 0),
+        },
+        {
+          label: 'Last batch',
+          value: String(indexnowMetrics?.lastSubmittedCount?.toLocaleString() ?? 'Unknown'),
+        },
+      ],
+    },
+  ]
+})
 
 const providerBadges = computed(() => {
   if (!snapshot.value) return []
   return [
-    { label: 'GA4', status: snapshot.value.ga.status, message: snapshot.value.ga.message },
-    { label: 'GSC', status: snapshot.value.gsc.status, message: snapshot.value.gsc.message },
-    {
-      label: 'PostHog',
-      status: snapshot.value.posthog.status,
-      message: snapshot.value.posthog.message,
-    },
-    {
-      label: 'IndexNow',
-      status: snapshot.value.indexnow.status,
-      message: snapshot.value.indexnow.message,
-    },
+    { label: 'GA4', status: snapshot.value.ga.status },
+    { label: 'GSC', status: snapshot.value.gsc.status },
+    { label: 'PostHog', status: snapshot.value.posthog.status },
+    { label: 'IndexNow', status: snapshot.value.indexnow.status },
   ]
 })
-
-function badgeColor(status: string) {
-  switch (status) {
-    case 'healthy':
-      return 'success'
-    case 'stale':
-      return 'warning'
-    case 'missing_registry':
-    case 'missing_config':
-    case 'access_denied':
-    case 'error':
-      return 'error'
-    default:
-      return 'neutral'
-  }
-}
-
-const gaCards = computed<StatCardConfig[]>(() => {
-  if (!gaSummary.value) return []
-  return [
-    {
-      label: 'Users',
-      value: gaSummary.value.activeUsers,
-      delta: gaDeltas.value?.users,
-      format: 'number',
-    },
-    {
-      label: 'Sessions',
-      value: gaSummary.value.sessions,
-      delta: gaDeltas.value?.sessions,
-      format: 'number',
-    },
-    {
-      label: 'Pageviews',
-      value: gaSummary.value.screenPageViews,
-      delta: gaDeltas.value?.pageviews,
-      format: 'number',
-    },
-    { label: 'Engagement', value: gaSummary.value.engagementRate, format: 'percent' },
-  ]
-})
-
-const gscCards = computed<StatCardConfig[]>(() => {
-  if (!gscMetrics.value?.totals) return []
-  return [
-    { label: 'Clicks', value: gscMetrics.value.totals.clicks, format: 'number' },
-    { label: 'Impressions', value: gscMetrics.value.totals.impressions, format: 'number' },
-    { label: 'CTR', value: gscMetrics.value.totals.ctr, format: 'percent' },
-    { label: 'Avg Position', value: gscMetrics.value.totals.position, format: 'number' },
-  ]
-})
-
-const posthogCards = computed<StatCardConfig[]>(() => {
-  if (!posthogMetrics.value) return []
-  return [
-    {
-      label: 'Events',
-      value: Number(posthogMetrics.value.summary.event_count ?? 0),
-      format: 'number',
-    },
-    {
-      label: 'Unique Users',
-      value: Number(posthogMetrics.value.summary.unique_users ?? 0),
-      format: 'number',
-    },
-    {
-      label: 'Pageviews',
-      value: Number(posthogMetrics.value.summary.pageviews ?? 0),
-      format: 'number',
-    },
-    {
-      label: 'Sessions',
-      value: Number(posthogMetrics.value.summary.sessions ?? 0),
-      format: 'number',
-    },
-  ]
-})
-
-const gscClickSeries = computed(() =>
-  (gscMetrics.value?.timeSeries ?? []).map((point) => ({ date: point.date, value: point.clicks })),
-)
 
 const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
@@ -140,7 +142,7 @@ const breadcrumbItems = computed(() => [
 </script>
 
 <template>
-  <div class="space-y-6 overflow-hidden">
+  <div class="space-y-6 overflow-hidden pb-12">
     <AppBreadcrumbs :items="breadcrumbItems" />
 
     <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -164,7 +166,7 @@ const breadcrumbItems = computed(() => [
           <UBadge
             v-for="provider in providerBadges"
             :key="provider.label"
-            :color="badgeColor(provider.status)"
+            :color="providerStatusColor(provider.status)"
             variant="soft"
             size="sm"
           >
@@ -177,6 +179,7 @@ const breadcrumbItems = computed(() => [
       </div>
 
       <AnalyticsDateBar
+        v-if="isDateBoundSurface"
         :preset-options="dateState.presetOptions"
         :active-preset="preset"
         :loading="dateBarLoading"
@@ -188,6 +191,17 @@ const breadcrumbItems = computed(() => [
       />
     </div>
 
+    <AnalyticsSectionTabs v-model="currentSurface" :items="ANALYTICS_SURFACE_OPTIONS" />
+
+    <UAlert
+      v-if="surfaceBlocksSelectedRange"
+      icon="i-lucide-info"
+      title="Last hour is not supported for canonical analytics snapshots"
+      description="App analytics snapshots use daily GA4 and Search Console granularity. Switch to a longer range."
+      color="info"
+      variant="subtle"
+    />
+
     <AnalyticsErrorAlert
       v-if="detailError"
       provider="App snapshot"
@@ -195,92 +209,53 @@ const breadcrumbItems = computed(() => [
       @retry="refreshDetail"
     />
 
-    <div v-if="snapshot" class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <UCard v-for="provider in providerBadges" :key="`${provider.label}-card`" class="rounded-2xl">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <p class="text-xs uppercase tracking-[0.12em] text-muted">{{ provider.label }}</p>
-            <p class="mt-1 text-base font-semibold text-default">{{ provider.status }}</p>
-            <p class="mt-2 text-sm text-muted">{{ provider.message || 'Snapshot is healthy.' }}</p>
-          </div>
-          <UBadge :color="badgeColor(provider.status)" variant="soft" size="sm">
-            {{ provider.status }}
-          </UBadge>
+    <template v-if="!surfaceBlocksSelectedRange">
+      <div v-if="currentSurface === 'overview'" class="space-y-4">
+        <div v-if="overviewCards.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <AnalyticsProviderStateCard
+            v-for="card in overviewCards"
+            :key="card.key"
+            :app-name="card.label"
+            :href="card.href"
+            :status="card.status"
+            :message="card.message"
+            :hint="card.hint"
+            :metrics="card.metrics"
+            action-label="Open provider detail"
+          />
         </div>
-      </UCard>
-    </div>
 
-    <div v-if="gaCards.length" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
-      <AnalyticsStatCard v-for="card in gaCards" :key="card.label" v-bind="card" compact />
-    </div>
+        <AnalyticsQuickActions
+          :app-name="appName"
+          :replays-url="snapshot?.posthog.metrics?.replaysUrl ?? undefined"
+          :inspection-link="snapshot?.gsc.metrics?.inspection?.inspectionResultLink"
+        />
+      </div>
 
-    <UCard v-if="gaTimeSeries.length">
-      <template #header>
-        <h2 class="text-sm font-medium text-default">GA4 Pageviews</h2>
-      </template>
-      <AnalyticsLineChart :data="gaTimeSeries" :title="`${startDate} to ${endDate}`" />
-    </UCard>
-
-    <div v-if="gscCards.length" id="search-console" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
-      <AnalyticsStatCard v-for="card in gscCards" :key="card.label" v-bind="card" compact />
-    </div>
-
-    <UCard v-if="gscClickSeries.length">
-      <template #header>
-        <h2 class="text-sm font-medium text-default">Search Console Clicks</h2>
-      </template>
-      <AnalyticsLineChart :data="gscClickSeries" :title="`${startDate} to ${endDate}`" />
-    </UCard>
-
-    <AnalyticsGscTopQueries
-      v-if="gscMetrics"
-      :queries="gscMetrics.queries.slice(0, 10)"
-      :devices="gscMetrics.devices.slice(0, 5)"
-    />
-
-    <AnalyticsGscInspection
-      v-if="gscMetrics?.inspection?.indexStatusResult"
-      :inspection="gscMetrics.inspection"
-    />
-
-    <div v-if="posthogCards.length" class="grid gap-3 grid-cols-2 sm:grid-cols-4">
-      <AnalyticsStatCard
-        v-for="card in posthogCards"
-        :key="`ph-${card.label}`"
-        v-bind="card"
-        compact
+      <AnalyticsGaDetailSection
+        v-else-if="currentSurface === 'ga'"
+        :metrics="snapshot?.ga.metrics ?? null"
+        :start-date="startDate"
+        :end-date="endDate"
       />
-    </div>
 
-    <div class="grid gap-4 md:grid-cols-2">
-      <FleetTopDimensionCard
-        title="Top Pages"
-        icon="i-lucide-file-text"
-        :items="posthogMetrics?.topPages ?? []"
+      <AnalyticsGscDetailSection
+        v-else-if="currentSurface === 'gsc'"
+        :metrics="snapshot?.gsc.metrics ?? null"
+        :start-date="startDate"
+        :end-date="endDate"
       />
-      <FleetTopDimensionCard
-        title="Top Referrers"
-        icon="i-lucide-arrow-up-right"
-        :items="posthogMetrics?.topReferrers ?? []"
-      />
-      <FleetTopDimensionCard
-        title="Top Countries"
-        icon="i-lucide-globe"
-        :items="posthogMetrics?.topCountries ?? []"
-      />
-      <FleetTopDimensionCard
-        title="Top Browsers"
-        icon="i-lucide-monitor"
-        :items="posthogMetrics?.topBrowsers ?? []"
-      />
-    </div>
 
-    <AnalyticsSitemapPanel :app-name="appName" />
+      <AnalyticsPosthogDetailSection
+        v-else-if="currentSurface === 'posthog'"
+        :metrics="snapshot?.posthog.metrics ?? null"
+      />
 
-    <AnalyticsQuickActions
-      :app-name="appName"
-      :replays-url="posthogMetrics?.replaysUrl ?? undefined"
-      :inspection-link="gscMetrics?.inspection?.inspectionResultLink"
-    />
+      <AnalyticsIndexingDetailSection
+        v-else
+        :app-name="appName"
+        :provider="snapshot?.indexnow ?? null"
+      />
+    </template>
   </div>
 </template>

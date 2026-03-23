@@ -9,14 +9,8 @@ import { test, expect } from '@playwright/test'
 
 const BASE = process.env.E2E_BASE_URL || 'https://control-plane.nard.uk'
 
-async function openFleetTab(page: import('@playwright/test').Page) {
-  const fleetTab = page.locator('button:has-text("Fleet")').first()
-  await expect(fleetTab).toBeVisible({ timeout: 10_000 })
-  await fleetTab.click()
-}
-
-async function openIndexNowTab(page: import('@playwright/test').Page) {
-  const tab = page.locator('button:has-text("IndexNow")').first()
+async function openProviderTab(page: import('@playwright/test').Page, label: string) {
+  const tab = page.locator(`button:has-text("${label}")`).first()
   await expect(tab).toBeVisible({ timeout: 10_000 })
   await tab.click()
 }
@@ -48,11 +42,9 @@ test.describe('Analytics Dashboard', () => {
     await expect(dateSelector.first()).toBeVisible({ timeout: 10000 })
   })
 
-  test('fleet table renders with app names', async ({ page }) => {
+  test('GA4 provider surface renders with app names', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
-    await openFleetTab(page)
-
-    await expect(page.locator('th:has-text("App")').first()).toBeVisible({ timeout: 15000 })
+    await openProviderTab(page, 'GA4')
 
     const pageContent = await page.textContent('body')
     const knownApps = ['austin-texas-net', 'control-plane', 'tide-check', 'papa-everetts-pizza']
@@ -60,24 +52,24 @@ test.describe('Analytics Dashboard', () => {
     expect(foundApp).toBe(true)
   })
 
-  test('fleet table shows analytics columns after cache population', async ({ page }) => {
+  test('PostHog provider surface shows provider detail cards after cache population', async ({
+    page,
+  }) => {
     await page.goto(`${BASE}/analytics`)
-    await openFleetTab(page)
+    await openProviderTab(page, 'PostHog')
 
     await page.waitForTimeout(5000)
 
-    const hasUsers = page.locator('th:has-text("Users"), button:has-text("Users")').first()
-    const hasPageviews = page
-      .locator('th:has-text("Pageviews"), button:has-text("Pageviews")')
-      .first()
-    const hasEvents = page.locator('th:has-text("Events"), button:has-text("Events")').first()
-    const hasClicks = page.locator('text=GSC Clicks').first()
+    const hasEvents = page.locator('text=Events').first()
+    const hasUsers = page.locator('text=Users').first()
+    const hasPageviews = page.locator('text=Pageviews').first()
+    const hasProjectHint = page.locator('text=Project').first()
 
     const visibleLabels = await Promise.all([
+      hasEvents.isVisible({ timeout: 2000 }).catch(() => false),
       hasUsers.isVisible({ timeout: 2000 }).catch(() => false),
       hasPageviews.isVisible({ timeout: 2000 }).catch(() => false),
-      hasEvents.isVisible({ timeout: 2000 }).catch(() => false),
-      hasClicks.isVisible({ timeout: 2000 }).catch(() => false),
+      hasProjectHint.isVisible({ timeout: 2000 }).catch(() => false),
     ])
 
     expect(visibleLabels.some(Boolean)).toBe(true)
@@ -93,9 +85,9 @@ test.describe('Analytics Dashboard', () => {
     await page.waitForTimeout(2000)
   })
 
-  test('IndexNow tab shows Submit All and ping history', async ({ page }) => {
+  test('Indexing tab shows batch actions and ping history', async ({ page }) => {
     await page.goto(`${BASE}/analytics`)
-    await openIndexNowTab(page)
+    await openProviderTab(page, 'Indexing')
 
     const indexNowSection = page.locator('text=IndexNow')
     await expect(indexNowSection.first()).toBeVisible({ timeout: 10000 })

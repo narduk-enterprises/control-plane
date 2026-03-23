@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getNuxtCachedData, markNuxtFetchedAt } from '~/utils/fetchCache'
+
 export interface GscSitemapHistoryRow {
   id: string
   app: string
@@ -24,14 +26,26 @@ const emit = defineEmits<{
   (e: 'batchSubmit'): void
 }>()
 
+const nuxtApp = useNuxtApp()
+
 const {
   data: historyRows,
   pending: historyPending,
   refresh: refreshHistory,
   error: historyError,
 } = useLazyFetch<GscSitemapHistoryRow[]>('/api/fleet/gsc-sitemap/history', {
+  key: 'fleet-gsc-sitemap-history',
+  server: false,
+  immediate: false,
   query: { limit: 100 },
   headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  getCachedData(key, nuxtApp) {
+    return getNuxtCachedData(key, nuxtApp)
+  },
+  transform(input) {
+    markNuxtFetchedAt(nuxtApp, 'fleet-gsc-sitemap-history')
+    return input
+  },
 })
 
 watch(
