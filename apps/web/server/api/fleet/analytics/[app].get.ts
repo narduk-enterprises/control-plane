@@ -8,10 +8,15 @@ import {
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const cronHeader = getHeader(event, 'x-internal-cron')
-  if (!(config.cronSecret && cronHeader === config.cronSecret)) {
+  const isCron = Boolean(config.cronSecret && cronHeader === config.cronSecret)
+  if (!isCron) {
     await requireAdmin(event)
   }
-  await enforceRateLimit(event, 'fleet-analytics-detail', 20, 60_000)
+  // Cron warms one detail request per app per run; skip rate limit so hourly
+  // batches do not hit the per-IP sliding window (same isolate IP for subrequests).
+  if (!isCron) {
+    await enforceRateLimit(event, 'fleet-analytics-detail', 20, 60_000)
+  }
 
   const appSlug = parseAnalyticsAppParam(event)
   const query = parseAnalyticsQuery(event)

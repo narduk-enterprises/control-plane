@@ -1,7 +1,9 @@
 /**
  * Cron handler: check all fleet app statuses and persist to D1.
- * Warms individual GA, GSC, and PostHog caches for each fleet app,
- * then refreshes the fleet-wide analytics summary and insights.
+ * Warms the **per-app analytics detail** D1 snapshot (same key as the UI:
+ * `fleet-analytics-app-detail-{app}-{start}-{end}`), which fills GA/GSC/PostHog
+ * sub-caches including full PostHog + GSC device/series. Then refreshes the
+ * fleet-wide summary and insights.
  *
  * Triggered by Cloudflare Cron Trigger (every hour: "0 * * * *")
  * via the `[triggers]` block in wrangler.json.
@@ -17,8 +19,8 @@ import { cleanExpiredCache } from '#layer/server/utils/d1Cache'
 
 /** Wall-clock deadline in ms — abort remaining work before hitting Worker limits */
 const DEADLINE_MS = 25_000
-/** Timeout per subrequest in ms */
-const SUBREQUEST_TIMEOUT_MS = 8_000
+/** Timeout per subrequest in ms (detail builds GA+GSC+PostHog) */
+const SUBREQUEST_TIMEOUT_MS = 12_000
 /** Max apps to warm concurrently (lower = less peak CPU) */
 const BATCH_SIZE = 3
 
@@ -63,7 +65,7 @@ export default defineEventHandler(async (event) => {
   }
   const dateQuery = `startDate=${encodeURIComponent(startStr)}&endDate=${encodeURIComponent(end)}`
 
-  // Phase 1: Warm individual app analytics caches (GA + GSC + PostHog).
+  // Phase 1: Warm per-app detail snapshots (populates D1 row the analytics page reads).
   // Batched with timeout guards. Skip entirely if we've already used too much time.
   const appNames = rows.map((r) => r.app)
   let warmed = 0
@@ -80,22 +82,12 @@ export default defineEventHandler(async (event) => {
       }
 
       const batch = appNames.slice(i, i + BATCH_SIZE)
-      const calls = batch.flatMap((app) => {
+      const calls = batch.map((app) => {
         const slug = encodeURIComponent(app)
-        return [
-          $fetch(`${baseURL}/api/fleet/ga/${slug}?${dateQuery}`, {
-            headers,
-            signal: AbortSignal.timeout(SUBREQUEST_TIMEOUT_MS),
-          }).catch(() => null),
-          $fetch(`${baseURL}/api/fleet/gsc/${slug}?${dateQuery}`, {
-            headers,
-            signal: AbortSignal.timeout(SUBREQUEST_TIMEOUT_MS),
-          }).catch(() => null),
-          $fetch(`${baseURL}/api/fleet/posthog/${slug}?${dateQuery}&summaryOnly=true`, {
-            headers,
-            signal: AbortSignal.timeout(SUBREQUEST_TIMEOUT_MS),
-          }).catch(() => null),
-        ]
+        return $fetch(`${baseURL}/api/fleet/analytics/${slug}?${dateQuery}`, {
+          headers,
+          signal: AbortSignal.timeout(SUBREQUEST_TIMEOUT_MS),
+        }).catch(() => null)
       })
       await Promise.allSettled(calls)
       warmed += batch.length
