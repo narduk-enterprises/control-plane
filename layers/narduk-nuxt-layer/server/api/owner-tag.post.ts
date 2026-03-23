@@ -5,6 +5,11 @@
  * to tag internal/owner traffic. Protected by a shared secret so only
  * the site owner can call it.
  *
+ * Cross-browser PostHog identity (optional): set the same
+ * `POSTHOG_OWNER_DISTINCT_ID` (server-only UUID) in Doppler for each app; after
+ * owner-tag, the client loads `/api/owner/posthog-bootstrap` and calls
+ * `posthog.identify` so all your devices merge into one person.
+ *
  * Usage (once per browser/device):
  *   curl -X POST https://myapp.com/api/owner-tag \
  *     -H "Content-Type: application/json" \

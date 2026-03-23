@@ -2,11 +2,14 @@ import { execSync } from 'node:child_process'
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
+  readlinkSync,
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
@@ -70,6 +73,16 @@ function filesIdentical(left: string, right: string): boolean {
   }
 }
 
+function symlinkTargetsMatch(left: string, right: string): boolean {
+  try {
+    return lstatSync(left).isSymbolicLink() && lstatSync(right).isSymbolicLink()
+      ? readlinkSync(left, 'utf8') === readlinkSync(right, 'utf8')
+      : false
+  } catch {
+    return false
+  }
+}
+
 function syncFile(
   sourcePath: string,
   targetPath: string,
@@ -79,6 +92,29 @@ function syncFile(
   log: (message: string) => void,
 ) {
   if (!existsSync(sourcePath)) return
+
+  const srcLstat = lstatSync(sourcePath)
+  if (srcLstat.isSymbolicLink()) {
+    const wantTarget = readlinkSync(sourcePath, 'utf8')
+    if (existsSync(targetPath) && symlinkTargetsMatch(sourcePath, targetPath)) {
+      counters.skipped += 1
+      return
+    }
+
+    const action = existsSync(targetPath) ? 'UPDATE' : 'ADD'
+    log(`  ${action}: ${relative(templateDir, sourcePath)}`)
+
+    if (!dryRun) {
+      ensureDir(targetPath)
+      if (existsSync(targetPath)) {
+        rmSync(targetPath, { recursive: true, force: true })
+      }
+      symlinkSync(wantTarget, targetPath)
+    }
+
+    counters.copied += 1
+    return
+  }
 
   if (existsSync(targetPath) && filesIdentical(sourcePath, targetPath)) {
     counters.skipped += 1
@@ -106,7 +142,30 @@ function syncDirectoryRecursive(
 ) {
   if (!existsSync(sourceRoot) || isIgnoredManagedPath(sourceRoot)) return
 
-  const stat = statSync(sourceRoot)
+  const stat = lstatSync(sourceRoot)
+
+  if (stat.isSymbolicLink()) {
+    const wantTarget = readlinkSync(sourceRoot, 'utf8')
+    if (existsSync(targetRoot) && symlinkTargetsMatch(sourceRoot, targetRoot)) {
+      counters.skipped += 1
+      return
+    }
+
+    const action = existsSync(targetRoot) ? 'UPDATE' : 'ADD'
+    log(`  ${action}: ${relative(templateDir, sourceRoot)}`)
+
+    if (!dryRun) {
+      ensureDir(targetRoot)
+      if (existsSync(targetRoot)) {
+        rmSync(targetRoot, { recursive: true, force: true })
+      }
+      symlinkSync(wantTarget, targetRoot)
+    }
+
+    counters.copied += 1
+    return
+  }
+
   if (stat.isDirectory()) {
     if (!existsSync(targetRoot) && !dryRun) {
       mkdirSync(targetRoot, { recursive: true })

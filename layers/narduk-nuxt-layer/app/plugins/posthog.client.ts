@@ -35,7 +35,7 @@ export default defineNuxtPlugin(() => {
     ;(window as any).$nuxt = {}
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Legacy integration global injection
-  ;(window as any).$nuxt.$posthog = posthog
+  ;(window as any).$nuxt.$posthog = posthogClient
 
   // ---------------------------------------------------------------------------
   // Super properties — registered on every event for easy filtering.

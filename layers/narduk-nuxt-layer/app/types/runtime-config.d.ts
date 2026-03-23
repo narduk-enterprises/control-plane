@@ -11,6 +11,8 @@ declare module 'nuxt/schema' {
     gaPropertyId: string
     posthogProjectId: string
     ownerTagSecret: string
+    /** Server-only PostHog distinct id for owner-tagged browsers; optional. */
+    posthogOwnerDistinctId: string
   }
 
   interface PublicRuntimeConfig {
