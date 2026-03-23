@@ -11,9 +11,10 @@ quality, interaction design, and accessibility of the app. It applies the
 skill's professional UI rules and pre-delivery checklist to catch common issues
 that make interfaces look unpolished.
 
-> **Prerequisite:** The template ships this skill under `.codex/skills/` and
-> mirror directories. If it is missing in a downstream app, sync from the
-> template instead of bootstrapping a separate Antigravity-only install.
+> **Prerequisite:** The template ships this skill under
+> `.template-reference/ui-ux-pro-max/`. Agent tools resolve it via `~/.skills`
+> after `pnpm run skills:link`. If it is missing in a downstream app, sync from
+> the template instead of bootstrapping a separate Antigravity-only install.
 
 > **Related workflows:**
 >
@@ -44,19 +45,19 @@ Search for common UX issues specific to the app:
 
 ```bash
 # Animation best practices
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "animation transition micro-animation" --domain ux
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "animation transition micro-animation" --domain ux
 
 # Accessibility fundamentals
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "accessibility contrast keyboard focus" --domain ux
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "accessibility contrast keyboard focus" --domain ux
 
 # Loading and performance UX
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "loading skeleton empty-state error" --domain ux
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "loading skeleton empty-state error" --domain ux
 
 # Z-index and layering
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "z-index stacking modal overlay" --domain ux
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "z-index stacking modal overlay" --domain ux
 
 # Web interface guidelines
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "aria semantic focus keyboard" --domain web
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "aria semantic focus keyboard" --domain web
 ```
 
 ---

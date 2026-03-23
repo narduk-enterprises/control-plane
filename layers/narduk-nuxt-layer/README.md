@@ -2,7 +2,7 @@
 
 > **⚠️ ARCHITECTURE NOTICE:** This is a **Nuxt Layer**. You do not build
 > applications directly inside this directory. Instead, downstream applications
-> (like `apps/web/` or `apps/example-*/`) use
+> (like `apps/web/`, `apps/showcase/`, or a derived app in its own repo) use
 > `extends: ['@narduk-enterprises/narduk-nuxt-template-layer']` to inherit these
 > shared resources.
 

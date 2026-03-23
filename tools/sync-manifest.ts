@@ -24,6 +24,7 @@ export const VERBATIM_SYNC_FILES = [
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
   'scripts/dev-kill.sh',
+  'scripts/cleanup-node-leaks.sh',
   'scripts/playwright-webserver-dev.sh',
   'scripts/_playwright-webserver-dev-inner.sh',
   'scripts/run-mapkit-e2e.sh',
@@ -48,18 +49,20 @@ export const BOOTSTRAP_SYNC_FILES = ['guardrail-exceptions.json'] as const
 export const RECURSIVE_SYNC_DIRECTORIES = [
   'packages/eslint-config',
   '.agents/workflows',
-  // Compatibility mirrors. Shared ui-ux-pro-max payload lives under
-  // `.cursor/skills/`; other tool directories keep their own wrapper docs and
-  // symlink the shared data/scripts payload.
+  // ui-ux-pro-max payload lives under `.template-reference/ui-ux-pro-max/`.
+  // Per-agent `*/skills` dirs are local symlinks to ~/.skills (see skills:link).
   '.agent',
   '.codex',
-  '.cursor/skills',
   '.github/prompts',
   '.template-reference',
   'layers/narduk-nuxt-layer',
 ] as const
 
 export const STALE_SYNC_PATHS = [
+  '.cursor/skills/home',
+  '.codex/skills/home',
+  '.agent/skills/home',
+  '.github/skills/home',
   '.github/workflows/publish-layer.yml',
   '.github/workflows/deploy-showcase.yml',
   '.github/workflows/deploy.yml',
@@ -101,6 +104,7 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
     "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",
   'clean:install': 'pnpm run clean && pnpm install && pnpm run db:ready:all',
   'dev:kill': 'sh scripts/dev-kill.sh',
+  'cleanup:node-leaks': 'sh scripts/cleanup-node-leaks.sh',
   'generate:favicons': 'npx tsx tools/generate-favicons.ts',
   tail: 'npx tsx tools/tail.ts',
   quality: 'pnpm run quality:fix && pnpm run quality:check',

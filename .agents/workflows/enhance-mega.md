@@ -13,9 +13,10 @@ design, and bulletproof pre-delivery validation into a single, relentless
 pipeline. When this workflow runs, the app should emerge looking like a $50M
 startup product.
 
-> **Prerequisite:** The template ships this skill under `.codex/skills/` and
-> mirror directories. If it is missing in a downstream app, sync from the
-> template instead of bootstrapping a separate Antigravity-only install.
+> **Prerequisite:** The template ships this skill under
+> `.template-reference/ui-ux-pro-max/`. Agent tools resolve it via `~/.skills`
+> after `pnpm run skills:link`. If it is missing in a downstream app, sync from
+> the template instead of bootstrapping a separate Antigravity-only install.
 
 > **Your mandate:** You are the lead designer AND the lead engineer. Do not hold
 > back. Do not ask "should I add this?" — add it. Do not wonder "is this too
@@ -78,7 +79,7 @@ with.
 Use every relevant keyword to get the richest possible design system:
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product_type> <industry> <audience> <style_keywords> premium modern polished" --design-system --persist -p "<App Name>" -f markdown
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product_type> <industry> <audience> <style_keywords> premium modern polished" --design-system --persist -p "<App Name>" -f markdown
 ```
 
 **Critical:** Use `--persist` to save to `design-system/MASTER.md`. This becomes
@@ -90,22 +91,22 @@ For EVERY distinct page type in the app, generate a page-specific override:
 
 ```bash
 # Landing / marketing pages
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product> landing hero social-proof conversion" --design-system --persist -p "<App Name>" --page "landing"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product> landing hero social-proof conversion" --design-system --persist -p "<App Name>" --page "landing"
 
 # Dashboard / admin pages
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product> dashboard analytics data-dense professional" --design-system --persist -p "<App Name>" --page "dashboard"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product> dashboard analytics data-dense professional" --design-system --persist -p "<App Name>" --page "dashboard"
 
 # Auth pages (login, register)
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product> auth login trust security" --design-system --persist -p "<App Name>" --page "auth"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product> auth login trust security" --design-system --persist -p "<App Name>" --page "auth"
 
 # Settings / profile pages
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product> settings form professional clean" --design-system --persist -p "<App Name>" --page "settings"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product> settings form professional clean" --design-system --persist -p "<App Name>" --page "settings"
 
 # Content / blog pages
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product> content blog reading typography" --design-system --persist -p "<App Name>" --page "content"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product> content blog reading typography" --design-system --persist -p "<App Name>" --page "content"
 
 # Pricing pages
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product> pricing comparison conversion trust" --design-system --persist -p "<App Name>" --page "pricing"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product> pricing comparison conversion trust" --design-system --persist -p "<App Name>" --page "pricing"
 ```
 
 Only generate overrides for page types that actually exist in the app.
@@ -121,101 +122,101 @@ these:
 
 ```bash
 # Primary style exploration
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<primary_style> premium polished" --domain style -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<primary_style> premium polished" --domain style -n 5
 
 # Secondary style variants
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "glassmorphism modern gradient depth" --domain style -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "glassmorphism modern gradient depth" --domain style -n 3
 
 # Dark mode specific styles
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "dark mode depth glow neon" --domain style -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "dark mode depth glow neon" --domain style -n 3
 ```
 
 ### 2b. Typography Deep-Dive
 
 ```bash
 # Primary font pairing exploration
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<audience> <mood> professional" --domain typography -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<audience> <mood> professional" --domain typography -n 5
 
 # Alternative pairings for variety
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "modern geometric clean tech" --domain typography -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "modern geometric clean tech" --domain typography -n 3
 
 # Display/heading font alternatives
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "bold striking headline display" --domain typography -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "bold striking headline display" --domain typography -n 3
 ```
 
 ### 2c. Color Palette Deep-Dive
 
 ```bash
 # Primary palette
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product_type> <industry>" --domain color -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product_type> <industry>" --domain color -n 5
 
 # Accent and secondary palettes
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "accent vibrant contrast highlight" --domain color -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "accent vibrant contrast highlight" --domain color -n 3
 ```
 
 ### 2d. UX Guidelines — The Full Sweep
 
 ```bash
 # Animation and motion best practices
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "animation transition micro-animation motion" --domain ux -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "animation transition micro-animation motion" --domain ux -n 5
 
 # Accessibility fundamentals
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "accessibility contrast keyboard focus screen-reader" --domain ux -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "accessibility contrast keyboard focus screen-reader" --domain ux -n 5
 
 # Loading states, empty states, error handling
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "loading skeleton empty-state error feedback" --domain ux -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "loading skeleton empty-state error feedback" --domain ux -n 5
 
 # Z-index, layering, modal management
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "z-index stacking modal overlay tooltip popover" --domain ux -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "z-index stacking modal overlay tooltip popover" --domain ux -n 5
 
 # Form UX
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "form validation input feedback error-handling" --domain ux -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "form validation input feedback error-handling" --domain ux -n 5
 
 # Navigation patterns
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "navigation breadcrumb sidebar tabs" --domain ux -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "navigation breadcrumb sidebar tabs" --domain ux -n 3
 ```
 
 ### 2e. Web Interface Guidelines
 
 ```bash
 # Semantic HTML and ARIA
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "aria semantic focus keyboard landmark" --domain web -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "aria semantic focus keyboard landmark" --domain web -n 5
 
 # Performance UX
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "performance virtualize lazy-load image" --domain web -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "performance virtualize lazy-load image" --domain web -n 3
 ```
 
 ### 2f. Landing Page Structure (if applicable)
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "hero social-proof testimonial pricing cta" --domain landing -n 5
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "conversion optimization trust-signals urgency" --domain landing -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "hero social-proof testimonial pricing cta" --domain landing -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "conversion optimization trust-signals urgency" --domain landing -n 3
 ```
 
 ### 2g. Chart Recommendations (if data-heavy)
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "dashboard analytics real-time trend" --domain chart -n 5
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "comparison funnel timeline distribution" --domain chart -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "dashboard analytics real-time trend" --domain chart -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "comparison funnel timeline distribution" --domain chart -n 3
 ```
 
 ### 2h. Icon Recommendations
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product_type> navigation action" --domain icons -n 5
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product_type> navigation action" --domain icons -n 5
 ```
 
 ### 2i. Stack-Specific Vue/Nuxt Best Practices
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "layout responsive form animation transition component" --stack vue
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "performance optimization lazy-load virtual-scroll" --stack vue
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "layout responsive form animation transition component" --stack vue
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "performance optimization lazy-load virtual-scroll" --stack vue
 ```
 
 ### 2j. Product-Specific Patterns
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product_type> <industry> best-practices" --domain product -n 3
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product_type> <industry> best-practices" --domain product -n 3
 ```
 
 ---

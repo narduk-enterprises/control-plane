@@ -10,9 +10,10 @@ This workflow uses the `ui-ux-pro-max` skill to generate a comprehensive,
 project-specific design system. The design system provides curated styles, color
 palettes, typography, effects, and anti-patterns tailored to your app's domain.
 
-> **Prerequisite:** The template ships this skill under `.codex/skills/` and
-> mirror directories. If it is missing in a downstream app, sync from the
-> template instead of bootstrapping a separate Antigravity-only install.
+> **Prerequisite:** The template ships this skill under
+> `.template-reference/ui-ux-pro-max/`. Agent tools resolve it via `~/.skills`
+> after `pnpm run skills:link`. If it is missing in a downstream app, sync from
+> the template instead of bootstrapping a separate Antigravity-only install.
 
 > **Related workflows:**
 >
@@ -52,23 +53,23 @@ Identify:
 Run the design system generator with project-specific keywords:
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<product_type> <industry> <style_keywords>" --design-system -p "<App Name>"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<product_type> <industry> <style_keywords>" --design-system -p "<App Name>"
 ```
 
 **Examples:**
 
 ```bash
 # SaaS dashboard
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "saas dashboard analytics professional" --design-system -p "Loadtest"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "saas dashboard analytics professional" --design-system -p "Loadtest"
 
 # E-commerce storefront
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "ecommerce industrial catalog professional" --design-system -p "Circuit Breakers"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "ecommerce industrial catalog professional" --design-system -p "Circuit Breakers"
 
 # Content/blog site
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "content blog local news community" --design-system -p "Austin Texas Net"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "content blog local news community" --design-system -p "Austin Texas Net"
 
 # Trading app
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "fintech trading stocks gamification dark" --design-system -p "Stonx"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "fintech trading stocks gamification dark" --design-system -p "Stonx"
 ```
 
 The output includes:
@@ -87,7 +88,7 @@ The output includes:
 To save for future sessions and page-specific overrides:
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>"
 ```
 
 This creates:
@@ -98,8 +99,8 @@ This creates:
 **For page-specific overrides:**
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>" --page "dashboard"
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>" --page "landing"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>" --page "dashboard"
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "<query>" --design-system --persist -p "<App Name>" --page "landing"
 ```
 
 ---
@@ -110,19 +111,19 @@ Get deeper recommendations for specific design concerns:
 
 ```bash
 # Typography alternatives
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "elegant modern professional" --domain typography
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "elegant modern professional" --domain typography
 
 # Color palette options
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "saas professional" --domain color
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "saas professional" --domain color
 
 # Style exploration
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "glassmorphism dark gradient" --domain style
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "glassmorphism dark gradient" --domain style
 
 # Chart recommendations (for data-heavy apps)
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "real-time dashboard analytics" --domain chart
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "real-time dashboard analytics" --domain chart
 
 # Landing page structure
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "hero social-proof pricing" --domain landing
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "hero social-proof pricing" --domain landing
 ```
 
 ---
@@ -132,7 +133,7 @@ python3 .codex/skills/ui-ux-pro-max/scripts/search.py "hero social-proof pricing
 For Vue/Nuxt implementation best practices:
 
 ```bash
-python3 .codex/skills/ui-ux-pro-max/scripts/search.py "layout responsive form animation" --stack vue
+python3 .template-reference/ui-ux-pro-max/scripts/search.py "layout responsive form animation" --stack vue
 ```
 
 Available stacks: `html-tailwind`, `react`, `nextjs`, `vue`, `svelte`,

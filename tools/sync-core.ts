@@ -566,6 +566,23 @@ function patchGitignore(appDir: string, dryRun: boolean, log: (message: string) 
     }
   }
 
+  const skillsMarker =
+    '# User-global skills: per-agent symlinks to ~/.skills (pnpm run skills:link / sync-template)'
+  if (!content.includes(skillsMarker)) {
+    for (const legacy of [
+      '.cursor/skills/home',
+      '.codex/skills/home',
+      '.agent/skills/home',
+      '.github/skills/home',
+    ]) {
+      content = content.replace(new RegExp(`^${legacy.replace(/\//g, '\\/')}\\n`, 'gm'), '')
+    }
+    if (!content.endsWith('\n')) {
+      content += '\n'
+    }
+    content += `\n${skillsMarker}\n.skills\n.cursor/skills\n.codex/skills\n.agent/skills\n.github/skills\n`
+  }
+
   if (content === original) return false
 
   log('  UPDATE: .gitignore')
@@ -809,6 +826,7 @@ export async function runAppSync(options: RunAppSyncOptions) {
   const counters = createCounters()
 
   ensureTemplateState(options.templateDir, allowDirtyTemplate, dryRun, log)
+
   ensureAppState(options.appDir, allowDirtyApp, dryRun, log)
   const templateSha = getOutput('git rev-parse HEAD', options.templateDir)
 
@@ -844,7 +862,9 @@ export async function runAppSync(options: RunAppSyncOptions) {
   }
 
   log('')
-  log('  Skills: linking ~/.skills and agent bridges...')
+  log(
+    '  Skills: symlinking .cursor/.codex/.agent/.github skills/ → ~/.skills (after gitignore/stale cleanup)...',
+  )
   ensureSkillsLinks(options.appDir, { dryRun, log })
 
   // Record template HEAD for drift checks and fleet audit — must run for layer-only

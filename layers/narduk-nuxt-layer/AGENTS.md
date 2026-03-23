@@ -205,5 +205,6 @@ apps **inherit these automatically** and do not need to repeat them:
 The opt-in feature recipes (Auth, Analytics, Content, Testing, UI Components,
 Forms) are application-level concerns.
 
-For full instructions on how to implement them, please refer to the
-**[Workspace Root AGENTS.md](../../AGENTS.md)**.
+For full instructions on how to implement them, refer to
+**[docs/agents/recipes.md](../../docs/agents/recipes.md)** and
+**[docs/e2e-testing.md](../../docs/e2e-testing.md)**.
