@@ -1,6 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
 import type { GscQueryParams, FleetGscResponse } from '~/types/analytics'
-import { getNuxtCachedData, markNuxtFetchedAt } from '~/utils/fetchCache'
 
 // Re-export types for consumers
 export type {
@@ -16,7 +15,7 @@ export function useFleetGscQuery(
   params: MaybeRefOrGetter<GscQueryParams>,
 ) {
   const resolvedApp = computed(() => toValue(appName))
-  const nuxtApp = useNuxtApp()
+  const path = computed(() => `/api/fleet/gsc/${encodeURIComponent(resolvedApp.value || '_')}`)
 
   const query = computed(() => {
     const p = toValue(params)
@@ -33,29 +32,5 @@ export function useFleetGscQuery(
     return `fleet-gsc-${resolvedApp.value}-${p.dimension}-${p.startDate}-${p.endDate}`
   })
 
-  const { data, error, pending, refresh } = useFetch<FleetGscResponse>(
-    () => `/api/fleet/gsc/${encodeURIComponent(resolvedApp.value || '_')}`,
-    {
-      key: fetchKey,
-      query,
-      server: false,
-      lazy: true,
-      watch: false,
-      immediate: false,
-      getCachedData(key, nuxtApp) {
-        return getNuxtCachedData<FleetGscResponse>(key, nuxtApp)
-      },
-      transform(input) {
-        markNuxtFetchedAt(nuxtApp, fetchKey.value)
-        return input
-      },
-    },
-  )
-
-  async function load() {
-    if (!resolvedApp.value) return
-    await refresh()
-  }
-
-  return { data, error, loading: pending, load }
+  return useFleetAnalyticsRequest<FleetGscResponse>(path, fetchKey, query)
 }

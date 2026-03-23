@@ -1,5 +1,4 @@
 import type { MaybeRefOrGetter } from 'vue'
-import { getNuxtCachedData, markNuxtFetchedAt } from '~/utils/fetchCache'
 
 export interface GscSeriesRow {
   date: string
@@ -29,7 +28,9 @@ export function useFleetGscSeries(
   } = {},
 ) {
   const resolvedApp = computed(() => toValue(appName))
-  const nuxtApp = useNuxtApp()
+  const path = computed(
+    () => `/api/fleet/gsc/${encodeURIComponent(resolvedApp.value || '_')}/series`,
+  )
 
   const query = computed(() => {
     const start = toValue(startDate)
@@ -44,37 +45,9 @@ export function useFleetGscSeries(
     return q
   })
 
-  const { data, error, status, refresh } = useFetch<FleetGscSeriesResponse>(
-    () => `/api/fleet/gsc/${encodeURIComponent(resolvedApp.value || '_')}/series`,
-    {
-      key: computed(
-        () => `fleet-gsc-series-${resolvedApp.value}-${toValue(startDate)}-${toValue(endDate)}`,
-      ),
-      query,
-      lazy: true,
-      server: false,
-      watch: false,
-      immediate: false,
-      getCachedData(key, nuxtApp) {
-        return getNuxtCachedData<FleetGscSeriesResponse>(key, nuxtApp)
-      },
-      transform(input) {
-        const key = `fleet-gsc-series-${resolvedApp.value}-${toValue(startDate)}-${toValue(endDate)}`
-        markNuxtFetchedAt(nuxtApp, key)
-        return input
-      },
-    },
+  const fetchKey = computed(
+    () => `fleet-gsc-series-${resolvedApp.value}-${toValue(startDate)}-${toValue(endDate)}`,
   )
 
-  async function load() {
-    if (!resolvedApp.value) return
-    await refresh()
-  }
-
-  return {
-    data,
-    error,
-    loading: computed(() => status.value === 'pending'),
-    load,
-  }
+  return useFleetAnalyticsRequest<FleetGscSeriesResponse>(path, fetchKey, query)
 }

@@ -185,21 +185,21 @@ export function useAnalyticsAppSurfaceData(
     }
   })
 
-  async function loadGa() {
-    await gaRequest.load()
+  async function loadGa(force = false) {
+    await gaRequest.load(force)
   }
 
-  async function loadPosthog() {
-    await posthogRequest.load()
+  async function loadPosthog(force = false) {
+    await posthogRequest.load(force)
   }
 
-  async function loadGsc() {
+  async function loadGsc(force = false) {
     await Promise.all([
-      gscQuery.load(),
-      gscPages.load().catch(() => null),
-      gscDevices.load().catch(() => null),
-      gscSearchAppearance.load().catch(() => null),
-      gscSeries.load().catch(() => null),
+      gscQuery.load(force),
+      gscPages.load(force).catch(() => null),
+      gscDevices.load(force).catch(() => null),
+      gscSearchAppearance.load(force).catch(() => null),
+      gscSeries.load(force).catch(() => null),
     ])
   }
 
@@ -210,13 +210,13 @@ export function useAnalyticsAppSurfaceData(
     try {
       switch (surface.value) {
         case 'ga':
-          await loadGa()
+          await loadGa(force)
           return
         case 'gsc':
-          await loadGsc()
+          await loadGsc(force)
           return
         case 'posthog':
-          await loadPosthog()
+          await loadPosthog(force)
           return
         default:
       }
