@@ -6,10 +6,9 @@ description:
 
 # Enhance Design System
 
-This workflow uses the `ui-ux-pro-max` skill to
-generate a comprehensive, project-specific design system. The design system
-provides curated styles, color palettes, typography, effects, and anti-patterns
-tailored to your app's domain.
+This workflow uses the `ui-ux-pro-max` skill to generate a comprehensive,
+project-specific design system. The design system provides curated styles, color
+palettes, typography, effects, and anti-patterns tailored to your app's domain.
 
 > **Prerequisite:** The template ships this skill under `.codex/skills/` and
 > mirror directories. If it is missing in a downstream app, sync from the

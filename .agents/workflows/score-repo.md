@@ -500,11 +500,11 @@ migration failures.
 11. **Page-Building Component Adoption** // turbo
     - Run
       `grep -rnl 'PageHero\|PageSection\|PageFeature\|PageCTA\|DashboardGroup\|DashboardSidebar\|PricingPlan\|AuthForm\|BlogPost' apps/ layers/ --include='*.vue' | grep -v 'node_modules' | head -15`
-    - Nuxt UI v4 includes the Dashboard\*, Page\*, Pricing\*, Blog\*, and
-      Auth\* primitives. Landing pages should use `PageHero`, `PageSection`,
-      `PageFeature`, `PageCTA`.
-      Admin dashboards should use `DashboardGroup`, `DashboardSidebar`,
-      `DashboardPanel`. Flag apps that build these patterns with custom divs.
+    - Nuxt UI v4 includes the Dashboard\*, Page\*, Pricing\*, Blog\*, and Auth\*
+      primitives. Landing pages should use `PageHero`, `PageSection`,
+      `PageFeature`, `PageCTA`. Admin dashboards should use `DashboardGroup`,
+      `DashboardSidebar`, `DashboardPanel`. Flag apps that build these patterns
+      with custom divs.
 
 **Scoring:** 10 = all checks pass. -1 for each: deprecated component name, old
 prop syntax, legacy CSS import, wrong import order, legacy color tokens,

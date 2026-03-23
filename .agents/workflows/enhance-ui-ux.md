@@ -6,10 +6,10 @@ description:
 
 # Enhance UI/UX
 
-This workflow uses the `ui-ux-pro-max` skill to
-audit and enhance the visual quality, interaction design, and accessibility of
-the app. It applies the skill's professional UI rules and pre-delivery checklist
-to catch common issues that make interfaces look unpolished.
+This workflow uses the `ui-ux-pro-max` skill to audit and enhance the visual
+quality, interaction design, and accessibility of the app. It applies the
+skill's professional UI rules and pre-delivery checklist to catch common issues
+that make interfaces look unpolished.
 
 > **Prerequisite:** The template ships this skill under `.codex/skills/` and
 > mirror directories. If it is missing in a downstream app, sync from the

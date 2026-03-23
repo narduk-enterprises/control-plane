@@ -1,5 +1,4 @@
-description: 'Comprehensive SSR/Hydration safety audit + zero-tolerance hydration mismatch'
----
+## description: 'Comprehensive SSR/Hydration safety audit + zero-tolerance hydration mismatch'
 
 # /check-ssr-hydration-safety
 

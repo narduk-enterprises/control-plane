@@ -1,8 +1,8 @@
 ---
 description:
   Comprehensive Nuxt UI 4 component adoption audit — checks page-building
-  primitives, layout consistency, state handling, responsiveness, dark mode,
-  and polish
+  primitives, layout consistency, state handling, responsiveness, dark mode, and
+  polish
 ---
 
 # Nuxt UI 4 Audit
@@ -12,9 +12,8 @@ page-building primitives instead of reinventing layout patterns with raw HTML.
 It validates component adoption, visual consistency, state handling, and polish
 across devices and color modes.
 
-> **Prerequisite:** The Dashboard\*, Page\*, Pricing\*, Blog\*, Auth\*,
-> Chat\*, and Editor\* primitives ship in `@nuxt/ui` v4. No separate package is
-> needed.
+> **Prerequisite:** The Dashboard\*, Page\*, Pricing\*, Blog\*, Auth\*, Chat\*,
+> and Editor\* primitives ship in `@nuxt/ui` v4. No separate package is needed.
 
 > **Related workflows:**
 >
@@ -217,12 +216,12 @@ Applicable if the app uses `@nuxt/content`:
 
 Present findings grouped by severity:
 
-| Severity        | Category                                                            | What to check |
-| --------------- | ------------------------------------------------------------------- | ------------- |
-| 🔴 Critical     | Missing UApp wrapper, no error handling, broken mobile layout       |
+| Severity        | Category                                                                             | What to check |
+| --------------- | ------------------------------------------------------------------------------------ | ------------- |
+| 🔴 Critical     | Missing UApp wrapper, no error handling, broken mobile layout                        |
 | 🟠 High         | Custom layouts where Nuxt UI 4 page-building components fit, no empty/loading states |
-| 🟡 Medium       | Missing dark mode toggle, inconsistent spacing, no page transitions |
-| 🟢 Nice-to-have | Motion polish, glassmorphism, micro-animations                      |
+| 🟡 Medium       | Missing dark mode toggle, inconsistent spacing, no page transitions                  |
+| 🟢 Nice-to-have | Motion polish, glassmorphism, micro-animations                                       |
 
 Present as a table with specific recommendations. Ask the user for approval
 before making changes.

@@ -178,7 +178,8 @@ apps **inherit these automatically** and do not need to repeat them:
 - `app/composables/useSeo.ts`, `useSchemaOrg.ts`, `usePersistentTab.ts`
 - `app/components/AppTabs.vue`
 - `app/plugins/gtag.client.ts`, `posthog.client.ts`, `fetch.client.ts`,
-  `app/composables/usePosthog.ts` (client `capture` / `identify` / `reset` helpers)
+  `app/composables/usePosthog.ts` (client `capture` / `identify` / `reset`
+  helpers)
 - `app/types/api.ts`, `runtime-config.d.ts`
 
 **Public assets** (default favicons — apps override by placing their own in

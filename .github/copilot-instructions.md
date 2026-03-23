@@ -4,7 +4,12 @@ Read `AGENTS.md` at the project root for full project rules and conventions.
 
 ## User skills (`~/.skills`)
 
-The root `.skills` entry is a symlink to `~/.skills` (created by `pnpm run skills:link` and by `pnpm run sync-template`). The same tree is exposed as `home` under `.cursor/skills/`, `.codex/skills/`, and `.agent/skills/` for Cursor, Codex, GitHub Copilot, and Google Antigravity. When a task fits a packaged skill there, read its `SKILL.md` and any referenced assets from `.skills/` before improvising.
+The root `.skills` entry is a symlink to `~/.skills` (created by
+`pnpm run skills:link` and by `pnpm run sync-template`). The same tree is
+exposed as `home` under `.cursor/skills/`, `.codex/skills/`, and
+`.agent/skills/` for Cursor, Codex, GitHub Copilot, and Google Antigravity. When
+a task fits a packaged skill there, read its `SKILL.md` and any referenced
+assets from `.skills/` before improvising.
 
 ## Architecture & Monorepo
 
@@ -47,8 +52,8 @@ The root `.skills` entry is a symlink to `~/.skills` (created by `pnpm run skill
 
 - **CRITICAL**: If starting a new derived project, run `pnpm setup` first.
   Verify `git remote -v` does NOT point to
-  `narduk-enterprises/narduk-nuxt-template`. If you are intentionally working
-  on the template repository itself, that remote is expected.
+  `narduk-enterprises/narduk-nuxt-template`. If you are intentionally working on
+  the template repository itself, that remote is expected.
 - **Secrets**: Use Doppler. Secrets are consumed via `process.env.SECRET_NAME`
   in `nuxt.config.ts`.
 - Run `/check-*` and `/audit-*` AI workflows (in `.agents/workflows/`) for

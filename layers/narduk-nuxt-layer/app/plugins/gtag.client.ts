@@ -36,6 +36,7 @@ export default defineNuxtPlugin(() => {
   // Must push the real `arguments` object — a rest-parameter Array is not replayed
   // the same way by gtag.js. Outer type is variadic so call sites typecheck.
   const gtag: (...args: unknown[]) => void = function () {
+    // eslint-disable-next-line prefer-rest-params -- gtag.js only accepts the Arguments object; rest arrays are ignored
     window.dataLayer.push(arguments as unknown as IArguments)
   }
 

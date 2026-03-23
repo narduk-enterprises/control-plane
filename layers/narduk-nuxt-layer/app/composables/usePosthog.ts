@@ -6,9 +6,7 @@ import type { PostHog } from 'posthog-js'
  * localhost).
  */
 export function usePosthog() {
-  const client = import.meta.client
-    ? (useNuxtApp().$posthog as PostHog | undefined)
-    : undefined
+  const client = import.meta.client ? (useNuxtApp().$posthog as PostHog | undefined) : undefined
 
   return {
     /** Raw posthog-js instance when initialized; otherwise undefined. */

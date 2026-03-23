@@ -62,7 +62,10 @@ const FORBIDDEN_REPO_FILE_PATTERNS = [
   { label: 'Doppler export', pattern: /(^|\/)doppler\.json$/ },
 ] as const
 const JUNK_REPO_FILE_PATTERNS = [
-  { label: 'local sqlite database', pattern: /(^|\/)(?:local|dev|test|tmp|wrangler)\.sqlite(?:3)?$/i },
+  {
+    label: 'local sqlite database',
+    pattern: /(^|\/)(?:local|dev|test|tmp|wrangler)\.sqlite(?:3)?$/i,
+  },
   { label: 'sqlite sidecar file', pattern: /(^|\/).+\.sqlite(?:-wal|-shm)$/i },
   { label: 'Playwright report output', pattern: /(^|\/)playwright-report(\/|$)/ },
   { label: 'test result output', pattern: /(^|\/)test-results(\/|$)/ },
