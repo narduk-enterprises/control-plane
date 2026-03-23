@@ -2,3 +2,6 @@
 pnpm-lock.yaml
 # Accidental ESLint output dumps (not valid JSON for Prettier)
 **/eslint-results.json
+# Skills directories — external/vendored code, not ours to format
+.agents/skills/
+.agent/skills/

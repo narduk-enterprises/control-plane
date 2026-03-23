@@ -74,15 +74,15 @@ cd ~/new-code/narduk-nuxt-template && pnpm run sync:fleet -- --auto-commit
 
 ### Available flags
 
-| Flag                | Description                               |
-| ------------------- | ----------------------------------------- |
+| Flag                | Description                                                |
+| ------------------- | ---------------------------------------------------------- |
 | `--no-fresh-clone`  | Reuse existing local clone directory instead of re-cloning |
-| `--dry-run`         | Preview changes without writing           |
-| `--skip-quality`    | Skip `pnpm quality` per app               |
-| `--auto-commit`     | Auto-commit each app after sync           |
-| `--repos=app1,app2` | Sync only specific apps (comma-separated) |
-| `--jobs=N`          | Number of parallel workers (default: 4)   |
-| `--allow-dirty-app` | Sync on top of local app changes          |
+| `--dry-run`         | Preview changes without writing                            |
+| `--skip-quality`    | Skip `pnpm quality` per app                                |
+| `--auto-commit`     | Auto-commit each app after sync                            |
+| `--repos=app1,app2` | Sync only specific apps (comma-separated)                  |
+| `--jobs=N`          | Number of parallel workers (default: 4)                    |
+| `--allow-dirty-app` | Sync on top of local app changes                           |
 
 `sync-fleet` now uses fresh clones by default, so local dirty state in
 `~/new-code/template-apps` is not used as a precondition. Pass

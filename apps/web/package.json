@@ -5,8 +5,8 @@
   "version": "1.32.6",
   "scripts": {
     "build": "nuxt build",
-    "predev": "wrangler d1 execute control-plane-db --local --file=drizzle/migrations.sql",
-    "dev": "nuxt dev",
+    "predev": "pnpm run db:ready",
+    "dev": "(doppler run -- nuxt dev || nuxt dev)",
     "db:migrate": "bash ../../tools/db-migrate.sh control-plane-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle",
     "db:seed": "wrangler d1 execute control-plane-db --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql",
     "db:seed:fleet": "wrangler d1 execute control-plane-db --local --file=../../tools/seed-fleet-apps.sql",

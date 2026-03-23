@@ -18,8 +18,8 @@ layer so every downstream app inherits it automatically.
 
 Before writing code, answer these questions (ask the user if unclear):
 
-1. **Is this truly shared?** If the feature is specific to one app, it belongs in
-   `apps/web/` (or that app's repo), not the layer. Only add to the layer if
+1. **Is this truly shared?** If the feature is specific to one app, it belongs
+   in `apps/web/` (or that app's repo), not the layer. Only add to the layer if
    _every_ downstream app should inherit it.
 2. **Does it already exist?** Check the layer inventory in
    `docs/agents/workspace.md` and the layer's `AGENTS.md` under "Files Provided
@@ -30,13 +30,13 @@ Before writing code, answer these questions (ask the user if unclear):
 | ------------------- | -------------------------------------------------- |
 | Vue component       | `layers/narduk-nuxt-layer/app/components/`         |
 | Composable          | `layers/narduk-nuxt-layer/app/composables/`        |
-| Client plugin       | `layers/narduk-nuxt-layer/app/plugins/`             |
+| Client plugin       | `layers/narduk-nuxt-layer/app/plugins/`            |
 | CSS tokens/utils    | `layers/narduk-nuxt-layer/app/assets/css/main.css` |
 | Layout              | `layers/narduk-nuxt-layer/app/layouts/`            |
-| Middleware (client)  | `layers/narduk-nuxt-layer/app/middleware/`          |
+| Middleware (client) | `layers/narduk-nuxt-layer/app/middleware/`         |
 | Type definitions    | `layers/narduk-nuxt-layer/app/types/`              |
 | Server utility      | `layers/narduk-nuxt-layer/server/utils/`           |
-| Server middleware   | `layers/narduk-nuxt-layer/server/middleware/`       |
+| Server middleware   | `layers/narduk-nuxt-layer/server/middleware/`      |
 | API route           | `layers/narduk-nuxt-layer/server/api/`             |
 | DB schema           | `layers/narduk-nuxt-layer/server/database/`        |
 | DB migration        | `layers/narduk-nuxt-layer/drizzle/`                |
@@ -101,11 +101,10 @@ defaults.
 If the feature adds new files, components, composables, utilities, server
 routes, or config keys:
 
-1. **Update `AGENTS.md`** — add to the "Files Provided by This Layer" or
-   "Layer nuxt.config Defaults" sections in
-   `layers/narduk-nuxt-layer/AGENTS.md`.
-2. **Update `docs/agents/workspace.md`** — add to the "Layer Inventory" table
-   if the feature introduces a new category or significantly extends an existing
+1. **Update `AGENTS.md`** — add to the "Files Provided by This Layer" or "Layer
+   nuxt.config Defaults" sections in `layers/narduk-nuxt-layer/AGENTS.md`.
+2. **Update `docs/agents/workspace.md`** — add to the "Layer Inventory" table if
+   the feature introduces a new category or significantly extends an existing
    one.
 
 ---
@@ -170,6 +169,7 @@ git commit -m "feat(layer): <concise description of the shared feature>"
 ```
 
 Use conventional commit format:
+
 - `feat(layer):` for new capabilities
 - `fix(layer):` for bug fixes
 - `chore(layer):` for non-functional changes

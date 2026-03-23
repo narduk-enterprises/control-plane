@@ -365,6 +365,29 @@ async function main() {
     } else {
       console.log('  ✅ db:migrate includes app-owned migrations')
     }
+
+    const predevScript = webPkg.scripts?.['predev'] || ''
+    if (!predevScript) {
+      console.log(
+        webPkg.scripts?.['dev']?.includes('db:ready')
+          ? '  ⏭ web:predev not set; db:ready runs from dev script.'
+          : '  ⏭ web:predev not set; verify dev starts with db:migrate/db:ready.',
+      )
+    } else if (predevScript.includes('--file=') || predevScript.includes('--file ')) {
+      console.error(
+        `  ❌ web:predev uses a raw SQL file (e.g. migrations.sql) instead of db:migrate`,
+      )
+      allGood = false
+    } else if (
+      predevScript.includes('wrangler d1 execute') &&
+      !predevScript.includes('db:migrate') &&
+      !predevScript.includes('db:ready')
+    ) {
+      console.error('  ❌ web:predev must use db:migrate/db:ready, not direct wrangler d1 execute.')
+      allGood = false
+    } else {
+      console.log('  ✅ web:predev uses db:migrate/db:ready flow')
+    }
   } catch (e: any) {
     console.error(`  ❌ Failed to read apps/web/package.json: ${e.message}`)
     allGood = false

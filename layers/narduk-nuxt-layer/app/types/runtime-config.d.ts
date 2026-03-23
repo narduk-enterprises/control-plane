@@ -42,6 +42,7 @@ declare global {
           appVersion: string
           buildVersion: string
           buildTime: string
+          localBuildTime?: string
         }
       | undefined
     __NARDUK_BUILD_LOGGED__?: string | undefined

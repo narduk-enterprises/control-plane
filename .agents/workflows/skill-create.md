@@ -1,7 +1,7 @@
 ---
 description:
-  Scaffold a new agent skill with proper structure, frontmatter, and
-  cross-agent registration
+  Scaffold a new agent skill with proper structure, frontmatter, and cross-agent
+  registration
 ---
 
 # Create a New Skill
@@ -13,11 +13,11 @@ Copilot).
 > [!IMPORTANT] Read `docs/agents/skills.md` for full skills architecture before
 > proceeding.
 
-> [!CAUTION] **Skills MUST be installed to `~/.skills/` (global)**, not into per-
-> project directories. The `ensure-skills-links.ts` symlink bridge makes them
-> available to every repo. The `npx skills` CLI defaults to project scope and
-> creates reverse symlinks — you MUST use a post-install fixup (see Step 2b) or
-> install manually (Step 2c) to get the correct layout.
+> [!CAUTION] **Skills MUST be installed to `~/.skills/` (global)**, not into
+> per- project directories. The `ensure-skills-links.ts` symlink bridge makes
+> them available to every repo. The `npx skills` CLI defaults to project scope
+> and creates reverse symlinks — you MUST use a post-install fixup (see Step 2b)
+> or install manually (Step 2c) to get the correct layout.
 
 ---
 
@@ -67,9 +67,9 @@ npx -y skills add https://github.com/<owner>/<repo> --skill <name> --yes --scope
 
 ### 2b. Post-install fixup (REQUIRED after `npx skills add`)
 
-The `npx skills` CLI installs to `.agents/skills/` as its canonical location
-and creates reverse symlinks in `~/.skills/` that point BACK to the project.
-This is the **opposite** of our architecture. Fix it:
+The `npx skills` CLI installs to `.agents/skills/` as its canonical location and
+creates reverse symlinks in `~/.skills/` that point BACK to the project. This is
+the **opposite** of our architecture. Fix it:
 
 ```bash
 # For each skill just installed:
@@ -103,10 +103,10 @@ Create `~/.skills/<skill-name>/SKILL.md`:
 ```markdown
 ---
 name: <skill-name>
-description: "<one-line description>"
+description: '<one-line description>'
 risk: <safe|unknown|elevated>
 source: <custom|community|github-user/repo>
-date_added: "<YYYY-MM-DD>"
+date_added: '<YYYY-MM-DD>'
 ---
 
 # <Skill Title>
