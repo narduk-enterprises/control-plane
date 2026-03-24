@@ -54,6 +54,41 @@ export async function createDopplerProject(
 }
 
 /**
+ * Create a Doppler branch config within a project environment.
+ * Idempotent: no-ops if the config already exists.
+ */
+export async function createDopplerConfig(
+  apiToken: string,
+  project: string,
+  name: string,
+  environment: string,
+): Promise<{ created: boolean }> {
+  const res = await fetch(`${DOPPLER_API_BASE}/configs?project=${encodeURIComponent(project)}`, {
+    method: 'POST',
+    headers: dopplerHeaders(apiToken),
+    body: JSON.stringify({
+      name,
+      environment,
+    }),
+  })
+
+  if (res.ok) {
+    return { created: true }
+  }
+
+  if (res.status === 409) {
+    return { created: false }
+  }
+
+  const text = await res.text().catch(() => '')
+  if (text.includes('already exists')) {
+    return { created: false }
+  }
+
+  throw new Error(`Doppler config creation failed for ${project}/${name}: ${res.status} ${text}`)
+}
+
+/**
  * Bulk set secrets on a Doppler project/config. Overwrites existing values.
  */
 export async function bulkSetSecrets(

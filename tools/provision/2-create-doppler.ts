@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
-import { spawnSync } from 'node:child_process'
 import {
   bulkSetSecrets,
+  createDopplerConfig,
   createDopplerProject,
   syncHubSecrets,
   syncDevConfig,
@@ -9,44 +9,6 @@ import {
 } from '../../apps/web/server/utils/provision-doppler'
 import { buildLocalNuxtUrl, normalizeNuxtPort } from '../../apps/web/server/utils/nuxt-port'
 import { appendGitHubEnv } from './github-actions-env'
-
-function ensureDopplerBranchConfig(
-  apiToken: string,
-  project: string,
-  config: string,
-  environment: string,
-): void {
-  const result = spawnSync(
-    'doppler',
-    [
-      'configs',
-      'create',
-      config,
-      '--project',
-      project,
-      '--environment',
-      environment,
-      '--token',
-      apiToken,
-    ],
-    {
-      encoding: 'utf-8',
-    },
-  )
-
-  const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`.trim()
-  if (result.status === 0 || /already exists/i.test(output)) {
-    return
-  }
-
-  if (result.error) {
-    throw result.error
-  }
-
-  throw new Error(
-    `Failed to ensure Doppler config ${project}/${config}: ${output || `exit ${result.status ?? 'unknown'}`}`,
-  )
-}
 
 async function main() {
   const APP_NAME = process.argv.find((a) => a.startsWith('--app-name='))?.split('=')[1]
@@ -130,7 +92,7 @@ async function main() {
   }
 
   console.log(`Ensuring prd_copilot exists...`)
-  ensureDopplerBranchConfig(apiToken, APP_NAME, 'prd_copilot', 'prd')
+  await createDopplerConfig(apiToken, APP_NAME, 'prd_copilot', 'prd')
 
   console.log(`Seeding prd_copilot with minimal agent-only secrets...`)
   await bulkSetSecrets(apiToken, APP_NAME, 'prd_copilot', nonEmptyCopilotSecrets)
