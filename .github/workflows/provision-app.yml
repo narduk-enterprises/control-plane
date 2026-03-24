@@ -313,17 +313,6 @@ jobs:
             --github-repo="${{ inputs.github-repo }}" \
             --provision-id="${{ inputs.provision-id }}"
 
-      - name: 3b. Sync GitHub Copilot Environment
-        env:
-          DOPPLER_TOKEN: ${{ env.APP_DOPPLER_COPILOT_TOKEN }}
-          GH_TOKEN: ${{ env.GH_SERVICE_TOKEN }}
-        run: |
-          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s github --arg m 'Syncing Doppler prd_copilot into GitHub environment copilot' '{level:"info",step:$s,message:$m}')"
-          pnpm run sync:copilot-secrets -- "${{ inputs.app-name }}" \
-            --doppler-config=prd_copilot \
-            --github-repo="${{ inputs.github-repo }}" \
-            --env=copilot
-
       - name: 4. Create Analytics
         env:
           GA_PROPERTY_ID: ${{ inputs.ga-property-id }}

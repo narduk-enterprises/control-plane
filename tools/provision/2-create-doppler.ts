@@ -1,8 +1,8 @@
 import crypto from 'node:crypto'
 import {
-  bulkSetSecrets,
   createDopplerConfig,
   createDopplerProject,
+  syncCopilotConfig,
   syncHubSecrets,
   syncDevConfig,
   createDopplerServiceToken,
@@ -94,8 +94,15 @@ async function main() {
   console.log(`Ensuring prd_copilot exists...`)
   await createDopplerConfig(apiToken, APP_NAME, 'prd_copilot', 'prd')
 
-  console.log(`Seeding prd_copilot with minimal agent-only secrets...`)
-  await bulkSetSecrets(apiToken, APP_NAME, 'prd_copilot', nonEmptyCopilotSecrets)
+  console.log(`Syncing prd_copilot inheritance + minimal agent-only secrets...`)
+  await syncCopilotConfig(
+    apiToken,
+    'narduk-nuxt-template',
+    'prd',
+    APP_NAME,
+    'prd_copilot',
+    nonEmptyCopilotSecrets,
+  )
 
   console.log(`Generating CI service token...`)
   const dopplerToken = await createDopplerServiceToken(apiToken, APP_NAME, 'prd', 'ci-deploy')

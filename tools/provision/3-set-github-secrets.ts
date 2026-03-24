@@ -17,6 +17,7 @@ async function main() {
     process.env.GH_PACKAGES_TOKEN ||
     process.env.GITHUB_PACKAGES_TOKEN ||
     process.env.GITHUB_TOKEN_PACKAGES_READ
+  const nodeAuthToken = process.env.NODE_AUTH_TOKEN || ghPackagesToken
   const controlPlaneUrl = process.env.CONTROL_PLANE_URL
 
   if (!dopplerToken) {
@@ -29,6 +30,22 @@ async function main() {
   if (ghPackagesToken) {
     console.log(`Setting GH_PACKAGES_TOKEN secret...`)
     await setRepoSecret(ghToken, GITHUB_REPO, 'GH_PACKAGES_TOKEN', ghPackagesToken)
+  }
+
+  const copilotRepoSecrets = {
+    CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || '',
+    GH_TOKEN_PACKAGES_READ: ghPackagesToken || '',
+    NODE_AUTH_TOKEN: nodeAuthToken || '',
+  }
+
+  for (const [secretName, secretValue] of Object.entries(copilotRepoSecrets)) {
+    if (!secretValue.trim()) {
+      continue
+    }
+
+    console.log(`Setting ${secretName} secret...`)
+    await setRepoSecret(ghToken, GITHUB_REPO, secretName, secretValue)
   }
 
   if (controlPlaneUrl) {

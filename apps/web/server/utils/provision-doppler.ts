@@ -10,6 +10,7 @@
  */
 
 const DOPPLER_API_BASE = 'https://api.doppler.com/v3'
+const DEFAULT_RETRYABLE_STATUSES = new Set([404, 408, 409, 425, 429, 500, 502, 503, 504])
 
 function dopplerHeaders(apiToken: string): Record<string, string> {
   return {
@@ -17,6 +18,100 @@ function dopplerHeaders(apiToken: string): Record<string, string> {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   }
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isAlreadyInUseMessage(text: string): boolean {
+  return /already exists|name is already in use/i.test(text)
+}
+
+function retryDelayMs(attempt: number): number {
+  return 250 * 2 ** attempt
+}
+
+async function dopplerFetch(
+  apiToken: string,
+  path: string,
+  init: RequestInit,
+  options: {
+    retries?: number
+    retryableStatuses?: Set<number>
+  } = {},
+): Promise<Response> {
+  void apiToken
+  const retries = options.retries ?? 2
+  const retryableStatuses = options.retryableStatuses ?? DEFAULT_RETRYABLE_STATUSES
+
+  let lastError: unknown
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const res = await fetch(path, init)
+      if (res.ok || attempt === retries || !retryableStatuses.has(res.status)) {
+        return res
+      }
+    } catch (error) {
+      lastError = error
+      if (attempt === retries) {
+        throw error
+      }
+    }
+
+    await wait(retryDelayMs(attempt))
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Doppler request failed')
+}
+
+async function dopplerProjectExists(apiToken: string, project: string): Promise<boolean> {
+  const res = await dopplerFetch(
+    apiToken,
+    `${DOPPLER_API_BASE}/projects/project?project=${encodeURIComponent(project)}`,
+    {
+      headers: dopplerHeaders(apiToken),
+    },
+    { retries: 1, retryableStatuses: new Set([408, 425, 429, 500, 502, 503, 504]) },
+  )
+
+  if (res.ok) {
+    return true
+  }
+
+  if (res.status === 404) {
+    return false
+  }
+
+  const text = await res.text().catch(() => '')
+  throw new Error(`Doppler project lookup failed for ${project}: ${res.status} ${text}`)
+}
+
+async function dopplerConfigExists(
+  apiToken: string,
+  project: string,
+  config: string,
+): Promise<boolean> {
+  const res = await dopplerFetch(
+    apiToken,
+    `${DOPPLER_API_BASE}/configs/config?project=${encodeURIComponent(project)}&config=${encodeURIComponent(config)}`,
+    {
+      headers: dopplerHeaders(apiToken),
+    },
+    { retries: 1, retryableStatuses: new Set([408, 425, 429, 500, 502, 503, 504]) },
+  )
+
+  if (res.ok) {
+    return true
+  }
+
+  if (res.status === 404) {
+    return false
+  }
+
+  const text = await res.text().catch(() => '')
+  throw new Error(`Doppler config lookup failed for ${project}/${config}: ${res.status} ${text}`)
 }
 
 /**
@@ -27,14 +122,19 @@ export async function createDopplerProject(
   projectName: string,
   description?: string,
 ): Promise<{ created: boolean }> {
-  const res = await fetch(`${DOPPLER_API_BASE}/projects`, {
-    method: 'POST',
-    headers: dopplerHeaders(apiToken),
-    body: JSON.stringify({
-      name: projectName,
-      description: description || `${projectName} — auto-provisioned by Control Plane`,
-    }),
-  })
+  const res = await dopplerFetch(
+    apiToken,
+    `${DOPPLER_API_BASE}/projects`,
+    {
+      method: 'POST',
+      headers: dopplerHeaders(apiToken),
+      body: JSON.stringify({
+        name: projectName,
+        description: description || `${projectName} — auto-provisioned by Control Plane`,
+      }),
+    },
+    { retries: 2, retryableStatuses: new Set([408, 425, 429, 500, 502, 503, 504]) },
+  )
 
   if (res.ok) {
     return { created: true }
@@ -46,8 +146,16 @@ export async function createDopplerProject(
   }
 
   const text = await res.text().catch(() => '')
-  if (text.includes('already exists')) {
-    return { created: false }
+  if (isAlreadyInUseMessage(text)) {
+    for (const delayMs of [0, 300, 1_000]) {
+      if (delayMs > 0) {
+        await wait(delayMs)
+      }
+
+      if (await dopplerProjectExists(apiToken, projectName)) {
+        return { created: false }
+      }
+    }
   }
 
   throw new Error(`Doppler project creation failed: ${res.status} ${text}`)
@@ -63,14 +171,19 @@ export async function createDopplerConfig(
   name: string,
   environment: string,
 ): Promise<{ created: boolean }> {
-  const res = await fetch(`${DOPPLER_API_BASE}/configs?project=${encodeURIComponent(project)}`, {
-    method: 'POST',
-    headers: dopplerHeaders(apiToken),
-    body: JSON.stringify({
-      name,
-      environment,
-    }),
-  })
+  const res = await dopplerFetch(
+    apiToken,
+    `${DOPPLER_API_BASE}/configs?project=${encodeURIComponent(project)}`,
+    {
+      method: 'POST',
+      headers: dopplerHeaders(apiToken),
+      body: JSON.stringify({
+        name,
+        environment,
+      }),
+    },
+    { retries: 2, retryableStatuses: new Set([408, 425, 429, 500, 502, 503, 504]) },
+  )
 
   if (res.ok) {
     return { created: true }
@@ -81,8 +194,16 @@ export async function createDopplerConfig(
   }
 
   const text = await res.text().catch(() => '')
-  if (text.includes('already exists')) {
-    return { created: false }
+  if (isAlreadyInUseMessage(text)) {
+    for (const delayMs of [0, 300, 1_000]) {
+      if (delayMs > 0) {
+        await wait(delayMs)
+      }
+
+      if (await dopplerConfigExists(apiToken, project, name)) {
+        return { created: false }
+      }
+    }
   }
 
   throw new Error(`Doppler config creation failed for ${project}/${name}: ${res.status} ${text}`)
@@ -99,7 +220,7 @@ export async function bulkSetSecrets(
 ): Promise<void> {
   if (Object.keys(secrets).length === 0) return
 
-  const res = await fetch(`${DOPPLER_API_BASE}/configs/config/secrets`, {
+  const res = await dopplerFetch(apiToken, `${DOPPLER_API_BASE}/configs/config/secrets`, {
     method: 'POST',
     headers: dopplerHeaders(apiToken),
     body: JSON.stringify({
@@ -133,7 +254,7 @@ export async function deleteSecrets(
     secrets[key] = null
   }
 
-  const res = await fetch(`${DOPPLER_API_BASE}/configs/config/secrets`, {
+  const res = await dopplerFetch(apiToken, `${DOPPLER_API_BASE}/configs/config/secrets`, {
     method: 'POST',
     headers: dopplerHeaders(apiToken),
     body: JSON.stringify({
@@ -157,7 +278,8 @@ export async function getDopplerSecrets(
   project: string,
   config: string,
 ): Promise<Record<string, string>> {
-  const res = await fetch(
+  const res = await dopplerFetch(
+    apiToken,
     `${DOPPLER_API_BASE}/configs/config/secrets/download?project=${encodeURIComponent(project)}&config=${encodeURIComponent(config)}&format=json`,
     { headers: dopplerHeaders(apiToken) },
   )
@@ -186,31 +308,65 @@ export async function createDopplerServiceToken(
 ): Promise<string> {
   // 1. Delete existing token (if any) to force a fresh value
   try {
-    await fetch(`${DOPPLER_API_BASE}/configs/config/tokens/token`, {
-      method: 'DELETE',
-      headers: dopplerHeaders(apiToken),
-      body: JSON.stringify({
-        project,
-        config,
-        slug: tokenName,
-      }),
-    })
+    await dopplerFetch(
+      apiToken,
+      `${DOPPLER_API_BASE}/configs/config/tokens/token`,
+      {
+        method: 'DELETE',
+        headers: dopplerHeaders(apiToken),
+        body: JSON.stringify({
+          project,
+          config,
+          slug: tokenName,
+        }),
+      },
+      { retries: 1, retryableStatuses: new Set([404, 408, 425, 429, 500, 502, 503, 504]) },
+    )
     // Ignore errors — token may not exist yet
   } catch {
     // Swallow — deletion failure is fine if token doesn't exist
   }
 
   // 2. Create fresh token
-  const res = await fetch(`${DOPPLER_API_BASE}/configs/config/tokens`, {
-    method: 'POST',
-    headers: dopplerHeaders(apiToken),
-    body: JSON.stringify({
-      project,
-      config,
-      name: tokenName,
-      access: 'read',
-    }),
-  })
+  let res = await dopplerFetch(
+    apiToken,
+    `${DOPPLER_API_BASE}/configs/config/tokens`,
+    {
+      method: 'POST',
+      headers: dopplerHeaders(apiToken),
+      body: JSON.stringify({
+        project,
+        config,
+        name: tokenName,
+        access: 'read',
+      }),
+    },
+    { retries: 2, retryableStatuses: new Set([404, 408, 425, 429, 500, 502, 503, 504]) },
+  )
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    if (isAlreadyInUseMessage(text)) {
+      await wait(500)
+      res = await dopplerFetch(
+        apiToken,
+        `${DOPPLER_API_BASE}/configs/config/tokens`,
+        {
+          method: 'POST',
+          headers: dopplerHeaders(apiToken),
+          body: JSON.stringify({
+            project,
+            config,
+            name: tokenName,
+            access: 'read',
+          }),
+        },
+        { retries: 2, retryableStatuses: new Set([404, 408, 425, 429, 500, 502, 503, 504]) },
+      )
+    } else {
+      throw new Error(`Doppler service token creation failed: ${res.status} ${text}`)
+    }
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -239,7 +395,7 @@ export async function setConfigInheritable(
   config: string,
   inheritable: boolean = true,
 ): Promise<void> {
-  const res = await fetch(`${DOPPLER_API_BASE}/configs/config/inheritable`, {
+  const res = await dopplerFetch(apiToken, `${DOPPLER_API_BASE}/configs/config/inheritable`, {
     method: 'POST',
     headers: dopplerHeaders(apiToken),
     body: JSON.stringify({ project, config, inheritable }),
@@ -265,7 +421,7 @@ export async function setConfigInherits(
   childConfig: string,
   parentConfigs: Array<{ project: string; config: string }>,
 ): Promise<void> {
-  const res = await fetch(`${DOPPLER_API_BASE}/configs/config/inherits`, {
+  const res = await dopplerFetch(apiToken, `${DOPPLER_API_BASE}/configs/config/inherits`, {
     method: 'POST',
     headers: dopplerHeaders(apiToken),
     body: JSON.stringify({
@@ -382,4 +538,27 @@ export async function syncDevConfig(
   }
 
   return { synced: Object.keys(secretsToSet).length }
+}
+
+/**
+ * Populate the Copilot config using the same flat inheritance pattern as the
+ * rest of provisioning, then overlay the agent-only direct secrets.
+ */
+export async function syncCopilotConfig(
+  apiToken: string,
+  hubProject: string,
+  hubConfig: string,
+  spokeProject: string,
+  copilotConfig: string,
+  secrets: Record<string, string>,
+): Promise<{ synced: number }> {
+  await setConfigInherits(apiToken, spokeProject, copilotConfig, [
+    { project: hubProject, config: hubConfig },
+  ])
+
+  if (Object.keys(secrets).length > 0) {
+    await bulkSetSecrets(apiToken, spokeProject, copilotConfig, secrets)
+  }
+
+  return { synced: Object.keys(secrets).length }
 }
