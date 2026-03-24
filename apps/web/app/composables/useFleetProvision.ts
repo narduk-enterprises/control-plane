@@ -36,6 +36,14 @@ export interface ProvisionJob {
 const TERMINAL_STATUSES = new Set(['complete', 'failed'])
 const POLL_INTERVAL_MS = 5_000
 
+interface ProvisionRequestInput {
+  name: string
+  displayName: string
+  url: string
+  shortDescription?: string
+  description?: string
+}
+
 export function useFleetProvision() {
   const toast = useToast()
 
@@ -125,19 +133,15 @@ export function useFleetProvision() {
   // ── Provision ──
   const isProvisioning = ref(false)
 
-  async function provisionApp(
-    name: string,
-    displayName: string,
-    url: string,
-    description?: string,
-  ) {
+  async function provisionApp(input: ProvisionRequestInput) {
+    const { name, displayName } = input
     isProvisioning.value = true
     try {
       const result = await $fetch<{ ok: boolean; provisionId: string; app: string }>(
         '/api/fleet/provision-ui',
         {
           method: 'POST',
-          body: { name, displayName, url, description },
+          body: input,
           headers: { 'X-Requested-With': 'XMLHttpRequest' },
         },
       )

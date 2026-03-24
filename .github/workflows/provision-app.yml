@@ -15,6 +15,11 @@ on:
         description: "Production URL (e.g. https://my-cool-app.nard.uk)"
         required: true
         type: string
+      app-short-description:
+        description: "Short summary for GitHub repo metadata and starter app description"
+        required: false
+        type: string
+        default: ""
       nuxt-port:
         description: "Assigned local Nuxt dev port (stored in Doppler dev as NUXT_PORT)"
         required: false
@@ -64,7 +69,7 @@ on:
         type: string
         default: ""
       app-description:
-        description: "App description for AI-powered theme/layout/icon generation"
+        description: "Long agent brief used for provision.json, SPEC.md, and downstream GitHub agent workflows"
         required: false
         type: string
         default: ""
@@ -351,20 +356,23 @@ jobs:
           pnpm exec tsx tools/provision/5-hydrate-repo.ts \
             --app-name="${{ inputs.app-name }}" \
             --display-name="${{ inputs.display-name }}" \
+            --app-short-description="${{ inputs.app-short-description }}" \
             --app-description="${{ inputs.app-description }}" \
             --app-url="${{ inputs.app-url }}" \
             --target-dir="app-source" \
             --provision-id="${{ inputs.provision-id }}"
 
       - name: 7. Generate AI Theme + Splash Page
-        if: inputs.app-description != ''
+        if: inputs.app-short-description != '' || inputs.app-description != ''
         continue-on-error: true
+        env:
+          AI_THEME_DESCRIPTION: ${{ inputs.app-short-description != '' && inputs.app-short-description || inputs.app-description }}
         run: |
           bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s ai-theme --arg m 'Generating AI theme, splash landing page, icon, and logo via GPT-5.4 + DALL-E' '{level:"info",step:$s,message:$m}')"
           pnpm exec tsx tools/provision/7-generate-theme.ts \
             --app-name="${{ inputs.app-name }}" \
             --display-name="${{ inputs.display-name }}" \
-            --app-description="${{ inputs.app-description }}" \
+            --app-description="${AI_THEME_DESCRIPTION}" \
             --app-url="${{ inputs.app-url }}" \
             --target-dir="app-source" \
             --provision-id="${{ inputs.provision-id }}"

@@ -9,11 +9,21 @@ Provision requests must include:
 
 - `name`
 - `displayName`
-- `description`
 - `url`
 
-The control plane persists that product blurb into the generated repo so agents
-have canonical context on first run:
+Provision requests may also include:
+
+- `shortDescription`
+- `description`
+
+Use the fields this way:
+
+- `shortDescription`: short human-facing summary for GitHub repo metadata and
+  starter app/site description
+- `description`: long agent brief or product spec seed for provisioning context
+
+The control plane persists that context into the generated repo so agents have
+canonical context on first run:
 
 - `provision.json`
 - `SPEC.md` with `Status: DRAFT`
@@ -22,9 +32,11 @@ have canonical context on first run:
 
 After a successful `provision-app.yml` run, a new app repo should have:
 
-- `provision.json` at the repo root with `name`, `displayName`, `description`,
-  `url`, and `provisionedAt`
+- `provision.json` at the repo root with `name`, `displayName`,
+  `shortDescription`, `description`, `url`, and `provisionedAt`
 - `SPEC.md` seeded as `Status: DRAFT`
+- `SPEC.md` with `Product`, `In scope`, `User flows`, and `Non-functional`
+  seeded from the long brief
 - GitHub Actions environment `copilot`
 - `copilot` environment secrets synced from Doppler `prd_copilot`
 
@@ -98,6 +110,6 @@ Point downstream repo maintainers to the template operations guide:
 
 The relevant sections are:
 
-- provisioning with `description`
+- provisioning with `shortDescription` plus long `description`
 - GitHub Actions environment `copilot`
 - `pnpm run sync:copilot-secrets`

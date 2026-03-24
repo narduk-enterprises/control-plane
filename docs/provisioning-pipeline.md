@@ -23,7 +23,7 @@ sequenceDiagram
     participant GH as GitHub API
     participant GHA as GitHub Actions
 
-    User->>UI: Fill form (name, displayName, description, url)
+    User->>UI: Fill form (name, displayName, shortDescription, description, url)
     UI->>Proxy: POST /api/fleet/provision-ui (session auth)
     Proxy->>API: POST /api/fleet/provision (API key auth)
 
@@ -66,7 +66,7 @@ sequenceDiagram
     GHA->>API: POST /provision/{id}/dispatch-context (merge GA/GSC/IndexNow for retries)
 
     GHA->>API: POST /provision/{id}/log (hydrate)
-    GHA->>GHA: 5-hydrate-repo.ts → placeholders + provision.json + SPEC.md + wrangler + GSC verify HTML + favicon
+    GHA->>GHA: 5-hydrate-repo.ts → short app metadata + provision.json + SPEC.md + wrangler + GSC verify HTML + favicon
 
     GHA->>GH: git commit + push to new repo
     GHA->>API: POST /provision/{id}/status → deploying

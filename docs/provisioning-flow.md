@@ -16,14 +16,14 @@ Three phases, each running in a different environment:
 
 The API **only**:
 
-1. Upserts `fleet_apps` and persists the incoming product description
+1. Upserts `fleet_apps` and persists the incoming long agent brief
 2. Allocates `NUXT_PORT`
 3. Inserts `provision_jobs` (`pending` → `creating_repo` → `dispatching` or
    `failed`)
 4. Creates the **empty** GitHub repo under the target org
    (`POST /orgs/{org}/repos`)
 5. Dispatches `provision-app.yml` with `workflow_dispatch` inputs (including
-   `provision-id` and `app-description`)
+   `provision-id`, `app-short-description`, and `app-description`)
 
 **Not** done on the edge: Cloudflare D1 for the **new app**, Doppler spoke
 project, GitHub repo secrets on the **new** repo, GA4/GSC/IndexNow, hydration,
@@ -56,7 +56,7 @@ sequenceDiagram
     participant Dopp as Doppler API
     participant App as New App Worker
 
-    Dev->>CP: POST /api/fleet/provision (name, displayName, description, url)
+    Dev->>CP: POST /api/fleet/provision (name, displayName, shortDescription, description, url)
     CP->>CP: assertProvisionApiKey()
 
     CP->>D1: upsert fleet_apps, allocateFleetNuxtPort()
@@ -151,7 +151,7 @@ then use the template runbook at
 [docs/agents/operations.md](https://github.com/narduk-enterprises/narduk-nuxt-template/blob/main/docs/agents/operations.md)
 for the downstream repo behavior, especially:
 
-- the provision payload `description`
+- the provision payload `shortDescription` + long `description`
 - the GitHub Actions environment `copilot`
 - `pnpm run sync:copilot-secrets`
 

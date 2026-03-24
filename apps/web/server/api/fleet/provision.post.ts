@@ -9,6 +9,87 @@ import { triggerWorkflow } from '#server/utils/provision-github'
 import { allocateFleetNuxtPort, buildLocalNuxtUrl } from '#server/utils/nuxt-port'
 import { buildProvisionWorkflowDispatchInputs } from '#server/utils/provision-workflow-dispatch'
 
+const MAX_SHORT_DESCRIPTION_LENGTH = 350
+const MAX_PROVISION_DESCRIPTION_LENGTH = 12_000
+const MAX_GITHUB_REPO_DESCRIPTION_LENGTH = 350
+
+function normalizeProvisionHeading(value: string): string {
+  return value
+    .replace(/^#+\s*/, '')
+    .replace(/[“”]/g, '"')
+    .replace(/[’]/g, "'")
+    .replace(/[–—]/g, '-')
+    .replace(/:+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function summarizeProvisionDescription(description?: string): string {
+  const trimmed = description?.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  const lines = trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const recognizedHeadings = new Set([
+    'product',
+    'p1 (must ship in v1)',
+    'core recipe features (in scope)',
+    'expanded scope (previously "out of scope"-now in scope)',
+    "expanded scope (previously 'out of scope'-now in scope)",
+    'pages / routes (indicative)',
+    'non-functional summary',
+    'implementation guardrails - use the template first',
+  ])
+
+  const productLines: string[] = []
+  let inProductSection = false
+
+  for (const line of lines) {
+    const normalized = normalizeProvisionHeading(line)
+
+    if (normalized === 'product') {
+      inProductSection = true
+      continue
+    }
+
+    if (inProductSection && recognizedHeadings.has(normalized)) {
+      break
+    }
+
+    if (inProductSection) {
+      productLines.push(line)
+    }
+  }
+
+  const summarySource =
+    productLines.join(' ').trim() ||
+    lines.find((line) => !recognizedHeadings.has(normalizeProvisionHeading(line))) ||
+    trimmed
+
+  return summarySource.replace(/\s+/g, ' ').trim()
+}
+
+function buildGitHubRepoDescription(
+  displayName: string,
+  shortDescription?: string,
+  description?: string,
+): string {
+  const fallback = `${displayName} — provisioned by Narduk Control Plane`
+  const summary = shortDescription?.trim() || summarizeProvisionDescription(description) || fallback
+
+  if (summary.length <= MAX_GITHUB_REPO_DESCRIPTION_LENGTH) {
+    return summary
+  }
+
+  return `${summary.slice(0, MAX_GITHUB_REPO_DESCRIPTION_LENGTH - 3).trimEnd()}...`
+}
+
 const bodySchema = z.object({
   name: z
     .string()
@@ -27,7 +108,8 @@ const bodySchema = z.object({
       'Display name may only contain letters, numbers, spaces, hyphens, apostrophes, periods, and ampersands',
     ),
   url: z.string().url(),
-  description: z.string().max(1000).optional(),
+  shortDescription: z.string().max(MAX_SHORT_DESCRIPTION_LENGTH).optional(),
+  description: z.string().max(MAX_PROVISION_DESCRIPTION_LENGTH).optional(),
   githubOrg: z.string().min(1).optional().default('narduk-enterprises'),
 })
 
@@ -52,11 +134,12 @@ export default definePublicMutation(
     },
   },
   async ({ event, body }) => {
-    const { name, displayName, url, description, githubOrg } = body
+    const { name, displayName, url, shortDescription, description, githubOrg } = body
     const githubRepo = `${githubOrg}/${name}`
     const now = new Date().toISOString()
     const config = useRuntimeConfig(event)
     const db = useDatabase(event)
+    const agentDescription = description?.trim() || shortDescription?.trim() || undefined
 
     /** Helper: update provision job status + optional details */
     async function updateStatus(
@@ -92,7 +175,7 @@ export default definePublicMutation(
           url,
           githubRepo,
           nuxtPort,
-          appDescription: description ?? null,
+          appDescription: agentDescription ?? null,
           isActive: true,
           updatedAt: now,
         })
@@ -104,7 +187,7 @@ export default definePublicMutation(
         dopplerProject: name,
         githubRepo,
         nuxtPort,
-        appDescription: description ?? null,
+        appDescription: agentDescription ?? null,
         isActive: true,
         createdAt: now,
         updatedAt: now,
@@ -122,7 +205,8 @@ export default definePublicMutation(
       githubRepo,
       provisionId,
       nuxtPort: String(nuxtPort),
-      appDescription: description,
+      appShortDescription: shortDescription,
+      appDescription: agentDescription,
     })
 
     await db.insert(provisionJobs).values({
@@ -164,7 +248,7 @@ export default definePublicMutation(
         },
         body: JSON.stringify({
           name,
-          description: description || `${displayName} — provisioned by Narduk Control Plane`,
+          description: buildGitHubRepoDescription(displayName, shortDescription, agentDescription),
           private: false,
           auto_init: false,
         }),

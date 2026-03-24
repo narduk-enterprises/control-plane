@@ -16,11 +16,13 @@ describe('provision-workflow-dispatch', () => {
       githubRepo: 'org/my-app',
       provisionId: 'prov_1',
       nuxtPort: '3010',
+      appShortDescription: 'Short app summary',
       appDescription: 'A test app',
     })
     expect(i['app-name']).toBe('my-app')
     expect(i['display-name']).toBe('My App')
     expect(i['app-url']).toBe('https://my-app.example')
+    expect(i['app-short-description']).toBe('Short app summary')
     expect(i['github-repo']).toBe('org/my-app')
     expect(i['provision-id']).toBe('prov_1')
     expect(i['nuxt-port']).toBe('3010')

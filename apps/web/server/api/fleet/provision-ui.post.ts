@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import { defineAdminMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 
+const MAX_SHORT_DESCRIPTION_LENGTH = 350
+const MAX_PROVISION_DESCRIPTION_LENGTH = 12_000
+
 const bodySchema = z.object({
   name: z
     .string()
@@ -12,7 +15,8 @@ const bodySchema = z.object({
     ),
   displayName: z.string().min(1).max(200),
   url: z.string().url(),
-  description: z.string().max(1000).optional(),
+  shortDescription: z.string().max(MAX_SHORT_DESCRIPTION_LENGTH).optional(),
+  description: z.string().max(MAX_PROVISION_DESCRIPTION_LENGTH).optional(),
 })
 
 /**

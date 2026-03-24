@@ -6,6 +6,7 @@ export const PROVISION_WORKFLOW_INPUT_KEYS = [
   'app-name',
   'display-name',
   'app-url',
+  'app-short-description',
   'nuxt-port',
   'github-repo',
   'provision-id',
@@ -30,6 +31,7 @@ export function buildProvisionWorkflowDispatchInputs(params: {
   githubRepo: string
   provisionId: string
   nuxtPort: string
+  appShortDescription?: string
   appDescription?: string
   overrides?: Partial<Record<ProvisionWorkflowInputKey, string>>
 }): Record<string, string> {
@@ -37,6 +39,7 @@ export function buildProvisionWorkflowDispatchInputs(params: {
     'app-name': params.appName,
     'display-name': params.displayName,
     'app-url': params.appUrl,
+    'app-short-description': params.appShortDescription ?? '',
     'github-repo': params.githubRepo,
     'provision-id': params.provisionId,
     'nuxt-port': params.nuxtPort,

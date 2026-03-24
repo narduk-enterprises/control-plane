@@ -17,6 +17,9 @@ const { jobs, activeJobs, refreshJobs, isProvisioning, provisionApp, retryJob } 
 const toast = useToast()
 
 const expandedJobs = ref(new Set<string>())
+const SHORT_DESCRIPTION_MAX_LENGTH = 350
+const PROVISION_DESCRIPTION_MAX_LENGTH = 12_000
+
 function toggleJob(id: string) {
   if (expandedJobs.value.has(id)) {
     expandedJobs.value.delete(id)
@@ -30,6 +33,7 @@ const form = reactive({
   name: '',
   displayName: '',
   url: '',
+  shortDescription: '',
   description: '',
 })
 
@@ -52,17 +56,26 @@ function onUrlInput() {
 const nameValid = computed(() => /^[a-z0-9][a-z0-9-]*$/.test(form.name))
 const formValid = computed(() => form.name && nameValid.value && form.displayName && form.url)
 
+function sanitizeProvisionText(value: string): string {
+  return value
+    .replaceAll(/<[^>]*>/g, '')
+    .replaceAll(/\u0000/g, '')
+    .trim()
+}
+
 async function onProvision() {
   if (!formValid.value) return
-  // Sanitize description: strip HTML, keep safe chars (architect review fix #7)
-  const sanitized = form.description
-    .replaceAll(/<[^>]*>/g, '')
-    .replaceAll(/[^a-z0-9 .,!?;:'"()\n-]/gi, '')
-    .trim()
-  await provisionApp(form.name, form.displayName, form.url, sanitized || undefined)
+  await provisionApp({
+    name: form.name,
+    displayName: form.displayName,
+    url: form.url,
+    shortDescription: sanitizeProvisionText(form.shortDescription) || undefined,
+    description: sanitizeProvisionText(form.description) || undefined,
+  })
   form.name = ''
   form.displayName = ''
   form.url = ''
+  form.shortDescription = ''
   form.description = ''
   urlDerived.value = true
 }
@@ -224,18 +237,32 @@ const breadcrumbItems = computed(() => [
         </UFormField>
       </div>
       <div class="mt-4">
-        <UFormField
-          label="App Description"
-          hint="Optional — AI generates a custom theme, layout, icon, and logo from this"
-        >
-          <UTextarea
-            v-model="form.description"
-            placeholder="A recipe sharing app for home cooks. Features recipe search, meal planning, and grocery lists. Warm, inviting, food-centric design."
-            class="w-full"
-            :rows="3"
-            :maxlength="1000"
-          />
-        </UFormField>
+        <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <UFormField
+            label="Short Description"
+            hint="Optional — used for GitHub repo metadata and app-level starter description"
+          >
+            <UTextarea
+              v-model="form.shortDescription"
+              placeholder="A recipe library for saving, organizing, and cooking from personal recipes."
+              class="w-full"
+              :rows="3"
+              :maxlength="SHORT_DESCRIPTION_MAX_LENGTH"
+            />
+          </UFormField>
+          <UFormField
+            label="Agent Brief"
+            hint="Optional — long product brief for provision.json, SPEC.md, and downstream GitHub agent workflows"
+          >
+            <UTextarea
+              v-model="form.description"
+              placeholder="Product&#10;A recipe library for people who want to save, organize, search, and cook from their own content...&#10;&#10;P1 (must ship in v1)&#10;Auth (P1): Sign up / sign in..."
+              class="w-full"
+              :rows="12"
+              :maxlength="PROVISION_DESCRIPTION_MAX_LENGTH"
+            />
+          </UFormField>
+        </div>
       </div>
 
       <template #footer>

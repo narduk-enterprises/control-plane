@@ -2,13 +2,260 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 
-function resolveAppDescription(displayName: string, appDescription?: string): string {
+const MAX_SHORT_DESCRIPTION_LENGTH = 280
+
+function resolveAgentDescription(
+  displayName: string,
+  appDescription?: string,
+  shortDescription?: string,
+): string {
   const trimmed = appDescription?.trim()
   if (trimmed) {
     return trimmed
   }
 
+  const trimmedShort = shortDescription?.trim()
+  if (trimmedShort) {
+    return trimmedShort
+  }
+
   return `${displayName} — powered by Nuxt 4 and Cloudflare Workers.`
+}
+
+const DEFAULT_TEMPLATE_FIRST_GUARDRAILS = [
+  'Do not reinvent platform primitives. Before adding new auth, session, CSRF, analytics, SEO, OG images, rate limiting, mutation helpers, or DB access patterns:',
+  '',
+  'Auth: Use the template / layer auth (session, login/register routes, guards, useUser-style composables) exactly as shipped. Extend with new tables and route rules, not a parallel auth stack.',
+  'Maps / geo (if needed): Use first-class template or layer integrations (e.g. documented map components, env keys, server utilities). Do not embed a new map SDK or geocoder unless the template has no path and SPEC explicitly approves an exception.',
+  'Data & API: Use useAppDatabase, layer useDatabase rules, withValidatedBody / mutation wrappers, #server/ imports, and existing D1 + Drizzle patterns.',
+  'UI & SEO: Use Nuxt UI v4, useSeo + Schema.org helpers, useFetch / useAsyncData (no raw $fetch in pages). Reuse OgImage templates from the layer where applicable.',
+  'Analytics / admin patterns: Wire through existing PostHog, GA, or admin patterns if the template already exposes them; do not duplicate trackers or admin APIs.',
+  'If something is missing, extend the layer only when the feature is reusable across apps; otherwise keep changes in apps/web/ and still call into layer utilities.',
+].join('\n')
+
+type ProvisionBriefSectionKey =
+  | 'product'
+  | 'p1'
+  | 'coreScope'
+  | 'expandedScope'
+  | 'pages'
+  | 'nonFunctional'
+  | 'guardrails'
+
+type ProvisionBriefSections = Partial<Record<ProvisionBriefSectionKey, string>>
+
+const PROVISION_BRIEF_SECTION_ALIASES: Record<string, ProvisionBriefSectionKey> = {
+  product: 'product',
+  'p1 (must ship in v1)': 'p1',
+  'core recipe features (in scope)': 'coreScope',
+  'core features (in scope)': 'coreScope',
+  'expanded scope (previously "out of scope"-now in scope)': 'expandedScope',
+  "expanded scope (previously 'out of scope'-now in scope)": 'expandedScope',
+  'pages / routes (indicative)': 'pages',
+  'pages/routes (indicative)': 'pages',
+  'non-functional summary': 'nonFunctional',
+  'implementation guardrails - use the template first': 'guardrails',
+  guardrails: 'guardrails',
+}
+
+const NON_USER_FLOW_PREFIXES = [
+  /^seo\b/i,
+  /^performance\b/i,
+  /^security\b/i,
+  /^accessibility\b/i,
+  /^observability\b/i,
+]
+
+function normalizeProvisionHeading(value: string): string {
+  return value
+    .replace(/^#+\s*/, '')
+    .replace(/[“”]/g, '"')
+    .replace(/[’]/g, "'")
+    .replace(/[–—]/g, '-')
+    .replace(/:+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function compactBlankLines(value: string): string {
+  return value.trim().replace(/\n{3,}/g, '\n\n')
+}
+
+function summarizeProvisionDescription(description?: string): string {
+  const trimmed = description?.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  const sections = extractProvisionBriefSections(trimmed)
+  const summarySource = sections.product || trimmed
+  const summary = summarySource
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (summary.length <= MAX_SHORT_DESCRIPTION_LENGTH) {
+    return summary
+  }
+
+  return `${summary.slice(0, MAX_SHORT_DESCRIPTION_LENGTH - 3).trimEnd()}...`
+}
+
+function resolveShortDescription(
+  displayName: string,
+  shortDescription?: string,
+  appDescription?: string,
+): string {
+  const trimmed = shortDescription?.trim()
+  if (trimmed) {
+    return trimmed
+  }
+
+  const summarized = summarizeProvisionDescription(appDescription)
+  if (summarized) {
+    return summarized
+  }
+
+  return `${displayName} — powered by Nuxt 4 and Cloudflare Workers.`
+}
+
+function extractProvisionBriefSections(description: string): ProvisionBriefSections {
+  const buckets: Record<ProvisionBriefSectionKey, string[]> = {
+    product: [],
+    p1: [],
+    coreScope: [],
+    expandedScope: [],
+    pages: [],
+    nonFunctional: [],
+    guardrails: [],
+  }
+  const prelude: string[] = []
+  let currentSection: ProvisionBriefSectionKey | null = null
+  let matchedHeading = false
+
+  for (const line of description.split(/\r?\n/)) {
+    const normalized = normalizeProvisionHeading(line)
+    const nextSection = PROVISION_BRIEF_SECTION_ALIASES[normalized]
+
+    if (nextSection) {
+      currentSection = nextSection
+      matchedHeading = true
+      continue
+    }
+
+    if (!matchedHeading) {
+      prelude.push(line)
+      continue
+    }
+
+    if (currentSection) {
+      buckets[currentSection].push(line)
+    }
+  }
+
+  const sections = Object.fromEntries(
+    Object.entries(buckets)
+      .map(([key, lines]) => [key, compactBlankLines(lines.join('\n'))])
+      .filter(([, value]) => Boolean(value)),
+  ) as ProvisionBriefSections
+
+  if (!matchedHeading) {
+    return { product: compactBlankLines(description) }
+  }
+
+  const preludeContent = compactBlankLines(prelude.join('\n'))
+  if (preludeContent && !sections.product) {
+    sections.product = preludeContent
+  }
+
+  return sections
+}
+
+function dedupeOrdered(values: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  for (const value of values) {
+    const normalized = value.toLowerCase()
+    if (seen.has(normalized)) {
+      continue
+    }
+    seen.add(normalized)
+    result.push(value)
+  }
+
+  return result
+}
+
+function normalizeFlowLine(line: string): string {
+  return line
+    .replace(/^[-*]\s*/, '')
+    .replace(/^\d+\.\s*/, '')
+    .trim()
+}
+
+function buildSpecUserFlows(sections: ProvisionBriefSections): string {
+  const candidateLines = dedupeOrdered(
+    [sections.p1, sections.coreScope, sections.expandedScope]
+      .filter(Boolean)
+      .flatMap((section) => section!.split('\n'))
+      .map((line) => normalizeFlowLine(line))
+      .filter((line) => Boolean(line))
+      .filter((line) => !NON_USER_FLOW_PREFIXES.some((pattern) => pattern.test(line))),
+  ).slice(0, 8)
+
+  if (candidateLines.length === 0) {
+    return [
+      '1. Review the product brief, lock the first end-to-end workflow in SPEC, and confirm the implementation order before building.',
+      '2. Expand secondary journeys, error states, and privileged/admin flows during the downstream agent workflow.',
+    ].join('\n\n')
+  }
+
+  return candidateLines.map((line, index) => `${index + 1}. ${line}`).join('\n\n')
+}
+
+function buildSpecSections(description: string): {
+  product: string
+  inScope: string
+  userFlows: string
+  pages?: string
+  nonFunctional: string
+} {
+  const sections = extractProvisionBriefSections(description)
+  const inScopeBlocks = [
+    sections.p1 ? `### P1 (must ship in v1)\n\n${sections.p1}` : '',
+    sections.coreScope ? `### Core features\n\n${sections.coreScope}` : '',
+    sections.expandedScope ? `### Expanded scope\n\n${sections.expandedScope}` : '',
+  ].filter(Boolean)
+
+  const nonFunctionalBlocks = [
+    sections.nonFunctional ? `### Non-functional summary\n\n${sections.nonFunctional}` : '',
+    `### Guardrails\n\n${sections.guardrails || DEFAULT_TEMPLATE_FIRST_GUARDRAILS}`,
+  ].filter(Boolean)
+
+  return {
+    product: sections.product || compactBlankLines(description),
+    inScope: inScopeBlocks.join('\n\n') || '- (fill during agent workflow)',
+    userFlows: buildSpecUserFlows(sections),
+    pages: sections.pages,
+    nonFunctional: nonFunctionalBlocks.join('\n\n'),
+  }
+}
+
+function replaceMarkdownSection(content: string, heading: string, body: string): string {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const sectionPattern = new RegExp(`(^## ${escapedHeading}\\n\\n)([\\s\\S]*?)(?=\\n## |$)`, 'm')
+  const normalizedBody = body.trim()
+
+  if (sectionPattern.test(content)) {
+    return content.replace(sectionPattern, (_match, prefix) => `${prefix}${normalizedBody}\n`)
+  }
+
+  return `${content.trimEnd()}\n\n## ${heading}\n\n${normalizedBody}\n`
 }
 
 async function applyStarterPlaceholders(targetDir: string, req: Record<string, string>) {
@@ -29,7 +276,7 @@ async function applyStarterPlaceholders(targetDir: string, req: Record<string, s
     { from: /__SITE_URL__/g, to: req.SITE_URL },
     {
       from: /__APP_DESCRIPTION__/g,
-      to: req.APP_DESCRIPTION,
+      to: req.APP_SHORT_DESCRIPTION,
     },
   ]
 
@@ -40,7 +287,7 @@ async function applyStarterPlaceholders(targetDir: string, req: Record<string, s
       const original = await fs.readFile(absolutePath, 'utf-8')
       let content = original
       for (const replacement of STARTER_REPLACEMENTS) {
-        content = content.replace(replacement.from, replacement.to)
+        content = content.replace(replacement.from, () => replacement.to)
       }
       if (content !== original) {
         await fs.writeFile(absolutePath, content, 'utf-8')
@@ -62,6 +309,7 @@ async function writeProvisionMetadata(
   let payload: Record<string, string> = {
     name: req.APP_NAME,
     displayName: req.DISPLAY_NAME,
+    shortDescription: req.APP_SHORT_DESCRIPTION,
     description: req.APP_DESCRIPTION,
     url: req.SITE_URL,
     provisionedAt,
@@ -86,6 +334,7 @@ async function writeProvisionMetadata(
 
 async function seedSpecDocument(targetDir: string, req: Record<string, string>): Promise<void> {
   const specPath = path.join(targetDir, 'SPEC.md')
+  const seededSections = buildSpecSections(req.APP_DESCRIPTION)
   const fallback = [
     'Status: DRAFT',
     '',
@@ -95,11 +344,11 @@ async function seedSpecDocument(targetDir: string, req: Record<string, string>):
     '',
     '## Product',
     '',
-    req.APP_DESCRIPTION,
+    seededSections.product,
     '',
     '## In scope',
     '',
-    '- (fill during agent workflow)',
+    seededSections.inScope,
     '',
     '## Out of scope',
     '',
@@ -107,7 +356,7 @@ async function seedSpecDocument(targetDir: string, req: Record<string, string>):
     '',
     '## User flows',
     '',
-    '1. ',
+    seededSections.userFlows,
     '',
     '## Conceptual data model',
     '',
@@ -115,11 +364,11 @@ async function seedSpecDocument(targetDir: string, req: Record<string, string>):
     '',
     '## Pages / routes',
     '',
-    '- ',
+    seededSections.pages || '- ',
     '',
     '## Non-functional',
     '',
-    '- ',
+    seededSections.nonFunctional,
     '',
     '## Test acceptance (MVP)',
     '',
@@ -146,14 +395,13 @@ async function seedSpecDocument(targetDir: string, req: Record<string, string>):
   }
   content = lines.join('\n')
 
-  const productHeading = '## Product'
-  const inScopeHeading = '## In scope'
-  const productStart = content.indexOf(productHeading)
-  const inScopeStart = content.indexOf(inScopeHeading)
-  if (productStart !== -1 && inScopeStart !== -1 && inScopeStart > productStart) {
-    const before = content.slice(0, productStart + productHeading.length)
-    const after = content.slice(inScopeStart)
-    content = `${before}\n\n${req.APP_DESCRIPTION}\n\n${after}`
+  content = replaceMarkdownSection(content, 'Product', seededSections.product)
+  content = replaceMarkdownSection(content, 'In scope', seededSections.inScope)
+  content = replaceMarkdownSection(content, 'User flows', seededSections.userFlows)
+  content = replaceMarkdownSection(content, 'Non-functional', seededSections.nonFunctional)
+
+  if (seededSections.pages) {
+    content = replaceMarkdownSection(content, 'Pages / routes', seededSections.pages)
   }
 
   await fs.writeFile(specPath, content, 'utf-8')
@@ -326,20 +574,34 @@ async function configureGitHooks(targetDir: string): Promise<void> {
 }
 
 async function main() {
-  const TARGET_DIR = process.argv.find((a) => a.startsWith('--target-dir='))?.split('=')[1]
-  const APP_NAME = process.argv.find((a) => a.startsWith('--app-name='))?.split('=')[1]
-  const DISPLAY_NAME = process.argv.find((a) => a.startsWith('--display-name='))?.split('=')[1]
-  const SITE_URL = process.argv.find((a) => a.startsWith('--app-url='))?.split('=')[1]
-  const APP_DESCRIPTION = process.argv
-    .find((a) => a.startsWith('--app-description='))
-    ?.split('=')[1]
+  const getArg = (name: string): string | undefined => {
+    const prefix = `--${name}=`
+    const arg = process.argv.find((value) => value.startsWith(prefix))
+    return arg ? arg.slice(prefix.length) : undefined
+  }
+
+  const TARGET_DIR = getArg('target-dir')
+  const APP_NAME = getArg('app-name')
+  const DISPLAY_NAME = getArg('display-name')
+  const SITE_URL = getArg('app-url')
+  const APP_SHORT_DESCRIPTION = getArg('app-short-description')
+  const APP_DESCRIPTION = getArg('app-description')
 
   if (!TARGET_DIR || !APP_NAME || !DISPLAY_NAME || !SITE_URL) {
     throw new Error('--target-dir, --app-name, --display-name, and --app-url are required')
   }
 
   const targetAbsDir = path.resolve(TARGET_DIR)
-  const resolvedDescription = resolveAppDescription(DISPLAY_NAME, APP_DESCRIPTION)
+  const resolvedDescription = resolveAgentDescription(
+    DISPLAY_NAME,
+    APP_DESCRIPTION,
+    APP_SHORT_DESCRIPTION,
+  )
+  const resolvedShortDescription = resolveShortDescription(
+    DISPLAY_NAME,
+    APP_SHORT_DESCRIPTION,
+    resolvedDescription,
+  )
   console.log(`\n💧 Hydrating repository in: ${targetAbsDir}`)
 
   console.log(`\nStep 1: Applying placeholders...`)
@@ -347,18 +609,21 @@ async function main() {
     APP_NAME,
     DISPLAY_NAME,
     SITE_URL,
+    APP_SHORT_DESCRIPTION: resolvedShortDescription,
     APP_DESCRIPTION: resolvedDescription,
   })
   await writeProvisionMetadata(targetAbsDir, {
     APP_NAME,
     DISPLAY_NAME,
     SITE_URL,
+    APP_SHORT_DESCRIPTION: resolvedShortDescription,
     APP_DESCRIPTION: resolvedDescription,
   })
   await seedSpecDocument(targetAbsDir, {
     APP_NAME,
     DISPLAY_NAME,
     SITE_URL,
+    APP_SHORT_DESCRIPTION: resolvedShortDescription,
     APP_DESCRIPTION: resolvedDescription,
   })
 
