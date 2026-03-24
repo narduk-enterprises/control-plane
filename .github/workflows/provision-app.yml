@@ -177,6 +177,37 @@ jobs:
         working-directory: template-source
         run: pnpm run export:starter -- ../app-source --force
 
+      - name: Validate exported starter surface
+        run: |
+          required=(
+            package.json
+            pnpm-workspace.yaml
+            apps/web/package.json
+            apps/web/nuxt.config.ts
+            apps/web/wrangler.json
+            apps/web/public/site.webmanifest
+          )
+
+          missing=()
+          for file in "${required[@]}"; do
+            if [[ ! -f "app-source/$file" ]]; then
+              missing+=("$file")
+            fi
+          done
+
+          echo "::group::Starter surface diagnostics"
+          find app-source -maxdepth 3 | sort
+          echo "::endgroup::"
+
+          if (( ${#missing[@]} > 0 )); then
+            message="Starter export missing required files: $(IFS=', '; echo "${missing[*]}")"
+            bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s starter-export --arg m "$message" '{level:"error",step:$s,message:$m}')"
+            echo "::error::$message"
+            exit 1
+          fi
+
+          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s starter-export --arg m 'Starter export surface validated' '{level:"info",step:$s,message:$m}')"
+
       - name: Prepare new repository
         run: |
           cd app-source

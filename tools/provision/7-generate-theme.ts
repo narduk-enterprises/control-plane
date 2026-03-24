@@ -53,6 +53,14 @@ const BACKOFF_MS = [1000, 3000, 9000]
 const TYPECHECK_TIMEOUT_MS = 120_000
 const PROVISION_LOG_CHUNK_CHARS = 3000
 const CONTENT_PREVIEW_CHARS = 1200
+const REQUIRED_STARTER_FILES = [
+  'package.json',
+  'pnpm-workspace.yaml',
+  'apps/web/package.json',
+  'apps/web/nuxt.config.ts',
+  'apps/web/wrangler.json',
+  'apps/web/public/site.webmanifest',
+] as const
 
 // ─── Helpers ──────────────────────────────────────────────────
 function maskApiKey(key: string): string {
@@ -139,6 +147,54 @@ function summarizeGeneratedFiles(files: GeneratedFiles): Record<string, unknown>
     mainCss: summarizeGeneratedContent(files.mainCss),
     indexVue: summarizeGeneratedContent(files.indexVue),
     appVue: summarizeGeneratedContent(files.appVue),
+  }
+}
+
+async function listDirectoryEntries(dir: string): Promise<string[]> {
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true })
+    return entries
+      .map((entry) => `${entry.name}${entry.isDirectory() ? '/' : ''}`)
+      .sort((left, right) => left.localeCompare(right))
+  } catch {
+    return []
+  }
+}
+
+async function collectStarterSurfaceDiagnostics(targetDir: string): Promise<Record<string, unknown>> {
+  const missingFiles: string[] = []
+  const requiredFiles: Record<string, boolean> = {}
+  for (const relativePath of REQUIRED_STARTER_FILES) {
+    const absolutePath = path.join(targetDir, relativePath)
+    const exists = await fs
+      .stat(absolutePath)
+      .then(() => true)
+      .catch(() => false)
+    requiredFiles[relativePath] = exists
+    if (!exists) {
+      missingFiles.push(relativePath)
+    }
+  }
+
+  const readPreview = async (relativePath: string): Promise<string | null> => {
+    try {
+      const content = await fs.readFile(path.join(targetDir, relativePath), 'utf-8')
+      return truncateForPreview(content)
+    } catch {
+      return null
+    }
+  }
+
+  return {
+    targetDir,
+    requiredFiles,
+    missingFiles,
+    rootEntries: await listDirectoryEntries(targetDir),
+    appsEntries: await listDirectoryEntries(path.join(targetDir, 'apps')),
+    appsWebEntries: await listDirectoryEntries(path.join(targetDir, 'apps', 'web')),
+    rootPackagePreview: await readPreview('package.json'),
+    webPackagePreview: await readPreview('apps/web/package.json'),
+    wranglerPreview: await readPreview('apps/web/wrangler.json'),
   }
 }
 
@@ -535,6 +591,15 @@ async function main(): Promise<void> {
     return
   }
 
+  const starterSurface = await collectStarterSurfaceDiagnostics(targetAbsDir)
+  const missingStarterFiles = starterSurface.missingFiles as string[]
+  await logJsonToProvision('info', 'ai-theme', 'Starter surface diagnostics', starterSurface)
+  printJsonToConsole('Starter surface diagnostics', starterSurface)
+  if (missingStarterFiles.length > 0) {
+    console.log('   ℹ️ Exported starter surface is incomplete — skipping AI theme generation.')
+    return
+  }
+
   console.log(`   Model: ${CODE_MODEL}`)
   console.log(`   Key: ${maskApiKey(OPENAI_API_KEY)}`)
 
@@ -706,9 +771,19 @@ async function main(): Promise<void> {
     }
 
     console.log(`\n   Typecheck fix ${fix}/${MAX_TYPECHECK_FIXES}...`)
+    const typecheckCwd = path.join(targetAbsDir, 'apps', 'web')
+    const typecheckContext = {
+      fixAttempt: fix,
+      cwd: typecheckCwd,
+      rootEntries: await listDirectoryEntries(targetAbsDir),
+      appsEntries: await listDirectoryEntries(path.join(targetAbsDir, 'apps')),
+      appsWebEntries: await listDirectoryEntries(typecheckCwd),
+    }
+    await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck context', typecheckContext)
+    printJsonToConsole('AI theme typecheck context', typecheckContext)
     try {
       await execAsync('pnpm run typecheck', {
-        cwd: path.join(targetAbsDir, 'apps', 'web'),
+        cwd: typecheckCwd,
         timeout: TYPECHECK_TIMEOUT_MS,
         maxBuffer: 4 * 1024 * 1024,
       })
