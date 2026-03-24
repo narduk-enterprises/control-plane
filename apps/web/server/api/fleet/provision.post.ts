@@ -433,13 +433,13 @@ export default definePublicMutation(
       console.warn(`Analytics provisioning warning: ${error.message}`)
     }
 
-    // ── 10. Dispatch provision-app.yml ──
+    // ── 10. Dispatch local provision-app.yml ──
     await updateStatus(provisionId, 'dispatching')
 
-    const templateRepo = 'narduk-enterprises/narduk-nuxt-template'
+    const workflowRepo = 'narduk-enterprises/control-plane'
 
     try {
-      await triggerWorkflow(ghToken, templateRepo, 'provision-app.yml', {
+      await triggerWorkflow(ghToken, workflowRepo, 'provision-app.yml', {
         'app-name': name,
         'display-name': displayName,
         'app-url': url,
