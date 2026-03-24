@@ -193,10 +193,17 @@ jobs:
         working-directory: app-source
         run: sed -i '/_authToken/d' .npmrc
 
+      - name: Write doppler.yaml for provisioned repo
+        working-directory: app-source
+        run: |
+          printf 'setup:\n  project: %s\n  config: dev\n' '${{ inputs.app-name }}' > doppler.yaml
+          echo "✅ doppler.yaml written (project=${{ inputs.app-name }}, config=dev)"
+
       - name: Commit and push
         working-directory: app-source
         run: |
           git add -A
+          git add -f doppler.yaml
           git config user.name "narduk-bot"
           git config user.email "bot@nard.uk"
           git commit -m "chore: initialize ${{ inputs.app-name }} from narduk-nuxt-template"
