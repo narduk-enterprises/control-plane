@@ -325,11 +325,11 @@ jobs:
             --target-dir="app-source" \
             --provision-id="${{ inputs.provision-id }}"
 
-      - name: 7. Generate AI Theme
+      - name: 7. Generate AI Theme + Splash Page
         if: inputs.app-description != ''
         continue-on-error: true
         run: |
-          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s ai-theme --arg m 'Generating AI theme, layout, icon, and logo via xAI Grok' '{level:"info",step:$s,message:$m}')"
+          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s ai-theme --arg m 'Generating AI theme, splash landing page, icon, and logo via GPT-5.4 + DALL-E' '{level:"info",step:$s,message:$m}')"
           pnpm exec tsx tools/provision/7-generate-theme.ts \
             --app-name="${{ inputs.app-name }}" \
             --display-name="${{ inputs.display-name }}" \
@@ -359,6 +359,22 @@ jobs:
           git add -f doppler.yaml
           git config user.name "narduk-bot"
           git config user.email "bot@nard.uk"
+          remote_main_sha="$(git ls-remote --heads origin main | awk '{print $1}')"
+          if [[ -n "$remote_main_sha" ]]; then
+            git fetch origin main --depth=1
+            remote_author="$(git log -1 --pretty='%an' FETCH_HEAD)"
+            remote_subject="$(git log -1 --pretty='%s' FETCH_HEAD)"
+            echo "::group::Remote main diagnostics"
+            echo "sha=$remote_main_sha"
+            echo "author=$remote_author"
+            echo "subject=$remote_subject"
+            echo "::endgroup::"
+            expected_subject="chore: initialize ${{ inputs.app-name }} from narduk-nuxt-template"
+            if [[ "$remote_author" != "narduk-bot" || "$remote_subject" != "$expected_subject" ]]; then
+              echo "::error::Remote main already exists and does not look like a control-plane bootstrap commit. Refusing to force-push over existing history."
+              exit 1
+            fi
+          fi
           git commit -m "chore: initialize ${{ inputs.app-name }} from narduk-nuxt-template"
           git branch -M main
           git push --force -u origin main
@@ -370,7 +386,13 @@ jobs:
       - name: Build and deploy
         working-directory: app-source/apps/web
         run: |
-          bash ../../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s deploy --arg m 'Building and deploying to Cloudflare Workers' '{level:"info",step:$s,message:$m}')"
+          bash ../../../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s deploy --arg m 'Building and deploying to Cloudflare Workers' '{level:"info",step:$s,message:$m}')"
+          echo "::group::Deploy workspace diagnostics"
+          pwd
+          ls -la
+          sed -n '1,120p' package.json
+          sed -n '1,120p' wrangler.json
+          echo "::endgroup::"
           pnpm build
           pnpm exec wrangler deploy
 

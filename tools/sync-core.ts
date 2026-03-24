@@ -655,7 +655,10 @@ function patchGitignore(appDir: string, dryRun: boolean, log: (message: string) 
     '.github/skills/home',
     '.claude/skills/home',
   ]) {
-    content = content.replace(new RegExp(`^${legacy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n`, 'gm'), '')
+    content = content.replace(
+      new RegExp(`^${legacy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n`, 'gm'),
+      '',
+    )
   }
 
   const skillsMarker = '# Legacy local skills scratch dir'
@@ -931,9 +934,7 @@ export async function runAppSync(options: RunAppSyncOptions) {
   }
 
   log('')
-  log(
-    '  Skills: repairing .agent/.cursor/.codex/.claude/.github symlinks → .agents/skills...',
-  )
+  log('  Skills: repairing .agent/.cursor/.codex/.claude/.github symlinks → .agents/skills...')
   ensureSkillsLinks(options.appDir, { dryRun, log })
 
   // Record template HEAD for drift checks and fleet audit — must run for layer-only
