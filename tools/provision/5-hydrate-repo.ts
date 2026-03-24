@@ -232,6 +232,7 @@ async function main() {
   console.log(`\nStep 3: Scaffolding local dev files...`)
   const dopplerYamlPath = path.join(targetAbsDir, 'doppler.yaml')
   await fs.writeFile(dopplerYamlPath, `setup:\n  project: ${APP_NAME}\n  config: dev\n`, 'utf-8')
+  console.log('  ✅ Wrote doppler.yaml')
 
   await scaffoldIndexVue(targetAbsDir, DISPLAY_NAME)
 

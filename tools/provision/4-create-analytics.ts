@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import {
   parseServiceAccountJson,
   getGoogleAccessToken,
@@ -10,6 +9,7 @@ import {
 } from '../../apps/web/server/utils/provision-analytics'
 
 import { bulkSetSecrets, getDopplerSecrets } from '../../apps/web/server/utils/provision-doppler'
+import { appendGitHubEnv } from './github-actions-env'
 
 async function main() {
   const APP_NAME = process.argv.find((a) => a.startsWith('--app-name='))?.split('=')[1]
@@ -118,22 +118,13 @@ async function main() {
     }
 
     if (process.env.GITHUB_ENV) {
-      if (gaPropertyId)
-        fs.appendFileSync(process.env.GITHUB_ENV, `GA_PROPERTY_ID=${gaPropertyId}\n`)
-      if (gaMeasurementId)
-        fs.appendFileSync(process.env.GITHUB_ENV, `GA_MEASUREMENT_ID=${gaMeasurementId}\n`)
+      if (gaPropertyId) appendGitHubEnv('GA_PROPERTY_ID', gaPropertyId)
+      if (gaMeasurementId) appendGitHubEnv('GA_MEASUREMENT_ID', gaMeasurementId)
       if (gscVerificationFileName) {
-        fs.appendFileSync(
-          process.env.GITHUB_ENV,
-          `GSC_VERIFICATION_FILE=${gscVerificationFileName}\n`,
-        )
-        // Using EOF block for multi-line or complex content
-        fs.appendFileSync(
-          process.env.GITHUB_ENV,
-          `GSC_VERIFICATION_CONTENT<<EOF\n${gscVerificationContent}\nEOF\n`,
-        )
+        appendGitHubEnv('GSC_VERIFICATION_FILE', gscVerificationFileName)
+        appendGitHubEnv('GSC_VERIFICATION_CONTENT', gscVerificationContent)
       }
-      if (indexNowKey) fs.appendFileSync(process.env.GITHUB_ENV, `INDEXNOW_KEY=${indexNowKey}\n`)
+      if (indexNowKey) appendGitHubEnv('INDEXNOW_KEY', indexNowKey)
     }
 
     console.log(`✅ Analytics provisioning complete.`)

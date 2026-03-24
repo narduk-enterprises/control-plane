@@ -1,15 +1,5 @@
-import fs from 'node:fs'
 import { getDopplerSecrets } from '../../apps/web/server/utils/provision-doppler'
-
-function appendGitHubEnv(key: string, value: string) {
-  const githubEnvPath = process.env.GITHUB_ENV
-  if (!githubEnvPath) {
-    throw new Error('GITHUB_ENV is required to export Doppler secrets')
-  }
-
-  const eof = `__DOPPLER_${key}_${Date.now()}__`
-  fs.appendFileSync(githubEnvPath, `${key}<<${eof}\n${value}\n${eof}\n`)
-}
+import { appendGitHubEnv } from './github-actions-env'
 
 async function main() {
   const project =

@@ -322,7 +322,7 @@ jobs:
             --app-name="${{ inputs.app-name }}" \
             --display-name="${{ inputs.display-name }}" \
             --app-url="${{ inputs.app-url }}" \
-            --target-dir="../app-source" \
+            --target-dir="app-source" \
             --provision-id="${{ inputs.provision-id }}"
 
       - name: 7. Generate AI Theme
@@ -335,13 +335,26 @@ jobs:
             --display-name="${{ inputs.display-name }}" \
             --app-description="${{ inputs.app-description }}" \
             --app-url="${{ inputs.app-url }}" \
-            --target-dir="../app-source" \
+            --target-dir="app-source" \
             --provision-id="${{ inputs.provision-id }}"
 
       - name: Commit and push
         working-directory: app-source
         run: |
           bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Committing and pushing initial repository' '{level:"info",step:$s,message:$m}')"
+          echo "::group::Commit workspace diagnostics"
+          pwd
+          ls -la
+          ls -la apps || true
+          ls -la apps/web || true
+          if [[ -f doppler.yaml ]]; then
+            echo "[doppler.yaml]"
+            sed -n '1,40p' doppler.yaml
+          else
+            echo "::error::Expected doppler.yaml is missing before commit."
+            exit 1
+          fi
+          echo "::endgroup::"
           git add -A
           git add -f doppler.yaml
           git config user.name "narduk-bot"

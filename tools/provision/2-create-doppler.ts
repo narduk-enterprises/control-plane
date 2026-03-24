@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import crypto from 'node:crypto'
 import {
   createDopplerProject,
@@ -6,6 +5,7 @@ import {
   syncDevConfig,
   createDopplerServiceToken,
 } from '../../apps/web/server/utils/provision-doppler'
+import { appendGitHubEnv } from './github-actions-env'
 
 async function main() {
   const APP_NAME = process.argv.find((a) => a.startsWith('--app-name='))?.split('=')[1]
@@ -69,7 +69,7 @@ async function main() {
   console.log(`✅ Doppler project ready. Service token created.`)
 
   if (process.env.GITHUB_ENV) {
-    fs.appendFileSync(process.env.GITHUB_ENV, `APP_DOPPLER_TOKEN=${dopplerToken}\n`)
+    appendGitHubEnv('APP_DOPPLER_TOKEN', dopplerToken)
   }
 }
 
