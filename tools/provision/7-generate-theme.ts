@@ -22,6 +22,7 @@ import { exec } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { normalizeGeneratedFiles, type GeneratedFiles } from './theme-generation-normalize'
 
 const execAsync = promisify(exec)
 
@@ -312,7 +313,11 @@ async function callOpenAI(
   })
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
-    throw new TextProviderError('openai', `OpenAI API ${res.status}: ${errText.slice(0, 200)}`, res.status)
+    throw new TextProviderError(
+      'openai',
+      `OpenAI API ${res.status}: ${errText.slice(0, 200)}`,
+      res.status,
+    )
   }
   const data = (await res.json()) as ChatResponse
   const content = data.choices?.[0]?.message?.content ?? ''
@@ -343,7 +348,11 @@ async function callXai(
   })
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
-    throw new TextProviderError('xai', `xAI API ${res.status}: ${errText.slice(0, 200)}`, res.status)
+    throw new TextProviderError(
+      'xai',
+      `xAI API ${res.status}: ${errText.slice(0, 200)}`,
+      res.status,
+    )
   }
   const data = (await res.json()) as ChatResponse
   const content = data.choices?.[0]?.message?.content ?? ''
@@ -513,11 +522,12 @@ CRITICAL RULES:
 - Colors use design tokens: primary, neutral, success, warning, error, info, secondary.
 - Do NOT use color="white" or color="gray" on Nuxt UI components. Use color="neutral".
 - Every page MUST call useSeo() and useWebPageSchema().
-- When calling useSeo(), title and description headers must be guaranteed strings (e.g., use "|| ''" if using optional chaining "data.value?.title").
+- When calling useSeo(), title and description headers must be guaranteed strings, but do NOT append "|| ''" or "?? ''" to a string literal or template literal. Resolve fallbacks before interpolation instead.
 - useSeo takes an object where ogImage is also an object (e.g. { title: '...', ogImage: { title: '...' } }).
 - Do NOT use '@type' inside useWebPageSchema; just pass name and description.
 - useAsyncData MUST return a Promise, e.g. useAsyncData('key', async () => ({...})).
 - CRITICAL: Vue template bindings for "useAsyncData" data objects MUST use optional chaining (e.g. "data?.someProperty") because the object can be null. Do NOT use "data.someProperty" without the question mark.
+- NEVER write code like "'literal' || ''", "\"literal\" ?? ''", or "\`\${value} || ''\`". Those are always-truthy mistakes and will be rejected.
 - Do NOT use raw $fetch in <script setup>. Use useFetch or useAsyncData for data.
 - UNavigationMenu does NOT have a #logo slot. Do not use it. Use a standard div or layout component.
 - Use Tailwind CSS v4 classes.
@@ -575,14 +585,6 @@ Fix the errors above and regenerate. Return the corrected JSON.`
   }
 
   return prompt
-}
-
-// ─── File Writing ─────────────────────────────────────────────
-interface GeneratedFiles {
-  appConfig: string
-  mainCss: string
-  indexVue: string
-  appVue: string
 }
 
 async function writeGeneratedFiles(
@@ -806,9 +808,7 @@ async function main(): Promise<void> {
 
   console.log(`   Preferred text model: ${OPENAI_CODE_MODEL}`)
   console.log(`   Fallback text model: ${XAI_CODE_MODEL}`)
-  console.log(
-    `   OpenAI key: ${OPENAI_API_KEY ? maskApiKey(OPENAI_API_KEY) : 'not configured'}`,
-  )
+  console.log(`   OpenAI key: ${OPENAI_API_KEY ? maskApiKey(OPENAI_API_KEY) : 'not configured'}`)
   console.log(`   xAI key: ${XAI_API_KEY ? maskApiKey(XAI_API_KEY) : 'not configured'}`)
 
   const startTime = Date.now()
@@ -899,23 +899,36 @@ async function main(): Promise<void> {
         continue
       }
 
+      const normalizedGeneration = normalizeGeneratedFiles(files)
+      if (normalizedGeneration.notes.length > 0) {
+        await logJsonToProvision('info', 'ai-theme', 'AI theme output normalization', {
+          attempt,
+          notes: normalizedGeneration.notes,
+        })
+        printJsonToConsole('AI theme output normalization', {
+          attempt,
+          notes: normalizedGeneration.notes,
+        })
+      }
+      const normalizedFiles = normalizedGeneration.files
+
       // Validate SFCs (hard gate)
       const allErrors: string[] = []
 
-      if (files.indexVue.trim()) {
-        const sfcErrors = await validateSfc(files.indexVue, 'index.vue')
+      if (normalizedFiles.indexVue.trim()) {
+        const sfcErrors = await validateSfc(normalizedFiles.indexVue, 'index.vue')
         allErrors.push(...sfcErrors.map((e) => `index.vue: ${e}`))
       } else {
         allErrors.push('index.vue: Empty content — must have template and script blocks')
       }
 
-      if (files.appVue.trim() && files.appVue.length > 50) {
-        const appVueErrors = await validateSfc(files.appVue, 'app.vue')
+      if (normalizedFiles.appVue.trim() && normalizedFiles.appVue.length > 50) {
+        const appVueErrors = await validateSfc(normalizedFiles.appVue, 'app.vue')
         allErrors.push(...appVueErrors.map((e) => `app.vue: ${e}`))
       }
 
-      if (files.appConfig.trim()) {
-        const configErrors = validateTypeScript(files.appConfig)
+      if (normalizedFiles.appConfig.trim()) {
+        const configErrors = validateTypeScript(normalizedFiles.appConfig)
         allErrors.push(...configErrors.map((e) => `app.config.ts: ${e}`))
       }
 
@@ -925,19 +938,19 @@ async function main(): Promise<void> {
         await logJsonToProvision('info', 'ai-theme', 'AI theme SFC validation failure', {
           attempt,
           errors: allErrors,
-          generatedFiles: summarizeGeneratedFiles(files),
+          generatedFiles: summarizeGeneratedFiles(normalizedFiles),
         })
         printJsonToConsole('AI theme SFC validation failure', {
           attempt,
           errors: allErrors,
-          generatedFiles: summarizeGeneratedFiles(files),
+          generatedFiles: summarizeGeneratedFiles(normalizedFiles),
         })
         if (attempt < MAX_SFC_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
         continue
       }
 
       // SFC structure is valid
-      lastGoodFiles = files
+      lastGoodFiles = normalizedFiles
       sfcPassed = true
       console.log(`   ✅ SFC validation passed on attempt ${attempt}.`)
       await logJsonToProvision('success', 'ai-theme', 'AI theme SFC generation output', {
@@ -946,7 +959,7 @@ async function main(): Promise<void> {
         model,
         tokens,
         attemptedProviders,
-        generatedFiles: summarizeGeneratedFiles(files),
+        generatedFiles: summarizeGeneratedFiles(normalizedFiles),
       })
       printJsonToConsole('AI theme SFC generation output', {
         attempt,
@@ -954,7 +967,7 @@ async function main(): Promise<void> {
         model,
         tokens,
         attemptedProviders,
-        generatedFiles: summarizeGeneratedFiles(files),
+        generatedFiles: summarizeGeneratedFiles(normalizedFiles),
       })
       break
     } catch (err: unknown) {
@@ -1084,13 +1097,18 @@ async function main(): Promise<void> {
           if (fallbackReason) {
             preferXai = provider === 'xai'
             console.warn(`   ⚠️ ${fallbackReason}`)
-            await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix provider fallback', {
-              fixAttempt: fix,
-              fallbackReason,
-              attemptedProviders,
-              selectedProvider: provider,
-              selectedModel: model,
-            })
+            await logJsonToProvision(
+              'info',
+              'ai-theme',
+              'AI theme typecheck fix provider fallback',
+              {
+                fixAttempt: fix,
+                fallbackReason,
+                attemptedProviders,
+                selectedProvider: provider,
+                selectedModel: model,
+              },
+            )
             printJsonToConsole('AI theme typecheck fix provider fallback', {
               fixAttempt: fix,
               fallbackReason,
@@ -1114,18 +1132,33 @@ async function main(): Promise<void> {
             continue
           }
 
+          const normalizedFix = normalizeGeneratedFiles(fixedFiles)
+          if (normalizedFix.notes.length > 0) {
+            await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix normalization', {
+              fixAttempt: fix,
+              notes: normalizedFix.notes,
+            })
+            printJsonToConsole('AI theme typecheck fix normalization', {
+              fixAttempt: fix,
+              notes: normalizedFix.notes,
+            })
+          }
+          const normalizedFixedFiles = normalizedFix.files
+
           // Quick SFC re-validation
           const sfcErrors: string[] = []
-          if (fixedFiles.indexVue.trim()) {
+          if (normalizedFixedFiles.indexVue.trim()) {
             sfcErrors.push(
-              ...(await validateSfc(fixedFiles.indexVue, 'index.vue')).map(
+              ...(await validateSfc(normalizedFixedFiles.indexVue, 'index.vue')).map(
                 (e) => `index.vue: ${e}`,
               ),
             )
           }
-          if (fixedFiles.appVue.trim() && fixedFiles.appVue.length > 50) {
+          if (normalizedFixedFiles.appVue.trim() && normalizedFixedFiles.appVue.length > 50) {
             sfcErrors.push(
-              ...(await validateSfc(fixedFiles.appVue, 'app.vue')).map((e) => `app.vue: ${e}`),
+              ...(await validateSfc(normalizedFixedFiles.appVue, 'app.vue')).map(
+                (e) => `app.vue: ${e}`,
+              ),
             )
           }
           if (sfcErrors.length > 0) {
@@ -1133,12 +1166,12 @@ async function main(): Promise<void> {
             await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix broke SFC', {
               fixAttempt: fix,
               errors: sfcErrors,
-              generatedFiles: summarizeGeneratedFiles(fixedFiles),
+              generatedFiles: summarizeGeneratedFiles(normalizedFixedFiles),
             })
             printJsonToConsole('AI theme typecheck fix broke SFC', {
               fixAttempt: fix,
               errors: sfcErrors,
-              generatedFiles: summarizeGeneratedFiles(fixedFiles),
+              generatedFiles: summarizeGeneratedFiles(normalizedFixedFiles),
             })
             // Rewrite original good files for next typecheck attempt
             await writeGeneratedFiles(
@@ -1150,20 +1183,24 @@ async function main(): Promise<void> {
           }
 
           // Write fixed files
-          lastGoodFiles = fixedFiles
-          await writeGeneratedFiles(targetAbsDir, fixedFiles, selectedModel ?? OPENAI_CODE_MODEL)
+          lastGoodFiles = normalizedFixedFiles
+          await writeGeneratedFiles(
+            targetAbsDir,
+            normalizedFixedFiles,
+            selectedModel ?? OPENAI_CODE_MODEL,
+          )
           await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix output', {
             fixAttempt: fix,
-            generatedFiles: summarizeGeneratedFiles(fixedFiles),
-            })
-            printJsonToConsole('AI theme typecheck fix output', {
-              fixAttempt: fix,
-              provider,
-              model,
-              attemptedProviders,
-              generatedFiles: summarizeGeneratedFiles(fixedFiles),
-            })
-          } catch (apiErr: unknown) {
+            generatedFiles: summarizeGeneratedFiles(normalizedFixedFiles),
+          })
+          printJsonToConsole('AI theme typecheck fix output', {
+            fixAttempt: fix,
+            provider,
+            model,
+            attemptedProviders,
+            generatedFiles: summarizeGeneratedFiles(normalizedFixedFiles),
+          })
+        } catch (apiErr: unknown) {
           console.warn(`   ❌ AI fix API error: ${(apiErr as Error).message}`)
           await logJsonToProvision('error', 'ai-theme', 'AI theme typecheck fix API error', {
             fixAttempt: fix,
