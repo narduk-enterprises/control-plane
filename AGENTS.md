@@ -628,7 +628,9 @@ doppler secrets set CLOUDFLARE_API_TOKEN='${narduk-nuxt-template.prd.CLOUDFLARE_
   references resolve automatically. `SITE_URL` is set to
   `http://localhost:${NUXT_PORT}` and `NUXT_PORT` is unique per app, so local
   clones can run in parallel without sharing the same port. You can override any
-  key for local testing without affecting production.
+  key for local testing without affecting production. Provisioning writes this
+  automatically; existing fleet rows / Doppler configs can be repaired with
+  `pnpm run fleet:backfill-nuxt-ports`.
 - **`prd` config:** Used by CI/CD (`deploy.yml`). Provisioning
   (`2-create-doppler.ts`) sets hub references in `prd`. The `DOPPLER_TOKEN`
   GitHub secret is scoped to `prd`. **CRITICAL:** Deployments will fail with

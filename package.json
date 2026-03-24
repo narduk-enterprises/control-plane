@@ -21,6 +21,8 @@
     "sync-template": "pnpm exec tsx tools/sync-template.ts .",
     "validate": "pnpm exec tsx tools/validate.ts",
     "set-fleet-doppler-urls": "npx tsx tools/set-fleet-doppler-urls.ts",
+    "fleet:doppler:sync-dev-ports": "npx tsx tools/set-fleet-doppler-urls.ts --sync-dev-ports",
+    "fleet:backfill-nuxt-ports": "npx tsx tools/set-fleet-doppler-urls.ts --backfill-missing-nuxt-ports --sync-dev-ports",
     "fleet:doppler:ensure-indexnow": "npx tsx tools/set-fleet-doppler-urls.ts --ensure-indexnow",
     "export:template-sync-manifest": "npx tsx tools/export-template-sync-manifest.ts",
     "clean": "find . -type d \\( -name node_modules -o -name .nuxt -o -name .output -o -name .nitro -o -name .wrangler -o -name .turbo -o -name .data -o -name dist \\) -not -path './.git/*' -prune -exec rm -rf {} +",

@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { createError, getRouterParam } from 'h3'
-import { provisionJobs, provisionJobLogs } from '#server/database/schema'
+import { fleetApps, provisionJobs, provisionJobLogs } from '#server/database/schema'
 import { defineAdminMutation } from '#layer/server/utils/mutation'
 import { triggerWorkflow } from '#server/utils/provision-github'
+import { allocateFleetNuxtPort } from '#server/utils/nuxt-port'
 import { dispatchInputsForRetry } from '#server/utils/provision-workflow-dispatch'
 
 /**
@@ -47,7 +48,37 @@ export default defineAdminMutation(
     }
 
     try {
-      const workflowInputs = dispatchInputsForRetry(job)
+      let resolvedNuxtPort = job.nuxtPort
+      if (resolvedNuxtPort == null) {
+        const fleetApp = await db
+          .select({ nuxtPort: fleetApps.nuxtPort })
+          .from(fleetApps)
+          .where(eq(fleetApps.name, job.appName))
+          .get()
+        const otherApps = await db
+          .select({ name: fleetApps.name, nuxtPort: fleetApps.nuxtPort })
+          .from(fleetApps)
+          .all()
+        resolvedNuxtPort =
+          fleetApp?.nuxtPort ??
+          allocateFleetNuxtPort(
+            otherApps.filter((app) => app.name !== job.appName).map((app) => app.nuxtPort),
+          )
+
+        const now = new Date().toISOString()
+        if (fleetApp && fleetApp.nuxtPort == null) {
+          await db
+            .update(fleetApps)
+            .set({ nuxtPort: resolvedNuxtPort, updatedAt: now })
+            .where(eq(fleetApps.name, job.appName))
+        }
+        await db
+          .update(provisionJobs)
+          .set({ nuxtPort: resolvedNuxtPort, updatedAt: now })
+          .where(eq(provisionJobs.id, job.id))
+      }
+
+      const workflowInputs = dispatchInputsForRetry({ ...job, nuxtPort: resolvedNuxtPort })
       await triggerWorkflow(
         ghToken,
         'narduk-enterprises/control-plane',

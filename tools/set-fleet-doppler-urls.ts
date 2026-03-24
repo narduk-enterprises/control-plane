@@ -6,6 +6,7 @@
  *   npx tsx tools/set-fleet-doppler-urls.ts             # set SITE_URL in all fleet projects
  *   npx tsx tools/set-fleet-doppler-urls.ts --dry-run   # print what would be set
  *   npx tsx tools/set-fleet-doppler-urls.ts --sync-dev-ports
+ *   npx tsx tools/set-fleet-doppler-urls.ts --backfill-missing-nuxt-ports --sync-dev-ports
  *   npx tsx tools/set-fleet-doppler-urls.ts --ensure-indexnow         # set INDEXNOW_KEY (prd, and dev if empty) when missing
  *   npx tsx tools/set-fleet-doppler-urls.ts --ensure-indexnow --filter-apps=foo,bar
  *
@@ -17,10 +18,12 @@
 
 import { randomBytes } from 'node:crypto'
 import { execSync } from 'node:child_process'
+import { assignMissingFleetNuxtPorts } from '../apps/web/server/utils/nuxt-port'
 
 const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
 const dryRun = process.argv.includes('--dry-run')
 const syncDevPorts = process.argv.includes('--sync-dev-ports')
+const backfillMissingNuxtPorts = process.argv.includes('--backfill-missing-nuxt-ports')
 const ensureIndexnow = process.argv.includes('--ensure-indexnow')
 
 function parseFilterAppsArg(): Set<string> | null {
@@ -63,6 +66,28 @@ async function fetchFleetApps(): Promise<FleetApp[]> {
   } catch {
     console.error(`❌ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
     process.exit(1)
+  }
+}
+
+async function updateFleetAppNuxtPort(appName: string, nuxtPort: number): Promise<void> {
+  const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps/${encodeURIComponent(appName)}`, {
+    method: 'PUT',
+    headers: {
+      ...fleetApiHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ nuxtPort }),
+  })
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(
+      `${CONTROL_PLANE_URL}/api/fleet/apps/${appName} rejected the request. Set CONTROL_PLANE_API_KEY (nk_... admin key).`,
+    )
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`HTTP ${res.status}${text ? ` ${text}` : ''}`)
   }
 }
 
@@ -187,6 +212,64 @@ async function main() {
     console.log('')
     if (fail > 0) process.exit(1)
     return
+  }
+
+  if (backfillMissingNuxtPorts) {
+    const assignments = assignMissingFleetNuxtPorts(
+      apps.map((app) => ({ name: app.name, nuxtPort: app.nuxtPort ?? null })),
+    )
+
+    if (assignments.length === 0) {
+      console.log(
+        dryRun
+          ? 'No missing fleet registry NUXT_PORT values to backfill.'
+          : 'Fleet registry NUXT_PORT values already present for all apps.',
+      )
+      console.log('')
+    } else {
+      console.log(
+        dryRun
+          ? 'Fleet registry NUXT_PORT backfill (dry run — no changes)'
+          : 'Backfilling missing fleet registry NUXT_PORT values',
+      )
+      console.log('────────────────────────────────────────────────────────')
+
+      const assignedPorts = new Map(
+        assignments.map((assignment) => [assignment.name, assignment.nuxtPort]),
+      )
+
+      for (const assignment of assignments) {
+        if (dryRun) {
+          console.log(
+            `  …   ${assignment.name.padEnd(28)} would set nuxtPort=${assignment.nuxtPort}`,
+          )
+          continue
+        }
+
+        try {
+          await updateFleetAppNuxtPort(assignment.name, assignment.nuxtPort)
+          console.log(`  ✅ ${assignment.name.padEnd(28)} nuxtPort=${assignment.nuxtPort}`)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.log(`  ❌ ${assignment.name.padEnd(28)} ${message}`)
+          process.exit(1)
+        }
+      }
+
+      apps = apps.map((app) =>
+        assignedPorts.has(app.name)
+          ? { ...app, nuxtPort: assignedPorts.get(app.name) ?? app.nuxtPort }
+          : app,
+      )
+
+      console.log('────────────────────────────────────────────────────────')
+      console.log(
+        dryRun
+          ? `Would assign NUXT_PORT for ${assignments.length} app(s).`
+          : `Backfilled NUXT_PORT for ${assignments.length} app(s).`,
+      )
+      console.log('')
+    }
   }
 
   // ── Default: SITE_URL sync ─────────────────────────────────────────────

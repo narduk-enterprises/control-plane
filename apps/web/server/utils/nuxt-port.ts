@@ -32,6 +32,11 @@ export function buildLocalNuxtUrl(port: number): string {
   return `http://localhost:${port}`
 }
 
+export interface NuxtPortAssignmentTarget {
+  name: string
+  nuxtPort?: unknown
+}
+
 export function allocateFleetNuxtPort(
   usedPorts: Iterable<unknown>,
   preferredPort?: unknown,
@@ -61,4 +66,30 @@ export function allocateFleetNuxtPort(
 
 export function deriveSeedNuxtPort(index: number): number {
   return FLEET_NUXT_PORT_START + index
+}
+
+export function assignMissingFleetNuxtPorts(
+  apps: Iterable<NuxtPortAssignmentTarget>,
+): Array<{ name: string; nuxtPort: number }> {
+  const normalizedApps = Array.from(apps, (app) => ({
+    name: app.name,
+    nuxtPort: normalizeNuxtPort(app.nuxtPort),
+  }))
+
+  const usedPorts = normalizedApps
+    .map((app) => app.nuxtPort)
+    .filter((port): port is number => port !== null)
+
+  const assignments: Array<{ name: string; nuxtPort: number }> = []
+  const missingApps = normalizedApps
+    .filter((app) => app.nuxtPort === null)
+    .sort((left, right) => left.name.localeCompare(right.name))
+
+  for (const app of missingApps) {
+    const nuxtPort = allocateFleetNuxtPort(usedPorts)
+    usedPorts.push(nuxtPort)
+    assignments.push({ name: app.name, nuxtPort })
+  }
+
+  return assignments
 }

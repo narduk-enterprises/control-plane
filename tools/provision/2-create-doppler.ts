@@ -5,6 +5,7 @@ import {
   syncDevConfig,
   createDopplerServiceToken,
 } from '../../apps/web/server/utils/provision-doppler'
+import { buildLocalNuxtUrl, normalizeNuxtPort } from '../../apps/web/server/utils/nuxt-port'
 import { appendGitHubEnv } from './github-actions-env'
 
 async function main() {
@@ -12,11 +13,14 @@ async function main() {
   const APP_URL = process.argv.find((a) => a.startsWith('--app-url='))?.split('=')[1]
   const DISPLAY_NAME = process.argv.find((a) => a.startsWith('--display-name='))?.split('=')[1]
   const nuxtFromArg = process.argv.find((a) => a.startsWith('--nuxt-port='))?.split('=')[1]
-  const NUXT_PORT = (nuxtFromArg ?? process.env.NUXT_PORT)?.trim() || '3000'
+  const resolvedNuxtPort = normalizeNuxtPort(nuxtFromArg ?? process.env.NUXT_PORT)
   const provisionId = process.argv.find((a) => a.startsWith('--provision-id='))?.split('=')[1]
 
   if (!APP_NAME || !APP_URL || !DISPLAY_NAME) {
     throw new Error('--app-name, --app-url, and --display-name are required')
+  }
+  if (resolvedNuxtPort === null) {
+    throw new Error('--nuxt-port or NUXT_PORT is required and must be a valid TCP port')
   }
 
   if (provisionId) {
@@ -59,9 +63,9 @@ async function main() {
       APP_NAME,
       CRON_SECRET: cronSecret,
       NUXT_SESSION_PASSWORD: sessionPassword,
-      NUXT_PORT,
+      NUXT_PORT: String(resolvedNuxtPort),
     },
-    { siteUrl: `http://localhost:${NUXT_PORT}` },
+    { siteUrl: buildLocalNuxtUrl(resolvedNuxtPort) },
   )
 
   console.log(`Generating CI service token...`)
