@@ -19,7 +19,6 @@
  * Skipped for:
  * - Non-mutating methods (GET, HEAD, OPTIONS)
  * - Webhook/external callback routes (`/api/webhooks/`, `/api/cron/`)
- * - Fleet provisioning callbacks (`/api/fleet/provision/`)
  * - Auth provider routes (`/api/_auth/`)
  * - Nuxt Content internal queries (`/__nuxt_content/`)
  * - API key bearer auth (`Authorization: Bearer nk_...`)
@@ -37,7 +36,6 @@ export default defineEventHandler((event) => {
     path.startsWith('/api/webhooks/') ||
     path.startsWith('/api/cron/') ||
     path.startsWith('/api/callbacks/') ||
-    path.startsWith('/api/fleet/provision/') ||
     path.startsWith('/api/_auth/') ||
     path.startsWith('/__nuxt_content/') ||
     path === '/api/owner-tag'

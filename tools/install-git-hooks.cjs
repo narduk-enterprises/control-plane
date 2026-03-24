@@ -1,11 +1,20 @@
 #!/usr/bin/env node
 
 const { execFileSync } = require('node:child_process')
-const { existsSync } = require('node:fs')
+const { chmodSync, existsSync, readdirSync, statSync } = require('node:fs')
 const path = require('node:path')
 
 const root = process.cwd()
 const hooksDir = path.join(root, '.githooks')
+
+function ensureExecutableHooks() {
+  if (!existsSync(hooksDir)) return
+  for (const entry of readdirSync(hooksDir)) {
+    const fullPath = path.join(hooksDir, entry)
+    if (!statSync(fullPath).isFile()) continue
+    chmodSync(fullPath, 0o755)
+  }
+}
 
 if (!existsSync(hooksDir)) {
   process.exit(0)
@@ -33,6 +42,7 @@ try {
 
 const normalized = current.replace(/\/+$/, '').replace(/^\.\//, '')
 if (normalized === '.githooks') {
+  ensureExecutableHooks()
   process.exit(0)
 }
 
@@ -41,6 +51,7 @@ try {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
+  ensureExecutableHooks()
   console.log('✅ Git hooks installed at .githooks')
 } catch (error) {
   console.warn('⚠️ Could not set git core.hooksPath to .githooks')

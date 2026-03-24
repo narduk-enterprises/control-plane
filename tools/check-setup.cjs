@@ -28,7 +28,7 @@ if (!fs.existsSync(SENTINEL)) {
   console.error('│    This clone should include a tracked .setup-complete.      │')
   console.error('│    If you removed it, restore from git or re-clone.          │')
   console.error('│                                                              │')
-  console.error('│  See docs/provisioning-pipeline.md and AGENTS.md.             │')
+  console.error('│  See docs/agents/operations.md and AGENTS.md.                 │')
   console.error('└──────────────────────────────────────────────────────────────┘')
   console.error()
   process.exit(1)

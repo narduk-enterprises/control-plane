@@ -43,9 +43,7 @@ async function main() {
 
   let allGood = true
   if (!APP_NAME || APP_NAME.includes(TEMPLATE_NAME)) {
-    console.error(
-      `  ❌ Project name is still '${APP_NAME}'. Has the project been provisioned or renamed?`,
-    )
+    console.error(`  ❌ Project name is still '${APP_NAME}'. Has the project been provisioned or renamed?`)
     allGood = false
   }
 
@@ -152,6 +150,7 @@ async function main() {
         'CLOUDFLARE_ACCOUNT_ID',
         'APP_NAME',
         'SITE_URL',
+        'NUXT_SESSION_PASSWORD',
       ]
 
       const missing = requiredSecrets.filter((s) => !existing.has(s))

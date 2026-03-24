@@ -10,16 +10,16 @@ These are **Node.js automation scripts** that run locally or in CI. They are
 
 ## Scripts
 
-| Script                 | Purpose                                                                                    | Usage                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| `validate.ts`          | Confirms infrastructure is correctly provisioned (D1, Doppler, GitHub secrets)             | `pnpm run validate`                                                        |
-| `generate-favicons.ts` | Generates all favicon variants (apple-touch-icon, ico, PNG, webmanifest) from a source SVG | `pnpm generate:favicons`                                                   |
-| `setup-analytics.ts`   | Bootstraps GA4, Google Search Console, and IndexNow                                        | Run directly or from control-plane `tools/provision/4-create-analytics.ts` |
-| `gsc-toolbox.ts`       | Google Search Console API utilities                                                        | Used by `setup-analytics.ts`                                               |
+| Script                 | Purpose                                                                                                                                                                           | Usage                                                        |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `validate.ts`          | Confirms infrastructure is correctly provisioned (D1, Doppler, GitHub secrets)                                                                                                    | `pnpm run validate`                                          |
+| `generate-favicons.ts` | Generates all favicon variants (apple-touch-icon, ico, PNG, webmanifest) from a source SVG                                                                                        | `pnpm generate:favicons`                                     |
+| `setup-analytics.ts`   | Bootstraps GA4, Google Search Console, and IndexNow                                                                                                                               | Run directly or from control-plane provisioning pipeline     |
+| `gsc-toolbox.ts`       | Google Search Console API utilities                                                                                                                                               | Used by `setup-analytics.ts`                                 |
 
 ## vs. `scripts/`
 
 The `scripts/` directory at the repo root contains **shell helper scripts** for
 developer convenience (`dev-kill.sh`, `run-dev-auth.sh`). The `tools/` directory
-contains **TypeScript automation** for validation and supporting scripts. **New
-apps:** provision only via the control plane; there is no `init.ts`.
+contains **TypeScript automation** for validation and supporting scripts.
+**New apps:** provision only via the control plane; there is no `init.ts`.

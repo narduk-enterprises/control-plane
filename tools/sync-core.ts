@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
   lstatSync,
@@ -91,6 +92,14 @@ function symlinkTargetsMatch(left: string, right: string): boolean {
   }
 }
 
+function fileModesMatch(sourcePath: string, targetPath: string): boolean {
+  try {
+    return statSync(sourcePath).mode === statSync(targetPath).mode
+  } catch {
+    return false
+  }
+}
+
 function syncFile(
   sourcePath: string,
   targetPath: string,
@@ -124,7 +133,11 @@ function syncFile(
     return
   }
 
-  if (existsSync(targetPath) && filesIdentical(sourcePath, targetPath)) {
+  if (
+    existsSync(targetPath) &&
+    filesIdentical(sourcePath, targetPath) &&
+    fileModesMatch(sourcePath, targetPath)
+  ) {
     counters.skipped += 1
     return
   }
@@ -135,6 +148,7 @@ function syncFile(
   if (!dryRun) {
     ensureDir(targetPath)
     copyFileSync(sourcePath, targetPath)
+    chmodSync(targetPath, srcLstat.mode)
   }
 
   counters.copied += 1
@@ -629,7 +643,7 @@ function patchGitignore(appDir: string, dryRun: boolean, log: (message: string) 
   }
 
   for (const legacy of [
-    '# User-global skills: per-agent symlinks to repo-local .agents/skills (pnpm run skills:link / sync-template)',
+    '# User-global skills: per-agent symlinks to ~/.skills (pnpm run skills:link / sync-template)',
     '.cursor/skills',
     '.codex/skills',
     '.agent/skills',
@@ -641,10 +655,7 @@ function patchGitignore(appDir: string, dryRun: boolean, log: (message: string) 
     '.github/skills/home',
     '.claude/skills/home',
   ]) {
-    content = content.replace(
-      new RegExp(`^${legacy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n`, 'gm'),
-      '',
-    )
+    content = content.replace(new RegExp(`^${legacy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n`, 'gm'), '')
   }
 
   const skillsMarker = '# Legacy local skills scratch dir'
@@ -920,7 +931,9 @@ export async function runAppSync(options: RunAppSyncOptions) {
   }
 
   log('')
-  log('  Skills: repairing .agent/.cursor/.codex/.claude/.github symlinks → .agents/skills...')
+  log(
+    '  Skills: repairing .agent/.cursor/.codex/.claude/.github symlinks → .agents/skills...',
+  )
   ensureSkillsLinks(options.appDir, { dryRun, log })
 
   // Record template HEAD for drift checks and fleet audit — must run for layer-only

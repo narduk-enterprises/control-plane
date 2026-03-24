@@ -7,7 +7,9 @@ alwaysApply: true
 
 Canonical skills live in `.agents/skills`. `pnpm run skills:link` repairs the
 tracked agent-facing symlinks so every tool resolves back to that same repo
-payload:
+payload. To copy from `~/.agents/skills` into `.agents/skills` (then commit as
+you like), run `pnpm run skills:vendor` (requires `rsync` and a real directory at
+`.agents/skills`, not a symlink).
 
 - `.cursor/skills` → `../.agents/skills`
 - `.codex/skills` → `../.agents/skills`

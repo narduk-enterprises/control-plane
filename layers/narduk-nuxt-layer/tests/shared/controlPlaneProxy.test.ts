@@ -40,15 +40,6 @@ describe('controlPlaneProxy helpers', () => {
         'https://bluebonnet-status.example.com',
       ),
     ).toBeNull()
-
-    // Should ignore when the request originates from the control plane itself
-    expect(
-      resolveControlPlaneProxyPath(
-        'https://control-plane.nard.uk/api/fleet/provision-ui',
-        'https://control-plane.nard.uk',
-        'https://control-plane.nard.uk',
-      ),
-    ).toBeNull()
   })
 
   it('builds an upstream fleet URL for the server proxy route', () => {
