@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { getCanonicalCiContent } from './sync-manifest'
+import { REFERENCE_BASELINE_FILES, getCanonicalCiContent } from './sync-manifest'
 
 export const STARTER_COPY_FILES = [
   '.editorconfig',
@@ -17,6 +17,7 @@ export const STARTER_COPY_FILES = [
   '.githooks/pre-commit',
   '.githooks/post-checkout',
   '.githooks/post-merge',
+  '.githooks/post-rewrite',
   '.agent/skills',
   '.cursor/skills',
   '.codex/skills',
@@ -48,11 +49,11 @@ export const STARTER_COPY_FILES = [
   'apps/web/eslint.config.mjs',
   'apps/web/drizzle.config.ts',
   'apps/web/tsconfig.json',
+  ...REFERENCE_BASELINE_FILES,
 ] as const
 
 export const STARTER_COPY_DIRECTORIES = [
   '.agents/workflows',
-  '.template-reference',
   'apps/web/app',
   'apps/web/drizzle',
   'apps/web/public',

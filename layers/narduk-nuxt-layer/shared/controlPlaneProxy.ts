@@ -28,6 +28,9 @@ export function resolveControlPlaneProxyPath(
   const controlPlaneOrigin = normalizeControlPlaneOrigin(controlPlaneUrl)
   if (!controlPlaneOrigin) return null
 
+  // If the app running this code IS the control plane, we don't need to proxy.
+  if (currentOrigin === controlPlaneOrigin) return null
+
   let targetUrl: URL
 
   try {

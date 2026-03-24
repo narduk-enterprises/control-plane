@@ -6,6 +6,7 @@ export const VERBATIM_SYNC_FILES = [
   '.githooks/pre-commit',
   '.githooks/post-checkout',
   '.githooks/post-merge',
+  '.githooks/post-rewrite',
   '.agent/skills',
   '.cursor/skills',
   '.codex/skills',
@@ -35,6 +36,7 @@ export const VERBATIM_SYNC_FILES = [
   'pnpm-workspace.yaml',
   'renovate.json',
   '.github/copilot-instructions.md',
+  '.github/prompts/ui-ux-pro-max/PROMPT.md',
   '.cursor/rules/user-global-skills.mdc',
   'apps/web/.nuxtrc',
   'apps/web/.npmrc',
@@ -46,6 +48,18 @@ export const VERBATIM_SYNC_FILES = [
 
 export const BOOTSTRAP_SYNC_FILES = ['guardrail-exceptions.json'] as const
 
+// `.template-reference` is reserved for baselines that are intentionally
+// allowed to diverge in downstream apps while still keeping a template copy to
+// diff against locally.
+export const REFERENCE_BASELINE_FILES = [
+  '.template-reference/README.md',
+  '.template-reference/AGENTS.md',
+  '.template-reference/apps/web/AGENTS.md',
+  '.template-reference/tools/AGENTS.md',
+  '.template-reference/CONTRIBUTING.md',
+  '.template-reference/playwright.config.ts',
+] as const
+
 export const RECURSIVE_SYNC_DIRECTORIES = [
   'packages/eslint-config',
   'tools/guardrails',
@@ -55,12 +69,11 @@ export const RECURSIVE_SYNC_DIRECTORIES = [
   '.agents',
   '.agent',
   '.codex',
-  '.github/prompts',
-  '.template-reference',
   'layers/narduk-nuxt-layer',
 ] as const
 
 export const STALE_SYNC_PATHS = [
+  '.agents/.DS_Store',
   '.cursor/skills/home',
   '.codex/skills/home',
   '.agent/skills/home',
@@ -81,6 +94,9 @@ export const STALE_SYNC_PATHS = [
   '.env',
   '.env.local',
   '.env.example',
+  '.template-reference/.DS_Store',
+  '.template-reference/build-visibility.md',
+  '.template-reference/ui-ux-pro-max',
   'layers/narduk-nuxt-layer/app/utils/format.ts',
   'layers/narduk-nuxt-layer/app/utils/safeLinkTarget.ts',
   'layers/narduk-nuxt-layer/eslint.overrides.mjs',
@@ -195,6 +211,12 @@ export function collectManagedTemplateFiles(templateRoot: string): string[] {
   const tracked = new Set<string>()
 
   for (const file of VERBATIM_SYNC_FILES) {
+    if (existsSync(join(templateRoot, file))) {
+      tracked.add(file)
+    }
+  }
+
+  for (const file of REFERENCE_BASELINE_FILES) {
     if (existsSync(join(templateRoot, file))) {
       tracked.add(file)
     }

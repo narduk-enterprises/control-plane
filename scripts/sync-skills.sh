@@ -44,7 +44,12 @@ origin_default_ref() {
   git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null || printf '%s\n' refs/remotes/origin/main
 }
 
-should_vendor_for_upstream_head() {
+# Sync from $HOME/.agents/skills only when it is unlikely to stomp a topic branch:
+# - Named default branch (e.g. main): always vendor. Required because after
+#   `git pull` with a merge, HEAD is a merge commit and no longer equals
+#   origin/main, so an "exact upstream tip" check would never run rsync.
+# - Detached HEAD: only when exactly at the remote default tip (conservative).
+should_vendor_skills_for_hook() {
   current_commit=$(git rev-parse -q --verify HEAD 2>/dev/null || true)
   [ -n "$current_commit" ] || return 1
 
@@ -52,7 +57,10 @@ should_vendor_for_upstream_head() {
   default_branch=${default_ref#refs/remotes/origin/}
   current_branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
 
-  if [ -n "$current_branch" ] && [ "$current_branch" != "$default_branch" ]; then
+  if [ -n "$current_branch" ]; then
+    if [ "$current_branch" = "$default_branch" ]; then
+      return 0
+    fi
     return 1
   fi
 
@@ -80,7 +88,13 @@ vendor_skills() {
     return 0
   fi
 
-  rsync -a --delete --exclude '.DS_Store' "$LOCAL_SOURCE/" .agents/skills/
+  rsync -a --delete \
+    --exclude '.DS_Store' \
+    --exclude '.git' \
+    --exclude 'node_modules' \
+    --exclude '__pycache__' \
+    --exclude '.pytest_cache' \
+    "$LOCAL_SOURCE/" .agents/skills/
 }
 
 case "$MODE" in
@@ -91,14 +105,14 @@ case "$MODE" in
     vendor_skills
     ensure_links
     ;;
-  vendor-if-upstream-head)
-    if should_vendor_for_upstream_head; then
+  vendor-if-default-branch | vendor-if-upstream-head)
+    if should_vendor_skills_for_hook; then
       vendor_skills
     fi
     ensure_links
     ;;
   *)
-    printf 'Usage: %s [links-only|vendor|vendor-if-upstream-head]\n' "$0" >&2
+    printf 'Usage: %s [links-only|vendor|vendor-if-default-branch|vendor-if-upstream-head]\n' "$0" >&2
     exit 1
     ;;
 esac

@@ -6,6 +6,7 @@ import { runCommand } from './command'
 import {
   GENERATED_SYNC_FILES,
   RECURSIVE_SYNC_DIRECTORIES,
+  REFERENCE_BASELINE_FILES,
   STALE_SYNC_PATHS,
   VERBATIM_SYNC_FILES,
   getCanonicalCiContent,
@@ -161,6 +162,12 @@ function buildTrackedFiles(ref: string): string[] {
   const tracked = new Set<string>()
 
   for (const file of VERBATIM_SYNC_FILES) {
+    if (hasBlobAtRef(ref, file)) {
+      tracked.add(file)
+    }
+  }
+
+  for (const file of REFERENCE_BASELINE_FILES) {
     if (hasBlobAtRef(ref, file)) {
       tracked.add(file)
     }

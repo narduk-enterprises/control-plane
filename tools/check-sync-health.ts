@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { REFERENCE_BASELINE_FILES } from './sync-manifest'
 
 interface CheckResult {
   status: 'pass' | 'fail' | 'warn'
@@ -31,14 +32,6 @@ const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
 const LOCKFILE_PATH = join(ROOT_DIR, 'pnpm-lock.yaml')
 const PNPM_VIRTUAL_STORE_DIR = join(ROOT_DIR, 'node_modules', '.pnpm')
-const REFERENCE_BASELINES = [
-  '.template-reference/AGENTS.md',
-  '.template-reference/apps/web/AGENTS.md',
-  '.template-reference/tools/AGENTS.md',
-  '.template-reference/CONTRIBUTING.md',
-  '.template-reference/playwright.config.ts',
-] as const
-
 function readJson<T>(path: string): T | null {
   if (!existsSync(path)) return null
   return JSON.parse(readFileSync(path, 'utf8')) as T
@@ -237,7 +230,7 @@ function checkPublicJunk(): CheckResult {
 }
 
 function checkReferenceBaselines(): CheckResult {
-  const missing = REFERENCE_BASELINES.filter(
+  const missing = REFERENCE_BASELINE_FILES.filter(
     (relativePath) => !existsSync(join(ROOT_DIR, relativePath)),
   )
   if (missing.length === 0) {

@@ -19,6 +19,7 @@ import {
   FLEET_ROOT_SCRIPT_PATCHES,
   FLEET_WEB_SCRIPT_PATCHES,
   GENERATED_SYNC_FILES,
+  REFERENCE_BASELINE_FILES,
   RECURSIVE_SYNC_DIRECTORIES,
   STALE_SYNC_PATHS,
   VERBATIM_SYNC_FILES,
@@ -274,6 +275,9 @@ function syncManagedFiles(
   if (mode === 'full') {
     log('Phase 1: Syncing managed template files...')
     for (const file of VERBATIM_SYNC_FILES) {
+      syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
+    }
+    for (const file of REFERENCE_BASELINE_FILES) {
       syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
     }
     for (const file of BOOTSTRAP_SYNC_FILES) {
