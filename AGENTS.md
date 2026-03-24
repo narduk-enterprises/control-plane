@@ -86,6 +86,13 @@ _You can create `app/components/`, `server/api/`, etc., in `apps/web/`, but
 ensure you aren't duplicating something already provided by the Layer (see Layer
 Manifest below)._
 
+> **⚠️ Start with `apps/web/app/pages/index.vue`**  
+> The shared layer ships its own `pages/index.vue`. Until your app overrides it,
+> the root route `/` silently serves the raw template page — no error, no
+> warning. **`pnpm run setup` writes a placeholder for you automatically.**
+> Replace it before building any other page. The same rule applies to
+> `app/app.vue` if you need a custom app shell (nav, layout, etc.).
+
 ## What the Layer Provides (DO NOT Duplicate)
 
 The layer at `layers/narduk-nuxt-layer/` provides all of the following
@@ -574,8 +581,10 @@ this after the Initialization Routine.
      > _Note: If you ran `pnpm run setup` with `--display`, these values were
      > already replaced automatically._
 
-6. **Replace `apps/web/app/pages/index.vue`** — this is a placeholder landing
-   page. Build your actual homepage.
+6. **Replace `apps/web/app/pages/index.vue`** — `pnpm run setup` scaffolds this
+   for you, but it is a placeholder. Build your actual home page here first,
+   before creating any other page, to prevent the layer's template UI from
+   showing at `/`.
 
 ---
 

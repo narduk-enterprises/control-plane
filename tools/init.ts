@@ -17,14 +17,17 @@ import { CommandOptions, runCommand } from './command'
  *   pnpm run setup -- --name="my-app" --display="My App Name" --url="https://myapp.com" --repair
  *
  * What this does:
- * 1. Replaces explicit starter placeholders in known metadata/config files
- * 2. Provisions the Cloudflare D1 database (skips if exists)
- * 3. Rewrites `wrangler.json` with the D1 database ID
- * 4. Provisions Doppler project and syncs hub secrets (additive only)
- * 5. Sets Doppler CI token on GitHub (skips if token exists)
- * 6. Reports control-plane-managed analytics state and local follow-up guidance
- * 7. Generates favicon assets for apps/web/public from source SVG
- * 8. Installs git hooks, writes setup sentinels, and records template provenance
+ * 1.   Replaces explicit starter placeholders in known metadata/config files
+ * 2.   Provisions the Cloudflare D1 database (skips if exists)
+ * 3.   Rewrites `wrangler.json` with the D1 database ID
+ * 4.   Provisions Doppler project and syncs hub secrets (additive only)
+ * 5.   Sets Doppler CI token on GitHub (skips if token exists)
+ * 5.5. Configures local Doppler environment
+ * 6.   Reports control-plane-managed analytics state and local follow-up guidance
+ * 7.   Generates favicon assets for apps/web/public from source SVG
+ * 8.   Installs git hooks and writes setup sentinels
+ * 8.5. Scaffolds apps/web/app/pages/index.vue if absent (prevents layer bleed-through)
+ * 9.   Records template provenance and prints next steps
  */
 
 // --- 1. Argument Parsing ---
@@ -108,17 +111,11 @@ function runInherit(command: string, args: string[], options: CommandOptions = {
   })
 }
 
-const APP_DERIVED_NUXT_PORT_BASE = 3200
-const APP_DERIVED_NUXT_PORT_SPAN = 2000
+const RANDOM_NUXT_PORT_MIN = 3200
+const RANDOM_NUXT_PORT_MAX = 6199
 
-function deriveDefaultNuxtPort(appName: string): number {
-  let hash = 0
-
-  for (const char of appName) {
-    hash = (hash * 33 + char.charCodeAt(0)) >>> 0
-  }
-
-  return APP_DERIVED_NUXT_PORT_BASE + (hash % APP_DERIVED_NUXT_PORT_SPAN)
+function randomNuxtPort(): number {
+  return crypto.randomInt(RANDOM_NUXT_PORT_MIN, RANDOM_NUXT_PORT_MAX + 1)
 }
 
 function resolveLocalNuxtPort(): number {
@@ -132,7 +129,7 @@ function resolveLocalNuxtPort(): number {
     console.warn(`⚠️ Invalid NUXT_PORT='${raw}'. Falling back to an app-derived local port.`)
   }
 
-  return deriveDefaultNuxtPort(APP_NAME)
+  return randomNuxtPort()
 }
 
 const LOCAL_NUXT_PORT = resolveLocalNuxtPort()
@@ -797,7 +794,7 @@ async function main() {
     console.warn('    Run manually: pnpm generate:favicons -- --target=apps/web/public')
   }
 
-  console.log('\nStep 8/8: Installing git hooks and finalizing setup...')
+  console.log('\nStep 8/9: Installing git hooks and finalizing setup...')
   try {
     runInherit('git', ['config', 'core.hooksPath', '.githooks'], { cwd: ROOT_DIR })
     console.log('  ✅ git core.hooksPath set to .githooks')
@@ -805,6 +802,82 @@ async function main() {
   } catch (error: any) {
     console.warn(`  ⚠️ Could not install git hooks: ${error.message}`)
     deferred.push('Git hooks (run: git config core.hooksPath .githooks)')
+  }
+
+  // Step 8.5: Scaffold apps/web/app/pages/index.vue when it does not exist.
+  //
+  // The shared layer ships its own pages/index.vue. Without an override in the
+  // app, the root route '/' silently renders the raw template page — no error,
+  // no warning. Writing a placeholder here ensures every coding agent starts
+  // from the right file rather than discovering the issue after the fact.
+  console.log('\nStep 8.5/9: Scaffolding home page...')
+  const appIndexPath = path.join(ROOT_DIR, 'apps', 'web', 'app', 'pages', 'index.vue')
+  const appIndexExists = await fs
+    .stat(appIndexPath)
+    .then(() => true)
+    .catch(() => false)
+
+  if (appIndexExists) {
+    console.log('  ⏭ apps/web/app/pages/index.vue already exists — skipping scaffold.')
+  } else {
+    // Build the scaffold without template literals so we can safely embed the
+    // display name without worrying about backtick conflicts in JSON.
+    const lines = [
+      '<script setup lang="ts">',
+      '// ───────────────────────────────────────────────────────────────────────────',
+      `// HOME PAGE — ${DISPLAY_NAME}`,
+      '// ───────────────────────────────────────────────────────────────────────────',
+      '// This file was scaffolded by `pnpm run setup` to override the shared layer',
+      '// default pages/index.vue. Replace everything below with your home page.',
+      '// See: https://nuxt.com/docs/guide/going-further/layers#overriding-files',
+      '// ───────────────────────────────────────────────────────────────────────────',
+      '',
+      'useSeo({',
+      `  title: '${DISPLAY_NAME}',`,
+      '  // TODO: add a meaningful description',
+      `  description: '${DISPLAY_NAME} — built with Nuxt 4 and Cloudflare Workers.',`,
+      '  ogImage: {',
+      `    title: '${DISPLAY_NAME}',`,
+      `    description: '${DISPLAY_NAME}',`,
+      "    icon: '\uD83D\uDE80',",
+      '  },',
+      '})',
+      '',
+      'useWebPageSchema({',
+      `  name: '${DISPLAY_NAME}',`,
+      '  // TODO: match the description above',
+      `  description: '${DISPLAY_NAME}',`,
+      '})',
+      '</script>',
+      '',
+      '<template>',
+      '  <!-- TODO: Replace this placeholder with your app home page content. -->',
+      '  <UPage>',
+      '    <UPageHero',
+      `      title="${DISPLAY_NAME}"`,
+      '      description="Your app is ready. Edit apps/web/app/pages/index.vue to build your home page."',
+      '    >',
+      '      <template #links>',
+      '        <UButton icon="i-lucide-pencil" to="/">',
+      '          Get Started',
+      '        </UButton>',
+      '      </template>',
+      '    </UPageHero>',
+      '  </UPage>',
+      '</template>',
+      '',
+    ]
+    const indexVueContent = lines.join('\n')
+
+    try {
+      await fs.mkdir(path.dirname(appIndexPath), { recursive: true })
+      await fs.writeFile(appIndexPath, indexVueContent, 'utf-8')
+      console.log('  ✅ Scaffolded apps/web/app/pages/index.vue')
+      completed.push('Home page scaffold (apps/web/app/pages/index.vue)')
+    } catch (error: any) {
+      console.warn(`  ⚠️ Could not scaffold home page: ${error.message}`)
+      deferred.push('Home page scaffold — create apps/web/app/pages/index.vue manually')
+    }
   }
 
   // Write the bootstrap sentinel so pre* hooks allow dev/build/deploy
@@ -831,7 +904,7 @@ async function main() {
   ].join('\n')
   await fs.writeFile(path.join(ROOT_DIR, '.template-version'), templateVersionContent, 'utf-8')
 
-  console.log('\nSetup complete.')
+  console.log('\nStep 9/9: Done.')
 
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('  SETUP SUMMARY')
