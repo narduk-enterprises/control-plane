@@ -59,7 +59,7 @@ const formValid = computed(() => form.name && nameValid.value && form.displayNam
 function sanitizeProvisionText(value: string): string {
   return value
     .replaceAll(/<[^>]*>/g, '')
-    .replaceAll(/\u0000/g, '')
+    .replaceAll('\0', '')
     .trim()
 }
 

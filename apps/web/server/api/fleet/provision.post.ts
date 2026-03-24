@@ -16,11 +16,11 @@ const MAX_GITHUB_REPO_DESCRIPTION_LENGTH = 350
 function normalizeProvisionHeading(value: string): string {
   return value
     .replace(/^#+\s*/, '')
-    .replace(/[“”]/g, '"')
-    .replace(/[’]/g, "'")
-    .replace(/[–—]/g, '-')
+    .replaceAll(/[“”]/g, '"')
+    .replaceAll('’', "'")
+    .replaceAll(/[–—]/g, '-')
     .replace(/:+$/, '')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/\s+/g, ' ')
     .trim()
     .toLowerCase()
 }
@@ -72,7 +72,7 @@ function summarizeProvisionDescription(description?: string): string {
     lines.find((line) => !recognizedHeadings.has(normalizeProvisionHeading(line))) ||
     trimmed
 
-  return summarySource.replace(/\s+/g, ' ').trim()
+  return summarySource.replaceAll(/\s+/g, ' ').trim()
 }
 
 function buildGitHubRepoDescription(
