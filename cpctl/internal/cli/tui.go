@@ -16,7 +16,7 @@ import (
 
 var cmdTUI = &cobra.Command{
 	Use:   "tui",
-	Short: "Full-screen menu: all cpctl areas (fleet, doctor, status, apps, jobs, provision, audit, github)",
+	Short: "Full-screen menu: all cpctl areas (fleet, doctor, status, apps, jobs, provision, analytics, audit, github)",
 	RunE:  runTUI,
 }
 
@@ -80,6 +80,7 @@ const (
 	subStatus subMenuKind = iota
 	subApps
 	subProvision
+	subAnalytics
 	subAudit
 )
 
@@ -98,6 +99,7 @@ const (
 	formProvStartDesc
 	formProvStartOrg
 	formGitHubRepo
+	formAnalyticsApp
 )
 
 // --- hub (main menu + routing) ---
@@ -145,6 +147,7 @@ func mainMenuItems() []string {
 		"Apps — list registry / register (cpctl apps …)",
 		"Provision jobs — recent jobs + logs (cpctl jobs list)",
 		"Provision — get / retry / start (cpctl provision …)",
+		"Analytics — fleet GA/GSC/PostHog (cpctl analytics …)",
 		"Audit — fleet HTML/analytics (cpctl audit)",
 		"GitHub — workflow runs (cpctl github runs)",
 	}
@@ -170,6 +173,14 @@ func (m hubModel) subMenuLabels() []string {
 			"Get job by ID (provision get)",
 			"Retry job (provision retry)",
 			"Start provision… (provision start)",
+			"Back",
+		}
+	case subAnalytics:
+		return []string{
+			"Summary (cached window)",
+			"Summary — force refresh",
+			"Insights only",
+			"Per-app snapshot…",
 			"Back",
 		}
 	case subAudit:
@@ -343,16 +354,20 @@ func (m hubModel) activateMainItem() (tea.Model, tea.Cmd) {
 		m.subCur = 0
 	case 4:
 		m.loading = true
-		return m, cmdJobsList()
+		return m, tuiCmdJobsList()
 	case 5:
 		m.top = scrSubMenu
 		m.subKind = subProvision
 		m.subCur = 0
 	case 6:
 		m.top = scrSubMenu
-		m.subKind = subAudit
+		m.subKind = subAnalytics
 		m.subCur = 0
 	case 7:
+		m.top = scrSubMenu
+		m.subKind = subAudit
+		m.subCur = 0
+	case 8:
 		m.top = scrForm
 		m.formBack = scrMain
 		m.formKind = formGitHubRepo
@@ -455,6 +470,36 @@ func (m hubModel) activateSubItem() (tea.Model, tea.Cmd) {
 			m.formBuf = ""
 			m.wizName, m.wizDisplay, m.wizURL, m.wizDesc, m.wizOrg = "", "", "", "", ""
 		}
+	case subAnalytics:
+		switch m.subCur {
+		case 0:
+			if !cfg.HasAdmin() {
+				return m, showOutputCmd("analytics summary", nil, fmt.Errorf("set CONTROL_PLANE_API_KEY"))
+			}
+			m.loading = true
+			return m, cmdAnalyticsSummaryOutput(false)
+		case 1:
+			if !cfg.HasAdmin() {
+				return m, showOutputCmd("analytics summary --force", nil, fmt.Errorf("set CONTROL_PLANE_API_KEY"))
+			}
+			m.loading = true
+			return m, cmdAnalyticsSummaryOutput(true)
+		case 2:
+			if !cfg.HasAdmin() {
+				return m, showOutputCmd("analytics insights", nil, fmt.Errorf("set CONTROL_PLANE_API_KEY"))
+			}
+			m.loading = true
+			return m, cmdAnalyticsInsightsOutput()
+		case 3:
+			if !cfg.HasAdmin() {
+				return m, showOutputCmd("analytics app", nil, fmt.Errorf("set CONTROL_PLANE_API_KEY"))
+			}
+			m.top = scrForm
+			m.formBack = scrSubMenu
+			m.formKind = formAnalyticsApp
+			m.formLbl = "App slug (fleet name)"
+			m.formBuf = ""
+		}
 	case subAudit:
 		switch m.subCur {
 		case 0:
@@ -547,7 +592,14 @@ func (m hubModel) submitForm() (tea.Model, tea.Cmd) {
 		}
 		m.loading = true
 		m.top = scrMain
-		return m, cmdGitHubRuns(s, 10)
+		return m, tuiCmdGitHubRuns(s, 10)
+	case formAnalyticsApp:
+		if s == "" || !mergedConfig().HasAdmin() {
+			return m, nil
+		}
+		m.loading = true
+		m.top = scrMain
+		return m, cmdAnalyticsAppOutput(s)
 	case formStatusRefreshApp:
 		if s == "" || !mergedConfig().HasAdmin() {
 			return m, nil
@@ -728,7 +780,7 @@ func cmdAppsCreateOutput(name, url string) tea.Cmd {
 	}
 }
 
-func cmdJobsList() tea.Cmd {
+func tuiCmdJobsList() tea.Cmd {
 	return func() tea.Msg {
 		c := api.NewAdmin(mergedConfig())
 		jobs, err := c.ListProvisionJobs()
@@ -806,16 +858,7 @@ func cmdAuditOutput(persist bool) tea.Cmd {
 			}
 			return outputMsg{title: title, err: err}
 		}
-		var results []any
-		for _, raw := range out.Results {
-			var v any
-			_ = json.Unmarshal(raw, &v)
-			results = append(results, v)
-		}
-		var reconcile any
-		_ = json.Unmarshal(out.Reconcile, &reconcile)
-		payload := map[string]any{"results": results, "reconcile": reconcile}
-		lines, e2 := jsonLines(payload)
+		lines, e2 := FormatAuditLines(out)
 		if e2 != nil {
 			return outputMsg{title: "audit", err: e2}
 		}
@@ -827,7 +870,57 @@ func cmdAuditOutput(persist bool) tea.Cmd {
 	}
 }
 
-func cmdGitHubRuns(ownerRepo string, perPage int) tea.Cmd {
+func cmdAnalyticsSummaryOutput(force bool) tea.Cmd {
+	return func() tea.Msg {
+		c := api.NewAdmin(mergedConfig())
+		raw, err := c.FleetAnalyticsSummary("", "", force)
+		title := "analytics summary"
+		if force {
+			title = "analytics summary --force"
+		}
+		if err != nil {
+			return outputMsg{title: title, err: err}
+		}
+		lines, e2 := FormatAnalyticsSummaryBytes(raw)
+		if e2 != nil {
+			return outputMsg{title: title, err: e2}
+		}
+		return outputMsg{title: title, lines: lines}
+	}
+}
+
+func cmdAnalyticsInsightsOutput() tea.Cmd {
+	return func() tea.Msg {
+		c := api.NewAdmin(mergedConfig())
+		raw, err := c.FleetAnalyticsInsights("", "", false)
+		if err != nil {
+			return outputMsg{title: "analytics insights", err: err}
+		}
+		lines, e2 := FormatAnalyticsInsightsBytes(raw)
+		if e2 != nil {
+			return outputMsg{title: "analytics insights", err: e2}
+		}
+		return outputMsg{title: "analytics insights", lines: lines}
+	}
+}
+
+func cmdAnalyticsAppOutput(app string) tea.Cmd {
+	return func() tea.Msg {
+		c := api.NewAdmin(mergedConfig())
+		raw, err := c.FleetAnalyticsApp(app, "", "", false)
+		title := "analytics app " + app
+		if err != nil {
+			return outputMsg{title: title, err: err}
+		}
+		lines, e2 := FormatAnalyticsAppBytes(raw)
+		if e2 != nil {
+			return outputMsg{title: title, err: e2}
+		}
+		return outputMsg{title: title, lines: lines}
+	}
+}
+
+func tuiCmdGitHubRuns(ownerRepo string, perPage int) tea.Cmd {
 	return func() tea.Msg {
 		cfg := mergedConfig()
 		if cfg.GitHubToken == "" {
@@ -951,6 +1044,8 @@ func (m hubModel) viewSubMenu() string {
 		title = "Apps (cpctl apps …)"
 	case subProvision:
 		title = "Provision (cpctl provision …)"
+	case subAnalytics:
+		title = "Analytics (cpctl analytics …)"
 	case subAudit:
 		title = "Audit (cpctl audit)"
 	}

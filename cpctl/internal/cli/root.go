@@ -21,7 +21,7 @@ func mergedConfig() config.Config {
 
 var rootCmd = &cobra.Command{
 	Use:   "cpctl",
-	Short: "Control plane CLI — fleet apps, provisioning, status, audit",
+	Short: "Control plane CLI — fleet apps, provisioning, status, analytics, audit",
 }
 
 func Execute() {
@@ -38,6 +38,7 @@ func init() {
 	rootCmd.AddCommand(cmdStatus)
 	rootCmd.AddCommand(cmdProvision)
 	rootCmd.AddCommand(cmdJobs)
+	rootCmd.AddCommand(cmdAnalytics)
 	rootCmd.AddCommand(cmdAudit)
 	rootCmd.AddCommand(cmdGitHub)
 }

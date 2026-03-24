@@ -625,7 +625,7 @@ function patchGitignore(appDir: string, dryRun: boolean, log: (message: string) 
   }
 
   for (const legacy of [
-    '# User-global skills: per-agent symlinks to ~/.skills (pnpm run skills:link / sync-template)',
+    '# User-global skills: per-agent symlinks to repo-local .agents/skills (pnpm run skills:link / sync-template)',
     '.cursor/skills',
     '.codex/skills',
     '.agent/skills',

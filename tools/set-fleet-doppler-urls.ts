@@ -6,8 +6,6 @@
  *   npx tsx tools/set-fleet-doppler-urls.ts             # set SITE_URL in all fleet projects
  *   npx tsx tools/set-fleet-doppler-urls.ts --dry-run   # print what would be set
  *   npx tsx tools/set-fleet-doppler-urls.ts --sync-dev-ports
- *   npx tsx tools/set-fleet-doppler-urls.ts --sync-analytics          # push analytics hub refs
- *   npx tsx tools/set-fleet-doppler-urls.ts --sync-analytics --dry-run
  *   npx tsx tools/set-fleet-doppler-urls.ts --ensure-indexnow         # set INDEXNOW_KEY (prd, and dev if empty) when missing
  *   npx tsx tools/set-fleet-doppler-urls.ts --ensure-indexnow --filter-apps=foo,bar
  *
@@ -23,7 +21,6 @@ import { execSync } from 'node:child_process'
 const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plane.nard.uk'
 const dryRun = process.argv.includes('--dry-run')
 const syncDevPorts = process.argv.includes('--sync-dev-ports')
-const syncAnalytics = process.argv.includes('--sync-analytics')
 const ensureIndexnow = process.argv.includes('--ensure-indexnow')
 
 function parseFilterAppsArg(): Set<string> | null {
@@ -109,14 +106,7 @@ function generateIndexNowKey(): string {
   return randomBytes(16).toString('hex')
 }
 
-// Analytics hub refs — pushed wholesale to every fleet app so they inherit the shared
-// PostHog key, reverse-proxy host, and GA property from the hub project.
-const HUB = 'narduk-nuxt-template'
-const ANALYTICS_HUB_REFS: Record<string, string> = {
-  POSTHOG_PUBLIC_KEY: `\${${HUB}.prd.POSTHOG_PUBLIC_KEY}`,
-  POSTHOG_HOST: `\${${HUB}.prd.POSTHOG_HOST}`,
-  GA_MEASUREMENT_ID: `\${${HUB}.prd.GA_MEASUREMENT_ID}`,
-}
+
 
 async function main() {
   if (!isDopplerAvailable()) {
@@ -140,52 +130,7 @@ async function main() {
   }
   console.log('')
 
-  if (syncAnalytics) {
-    // ── Analytics hub-ref sync ─────────────────────────────────────────────
-    const keys = Object.keys(ANALYTICS_HUB_REFS).join(', ')
-    console.log(
-      dryRun
-        ? `Fleet Doppler analytics sync (dry run — no changes): ${keys}`
-        : `Syncing analytics hub refs to fleet Doppler projects (prd): ${keys}`,
-    )
-    console.log('────────────────────────────────────────────────────────')
 
-    let ok = 0,
-      fail = 0
-    for (const app of apps) {
-      if (dryRun) {
-        for (const [k, v] of Object.entries(ANALYTICS_HUB_REFS)) {
-          console.log(`  ${app.name.padEnd(28)} ${k}=${v}`)
-        }
-        ok++
-        continue
-      }
-      // Set all analytics refs at once
-      const pairs = Object.entries(ANALYTICS_HUB_REFS)
-        .map(([k, v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
-        .join(' ')
-      try {
-        execSync(
-          `doppler secrets set ${pairs} --project "${app.dopplerProject}" --config prd --silent`,
-          { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-        )
-        console.log(`  ✅ ${app.name.padEnd(28)} synced ${keys}`)
-        ok++
-      } catch {
-        console.log(`  ❌ ${app.name.padEnd(28)} failed (no write access or project missing?)`)
-        fail++
-      }
-    }
-    console.log('────────────────────────────────────────────────────────')
-    if (dryRun) {
-      console.log(`Would sync analytics refs for ${ok} projects. Run without --dry-run to apply.`)
-    } else {
-      console.log(`Done: ${ok} updated, ${fail} failed.`)
-    }
-    console.log('')
-    if (fail > 0) process.exit(1)
-    return
-  }
 
   if (ensureIndexnow) {
     console.log(

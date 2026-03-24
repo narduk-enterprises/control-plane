@@ -1,7 +1,7 @@
 /**
  * 7-generate-theme.ts
  *
- * AI-powered theme, layout, icon, and logo generation using xAI Grok.
+ * AI-powered theme, layout, icon, and logo generation using OpenAI + DALL-E.
  *
  * This script is NON-FATAL — it exits 0 on every path.
  * If generation fails, the default scaffold from step 5 remains intact.
@@ -39,12 +39,15 @@ const TARGET_DIR = getArg('target-dir')
 const PROVISION_ID = getArg('provision-id')
 
 const XAI_API_KEY = process.env.XAI_API_KEY || ''
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''
 const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || ''
 const PROVISION_API_KEY = process.env.PROVISION_API_KEY || ''
 
-const MAX_ATTEMPTS = 3
+const CODE_MODEL = 'gpt-5.4'
+const MAX_SFC_ATTEMPTS = 3         // Hard gate: SFC must parse
+const MAX_TYPECHECK_FIXES = 3      // Soft gate: typecheck fix attempts, then accept
 const PER_REQUEST_TIMEOUT_MS = 60_000
-const TOTAL_TIMEOUT_MS = 180_000
+const TOTAL_TIMEOUT_MS = 300_000
 const MAX_TOKENS = 6000
 const BACKOFF_MS = [1000, 3000, 9000]
 
@@ -82,67 +85,35 @@ interface XaiModel {
   name?: string
 }
 
-async function selectModel(): Promise<string> {
-  try {
-    const res = await fetch('https://api.x.ai/v1/language-models', {
-      headers: { Authorization: `Bearer ${XAI_API_KEY}` },
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!res.ok) {
-      console.warn(`  ⚠️ Model list fetch failed: ${res.status}. Using default model.`)
-      return 'grok-3-fast'
-    }
-    const data = (await res.json()) as { models?: XaiModel[]; data?: XaiModel[] }
-    const models = data.models || data.data || []
-    if (models.length === 0) return 'grok-3-fast'
-
-    // Priority: code model > grok-4.20-multi-agent > grok-4.20-reasoning > first available
-    const codeModel = models.find((m) => m.id.includes('code'))
-    if (codeModel) return codeModel.id
-
-    const multiAgent = models.find((m) => m.id === 'grok-4.20-multi-agent-0309')
-    if (multiAgent) return multiAgent.id
-
-    const reasoning = models.find((m) => m.id === 'grok-4.20-0309-reasoning')
-    if (reasoning) return reasoning.id
-
-    return models[0]!.id
-  } catch {
-    console.warn('  ⚠️ Could not discover models. Using default.')
-    return 'grok-3-fast'
-  }
-}
-
 interface ChatResponse {
   choices?: Array<{ message?: { content?: string } }>
   usage?: { total_tokens?: number }
 }
 
-async function callGrok(
-  model: string,
+async function callOpenAI(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<{ content: string; tokens: number }> {
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${XAI_API_KEY}`,
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model,
+      model: CODE_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      max_tokens: MAX_TOKENS,
+      max_completion_tokens: MAX_TOKENS,
       temperature: 0.7,
     }),
     signal: AbortSignal.timeout(PER_REQUEST_TIMEOUT_MS),
   })
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
-    throw new Error(`xAI API ${res.status}: ${errText.slice(0, 200)}`)
+    throw new Error(`OpenAI API ${res.status}: ${errText.slice(0, 200)}`)
   }
   const data = (await res.json()) as ChatResponse
   const content = data.choices?.[0]?.message?.content ?? ''
@@ -440,8 +411,8 @@ async function main(): Promise<void> {
   console.log(`   App: ${DISPLAY_NAME} (${APP_NAME})`)
 
   // Graceful skip conditions
-  if (!XAI_API_KEY) {
-    console.log('   ℹ️ XAI_API_KEY not set — skipping AI theme generation.')
+  if (!OPENAI_API_KEY) {
+    console.log('   ℹ️ OPENAI_API_KEY not set — skipping AI theme generation.')
     return
   }
   if (!APP_DESCRIPTION) {
@@ -454,34 +425,30 @@ async function main(): Promise<void> {
   }
 
   const targetAbsDir = path.resolve(TARGET_DIR)
-  console.log(`   Key: ${maskApiKey(XAI_API_KEY)}`)
+  console.log(`   Model: ${CODE_MODEL}`)
+  console.log(`   Key: ${maskApiKey(OPENAI_API_KEY)}`)
 
   const startTime = Date.now()
-
-  // Step 1: Dynamic model selection
-  console.log('\n  Step 7.1: Selecting AI model...')
-  const model = await selectModel()
-  console.log(`   ✅ Selected model: ${model}`)
 
   // Backup existing files before modification
   const backup = await backupFiles(targetAbsDir)
 
-  // Step 2: Theme & layout generation with validation loop
-  console.log('\n  Step 7.2: Generating theme and layout...')
-  const systemPrompt = buildSystemPrompt(model)
-  let success = false
+  // ─── Phase 1: Generate structurally valid SFCs ──────────────
+  console.log('\n  Step 7.1: Generating theme and layout...')
+  const systemPrompt = buildSystemPrompt(CODE_MODEL)
+  let sfcPassed = false
   let totalTokens = 0
   let attemptCount = 0
+  let lastGoodFiles: GeneratedFiles | null = null
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    // Check total timeout
+  for (let attempt = 1; attempt <= MAX_SFC_ATTEMPTS; attempt++) {
     if (Date.now() - startTime > TOTAL_TIMEOUT_MS) {
-      console.warn(`  ⚠️ Total timeout (${TOTAL_TIMEOUT_MS / 1000}s) exceeded. Giving up.`)
+      console.warn(`  ⚠️ Total timeout (${TOTAL_TIMEOUT_MS / 1000}s) exceeded.`)
       break
     }
 
     attemptCount = attempt
-    console.log(`\n   Attempt ${attempt}/${MAX_ATTEMPTS}...`)
+    console.log(`\n   SFC Attempt ${attempt}/${MAX_SFC_ATTEMPTS}...`)
 
     try {
       const userPrompt = buildUserPrompt(
@@ -490,7 +457,7 @@ async function main(): Promise<void> {
         attempt > 1 ? lastErrors : undefined,
       )
 
-      const { content, tokens } = await callGrok(model, systemPrompt, userPrompt)
+      const { content, tokens } = await callOpenAI(systemPrompt, userPrompt)
       totalTokens += tokens
       lastRawResponse = content
 
@@ -499,11 +466,11 @@ async function main(): Promise<void> {
       if (!files) {
         lastErrors = ['Failed to parse AI response as JSON. Response did not contain valid JSON.']
         console.warn(`   ❌ Parse error — response is not valid JSON.`)
-        if (attempt < MAX_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
+        if (attempt < MAX_SFC_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
         continue
       }
 
-      // Validate SFCs
+      // Validate SFCs (hard gate)
       const allErrors: string[] = []
 
       if (files.indexVue.trim()) {
@@ -525,51 +492,122 @@ async function main(): Promise<void> {
 
       if (allErrors.length > 0) {
         lastErrors = allErrors
-        console.warn(`   ❌ Validation errors:\n     ${allErrors.join('\n     ')}`)
-        if (attempt < MAX_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
+        console.warn(`   ❌ SFC validation errors:\n     ${allErrors.join('\n     ')}`)
+        if (attempt < MAX_SFC_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
         continue
       }
 
-      // All basic validations passed — write files to disk to run typecheck
-      await writeGeneratedFiles(targetAbsDir, files, model)
-      
-      console.log(`\n   Step 7.2.5: Running Nuxt Typecheck (Attempt ${attempt})...`)
-      try {
-        await execAsync('pnpm run typecheck', { cwd: path.join(targetAbsDir, 'apps', 'web') })
-        success = true
-        console.log(`   ✅ Theme generated successfully and passed typecheck on attempt ${attempt}.`)
-        break
-      } catch (err: unknown) {
-        const error = err as { stdout?: string; stderr?: string }
-        const output = (error.stdout || '') + '\n' + (error.stderr || '')
-        
-        // Extract lines that look like specific TS errors or Vue compiler errors
-        const typeErrors = output.split('\n').filter(line => line.includes('error TS') || line.includes('ERROR ')).map(line => line.trim())
-        
-        if (typeErrors.length === 0) {
-          typeErrors.push('Typecheck failed with unknown error (check syntax): ' + output.slice(-500))
-        }
-
-        lastErrors = typeErrors
-        console.warn(`   ❌ Typecheck errors:\n     ${typeErrors.join('\n     ')}`)
-        
-        // Restore scaffold before next attempt so we have a clean slate
-        if (attempt < MAX_ATTEMPTS) {
-          await restoreFiles(backup)
-          await sleep(BACKOFF_MS[attempt - 1]!)
-        }
-        continue
-      }
+      // SFC structure is valid
+      lastGoodFiles = files
+      sfcPassed = true
+      console.log(`   ✅ SFC validation passed on attempt ${attempt}.`)
+      break
     } catch (err: unknown) {
       const error = err as { message?: string }
       lastErrors = [`API error: ${error.message}`]
       console.warn(`   ❌ API error: ${error.message}`)
-      if (attempt < MAX_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
+      if (attempt < MAX_SFC_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
     }
   }
 
+  // If SFC generation failed entirely, restore and bail
+  if (!sfcPassed || !lastGoodFiles) {
+    console.warn('\n  ⚠️ All SFC generation attempts failed. Restoring default scaffold.')
+    await restoreFiles(backup)
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+    console.log(`\n  📊 AI theme fallback: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`)
+    console.log('\n✅ Step 7 complete (fallback).')
+    return
+  }
+
+  // Write the structurally valid files to disk
+  await writeGeneratedFiles(targetAbsDir, lastGoodFiles, CODE_MODEL)
+
+  // ─── Phase 2: Typecheck fix loop (soft gate) ────────────────
+  console.log('\n  Step 7.2: Running Nuxt Typecheck quality gate...')
+  let typecheckPassed = false
+
+  for (let fix = 1; fix <= MAX_TYPECHECK_FIXES; fix++) {
+    if (Date.now() - startTime > TOTAL_TIMEOUT_MS) {
+      console.warn(`  ⚠️ Total timeout exceeded during typecheck fixes.`)
+      break
+    }
+
+    console.log(`\n   Typecheck fix ${fix}/${MAX_TYPECHECK_FIXES}...`)
+    try {
+      await execAsync('pnpm run typecheck', { cwd: path.join(targetAbsDir, 'apps', 'web') })
+      typecheckPassed = true
+      console.log(`   ✅ Typecheck passed on fix attempt ${fix}.`)
+      break
+    } catch (err: unknown) {
+      const error = err as { stdout?: string; stderr?: string }
+      const output = (error.stdout || '') + '\n' + (error.stderr || '')
+
+      // Extract TS error lines
+      const typeErrors = output.split('\n').filter(line => line.includes('error TS') || line.includes('ERROR ')).map(line => line.trim())
+      if (typeErrors.length === 0) {
+        typeErrors.push('Typecheck failed with unknown error: ' + output.slice(-500))
+      }
+
+      console.warn(`   ❌ Typecheck errors:\n     ${typeErrors.join('\n     ')}`)
+
+      // If we have remaining fix attempts, ask the AI to correct
+      if (fix < MAX_TYPECHECK_FIXES) {
+        console.log(`   🔄 Asking AI to fix typecheck errors...`)
+        await restoreFiles(backup)
+        await sleep(BACKOFF_MS[fix - 1]!)
+
+        try {
+          const fixPrompt = buildUserPrompt(fix + 1, lastRawResponse, typeErrors)
+          const { content, tokens } = await callOpenAI(systemPrompt, fixPrompt)
+          totalTokens += tokens
+          attemptCount++
+          lastRawResponse = content
+
+          const fixedFiles = parseAiResponse(content)
+          if (!fixedFiles) {
+            console.warn(`   ❌ Fix attempt returned invalid JSON.`)
+            continue
+          }
+
+          // Quick SFC re-validation
+          const sfcErrors: string[] = []
+          if (fixedFiles.indexVue.trim()) {
+            sfcErrors.push(...(await validateSfc(fixedFiles.indexVue, 'index.vue')).map(e => `index.vue: ${e}`))
+          }
+          if (fixedFiles.appVue.trim() && fixedFiles.appVue.length > 50) {
+            sfcErrors.push(...(await validateSfc(fixedFiles.appVue, 'app.vue')).map(e => `app.vue: ${e}`))
+          }
+          if (sfcErrors.length > 0) {
+            console.warn(`   ❌ Fix broke SFC structure: ${sfcErrors.join(', ')}`)
+            // Rewrite original good files for next typecheck attempt
+            await writeGeneratedFiles(targetAbsDir, lastGoodFiles!, CODE_MODEL)
+            continue
+          }
+
+          // Write fixed files
+          lastGoodFiles = fixedFiles
+          await writeGeneratedFiles(targetAbsDir, fixedFiles, CODE_MODEL)
+        } catch (apiErr: unknown) {
+          console.warn(`   ❌ AI fix API error: ${(apiErr as Error).message}`)
+          // Rewrite last good files so typecheck can re-run
+          await writeGeneratedFiles(targetAbsDir, lastGoodFiles!, CODE_MODEL)
+        }
+      } else {
+        console.log(`   ℹ️ Typecheck fix attempts exhausted — accepting code as-is.`)
+      }
+    }
+  }
+
+  const success = sfcPassed // We always accept if SFC passed
+  if (typecheckPassed) {
+    console.log('\n  ✅ Theme generated AND passed typecheck!')
+  } else {
+    console.log('\n  ⚠️ Theme generated but typecheck did not pass — code accepted as-is for manual fixup.')
+  }
+
   // Step 3: Image generation (favicon + logo)
-  if (success) {
+  if (sfcPassed) {
     console.log('\n  Step 7.3: Generating app icon and logo...')
 
     // Favicon/app icon
@@ -596,19 +634,13 @@ async function main(): Promise<void> {
     }
   }
 
-  // Handle failure — restore originals
-  if (!success) {
-    console.warn('\n  ⚠️ All generation attempts failed. Restoring default scaffold.')
-    await restoreFiles(backup)
-  }
-
   // Log results (Rec D)
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-  const status = success ? 'success' : 'fallback'
-  const logMsg = `AI theme ${status}: model=${model}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`
+  const status = typecheckPassed ? 'success' : (sfcPassed ? 'accepted-with-warnings' : 'fallback')
+  const logMsg = `AI theme ${status}: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`
   console.log(`\n  📊 ${logMsg}`)
   await logToProvision(
-    success ? 'success' : 'info',
+    typecheckPassed ? 'success' : 'info',
     'ai-theme',
     logMsg,
   )

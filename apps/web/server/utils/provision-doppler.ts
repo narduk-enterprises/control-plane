@@ -250,8 +250,10 @@ export async function setConfigInherits(
 
 /**
  * Sync hub secrets to a spoke project using **Config Inheritance**.
- * Instead of writing cross-project reference strings, establishes an inheritance
- * link so all hub secrets flow automatically.
+ * Establishes a flat inheritance link: spoke/prd → hub/prd.
+ *
+ * Doppler constraint: inheritable configs cannot also inherit. So spoke/prd
+ * is NOT marked inheritable — it only inherits from hub/prd.
  *
  * Hub secrets: flow via inheritance (automatic).
  * Per-app secrets: APP_NAME/SITE_URL are always synced; generated secrets
@@ -265,8 +267,8 @@ export async function syncHubSecrets(
   spokeConfig: string,
   perAppSecrets: Record<string, string>,
 ): Promise<{ synced: number }> {
-  // 1. Mark spoke/prd as inheritable (so spoke/dev can inherit from it)
-  await setConfigInheritable(apiToken, spokeProject, spokeConfig, true)
+  // 1. Ensure hub config is marked inheritable
+  await setConfigInheritable(apiToken, hubProject, hubConfig, true)
 
   // 2. Link spoke/prd → hub/prd (all hub secrets flow automatically)
   await setConfigInherits(apiToken, spokeProject, spokeConfig, [
@@ -299,21 +301,22 @@ export async function syncHubSecrets(
 }
 
 /**
- * Populate the `dev` config using **Config Inheritance** from spoke/prd.
- * All hub secrets and per-app secrets chain down: hub/prd → spoke/prd → spoke/dev.
- * Only SITE_URL (localhost) and NUXT_PORT need to be set directly in dev.
+ * Populate the `dev` config using **Config Inheritance** from hub/prd directly.
+ * Doppler constraint: inheritable configs cannot also inherit, so spoke/prd
+ * cannot be both inheritable and an inheriting child. Dev inherits hub/prd
+ * directly (flat pattern), and per-app secrets are set directly in dev.
  */
 export async function syncDevConfig(
   apiToken: string,
-  _hubProject: string,
-  _hubConfig: string,
+  hubProject: string,
+  hubConfig: string,
   spokeProject: string,
   perAppSecrets: Record<string, string>,
   options: { siteUrl?: string } = {},
 ): Promise<{ synced: number }> {
-  // 1. Link spoke/dev → spoke/prd (hub secrets chain through: hub/prd → spoke/prd → spoke/dev)
+  // 1. Link spoke/dev → hub/prd (flat inheritance — hub secrets flow directly)
   await setConfigInherits(apiToken, spokeProject, 'dev', [
-    { project: spokeProject, config: 'prd' },
+    { project: hubProject, config: hubConfig },
   ])
 
   // 2. Read existing dev secrets to avoid clobbering
@@ -324,13 +327,13 @@ export async function syncDevConfig(
     // Fresh project — set everything
   }
 
-  // 3. Only set dev-specific overrides (everything else comes via inheritance)
+  // 3. Set per-app secrets + dev-specific overrides
   const secretsToSet: Record<string, string> = {}
-  const DEV_KEYS_TO_ALWAYS_SYNC = new Set(['SITE_URL', 'NUXT_PORT'])
+  const DEV_KEYS_TO_ALWAYS_SYNC = new Set(['APP_NAME', 'SITE_URL', 'NUXT_PORT'])
 
   const devAppSecrets = {
+    ...perAppSecrets,
     SITE_URL: options.siteUrl || 'http://localhost:3000',
-    NUXT_PORT: perAppSecrets.NUXT_PORT || '3000',
   }
 
   for (const [key, value] of Object.entries(devAppSecrets)) {

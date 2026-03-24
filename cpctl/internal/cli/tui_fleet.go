@@ -225,9 +225,12 @@ func (p fleetPanel) updateFleet(msg tea.Msg) (fleetPanel, tea.Cmd) {
 		case modeActions:
 			return p.updateActionKeys(key, msg)
 		case modeDetail:
-			if key == "esc" || key == "q" {
+			switch key {
+			case "esc":
 				p.mode = modeList
 				return p, nil
+			case "q", "ctrl+c":
+				return p, tea.Quit
 			}
 			return p, nil
 		case modeConfirmDelete:
@@ -638,8 +641,3 @@ func min(a, b int) int {
 	}
 	return b
 }
-</think>
-Fixing fleet navigation: `esc` should return to the main menu, not quit. Adding `popToMainMsg` and completing `tui_fleet.go`.
-
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-Read

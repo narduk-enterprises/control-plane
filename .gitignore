@@ -32,6 +32,10 @@ logs
 # Build artifacts
 *.bak
 
+# cpctl — binary from `go build` inside cpctl/ (`pnpm run cpctl:install` uses go install → $GOBIN)
+cpctl/cpctl
+cpctl/cpctl.exe
+
 # Test artifacts
 playwright-report/
 test-results/

@@ -1,14 +1,16 @@
 /**
  * Migrate fleet Doppler projects from cross-project references to Config Inheritance.
  *
- * What this does:
- * 1. Marks hub/prd as inheritable
- * 2. For each fleet app:
- *    a. Marks spoke/prd as inheritable (so spoke/dev can inherit)
- *    b. Links spoke/prd → hub/prd
- *    c. Links spoke/dev → spoke/prd
- *    d. Removes old cross-project reference strings from spoke/prd
- *    e. Removes duplicated secrets from spoke/dev (keeping only SITE_URL + NUXT_PORT)
+ * Architecture (Flat Inheritance — no chaining):
+ *   hub/prd (inheritable) → spoke/prd (child — inherits hub secrets)
+ *   hub/prd (inheritable) → spoke/dev (child — also inherits hub secrets)
+ *
+ * Doppler constraint: an inheritable config cannot also inherit from other configs.
+ * Therefore spoke/prd cannot be both inheritable (for spoke/dev) and inherit hub/prd.
+ * Both spoke/prd and spoke/dev inherit directly from hub/prd.
+ *
+ * Per-app secrets (APP_NAME, CRON_SECRET, etc.) remain stored directly in both
+ * prd and dev configs. Only the 16 hub cross-project reference strings are removed.
  *
  * Usage:
  *   doppler run --project control-plane --config prd -- npx tsx tools/migrate-fleet-to-inheritance.ts
@@ -20,7 +22,6 @@ import {
   setConfigInheritable,
   setConfigInherits,
   getDopplerSecrets,
-  bulkSetSecrets,
   deleteSecrets,
 } from '../apps/web/server/utils/provision-doppler'
 
@@ -46,23 +47,6 @@ const OLD_HUB_REF_KEYS = [
   'CSP_SCRIPT_SRC',
   'CSP_CONNECT_SRC',
 ]
-
-/** Secrets that are per-app and should NOT be deleted from prd. */
-const PER_APP_SECRETS = new Set([
-  'APP_NAME',
-  'SITE_URL',
-  'CRON_SECRET',
-  'NUXT_SESSION_PASSWORD',
-  'GA_MEASUREMENT_ID',
-  'INDEXNOW_KEY',
-  'NUXT_PORT',
-])
-
-/** Secrets to always keep in dev (overrides). */
-const DEV_KEEP_KEYS = new Set([
-  'SITE_URL',
-  'NUXT_PORT',
-])
 
 /** Fleet apps — sourced from managed-repos.ts */
 const FLEET_APPS = [
@@ -120,7 +104,7 @@ async function main() {
   console.log(`Apps: ${apps.length} / ${FLEET_APPS.length}`)
   console.log(`${'='.repeat(60)}\n`)
 
-  // Step 1: Mark hub/prd as inheritable
+  // Step 1: Ensure hub/prd is marked inheritable
   console.log(`\n📦 Step 1: Mark ${HUB_PROJECT}/${HUB_CONFIG} as inheritable`)
   if (!dryRun) {
     await setConfigInheritable(apiToken, HUB_PROJECT, HUB_CONFIG, true)
@@ -137,13 +121,7 @@ async function main() {
     console.log(`${'─'.repeat(50)}`)
 
     try {
-      // 2a. Mark spoke/prd as inheritable
-      console.log(`  📌 Marking ${app}/prd as inheritable...`)
-      if (!dryRun) {
-        await setConfigInheritable(apiToken, app, 'prd', true)
-      }
-
-      // 2b. Link spoke/prd → hub/prd
+      // 2a. Link spoke/prd → hub/prd (flat inheritance — prd gets hub secrets)
       console.log(`  🔗 Linking ${app}/prd → ${HUB_PROJECT}/${HUB_CONFIG}...`)
       if (!dryRun) {
         await setConfigInherits(apiToken, app, 'prd', [
@@ -151,17 +129,19 @@ async function main() {
         ])
       }
 
-      // 2c. Link spoke/dev → spoke/prd
-      console.log(`  🔗 Linking ${app}/dev → ${app}/prd...`)
+      // 2b. Link spoke/dev → hub/prd (flat inheritance — dev also gets hub secrets)
+      console.log(`  🔗 Linking ${app}/dev → ${HUB_PROJECT}/${HUB_CONFIG}...`)
       if (!dryRun) {
         await setConfigInherits(apiToken, app, 'dev', [
-          { project: app, config: 'prd' },
+          { project: HUB_PROJECT, config: HUB_CONFIG },
         ])
       }
 
-      // 2d. Remove old cross-project reference strings from spoke/prd
-      // These are now inherited and would show as "overridden" in the UI
-      console.log(`  🗑️  Cleaning up old hub refs from ${app}/prd...`)
+      // 2c. Remove old hub ref keys from spoke/prd
+      // These keys were previously set as cross-project references.
+      // Now they flow via inheritance and must be deleted so they
+      // don't override the inherited values.
+      console.log(`  🗑️  Cleaning hub ref keys from ${app}/prd...`)
       let prdSecrets: Record<string, string> = {}
       try {
         prdSecrets = await getDopplerSecrets(apiToken, app, 'prd')
@@ -169,25 +149,18 @@ async function main() {
         console.log(`  ⚠️  Could not read ${app}/prd secrets — skipping cleanup`)
       }
 
-      const refKeysToDelete: string[] = []
-      for (const key of OLD_HUB_REF_KEYS) {
-        const value = prdSecrets[key]
-        if (value && value.startsWith('${') && value.includes(HUB_PROJECT)) {
-          refKeysToDelete.push(key)
-        }
-      }
-
-      if (refKeysToDelete.length > 0) {
-        console.log(`  🗑️  Deleting ${refKeysToDelete.length} old ref keys from ${app}/prd: ${refKeysToDelete.join(', ')}`)
+      const prdKeysToDelete = OLD_HUB_REF_KEYS.filter(key => key in prdSecrets)
+      if (prdKeysToDelete.length > 0) {
+        console.log(`  🗑️  Deleting ${prdKeysToDelete.length} hub keys from ${app}/prd`)
         if (!dryRun) {
-          await deleteSecrets(apiToken, app, 'prd', refKeysToDelete)
+          await deleteSecrets(apiToken, app, 'prd', prdKeysToDelete)
         }
       } else {
-        console.log(`  ℹ️  No old hub refs found in ${app}/prd (may already be clean)`)
+        console.log(`  ℹ️  No hub keys in ${app}/prd (already clean)`)
       }
 
-      // 2e. Clean up dev config — remove everything except SITE_URL and NUXT_PORT
-      console.log(`  🗑️  Cleaning up ${app}/dev (keeping only SITE_URL + NUXT_PORT)...`)
+      // 2d. Remove old hub ref keys from spoke/dev
+      console.log(`  🗑️  Cleaning hub ref keys from ${app}/dev...`)
       let devSecrets: Record<string, string> = {}
       try {
         devSecrets = await getDopplerSecrets(apiToken, app, 'dev')
@@ -195,24 +168,14 @@ async function main() {
         console.log(`  ⚠️  Could not read ${app}/dev secrets — skipping cleanup`)
       }
 
-      const devKeysToDelete: string[] = []
-      for (const key of Object.keys(devSecrets)) {
-        // Keep dev-specific overrides and Doppler metadata
-        if (!DEV_KEEP_KEYS.has(key) && !key.startsWith('DOPPLER_')) {
-          devKeysToDelete.push(key)
-        }
-      }
-
+      const devKeysToDelete = OLD_HUB_REF_KEYS.filter(key => key in devSecrets)
       if (devKeysToDelete.length > 0) {
-        console.log(`  🗑️  Deleting ${devKeysToDelete.length} inherited/duplicated keys from ${app}/dev`)
-        if (devKeysToDelete.length <= 10) {
-          console.log(`      Keys: ${devKeysToDelete.join(', ')}`)
-        }
+        console.log(`  🗑️  Deleting ${devKeysToDelete.length} hub keys from ${app}/dev`)
         if (!dryRun) {
           await deleteSecrets(apiToken, app, 'dev', devKeysToDelete)
         }
       } else {
-        console.log(`  ℹ️  ${app}/dev already clean`)
+        console.log(`  ℹ️  No hub keys in ${app}/dev (already clean)`)
       }
 
       console.log(`  ✅ ${app} migrated successfully`)

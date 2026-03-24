@@ -27,8 +27,11 @@ interface FleetApp {
 }
 
 async function fetchFleetApps(): Promise<FleetApp[]> {
+  const apiKey = process.env.CONTROL_PLANE_API_KEY || process.env.FLEET_API_KEY
   try {
-    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`, {
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+    })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return res.json() as Promise<FleetApp[]>
   } catch (err) {
@@ -68,6 +71,22 @@ function getSecretNames(project: string, config: string): Set<string> | null {
   }
 }
 
+async function checkInheritance(project: string, config: string): Promise<boolean | null> {
+  const token = process.env.DOPPLER_TOKEN || process.env.DOPPLER_API_TOKEN
+  if (!token) return null
+  try {
+    const res = await fetch(`https://api.doppler.com/v3/configs/config?project=${project}&config=${config}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) return null
+    const data = await res.json() as any
+    const inherits = data.config?.inherits || []
+    return inherits.some((i: any) => i.project === 'narduk-nuxt-template' && i.config === 'prd')
+  } catch {
+    return null
+  }
+}
+
 async function main() {
   if (!isDopplerAvailable()) {
     console.error(
@@ -92,11 +111,16 @@ async function main() {
       continue
     }
     const missing = REQUIRED_SECRETS.filter((s) => !names.has(s))
-    if (missing.length > 0) {
-      console.log(`  ❌ ${project.padEnd(28)} missing: ${missing.join(', ')}`)
+    const inheritsPrd = await checkInheritance(project, 'prd')
+    const inheritsDev = await checkInheritance(project, 'dev')
+
+    const hasInheritanceError = inheritsPrd === false || inheritsDev === false
+    
+    if (missing.length > 0 || hasInheritanceError) {
+      console.log(`  ❌ ${project.padEnd(28)}${missing.length > 0 ? ` missing secrets: ${missing.join(', ')}` : ''}${hasInheritanceError ? ` missing inheritance` : ''}`)
       failed++
     } else {
-      console.log(`  ✅ ${project}`)
+      console.log(`  ✅ ${project.padEnd(28)} (inherits hub/prd)`)
     }
   }
   console.log('────────────────────────────────────────────────')
