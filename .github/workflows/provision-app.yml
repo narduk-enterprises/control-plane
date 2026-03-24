@@ -235,9 +235,18 @@ jobs:
 
       - name: Prepare new repository
         run: |
+          set -euo pipefail
           cd app-source
           git init
-          git remote add origin "https://x-access-token:${{ secrets.GH_SERVICE_TOKEN }}@github.com/${{ inputs.github-repo }}.git"
+          git remote remove origin >/dev/null 2>&1 || true
+          git remote add origin "https://x-access-token:${GH_SERVICE_TOKEN}@github.com/${{ inputs.github-repo }}.git"
+
+          remote_url="$(git remote get-url origin)"
+          remote_url_safe="$(printf '%s\n' "$remote_url" | sed -E 's#x-access-token:[^@]+@#x-access-token:***@#')"
+          echo "::group::Prepared repository diagnostics"
+          pwd
+          echo "origin=$remote_url_safe"
+          echo "::endgroup::"
 
       - name: Install generated starter dependencies
         working-directory: app-source
@@ -341,6 +350,7 @@ jobs:
       - name: Commit and push
         working-directory: app-source
         run: |
+          set -euo pipefail
           bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Committing and pushing initial repository' '{level:"info",step:$s,message:$m}')"
           echo "::group::Commit workspace diagnostics"
           pwd
@@ -359,6 +369,17 @@ jobs:
           git add -f doppler.yaml
           git config user.name "narduk-bot"
           git config user.email "bot@nard.uk"
+
+          if ! remote_url="$(git remote get-url origin 2>/dev/null)"; then
+            echo "::error::Git remote 'origin' is not configured in app-source."
+            exit 1
+          fi
+
+          remote_url_safe="$(printf '%s\n' "$remote_url" | sed -E 's#x-access-token:[^@]+@#x-access-token:***@#')"
+          echo "::group::Commit remote configuration"
+          echo "origin=$remote_url_safe"
+          echo "::endgroup::"
+
           remote_main_sha="$(git ls-remote --heads origin main | awk '{print $1}')"
           if [[ -n "$remote_main_sha" ]]; then
             git fetch origin main --depth=1
@@ -369,28 +390,32 @@ jobs:
             echo "author=$remote_author"
             echo "subject=$remote_subject"
             echo "::endgroup::"
-            expected_subject="chore: initialize ${{ inputs.app-name }} from narduk-nuxt-template"
-            if [[ "$remote_author" != "narduk-bot" || "$remote_subject" != "$expected_subject" ]]; then
-              echo "::error::Remote main already exists and does not look like a control-plane bootstrap commit. Refusing to force-push over existing history."
-              exit 1
-            fi
 
-            compare_dir="$(mktemp -d)"
-            trap 'rm -rf "$compare_dir"' EXIT
-            git clone --depth=1 origin "$compare_dir"
-            if diff -qr --exclude '.git' "$compare_dir" . >/tmp/provision-remote-diff.txt 2>&1; then
+            local_tree="$(git write-tree)"
+            remote_tree="$(git rev-parse FETCH_HEAD^{tree})"
+            echo "::group::Remote tree comparison"
+            echo "local_tree=$local_tree"
+            echo "remote_tree=$remote_tree"
+            echo "::endgroup::"
+
+            if [[ "$local_tree" == "$remote_tree" ]]; then
               echo "Remote main already matches local generated tree. Skipping commit/push and continuing to deploy."
               bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Remote main already matches generated tree; skipping commit/push and continuing to deploy' '{level:"info",step:$s,message:$m}')"
               exit 0
             fi
 
             echo "::group::Remote vs local diff summary"
-            sed -n '1,200p' /tmp/provision-remote-diff.txt || true
+            git diff --stat --cached FETCH_HEAD -- || true
+            echo
+            git diff --name-status --cached FETCH_HEAD -- || true
             echo "::endgroup::"
+            echo "::error::Remote main already exists and differs from the generated tree. Refusing to rewrite an existing provisioned repository."
+            bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Remote main already exists and differs from generated tree; refusing to overwrite existing history' '{level:"error",step:$s,message:$m}')"
+            exit 1
           fi
           git commit -m "chore: initialize ${{ inputs.app-name }} from narduk-nuxt-template"
           git branch -M main
-          git push --force -u origin main
+          git push -u origin main
 
       - name: Update provision status → deploying
         run: |
