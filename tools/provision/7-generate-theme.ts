@@ -559,16 +559,6 @@ async function main(): Promise<void> {
   })
 
   // Graceful skip conditions
-  if (!OPENAI_API_KEY) {
-    console.log('   ℹ️ OPENAI_API_KEY not set — skipping AI theme generation.')
-    await logToProvision('info', 'ai-theme', 'Skipping AI theme generation: OPENAI_API_KEY not set.')
-    return
-  }
-  if (!APP_DESCRIPTION) {
-    console.log('   ℹ️ No app description provided — skipping AI theme generation.')
-    await logToProvision('info', 'ai-theme', 'Skipping AI theme generation: no app description provided.')
-    return
-  }
   if (!TARGET_DIR) {
     console.log('   ℹ️ No target directory specified — skipping.')
     await logToProvision('info', 'ai-theme', 'Skipping AI theme generation: no target directory specified.')
@@ -597,6 +587,17 @@ async function main(): Promise<void> {
   printJsonToConsole('Starter surface diagnostics', starterSurface)
   if (missingStarterFiles.length > 0) {
     console.log('   ℹ️ Exported starter surface is incomplete — skipping AI theme generation.')
+    return
+  }
+
+  if (!OPENAI_API_KEY) {
+    console.log('   ℹ️ OPENAI_API_KEY not set — skipping AI theme generation.')
+    await logToProvision('info', 'ai-theme', 'Skipping AI theme generation: OPENAI_API_KEY not set.')
+    return
+  }
+  if (!APP_DESCRIPTION) {
+    console.log('   ℹ️ No app description provided — skipping AI theme generation.')
+    await logToProvision('info', 'ai-theme', 'Skipping AI theme generation: no app description provided.')
     return
   }
 

@@ -197,6 +197,31 @@ jobs:
 
           echo "::group::Starter surface diagnostics"
           find app-source -maxdepth 3 | sort
+          echo
+          echo "[app-source]"
+          ls -la app-source
+          echo
+          echo "[app-source/apps]"
+          ls -la app-source/apps || true
+          echo
+          echo "[app-source/apps/web]"
+          ls -la app-source/apps/web || true
+          echo
+          if [[ -f app-source/package.json ]]; then
+            echo "[app-source/package.json]"
+            sed -n '1,120p' app-source/package.json
+            echo
+          fi
+          if [[ -f app-source/apps/web/package.json ]]; then
+            echo "[app-source/apps/web/package.json]"
+            sed -n '1,160p' app-source/apps/web/package.json
+            echo
+          fi
+          if [[ -f app-source/apps/web/wrangler.json ]]; then
+            echo "[app-source/apps/web/wrangler.json]"
+            sed -n '1,160p' app-source/apps/web/wrangler.json
+            echo
+          fi
           echo "::endgroup::"
 
           if (( ${#missing[@]} > 0 )); then
