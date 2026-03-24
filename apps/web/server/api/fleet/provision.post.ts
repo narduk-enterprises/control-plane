@@ -164,7 +164,7 @@ export default definePublicMutation(
         },
         body: JSON.stringify({
           name,
-          description: `${displayName} — provisioned by Narduk Control Plane`,
+          description: description || `${displayName} — provisioned by Narduk Control Plane`,
           private: false,
           auto_init: false,
         }),

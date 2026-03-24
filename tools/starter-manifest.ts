@@ -98,6 +98,14 @@ function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf-8')) as T
 }
 
+function getPrimaryWebDatabaseName(templateRoot: string): string | null {
+  const wrangler = readJson<{ d1_databases?: Array<{ database_name?: string }> }>(
+    join(templateRoot, 'apps/web/wrangler.json'),
+  )
+
+  return wrangler.d1_databases?.[0]?.database_name || null
+}
+
 export function createStarterRootPackage(templateRoot: string): string {
   const pkg = readJson<Record<string, any>>(join(templateRoot, 'package.json'))
 
@@ -146,13 +154,14 @@ export function createStarterRootPackage(templateRoot: string): string {
 
 export function createStarterWebPackage(templateRoot: string): string {
   const pkg = readJson<Record<string, any>>(join(templateRoot, 'apps/web/package.json'))
+  const databaseName = getPrimaryWebDatabaseName(templateRoot)
 
   pkg.name = 'web'
   for (const scriptName of ['db:migrate', 'db:seed', 'db:reset']) {
     const current = pkg.scripts?.[scriptName]
-    if (typeof current === 'string') {
-      pkg.scripts[scriptName] = current.replace(
-        /narduk-nuxt-template-db/g,
+    if (typeof current === 'string' && databaseName) {
+      pkg.scripts[scriptName] = current.replaceAll(
+        databaseName,
         `${STARTER_APP_NAME_PLACEHOLDER}-db`,
       )
     }

@@ -8,7 +8,8 @@ plane** (`POST /api/fleet/provision` or the admin UI), which dispatches
 The read-only template repo **does not** ship a `provision-app.yml` workflow and
 **does not** run `tools/init.ts` (removed). `tools/provision/*.ts` plus
 `5-hydrate-repo.ts` perform setup on the runner; the hydrate step writes
-`.setup-complete`.
+`.setup-complete`, `provision.json`, and a draft `SPEC.md` so downstream agents
+start from persisted product context instead of guessing scope.
 
 ## Pipeline Overview
 
@@ -22,7 +23,7 @@ sequenceDiagram
     participant GH as GitHub API
     participant GHA as GitHub Actions
 
-    User->>UI: Fill form (name, displayName, url)
+    User->>UI: Fill form (name, displayName, description, url)
     UI->>Proxy: POST /api/fleet/provision-ui (session auth)
     Proxy->>API: POST /api/fleet/provision (API key auth)
 
@@ -54,17 +55,18 @@ sequenceDiagram
     GHA->>API: POST /provision/{id}/dispatch-context (merge D1 ids for retries)
 
     GHA->>API: POST /provision/{id}/log (doppler)
-    GHA->>GHA: 2-create-doppler.ts → Doppler project + secrets
+    GHA->>GHA: 2-create-doppler.ts → Doppler project + prd/dev/prd_copilot secrets
 
     GHA->>API: POST /provision/{id}/log (github)
-    GHA->>GHA: 3-set-github-secrets.ts → DOPPLER_TOKEN etc.
+    GHA->>GHA: 3-set-github-secrets.ts → repo secrets + Copilot repo access
+    GHA->>GHA: sync:copilot-secrets → GitHub env copilot
 
     GHA->>API: POST /provision/{id}/log (analytics)
     GHA->>GHA: 4-create-analytics.ts → GA4 + GSC + IndexNow
     GHA->>API: POST /provision/{id}/dispatch-context (merge GA/GSC/IndexNow for retries)
 
     GHA->>API: POST /provision/{id}/log (hydrate)
-    GHA->>GHA: 5-hydrate-repo.ts → placeholders + wrangler + GSC verify HTML + favicon
+    GHA->>GHA: 5-hydrate-repo.ts → placeholders + provision.json + SPEC.md + wrangler + GSC verify HTML + favicon
 
     GHA->>GH: git commit + push to new repo
     GHA->>API: POST /provision/{id}/status → deploying
@@ -121,10 +123,11 @@ and the control-plane GitHub service token for the rest of the run.
 ```mermaid
 flowchart LR
     P["0. Preflight\n9 env vars"] --> D1["1. Create D1\nCloudflare API"]
-    D1 --> DOP["2. Doppler\nProject + Secrets"]
-    DOP --> GHS["3. GitHub Secrets\nDOPPLER_TOKEN\nGH_PACKAGES_TOKEN"]
-    GHS --> ANA["4. Analytics\nGA4 + GSC + IndexNow\n(non-fatal)"]
-    ANA --> HYD["5. Hydrate Repo\nPlaceholders\nWrangler\nGSC verify HTML\nFavicons"]
+    D1 --> DOP["2. Doppler\nProject + Secrets\nprd_copilot + read token"]
+    DOP --> GHS["3. GitHub Repo Config\nDOPPLER_TOKEN\nGH_PACKAGES_TOKEN\nCopilot repo access"]
+    GHS --> COP["3b. Copilot Env Sync\nprd_copilot → env copilot"]
+    COP --> ANA["4. Analytics\nGA4 + GSC + IndexNow\n(non-fatal)"]
+    ANA --> HYD["5. Hydrate Repo\nPlaceholders\nprovision.json\nSPEC.md\nWrangler\nGSC verify HTML\nFavicons"]
     HYD --> GIT["git commit\n+ push"]
     GIT --> BUILD["pnpm build\nwrangler deploy"]
     BUILD --> CB{Success?}
@@ -171,15 +174,48 @@ graph TB
     HUB["Hub Project\nnarduk-nuxt-template / prd\nCLOUDFLARE_API_TOKEN\nCLOUDFLARE_ACCOUNT_ID\nPOSTHOG / GA / GSC keys"]
 
     PRD["Spoke PRD\napp-name / prd\nAPP_NAME, SITE_URL\nCRON_SECRET\nNUXT_SESSION_PASSWORD\nGA_PROPERTY_ID\nGA_MEASUREMENT_ID\nINDEXNOW_KEY"]
+    COP["Spoke Copilot\napp-name / prd_copilot\nminimal agent-only keys\nGITHUB_TOKEN_PACKAGES_READ\nNODE_AUTH_TOKEN\noptional CLOUDFLARE_*"]
 
     DEV["Spoke DEV\napp-name / dev\nSITE_URL = localhost:PORT\nNUXT_PORT = allocated\nCRON_SECRET\nNUXT_SESSION_PASSWORD"]
 
     GHSEC["GitHub Repo Secrets\norg/app-name\nDOPPLER_TOKEN\nGH_PACKAGES_TOKEN\nCONTROL_PLANE_URL"]
+    GHENV["GitHub Environment\norg/app-name / copilot\nGH_TOKEN_PACKAGES_READ\nNODE_AUTH_TOKEN\noptional CLOUDFLARE_*"]
 
     HUB -->|"syncHubSecrets()"| PRD
     HUB -->|"syncDevConfig()"| DEV
+    DOP["Control-plane runner"] -->|"bulkSetSecrets()"| COP
     PRD -->|"createDopplerServiceToken()"| GHSEC
+    COP -->|"sync:copilot-secrets"| GHENV
 ```
+
+## Copilot Environment
+
+Freshly provisioned app repos should have a GitHub Actions environment named
+`copilot`. GitHub Agentic Workflows such as downstream
+`.github/workflows/provisioned-app-build.md` read their install/build secrets
+from that environment, not from chat.
+
+The provisioning runner now:
+
+1. Seeds Doppler `prd_copilot` with the minimal agent secret set.
+2. Mints a read-only `prd_copilot` service token for the sync step.
+3. Runs
+   `pnpm run sync:copilot-secrets -- <app> --doppler-config=prd_copilot --github-repo=<owner>/<repo>`
+   to create/update the GitHub environment `copilot`.
+
+For ongoing drift control, use
+[`sync-copilot-secrets.yml`](../.github/workflows/sync-copilot-secrets.yml) from
+this repo. It supports manual dry runs in staging and a scheduled nightly resync
+across active fleet apps. Keep credentials least-privilege:
+
+- Doppler: read-only token scoped to `<app>/prd_copilot`
+- GitHub: token allowed to set Actions environment secrets on the target repo
+
+Operators should use the local [operator runbook](./operator-runbook.md) for the
+control-plane workflow and hand downstream maintainers the template runbook at
+[template docs/agents/operations.md](https://github.com/narduk-enterprises/narduk-nuxt-template/blob/main/docs/agents/operations.md),
+especially the sections on provisioning, the `copilot` environment, and
+`sync:copilot-secrets`.
 
 ## Callback API Routes
 

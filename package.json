@@ -46,6 +46,7 @@
     "check": "pnpm run quality:check",
     "skills:link": "pnpm exec tsx tools/ensure-skills-links.ts",
     "skills:vendor": "sh scripts/sync-skills.sh vendor",
+    "sync:copilot-secrets": "pnpm exec tsx tools/sync-copilot-secrets.ts",
     "cleanup:node-leaks": "sh scripts/cleanup-node-leaks.sh",
     "test:e2e:web": "pnpm --filter web test:e2e",
     "cpctl:install": "cd cpctl && go install ."

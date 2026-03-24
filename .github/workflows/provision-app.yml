@@ -163,6 +163,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install Doppler CLI
+        run: |
+          curl -Ls https://cli.doppler.com/install.sh | sudo sh
+          doppler --version
+
       - name: Configure GitHub Packages auth
         run: |
           cat <<EOF >> "$HOME/.npmrc"
@@ -182,6 +187,11 @@ jobs:
           required=(
             package.json
             pnpm-workspace.yaml
+            provision.json
+            SPEC.md
+            docs/agents/operations.md
+            .github/workflows/provisioned-app-build.md
+            tools/sync-copilot-secrets.ts
             apps/web/package.json
             apps/web/nuxt.config.ts
             apps/web/wrangler.json
@@ -290,13 +300,24 @@ jobs:
             --nuxt-port="${{ inputs.nuxt-port }}" \
             --provision-id="${{ inputs.provision-id }}"
 
-      - name: 3. Set GitHub Secrets
+      - name: 3. Set GitHub Repository Configuration
         run: |
-          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s github --arg m 'Setting GitHub secrets' '{level:"info",step:$s,message:$m}')"
+          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s github --arg m 'Setting GitHub secrets and Copilot repository access' '{level:"info",step:$s,message:$m}')"
           pnpm exec tsx tools/provision/3-set-github-secrets.ts \
             --app-name="${{ inputs.app-name }}" \
             --github-repo="${{ inputs.github-repo }}" \
             --provision-id="${{ inputs.provision-id }}"
+
+      - name: 3b. Sync GitHub Copilot Environment
+        env:
+          DOPPLER_TOKEN: ${{ env.APP_DOPPLER_COPILOT_TOKEN }}
+          GH_TOKEN: ${{ env.GH_SERVICE_TOKEN }}
+        run: |
+          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s github --arg m 'Syncing Doppler prd_copilot into GitHub environment copilot' '{level:"info",step:$s,message:$m}')"
+          pnpm run sync:copilot-secrets -- "${{ inputs.app-name }}" \
+            --doppler-config=prd_copilot \
+            --github-repo="${{ inputs.github-repo }}" \
+            --env=copilot
 
       - name: 4. Create Analytics
         env:
@@ -330,6 +351,7 @@ jobs:
           pnpm exec tsx tools/provision/5-hydrate-repo.ts \
             --app-name="${{ inputs.app-name }}" \
             --display-name="${{ inputs.display-name }}" \
+            --app-description="${{ inputs.app-description }}" \
             --app-url="${{ inputs.app-url }}" \
             --target-dir="app-source" \
             --provision-id="${{ inputs.provision-id }}"

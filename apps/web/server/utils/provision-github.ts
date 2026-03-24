@@ -6,6 +6,10 @@
  */
 
 const GH_API_BASE = 'https://api.github.com'
+const GH_API_VERSION = '2022-11-28'
+const GH_COPILOT_API_VERSION = '2026-03-10'
+
+type GithubApiVersion = typeof GH_API_VERSION | typeof GH_COPILOT_API_VERSION
 
 export interface GithubWorkflowRun {
   id: number
@@ -14,14 +18,116 @@ export interface GithubWorkflowRun {
   conclusion: string | null
 }
 
-function ghHeaders(token: string): Record<string, string> {
+function ghHeaders(
+  token: string,
+  apiVersion: GithubApiVersion = GH_API_VERSION,
+): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
     Accept: 'application/vnd.github+json',
     'Content-Type': 'application/json',
     'User-Agent': 'narduk-control-plane',
-    'X-GitHub-Api-Version': '2022-11-28',
+    'X-GitHub-Api-Version': apiVersion,
   }
+}
+
+interface GithubRepoMetadata {
+  id: number
+  full_name: string
+  owner: {
+    login: string
+    type: string
+  }
+}
+
+interface GithubCopilotCodingAgentPermissions {
+  enabled_repositories: 'all' | 'selected' | 'none'
+}
+
+export type EnableRepoForCopilotCodingAgentResult =
+  | 'already_enabled_for_all_repositories'
+  | 'enabled_for_selected_repositories'
+  | 'disabled_by_org_policy'
+  | 'unsupported_for_user_repo'
+
+function splitRepoFullName(repo: string): { owner: string; name: string } {
+  const [owner, name, ...rest] = repo.split('/')
+  if (!owner || !name || rest.length > 0) {
+    throw new Error(`Invalid GitHub repository slug: ${repo}`)
+  }
+
+  return { owner, name }
+}
+
+async function getRepoMetadata(ghToken: string, repo: string): Promise<GithubRepoMetadata> {
+  const { owner, name } = splitRepoFullName(repo)
+  const res = await fetch(`${GH_API_BASE}/repos/${owner}/${name}`, {
+    headers: ghHeaders(ghToken),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`GitHub repo metadata fetch failed: ${res.status} ${text}`)
+  }
+
+  return (await res.json()) as GithubRepoMetadata
+}
+
+async function getCopilotCodingAgentPermissions(
+  ghToken: string,
+  org: string,
+): Promise<GithubCopilotCodingAgentPermissions> {
+  const res = await fetch(`${GH_API_BASE}/orgs/${org}/copilot/coding-agent/permissions`, {
+    headers: ghHeaders(ghToken, GH_COPILOT_API_VERSION),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`GitHub Copilot coding agent permissions fetch failed: ${res.status} ${text}`)
+  }
+
+  return (await res.json()) as GithubCopilotCodingAgentPermissions
+}
+
+/**
+ * Enable Copilot coding agent for an organization-owned repository when the org policy allows it.
+ * Idempotent for org policy `all` and for repositories already enabled under `selected`.
+ */
+export async function enableRepoForCopilotCodingAgent(
+  ghToken: string,
+  repo: string,
+): Promise<EnableRepoForCopilotCodingAgentResult> {
+  const repoMetadata = await getRepoMetadata(ghToken, repo)
+
+  if (repoMetadata.owner.type.toLowerCase() !== 'organization') {
+    return 'unsupported_for_user_repo'
+  }
+
+  const org = repoMetadata.owner.login
+  const permissions = await getCopilotCodingAgentPermissions(ghToken, org)
+
+  if (permissions.enabled_repositories === 'all') {
+    return 'already_enabled_for_all_repositories'
+  }
+
+  if (permissions.enabled_repositories === 'none') {
+    return 'disabled_by_org_policy'
+  }
+
+  const res = await fetch(
+    `${GH_API_BASE}/orgs/${org}/copilot/coding-agent/permissions/repositories/${repoMetadata.id}`,
+    {
+      method: 'PUT',
+      headers: ghHeaders(ghToken, GH_COPILOT_API_VERSION),
+    },
+  )
+
+  if (!res.ok && res.status !== 204) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`GitHub Copilot coding agent enable failed: ${res.status} ${text}`)
+  }
+
+  return 'enabled_for_selected_repositories'
 }
 
 /**

@@ -16,13 +16,14 @@ Three phases, each running in a different environment:
 
 The API **only**:
 
-1. Upserts `fleet_apps` and allocates `NUXT_PORT`
-2. Inserts `provision_jobs` (`pending` → `creating_repo` → `dispatching` or
+1. Upserts `fleet_apps` and persists the incoming product description
+2. Allocates `NUXT_PORT`
+3. Inserts `provision_jobs` (`pending` → `creating_repo` → `dispatching` or
    `failed`)
-3. Creates the **empty** GitHub repo under the target org
+4. Creates the **empty** GitHub repo under the target org
    (`POST /orgs/{org}/repos`)
-4. Dispatches `provision-app.yml` with `workflow_dispatch` inputs (including
-   `provision-id`)
+5. Dispatches `provision-app.yml` with `workflow_dispatch` inputs (including
+   `provision-id` and `app-description`)
 
 **Not** done on the edge: Cloudflare D1 for the **new app**, Doppler spoke
 project, GitHub repo secrets on the **new** repo, GA4/GSC/IndexNow, hydration,
@@ -55,7 +56,7 @@ sequenceDiagram
     participant Dopp as Doppler API
     participant App as New App Worker
 
-    Dev->>CP: POST /api/fleet/provision
+    Dev->>CP: POST /api/fleet/provision (name, displayName, description, url)
     CP->>CP: assertProvisionApiKey()
 
     CP->>D1: upsert fleet_apps, allocateFleetNuxtPort()
@@ -76,9 +77,10 @@ sequenceDiagram
     GHA->>CP: callbacks: status / log (best-effort warnings if unreachable)
     GHA->>GHA: export:starter → app-source, install deps
     GHA->>CF: 1-create-d1.ts (app D1)
-    GHA->>Dopp: 2-create-doppler.ts, tokens
+    GHA->>Dopp: 2-create-doppler.ts, prd/dev/prd_copilot, tokens
     GHA->>GH: 3-set-github-secrets.ts (new repo)
-    GHA->>GHA: 4-create-analytics, hydrate, push, build, wrangler deploy
+    GHA->>GH: sync:copilot-secrets (env copilot)
+    GHA->>GHA: 4-create-analytics, hydrate provision.json + SPEC.md, push, build, wrangler deploy
     GHA->>CP: POST .../complete (strict — fails step if CP unreachable)
 
     App-->>Dev: App live at production URL
@@ -90,7 +92,9 @@ sequenceDiagram
 
 There is no `tools/init.ts` and no `pnpm run setup` for infra. A provisioned
 repo already has `.setup-complete`, `doppler.yaml`, and wrangler wired by the
-pipeline. Clone the new repo, run `pnpm install`,
+pipeline. It should also already contain `provision.json`, a draft `SPEC.md`,
+and a populated GitHub Actions environment `copilot` for GitHub Agentic
+Workflows. Clone the new repo, run `pnpm install`,
 `doppler setup --project <app> --config dev`, then `doppler run -- pnpm dev`.
 See `docs/provisioning-pipeline.md`.
 
@@ -127,12 +131,30 @@ graph TB
     HUB["Hub Project\nnarduk-nuxt-template / prd\nCLOUDFLARE_API_TOKEN\nCLOUDFLARE_ACCOUNT_ID\nCONTROL_PLANE_API_KEY\nPOSTHOG / GA / GSC / APPLE / CSP"]
 
     PRD["Spoke Project\napp-name / prd\ncross-project refs to hub\nAPP_NAME, SITE_URL\nCRON_SECRET, NUXT_SESSION_PASSWORD\nGA_PROPERTY_ID, GA_MEASUREMENT_ID\nINDEXNOW_KEY"]
+    COP["Spoke Project\napp-name / prd_copilot\nminimal agent-only secrets\nGITHUB_TOKEN_PACKAGES_READ\nNODE_AUTH_TOKEN\noptional CLOUDFLARE_*"]
 
     DEV["Spoke Project\napp-name / dev\ncross-project refs to hub\nSITE_URL = localhost:PORT\nNUXT_PORT = random allocated\nCRON_SECRET, NUXT_SESSION_PASSWORD"]
 
     GHSEC["GitHub Repo Secrets\norg/app-name\nDOPPLER_TOKEN (ci-deploy token)\nGH_PACKAGES_TOKEN\nCONTROL_PLANE_URL"]
+    GHENV["GitHub Actions env\norg/app-name / copilot\nGH_TOKEN_PACKAGES_READ\nNODE_AUTH_TOKEN\noptional CLOUDFLARE_*"]
 
     HUB -->|syncHubSecrets| PRD
     HUB -->|syncDevConfig| DEV
     PRD -->|ci-deploy service token| GHSEC
+    COP -->|sync:copilot-secrets| GHENV
 ```
+
+## Operator Runbook
+
+Operators should start with the local [operator runbook](./operator-runbook.md),
+then use the template runbook at
+[docs/agents/operations.md](https://github.com/narduk-enterprises/narduk-nuxt-template/blob/main/docs/agents/operations.md)
+for the downstream repo behavior, especially:
+
+- the provision payload `description`
+- the GitHub Actions environment `copilot`
+- `pnpm run sync:copilot-secrets`
+
+For long-term drift control in the control plane, use the scheduled/manual
+workflow
+[`.github/workflows/sync-copilot-secrets.yml`](../.github/workflows/sync-copilot-secrets.yml).

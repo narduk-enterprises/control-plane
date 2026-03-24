@@ -1,4 +1,7 @@
-import { setRepoSecret } from '../../apps/web/server/utils/provision-github'
+import {
+  enableRepoForCopilotCodingAgent,
+  setRepoSecret,
+} from '../../apps/web/server/utils/provision-github'
 
 async function main() {
   const GITHUB_REPO = process.argv.find((a) => a.startsWith('--github-repo='))?.split('=')[1]
@@ -33,7 +36,35 @@ async function main() {
     await setRepoSecret(ghToken, GITHUB_REPO, 'CONTROL_PLANE_URL', controlPlaneUrl)
   }
 
-  console.log(`✅ GitHub secrets configured for ${GITHUB_REPO}`)
+  console.log(`Configuring Copilot coding agent access...`)
+  try {
+    const copilotResult = await enableRepoForCopilotCodingAgent(ghToken, GITHUB_REPO)
+
+    if (copilotResult === 'already_enabled_for_all_repositories') {
+      console.log(`Copilot coding agent is already enabled for all repositories in this org.`)
+    }
+
+    if (copilotResult === 'enabled_for_selected_repositories') {
+      console.log(`Enabled Copilot coding agent for ${GITHUB_REPO}.`)
+    }
+
+    if (copilotResult === 'disabled_by_org_policy') {
+      console.warn(
+        `⚠️ Skipping Copilot coding agent enablement for ${GITHUB_REPO}: org policy is set to none.`,
+      )
+    }
+
+    if (copilotResult === 'unsupported_for_user_repo') {
+      console.warn(
+        `⚠️ Skipping Copilot coding agent enablement for ${GITHUB_REPO}: owner is not an organization.`,
+      )
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(`⚠️ Copilot coding agent provisioning skipped for ${GITHUB_REPO}: ${message}`)
+  }
+
+  console.log(`✅ GitHub repository configuration completed for ${GITHUB_REPO}`)
 }
 
 main().catch((err) => {

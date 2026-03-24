@@ -36,6 +36,20 @@ function checkCommand(
   }
 }
 
+async function getPrimaryWebDatabaseName(): Promise<string | null> {
+  try {
+    const webWranglerPath = path.join(ROOT_DIR, 'apps', 'web', 'wrangler.json')
+    const webWranglerContent = await fs.readFile(webWranglerPath, 'utf-8')
+    const webWrangler = JSON.parse(webWranglerContent) as {
+      d1_databases?: Array<{ database_name?: string }>
+    }
+
+    return webWrangler.d1_databases?.[0]?.database_name || null
+  } catch {
+    return null
+  }
+}
+
 async function main() {
   const packageJsonPath = path.join(ROOT_DIR, 'package.json')
   const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'))
@@ -344,17 +358,43 @@ async function main() {
       }
     }
 
-    // Ensure db:migrate doesn't still reference the template database name
-    const migrateScript = webPkg.scripts?.['db:migrate'] || ''
-    if (migrateScript.includes(TEMPLATE_NAME)) {
+    const templateDatabaseName = `${TEMPLATE_NAME}-db`
+    const webDatabaseName = await getPrimaryWebDatabaseName()
+    if (!webDatabaseName) {
+      console.error('  ❌ Unable to resolve apps/web database_name from wrangler.json')
+      allGood = false
+    } else if (webDatabaseName === templateDatabaseName) {
       console.error(
-        `  ❌ db:migrate script still references '${TEMPLATE_NAME}' — run setup with --repair`,
+        `  ❌ apps/web/wrangler.json still references template database '${templateDatabaseName}' — run setup with --repair`,
       )
       allGood = false
-    } else if (migrateScript) {
-      console.log('  ✅ db:migrate script references correct database name')
+    } else {
+      console.log(`  ✅ apps/web/wrangler.json references app database (${webDatabaseName})`)
     }
 
+    for (const scriptName of ['db:migrate', 'db:seed', 'db:reset'] as const) {
+      const script = webPkg.scripts?.[scriptName] || ''
+      if (!script) {
+        console.error(`  ❌ ${scriptName} script missing from apps/web/package.json`)
+        allGood = false
+        continue
+      }
+
+      if (!webDatabaseName) continue
+
+      if (!script.includes(webDatabaseName)) {
+        const reason =
+          webDatabaseName !== templateDatabaseName && script.includes(templateDatabaseName)
+            ? `still references template database '${templateDatabaseName}'`
+            : `does not reference apps/web database '${webDatabaseName}'`
+        console.error(`  ❌ ${scriptName} ${reason} — run setup with --repair`)
+        allGood = false
+      } else {
+        console.log(`  ✅ ${scriptName} references apps/web database (${webDatabaseName})`)
+      }
+    }
+
+    const migrateScript = webPkg.scripts?.['db:migrate'] || ''
     if (!migrateScript.includes('@narduk-enterprises/narduk-nuxt-template-layer/drizzle')) {
       console.error('  ❌ db:migrate is missing the shared layer migration directory')
       allGood = false

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import {
+  bulkSetSecrets,
   createDopplerProject,
   syncHubSecrets,
   syncDevConfig,
@@ -42,6 +43,11 @@ async function main() {
 
   const cronSecret = crypto.randomBytes(16).toString('hex')
   const sessionPassword = crypto.randomBytes(32).toString('hex')
+  const ghPackagesToken =
+    process.env.GH_PACKAGES_TOKEN ||
+    process.env.GITHUB_PACKAGES_TOKEN ||
+    process.env.GITHUB_TOKEN_PACKAGES_READ
+  const nodeAuthToken = process.env.NODE_AUTH_TOKEN || ghPackagesToken
 
   console.log(`Syncing secrets...`)
 
@@ -68,12 +74,39 @@ async function main() {
     { siteUrl: buildLocalNuxtUrl(resolvedNuxtPort) },
   )
 
+  const copilotSecrets = {
+    CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || '',
+    GITHUB_TOKEN_PACKAGES_READ: ghPackagesToken || '',
+    NODE_AUTH_TOKEN: nodeAuthToken || '',
+  }
+  const nonEmptyCopilotSecrets = Object.fromEntries(
+    Object.entries(copilotSecrets).filter(([, value]) => Boolean(value.trim())),
+  )
+
+  if (Object.keys(nonEmptyCopilotSecrets).length === 0) {
+    throw new Error(
+      'Cannot seed prd_copilot. Expected at least one of CLOUDFLARE_*, GITHUB_TOKEN_PACKAGES_READ, or NODE_AUTH_TOKEN in the runner environment.',
+    )
+  }
+
+  console.log(`Seeding prd_copilot with minimal agent-only secrets...`)
+  await bulkSetSecrets(apiToken, APP_NAME, 'prd_copilot', nonEmptyCopilotSecrets)
+
   console.log(`Generating CI service token...`)
   const dopplerToken = await createDopplerServiceToken(apiToken, APP_NAME, 'prd', 'ci-deploy')
-  console.log(`✅ Doppler project ready. Service token created.`)
+  console.log(`Generating Copilot sync service token...`)
+  const copilotDopplerToken = await createDopplerServiceToken(
+    apiToken,
+    APP_NAME,
+    'prd_copilot',
+    'copilot-sync',
+  )
+  console.log(`✅ Doppler project ready. Service tokens created.`)
 
   if (process.env.GITHUB_ENV) {
     appendGitHubEnv('APP_DOPPLER_TOKEN', dopplerToken)
+    appendGitHubEnv('APP_DOPPLER_COPILOT_TOKEN', copilotDopplerToken)
   }
 }
 

@@ -2,11 +2,22 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 
+function resolveAppDescription(displayName: string, appDescription?: string): string {
+  const trimmed = appDescription?.trim()
+  if (trimmed) {
+    return trimmed
+  }
+
+  return `${displayName} — powered by Nuxt 4 and Cloudflare Workers.`
+}
+
 async function applyStarterPlaceholders(targetDir: string, req: Record<string, string>) {
   const STARTER_PLACEHOLDER_FILES = [
     'doppler.template.yaml',
     'package.json',
     'README.md',
+    'provision.json',
+    'SPEC.md',
     'apps/web/package.json',
     'apps/web/nuxt.config.ts',
     'apps/web/wrangler.json',
@@ -18,7 +29,7 @@ async function applyStarterPlaceholders(targetDir: string, req: Record<string, s
     { from: /__SITE_URL__/g, to: req.SITE_URL },
     {
       from: /__APP_DESCRIPTION__/g,
-      to: `${req.DISPLAY_NAME} — powered by Nuxt 4 and Cloudflare Workers.`,
+      to: req.APP_DESCRIPTION,
     },
   ]
 
@@ -40,6 +51,113 @@ async function applyStarterPlaceholders(targetDir: string, req: Record<string, s
     }
   }
   console.log(`  ✅ Updated ${changedFiles} starter metadata file(s).`)
+}
+
+async function writeProvisionMetadata(
+  targetDir: string,
+  req: Record<string, string>,
+): Promise<void> {
+  const provisionPath = path.join(targetDir, 'provision.json')
+  const provisionedAt = new Date().toISOString()
+  let payload: Record<string, string> = {
+    name: req.APP_NAME,
+    displayName: req.DISPLAY_NAME,
+    description: req.APP_DESCRIPTION,
+    url: req.SITE_URL,
+    provisionedAt,
+  }
+
+  try {
+    const raw = await fs.readFile(provisionPath, 'utf-8')
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    payload = {
+      ...Object.fromEntries(
+        Object.entries(parsed).filter(([, value]) => typeof value === 'string'),
+      ),
+      ...payload,
+    }
+  } catch {
+    // Create the file if the starter surface does not include it yet.
+  }
+
+  await fs.writeFile(provisionPath, JSON.stringify(payload, null, 2) + '\n', 'utf-8')
+  console.log('  ✅ Wrote provision.json')
+}
+
+async function seedSpecDocument(targetDir: string, req: Record<string, string>): Promise<void> {
+  const specPath = path.join(targetDir, 'SPEC.md')
+  const fallback = [
+    'Status: DRAFT',
+    '',
+    `# ${req.DISPLAY_NAME}`,
+    '',
+    `Source: provision.json (${req.APP_NAME})`,
+    '',
+    '## Product',
+    '',
+    req.APP_DESCRIPTION,
+    '',
+    '## In scope',
+    '',
+    '- (fill during agent workflow)',
+    '',
+    '## Out of scope',
+    '',
+    '- (fill during agent workflow)',
+    '',
+    '## User flows',
+    '',
+    '1. ',
+    '',
+    '## Conceptual data model',
+    '',
+    '- ',
+    '',
+    '## Pages / routes',
+    '',
+    '- ',
+    '',
+    '## Non-functional',
+    '',
+    '- ',
+    '',
+    '## Test acceptance (MVP)',
+    '',
+    '- ',
+    '',
+    '## Open questions',
+    '',
+    '- ',
+    '',
+  ].join('\n')
+
+  let content = fallback
+  try {
+    content = await fs.readFile(specPath, 'utf-8')
+  } catch {
+    // Fall back to the standard draft structure when SPEC.md is absent.
+  }
+
+  const lines = content.split('\n')
+  if (lines[0]?.startsWith('Status:')) {
+    lines[0] = 'Status: DRAFT'
+  } else {
+    lines.unshift('Status: DRAFT', '')
+  }
+  content = lines.join('\n')
+
+  const productHeading = '## Product'
+  const inScopeHeading = '## In scope'
+  const productStart = content.indexOf(productHeading)
+  const inScopeStart = content.indexOf(inScopeHeading)
+  if (productStart !== -1 && inScopeStart !== -1 && inScopeStart > productStart) {
+    const before = content.slice(0, productStart + productHeading.length)
+    const after = content.slice(inScopeStart)
+    content = `${before}\n\n${req.APP_DESCRIPTION}\n\n${after}`
+  }
+
+  await fs.writeFile(specPath, content, 'utf-8')
+  console.log('  ✅ Seeded SPEC.md')
 }
 
 async function linkWrangler(targetDir: string, appName: string, siteUrl: string) {
@@ -212,16 +330,37 @@ async function main() {
   const APP_NAME = process.argv.find((a) => a.startsWith('--app-name='))?.split('=')[1]
   const DISPLAY_NAME = process.argv.find((a) => a.startsWith('--display-name='))?.split('=')[1]
   const SITE_URL = process.argv.find((a) => a.startsWith('--app-url='))?.split('=')[1]
+  const APP_DESCRIPTION = process.argv
+    .find((a) => a.startsWith('--app-description='))
+    ?.split('=')[1]
 
   if (!TARGET_DIR || !APP_NAME || !DISPLAY_NAME || !SITE_URL) {
     throw new Error('--target-dir, --app-name, --display-name, and --app-url are required')
   }
 
   const targetAbsDir = path.resolve(TARGET_DIR)
+  const resolvedDescription = resolveAppDescription(DISPLAY_NAME, APP_DESCRIPTION)
   console.log(`\n💧 Hydrating repository in: ${targetAbsDir}`)
 
   console.log(`\nStep 1: Applying placeholders...`)
-  await applyStarterPlaceholders(targetAbsDir, { APP_NAME, DISPLAY_NAME, SITE_URL })
+  await applyStarterPlaceholders(targetAbsDir, {
+    APP_NAME,
+    DISPLAY_NAME,
+    SITE_URL,
+    APP_DESCRIPTION: resolvedDescription,
+  })
+  await writeProvisionMetadata(targetAbsDir, {
+    APP_NAME,
+    DISPLAY_NAME,
+    SITE_URL,
+    APP_DESCRIPTION: resolvedDescription,
+  })
+  await seedSpecDocument(targetAbsDir, {
+    APP_NAME,
+    DISPLAY_NAME,
+    SITE_URL,
+    APP_DESCRIPTION: resolvedDescription,
+  })
 
   console.log(`\nStep 2: Linking wrangler.json...`)
   await linkWrangler(targetAbsDir, APP_NAME, SITE_URL)

@@ -72,6 +72,11 @@ skills inventory.
   NOT point to `narduk-enterprises/narduk-nuxt-template`. If you are
   intentionally working on the template repository itself, that remote is
   expected.
+- **Copilot coding agent firewall**: If GitHub Copilot coding agent appears
+  blocked from required network access, package installation, or external tool
+  calls in a repository run, stop and ask the user to turn off `Enable firewall`
+  in `Settings -> Copilot -> coding agent` for that repository before
+  continuing.
 - **Secrets**: Use Doppler. Secrets are consumed via `process.env.SECRET_NAME`
   in `nuxt.config.ts`.
 - Run `/check-*` and `/audit-*` AI workflows (in `.agents/workflows/`) for
