@@ -374,6 +374,19 @@ jobs:
               echo "::error::Remote main already exists and does not look like a control-plane bootstrap commit. Refusing to force-push over existing history."
               exit 1
             fi
+
+            compare_dir="$(mktemp -d)"
+            trap 'rm -rf "$compare_dir"' EXIT
+            git clone --depth=1 origin "$compare_dir"
+            if diff -qr --exclude '.git' "$compare_dir" . >/tmp/provision-remote-diff.txt 2>&1; then
+              echo "Remote main already matches local generated tree. Skipping commit/push and continuing to deploy."
+              bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Remote main already matches generated tree; skipping commit/push and continuing to deploy' '{level:"info",step:$s,message:$m}')"
+              exit 0
+            fi
+
+            echo "::group::Remote vs local diff summary"
+            sed -n '1,200p' /tmp/provision-remote-diff.txt || true
+            echo "::endgroup::"
           fi
           git commit -m "chore: initialize ${{ inputs.app-name }} from narduk-nuxt-template"
           git branch -M main
