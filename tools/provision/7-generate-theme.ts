@@ -50,6 +50,9 @@ const PER_REQUEST_TIMEOUT_MS = 60_000
 const TOTAL_TIMEOUT_MS = 300_000
 const MAX_TOKENS = 6000
 const BACKOFF_MS = [1000, 3000, 9000]
+const TYPECHECK_TIMEOUT_MS = 120_000
+const PROVISION_LOG_CHUNK_CHARS = 3000
+const CONTENT_PREVIEW_CHARS = 1200
 
 // ─── Helpers ──────────────────────────────────────────────────
 function maskApiKey(key: string): string {
@@ -77,6 +80,66 @@ async function logToProvision(level: string, step: string, message: string): Pro
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function chunkText(value: string, size: number): string[] {
+  if (!value) return ['']
+  const chunks: string[] = []
+  for (let index = 0; index < value.length; index += size) {
+    chunks.push(value.slice(index, index + size))
+  }
+  return chunks
+}
+
+function truncateForPreview(value: string, limit = CONTENT_PREVIEW_CHARS): string {
+  if (value.length <= limit) return value
+  return `${value.slice(0, limit)}\n... [truncated ${value.length - limit} chars]`
+}
+
+async function logBlockToProvision(
+  level: string,
+  step: string,
+  title: string,
+  content: string,
+): Promise<void> {
+  const chunks = chunkText(content, PROVISION_LOG_CHUNK_CHARS)
+  for (const [index, chunk] of chunks.entries()) {
+    const partSuffix = chunks.length > 1 ? ` (${index + 1}/${chunks.length})` : ''
+    await logToProvision(level, step, `${title}${partSuffix}\n${chunk}`.trim())
+  }
+}
+
+async function logJsonToProvision(
+  level: string,
+  step: string,
+  title: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  await logBlockToProvision(level, step, title, JSON.stringify(payload, null, 2))
+}
+
+function printJsonToConsole(title: string, payload: Record<string, unknown>): void {
+  console.log(`::group::${title}`)
+  console.log(JSON.stringify(payload, null, 2))
+  console.log('::endgroup::')
+}
+
+function summarizeGeneratedContent(content: string): Record<string, unknown> {
+  return {
+    present: content.trim().length > 0,
+    chars: content.length,
+    lines: content.length === 0 ? 0 : content.split('\n').length,
+    preview: truncateForPreview(content),
+  }
+}
+
+function summarizeGeneratedFiles(files: GeneratedFiles): Record<string, unknown> {
+  return {
+    appConfig: summarizeGeneratedContent(files.appConfig),
+    mainCss: summarizeGeneratedContent(files.mainCss),
+    indexVue: summarizeGeneratedContent(files.indexVue),
+    appVue: summarizeGeneratedContent(files.appVue),
+  }
 }
 
 // ─── xAI API ──────────────────────────────────────────────────
@@ -414,25 +477,69 @@ async function main(): Promise<void> {
   console.log('\n🎨 Step 7: AI Theme Generation')
   console.log(`   App: ${DISPLAY_NAME} (${APP_NAME})`)
 
+  await logJsonToProvision('info', 'ai-theme', 'AI theme input payload', {
+    appName: APP_NAME,
+    displayName: DISPLAY_NAME,
+    appUrl: APP_URL,
+    appDescription: APP_DESCRIPTION,
+    targetDir: TARGET_DIR,
+    provisionId: PROVISION_ID,
+    model: CODE_MODEL,
+    maxSfcAttempts: MAX_SFC_ATTEMPTS,
+    maxTypecheckFixes: MAX_TYPECHECK_FIXES,
+    typecheckTimeoutMs: TYPECHECK_TIMEOUT_MS,
+  })
+  printJsonToConsole('AI theme input payload', {
+    appName: APP_NAME,
+    displayName: DISPLAY_NAME,
+    appUrl: APP_URL,
+    appDescription: APP_DESCRIPTION,
+    targetDir: TARGET_DIR,
+    provisionId: PROVISION_ID,
+    model: CODE_MODEL,
+    maxSfcAttempts: MAX_SFC_ATTEMPTS,
+    maxTypecheckFixes: MAX_TYPECHECK_FIXES,
+    typecheckTimeoutMs: TYPECHECK_TIMEOUT_MS,
+  })
+
   // Graceful skip conditions
   if (!OPENAI_API_KEY) {
     console.log('   ℹ️ OPENAI_API_KEY not set — skipping AI theme generation.')
+    await logToProvision('info', 'ai-theme', 'Skipping AI theme generation: OPENAI_API_KEY not set.')
     return
   }
   if (!APP_DESCRIPTION) {
     console.log('   ℹ️ No app description provided — skipping AI theme generation.')
+    await logToProvision('info', 'ai-theme', 'Skipping AI theme generation: no app description provided.')
     return
   }
   if (!TARGET_DIR) {
     console.log('   ℹ️ No target directory specified — skipping.')
+    await logToProvision('info', 'ai-theme', 'Skipping AI theme generation: no target directory specified.')
     return
   }
 
   const targetAbsDir = path.resolve(TARGET_DIR)
+  const webRootDir = path.join(targetAbsDir, 'apps', 'web')
+  const webRootExists = await fs
+    .stat(webRootDir)
+    .then((stat) => stat.isDirectory())
+    .catch(() => false)
+  if (!webRootExists) {
+    console.log('   ℹ️ apps/web is missing in target repository — skipping.')
+    await logToProvision(
+      'error',
+      'ai-theme',
+      `Skipping AI theme generation: target is missing apps/web at ${webRootDir}.`,
+    )
+    return
+  }
+
   console.log(`   Model: ${CODE_MODEL}`)
   console.log(`   Key: ${maskApiKey(OPENAI_API_KEY)}`)
 
   const startTime = Date.now()
+  const generatedAssets: string[] = []
 
   // Backup existing files before modification
   const backup = await backupFiles(targetAbsDir)
@@ -453,6 +560,11 @@ async function main(): Promise<void> {
 
     attemptCount = attempt
     console.log(`\n   SFC Attempt ${attempt}/${MAX_SFC_ATTEMPTS}...`)
+    await logToProvision(
+      'info',
+      'ai-theme',
+      `SFC generation attempt ${attempt}/${MAX_SFC_ATTEMPTS} started.`,
+    )
 
     try {
       const userPrompt = buildUserPrompt(
@@ -470,6 +582,16 @@ async function main(): Promise<void> {
       if (!files) {
         lastErrors = ['Failed to parse AI response as JSON. Response did not contain valid JSON.']
         console.warn(`   ❌ Parse error — response is not valid JSON.`)
+        await logJsonToProvision('info', 'ai-theme', 'AI theme parse failure', {
+          attempt,
+          errors: lastErrors,
+          responsePreview: truncateForPreview(content),
+        })
+        printJsonToConsole('AI theme parse failure', {
+          attempt,
+          errors: lastErrors,
+          responsePreview: truncateForPreview(content),
+        })
         if (attempt < MAX_SFC_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
         continue
       }
@@ -497,6 +619,16 @@ async function main(): Promise<void> {
       if (allErrors.length > 0) {
         lastErrors = allErrors
         console.warn(`   ❌ SFC validation errors:\n     ${allErrors.join('\n     ')}`)
+        await logJsonToProvision('info', 'ai-theme', 'AI theme SFC validation failure', {
+          attempt,
+          errors: allErrors,
+          generatedFiles: summarizeGeneratedFiles(files),
+        })
+        printJsonToConsole('AI theme SFC validation failure', {
+          attempt,
+          errors: allErrors,
+          generatedFiles: summarizeGeneratedFiles(files),
+        })
         if (attempt < MAX_SFC_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
         continue
       }
@@ -505,11 +637,29 @@ async function main(): Promise<void> {
       lastGoodFiles = files
       sfcPassed = true
       console.log(`   ✅ SFC validation passed on attempt ${attempt}.`)
+      await logJsonToProvision('success', 'ai-theme', 'AI theme SFC generation output', {
+        attempt,
+        tokens,
+        generatedFiles: summarizeGeneratedFiles(files),
+      })
+      printJsonToConsole('AI theme SFC generation output', {
+        attempt,
+        tokens,
+        generatedFiles: summarizeGeneratedFiles(files),
+      })
       break
     } catch (err: unknown) {
       const error = err as { message?: string }
       lastErrors = [`API error: ${error.message}`]
       console.warn(`   ❌ API error: ${error.message}`)
+      await logJsonToProvision('error', 'ai-theme', 'AI theme API error', {
+        attempt,
+        error: error.message || 'Unknown API error',
+      })
+      printJsonToConsole('AI theme API error', {
+        attempt,
+        error: error.message || 'Unknown API error',
+      })
       if (attempt < MAX_SFC_ATTEMPTS) await sleep(BACKOFF_MS[attempt - 1]!)
     }
   }
@@ -522,6 +672,22 @@ async function main(): Promise<void> {
     console.log(
       `\n  📊 AI theme fallback: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`,
     )
+    await logJsonToProvision('info', 'ai-theme', 'AI theme fallback output', {
+      model: CODE_MODEL,
+      attempts: attemptCount,
+      tokens: totalTokens,
+      elapsedSeconds: Number(elapsed),
+      lastErrors: lastErrors ?? [],
+      restoredScaffold: true,
+    })
+    printJsonToConsole('AI theme fallback output', {
+      model: CODE_MODEL,
+      attempts: attemptCount,
+      tokens: totalTokens,
+      elapsedSeconds: Number(elapsed),
+      lastErrors: lastErrors ?? [],
+      restoredScaffold: true,
+    })
     console.log('\n✅ Step 7 complete (fallback).')
     return
   }
@@ -541,9 +707,14 @@ async function main(): Promise<void> {
 
     console.log(`\n   Typecheck fix ${fix}/${MAX_TYPECHECK_FIXES}...`)
     try {
-      await execAsync('pnpm run typecheck', { cwd: path.join(targetAbsDir, 'apps', 'web') })
+      await execAsync('pnpm run typecheck', {
+        cwd: path.join(targetAbsDir, 'apps', 'web'),
+        timeout: TYPECHECK_TIMEOUT_MS,
+        maxBuffer: 4 * 1024 * 1024,
+      })
       typecheckPassed = true
       console.log(`   ✅ Typecheck passed on fix attempt ${fix}.`)
+      await logToProvision('success', 'ai-theme', `Typecheck passed on fix attempt ${fix}.`)
       break
     } catch (err: unknown) {
       const error = err as { stdout?: string; stderr?: string }
@@ -559,6 +730,14 @@ async function main(): Promise<void> {
       }
 
       console.warn(`   ❌ Typecheck errors:\n     ${typeErrors.join('\n     ')}`)
+      await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck failure', {
+        fixAttempt: fix,
+        errors: typeErrors,
+      })
+      printJsonToConsole('AI theme typecheck failure', {
+        fixAttempt: fix,
+        errors: typeErrors,
+      })
 
       // If we have remaining fix attempts, ask the AI to correct
       if (fix < MAX_TYPECHECK_FIXES) {
@@ -576,6 +755,14 @@ async function main(): Promise<void> {
           const fixedFiles = parseAiResponse(content)
           if (!fixedFiles) {
             console.warn(`   ❌ Fix attempt returned invalid JSON.`)
+            await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix parse failure', {
+              fixAttempt: fix,
+              responsePreview: truncateForPreview(content),
+            })
+            printJsonToConsole('AI theme typecheck fix parse failure', {
+              fixAttempt: fix,
+              responsePreview: truncateForPreview(content),
+            })
             continue
           }
 
@@ -595,6 +782,16 @@ async function main(): Promise<void> {
           }
           if (sfcErrors.length > 0) {
             console.warn(`   ❌ Fix broke SFC structure: ${sfcErrors.join(', ')}`)
+            await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix broke SFC', {
+              fixAttempt: fix,
+              errors: sfcErrors,
+              generatedFiles: summarizeGeneratedFiles(fixedFiles),
+            })
+            printJsonToConsole('AI theme typecheck fix broke SFC', {
+              fixAttempt: fix,
+              errors: sfcErrors,
+              generatedFiles: summarizeGeneratedFiles(fixedFiles),
+            })
             // Rewrite original good files for next typecheck attempt
             await writeGeneratedFiles(targetAbsDir, lastGoodFiles!, CODE_MODEL)
             continue
@@ -603,8 +800,24 @@ async function main(): Promise<void> {
           // Write fixed files
           lastGoodFiles = fixedFiles
           await writeGeneratedFiles(targetAbsDir, fixedFiles, CODE_MODEL)
+          await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix output', {
+            fixAttempt: fix,
+            generatedFiles: summarizeGeneratedFiles(fixedFiles),
+          })
+          printJsonToConsole('AI theme typecheck fix output', {
+            fixAttempt: fix,
+            generatedFiles: summarizeGeneratedFiles(fixedFiles),
+          })
         } catch (apiErr: unknown) {
           console.warn(`   ❌ AI fix API error: ${(apiErr as Error).message}`)
+          await logJsonToProvision('error', 'ai-theme', 'AI theme typecheck fix API error', {
+            fixAttempt: fix,
+            error: (apiErr as Error).message,
+          })
+          printJsonToConsole('AI theme typecheck fix API error', {
+            fixAttempt: fix,
+            error: (apiErr as Error).message,
+          })
           // Rewrite last good files so typecheck can re-run
           await writeGeneratedFiles(targetAbsDir, lastGoodFiles!, CODE_MODEL)
         }
@@ -635,6 +848,7 @@ async function main(): Promise<void> {
       await fs.mkdir(publicDir, { recursive: true })
       await fs.writeFile(path.join(publicDir, 'icon-ai.png'), iconBuffer)
       console.log('   ✅ Generated: public/icon-ai.png')
+      generatedAssets.push('apps/web/public/icon-ai.png')
     } else {
       console.log('   ℹ️ Icon generation skipped or failed — default favicon remains.')
     }
@@ -646,6 +860,7 @@ async function main(): Promise<void> {
       const publicDir = path.join(targetAbsDir, 'apps', 'web', 'public')
       await fs.writeFile(path.join(publicDir, 'logo-ai.png'), logoBuffer)
       console.log('   ✅ Generated: public/logo-ai.png')
+      generatedAssets.push('apps/web/public/logo-ai.png')
     } else {
       console.log('   ℹ️ Logo generation skipped or failed.')
     }
@@ -657,6 +872,26 @@ async function main(): Promise<void> {
   const logMsg = `AI theme ${status}: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`
   console.log(`\n  📊 ${logMsg}`)
   await logToProvision(typecheckPassed ? 'success' : 'info', 'ai-theme', logMsg)
+  await logJsonToProvision(typecheckPassed ? 'success' : 'info', 'ai-theme', 'AI theme final output summary', {
+    status,
+    model: CODE_MODEL,
+    attempts: attemptCount,
+    tokens: totalTokens,
+    elapsedSeconds: Number(elapsed),
+    typecheckPassed,
+    generatedAssets,
+    generatedFiles: summarizeGeneratedFiles(lastGoodFiles),
+  })
+  printJsonToConsole('AI theme final output summary', {
+    status,
+    model: CODE_MODEL,
+    attempts: attemptCount,
+    tokens: totalTokens,
+    elapsedSeconds: Number(elapsed),
+    typecheckPassed,
+    generatedAssets,
+    generatedFiles: summarizeGeneratedFiles(lastGoodFiles),
+  })
 
   console.log(`\n✅ Step 7 complete (${status}).`)
 }
@@ -665,8 +900,14 @@ async function main(): Promise<void> {
 let lastRawResponse: string | undefined
 let lastErrors: string[] | undefined
 
-main().catch((err) => {
+main().catch(async (err) => {
   // Non-fatal — never exit with error code
   console.error(`  ⚠️ Unexpected error in AI theme generation: ${(err as Error).message}`)
+  await logJsonToProvision('error', 'ai-theme', 'AI theme unexpected error', {
+    error: (err as Error).message,
+  })
+  printJsonToConsole('AI theme unexpected error', {
+    error: (err as Error).message,
+  })
   process.exit(0) // Always exit 0 — this step is non-fatal
 })

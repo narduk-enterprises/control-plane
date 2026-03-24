@@ -175,6 +175,38 @@ async function scaffoldIndexVue(targetDir: string, displayName: string) {
   }
 }
 
+async function configureGitHooks(targetDir: string): Promise<void> {
+  const installerPath = path.join(targetDir, 'tools', 'install-git-hooks.cjs')
+  const installerExists = await fs
+    .stat(installerPath)
+    .then(() => true)
+    .catch(() => false)
+
+  if (!installerExists) {
+    console.log('  ⏭ Skipped git hooks: tools/install-git-hooks.cjs not found.')
+    return
+  }
+
+  const gitCheck = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
+    cwd: targetDir,
+    stdio: 'ignore',
+  })
+
+  if (gitCheck.status !== 0) {
+    console.log('  ⏭ Skipped git hooks: target is not a git worktree yet.')
+    return
+  }
+
+  const installHooks = spawnSync(process.execPath, ['tools/install-git-hooks.cjs'], {
+    cwd: targetDir,
+    stdio: 'inherit',
+  })
+
+  if (installHooks.status !== 0) {
+    console.warn(`  ⚠️ Git hook setup exited with status ${installHooks.status ?? 'unknown'}.`)
+  }
+}
+
 async function main() {
   const TARGET_DIR = process.argv.find((a) => a.startsWith('--target-dir='))?.split('=')[1]
   const APP_NAME = process.argv.find((a) => a.startsWith('--app-name='))?.split('=')[1]
@@ -248,10 +280,7 @@ async function main() {
   }
 
   console.log(`\nStep 6: Setting git hooks...`)
-  spawnSync('git', ['config', 'core.hooksPath', '.githooks'], {
-    cwd: targetAbsDir,
-    stdio: 'inherit',
-  })
+  await configureGitHooks(targetAbsDir)
 
   console.log('\n✅ Repo hydration complete.')
 }
