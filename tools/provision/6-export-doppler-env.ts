@@ -6,13 +6,16 @@ async function main() {
     process.argv.find((arg) => arg.startsWith('--app-name='))?.split('=')[1] ||
     process.argv.find((arg) => arg.startsWith('--project='))?.split('=')[1]
   const config = process.argv.find((arg) => arg.startsWith('--config='))?.split('=')[1] || 'prd'
-  const dopplerToken = process.env.APP_DOPPLER_TOKEN || process.env.DOPPLER_TOKEN
+  const dopplerToken =
+    process.env.APP_DOPPLER_TOKEN || process.env.DOPPLER_API_TOKEN || process.env.DOPPLER_TOKEN
 
   if (!project) {
     throw new Error('--app-name or --project is required')
   }
   if (!dopplerToken) {
-    throw new Error('APP_DOPPLER_TOKEN or DOPPLER_TOKEN is required in environment')
+    throw new Error(
+      'APP_DOPPLER_TOKEN, DOPPLER_API_TOKEN, or DOPPLER_TOKEN is required in environment',
+    )
   }
 
   console.log(`Exporting Doppler secrets for ${project}/${config}...`)
