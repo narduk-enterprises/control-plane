@@ -109,6 +109,11 @@ jobs:
           token: ${{ secrets.GH_SERVICE_TOKEN }}
           path: template-source
 
+      - name: Checkout Control Plane
+        uses: actions/checkout@v4
+        with:
+          path: control-plane
+
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: template-source/package.json
@@ -117,9 +122,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Configure GitHub Packages auth for authoring workspace
-        working-directory: template-source
-        run: echo "//npm.pkg.github.com/:_authToken=${{ secrets.GH_PACKAGES_TOKEN }}" >> .npmrc
+      - name: Configure GitHub Packages auth
+        run: |
+          cat <<EOF >> "$HOME/.npmrc"
+          //npm.pkg.github.com/:_authToken=${{ secrets.GH_PACKAGES_TOKEN }}
+          EOF
 
       - name: Install authoring workspace dependencies
         working-directory: template-source
@@ -135,19 +142,9 @@ jobs:
           git init
           git remote add origin "https://x-access-token:${{ secrets.GH_SERVICE_TOKEN }}@github.com/${{ inputs.github-repo }}.git"
 
-      - name: Configure GitHub Packages auth for generated starter
-        working-directory: app-source
-        run: echo "//npm.pkg.github.com/:_authToken=${{ secrets.GH_PACKAGES_TOKEN }}" >> .npmrc
-
       - name: Install generated starter dependencies
         working-directory: app-source
         run: pnpm install --no-frozen-lockfile
-
-      - name: Fetch secrets from Doppler
-        uses: dopplerhq/secrets-fetch-action@v1.3.1
-        with:
-          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
-          inject-env-vars: true
 
       - name: Update provision status → initializing
         run: |
@@ -159,49 +156,110 @@ jobs:
             -d '{"status": "initializing"}' \
             || echo "⚠️ Status update failed (non-fatal)"
 
-      - name: Run init.ts directly
-        working-directory: app-source
+      - name: Install control-plane dependencies
+        working-directory: control-plane
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 0. Preflight Checks
+        working-directory: control-plane
         env:
-          PROVISION_ID: ${{ inputs.provision-id }}
+          CONTROL_PLANE_URL: ${{ secrets.CONTROL_PLANE_URL }}
+          PROVISION_API_KEY: ${{ secrets.PROVISION_API_KEY }}
+          GH_SERVICE_TOKEN: ${{ secrets.GH_SERVICE_TOKEN }}
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DOPPLER_API_TOKEN: ${{ secrets.DOPPLER_API_TOKEN }}
+          GSC_SERVICE_ACCOUNT_JSON: ${{ secrets.GSC_SERVICE_ACCOUNT_JSON }}
+          GA_ACCOUNT_ID: ${{ secrets.GA_ACCOUNT_ID }}
+        run: |
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "preflight", "message": "Executing preflight checks"}' || true
+          pnpm exec tsx tools/provision/0-preflight-check.ts
+
+      - name: 1. Create D1 Database
+        working-directory: control-plane
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ inputs.d1-database-id }}
-          D1_DATABASE_NAME: ${{ inputs.d1-database-name }}
+        run: |
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "d1", "message": "Creating D1 database"}' || true
+          pnpm exec tsx tools/provision/1-create-d1.ts \
+            --app-name="${{ inputs.app-name }}" \
+            --provision-id="${{ inputs.provision-id }}"
+
+      - name: 2. Create Doppler Project
+        working-directory: control-plane
+        env:
+          DOPPLER_API_TOKEN: ${{ secrets.DOPPLER_API_TOKEN }}
+          NUXT_PORT: ${{ inputs.nuxt-port }}
+        run: |
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "doppler", "message": "Creating Doppler project"}' || true
+          pnpm exec tsx tools/provision/2-create-doppler.ts \
+            --app-name="${{ inputs.app-name }}" \
+            --app-url="${{ inputs.app-url }}" \
+            --display-name="${{ inputs.display-name }}" \
+            --nuxt-port="${{ inputs.nuxt-port }}" \
+            --provision-id="${{ inputs.provision-id }}"
+
+      - name: 3. Set GitHub Secrets
+        working-directory: control-plane
+        env:
+          GH_SERVICE_TOKEN: ${{ secrets.GH_SERVICE_TOKEN }}
+          CONTROL_PLANE_GH_SERVICE_TOKEN: ${{ secrets.GH_SERVICE_TOKEN }}
+          APP_DOPPLER_TOKEN: ${{ env.APP_DOPPLER_TOKEN }}
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          CONTROL_PLANE_URL: ${{ secrets.CONTROL_PLANE_URL }}
+        run: |
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "github", "message": "Setting GitHub secrets"}' || true
+          pnpm exec tsx tools/provision/3-set-github-secrets.ts \
+            --app-name="${{ inputs.app-name }}" \
+            --github-repo="${{ inputs.github-repo }}" \
+            --provision-id="${{ inputs.provision-id }}"
+
+      - name: 4. Create Analytics
+        working-directory: control-plane
+        env:
           GA_PROPERTY_ID: ${{ inputs.ga-property-id }}
           GA_MEASUREMENT_ID: ${{ inputs.ga-measurement-id }}
           INDEXNOW_KEY: ${{ inputs.indexnow-key }}
-          NUXT_PORT: ${{ inputs.nuxt-port }}
-          DOPPLER_PRE_PROVISIONED: ${{ inputs.d1-database-id != '' && 'true' || '' }}
+          GSC_VERIFICATION_FILE: ${{ inputs.gsc-verification-file }}
+          GSC_VERIFICATION_CONTENT: ${{ inputs.gsc-verification-content }}
+          GSC_SERVICE_ACCOUNT_JSON: ${{ secrets.GSC_SERVICE_ACCOUNT_JSON }}
+          GA_ACCOUNT_ID: ${{ secrets.GA_ACCOUNT_ID }}
+          DOPPLER_API_TOKEN: ${{ secrets.DOPPLER_API_TOKEN }}
         run: |
-          pnpm exec tsx tools/init.ts \
-            --name="${{ inputs.app-name }}" \
-            --display="${{ inputs.display-name }}" \
-            --url="${{ inputs.app-url }}"
-          pnpm run skills:link
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "analytics", "message": "Provisioning analytics (GA4/GSC/IndexNow)"}' || true
+          pnpm exec tsx tools/provision/4-create-analytics.ts \
+            --app-name="${{ inputs.app-name }}" \
+            --app-url="${{ inputs.app-url }}" \
+            --provision-id="${{ inputs.provision-id }}"
 
-      - name: Write GSC verification file
-        if: inputs.gsc-verification-file != ''
-        working-directory: app-source
+      - name: 4.5 Export Doppler PRD env
+        working-directory: control-plane
+        env:
+          APP_DOPPLER_TOKEN: ${{ env.APP_DOPPLER_TOKEN }}
         run: |
-          mkdir -p apps/web/public
-          echo '${{ inputs.gsc-verification-content }}' > "apps/web/public/${{ inputs.gsc-verification-file }}"
-          NOEXT=$(echo "${{ inputs.gsc-verification-file }}" | sed 's/.html$//')
-          if [ "$NOEXT" != "${{ inputs.gsc-verification-file }}" ]; then
-            echo '${{ inputs.gsc-verification-content }}' > "apps/web/public/$NOEXT"
-          fi
-          echo "✅ GSC verification file written: ${{ inputs.gsc-verification-file }}"
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "doppler-env", "message": "Exporting Doppler production env for deploy"}' || true
+          pnpm exec tsx tools/provision/6-export-doppler-env.ts \
+            --app-name="${{ inputs.app-name }}" \
+            --config=prd
 
-      - name: Strip .npmrc auth token before commit
-        working-directory: app-source
-        run: sed -i '/_authToken/d' .npmrc
-
-      - name: Write doppler.yaml for provisioned repo
-        working-directory: app-source
+      - name: 5. Hydrate Repository
+        working-directory: control-plane
         run: |
-          printf 'setup:\n  project: %s\n  config: dev\n' '${{ inputs.app-name }}' > doppler.yaml
-          echo "✅ doppler.yaml written (project=${{ inputs.app-name }}, config=dev)"
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "hydrate", "message": "Hydrating repository from template"}' || true
+          pnpm exec tsx tools/provision/5-hydrate-repo.ts \
+            --app-name="${{ inputs.app-name }}" \
+            --display-name="${{ inputs.display-name }}" \
+            --app-url="${{ inputs.app-url }}" \
+            --target-dir="../app-source" \
+            --provision-id="${{ inputs.provision-id }}"
 
       - name: Commit and push
         working-directory: app-source
         run: |
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "git", "message": "Committing and pushing initial repository"}' || true
           git add -A
           git add -f doppler.yaml
           git config user.name "narduk-bot"
@@ -222,17 +280,18 @@ jobs:
 
       - name: Build and deploy
         working-directory: app-source/apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          curl -sf -X POST "${{ secrets.CONTROL_PLANE_URL }}/api/fleet/provision/${{ inputs.provision-id }}/log" -H "Authorization: Bearer ${{ secrets.PROVISION_API_KEY }}" -H "Content-Type: application/json" -d '{"level": "info", "step": "deploy", "message": "Building and deploying to Cloudflare Workers"}' || true
           pnpm build
           pnpm exec wrangler deploy
 
       - name: Verify GSC ownership (post-deploy)
-        if: inputs.gsc-verification-file != ''
+        if: env.GSC_VERIFICATION_FILE != ''
         working-directory: app-source
         continue-on-error: true
-        env:
-          DOPPLER_PROJECT: ${{ inputs.app-name }}
-          DOPPLER_CONFIG: prd
         run: |
           if [ -f "tools/gsc-verify.ts" ]; then
             pnpm exec tsx tools/gsc-verify.ts || echo "⚠️ GSC verification deferred — site may not be live yet"
@@ -249,7 +308,9 @@ jobs:
             -d "{
               \"status\": \"complete\",
               \"deployedUrl\": \"${{ inputs.app-url }}\",
-              \"githubRepo\": \"${{ inputs.github-repo }}\"
+              \"githubRepo\": \"${{ inputs.github-repo }}\",
+              \"gaPropertyId\": \"${{ env.GA_PROPERTY_ID }}\",
+              \"gaMeasurementId\": \"${{ env.GA_MEASUREMENT_ID }}\"
             }"
 
       - name: Report failure

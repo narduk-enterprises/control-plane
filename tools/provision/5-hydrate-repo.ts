@@ -1,0 +1,212 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+
+async function applyStarterPlaceholders(targetDir: string, req: Record<string, string>) {
+  const STARTER_PLACEHOLDER_FILES = [
+    'doppler.template.yaml',
+    'package.json',
+    'README.md',
+    'apps/web/package.json',
+    'apps/web/nuxt.config.ts',
+    'apps/web/wrangler.json',
+    'apps/web/public/site.webmanifest',
+  ]
+  const STARTER_REPLACEMENTS = [
+    { from: /__APP_NAME__/g, to: req.APP_NAME },
+    { from: /__DISPLAY_NAME__/g, to: req.DISPLAY_NAME },
+    { from: /__SITE_URL__/g, to: req.SITE_URL },
+    {
+      from: /__APP_DESCRIPTION__/g,
+      to: `${req.DISPLAY_NAME} — powered by Nuxt 4 and Cloudflare Workers.`,
+    },
+  ]
+
+  let changedFiles = 0
+  for (const relativePath of STARTER_PLACEHOLDER_FILES) {
+    const absolutePath = path.join(targetDir, relativePath)
+    try {
+      const original = await fs.readFile(absolutePath, 'utf-8')
+      let content = original
+      for (const replacement of STARTER_REPLACEMENTS) {
+        content = content.replace(replacement.from, replacement.to)
+      }
+      if (content !== original) {
+        await fs.writeFile(absolutePath, content, 'utf-8')
+        changedFiles++
+      }
+    } catch {
+      // file missing
+    }
+  }
+  console.log(`  ✅ Updated ${changedFiles} starter metadata file(s).`)
+}
+
+async function linkWrangler(targetDir: string, appName: string, siteUrl: string) {
+  const appsDir = path.join(targetDir, 'apps')
+  try {
+    const entries = await fs.readdir(appsDir, { withFileTypes: true })
+    const appDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).filter((name) => !name.startsWith('example-'))
+
+    for (const appDir of appDirs) {
+      const wranglerPath = path.join(appsDir, appDir, 'wrangler.json')
+      try {
+        const wranglerContent = await fs.readFile(wranglerPath, 'utf-8')
+        const parsedWrangler = JSON.parse(wranglerContent)
+
+        parsedWrangler.name = appDir === 'web' ? appName : `${appName}-${appDir}`
+
+        if (parsedWrangler.d1_databases && parsedWrangler.d1_databases.length > 0) {
+          if (process.env.D1_DATABASE_ID) {
+            parsedWrangler.d1_databases[0].database_id = process.env.D1_DATABASE_ID
+          }
+          delete parsedWrangler.d1_databases[0].preview_database_id
+        }
+
+        if (appDir === 'web') {
+          try {
+            const urlObj = new URL(siteUrl)
+            if (!urlObj.hostname.endsWith('.workers.dev')) {
+              if (!parsedWrangler.routes) parsedWrangler.routes = []
+              const existingRoute = parsedWrangler.routes.find((r: any) => r.pattern === urlObj.hostname)
+              if (!existingRoute) {
+                parsedWrangler.routes.push({ pattern: urlObj.hostname, custom_domain: true })
+              }
+            }
+          } catch (_e) { }
+        }
+
+        await fs.writeFile(wranglerPath, JSON.stringify(parsedWrangler, null, 2) + '\n', 'utf-8')
+        console.log(`  ✅ Updated apps/${appDir}/wrangler.json`)
+      } catch (e) { }
+    }
+  } catch (e) { }
+}
+
+async function scaffoldIndexVue(targetDir: string, displayName: string) {
+  const appIndexPath = path.join(targetDir, 'apps', 'web', 'app', 'pages', 'index.vue')
+  try {
+    const exists = await fs.stat(appIndexPath).then(() => true).catch(() => false)
+    if (exists) {
+      console.log('  ⏭ apps/web/app/pages/index.vue already exists — skipping scaffold.')
+      return
+    }
+
+    const lines = [
+      '<script setup lang="ts">',
+      '// ───────────────────────────────────────────────────────────────────────────',
+      `// HOME PAGE — ${displayName}`,
+      '// ───────────────────────────────────────────────────────────────────────────',
+      '// This file was scaffolded by provisioning pipeline.',
+      '// Replace everything below with your home page.',
+      '// ───────────────────────────────────────────────────────────────────────────',
+      '',
+      'useSeo({',
+      `  title: '${displayName}',`,
+      `  description: '${displayName} — built with Nuxt 4 and Cloudflare Workers.',`,
+      '  ogImage: {',
+      `    title: '${displayName}',`,
+      `    description: '${displayName}',`,
+      "    icon: '\uD83D\uDE80',",
+      '  },',
+      '})',
+      '',
+      'useWebPageSchema({',
+      `  name: '${displayName}',`,
+      `  description: '${displayName}',`,
+      '})',
+      '</script>',
+      '',
+      '<template>',
+      '  <UPage>',
+      '    <UPageHero',
+      `      title="${displayName}"`,
+      '      description="Your app is ready. Edit apps/web/app/pages/index.vue to build your home page."',
+      '    >',
+      '      <template #links>',
+      '        <UButton icon="i-lucide-pencil" to="/">Get Started</UButton>',
+      '      </template>',
+      '    </UPageHero>',
+      '  </UPage>',
+      '</template>',
+      '',
+    ]
+    await fs.mkdir(path.dirname(appIndexPath), { recursive: true })
+    await fs.writeFile(appIndexPath, lines.join('\n'), 'utf-8')
+    console.log('  ✅ Scaffolded apps/web/app/pages/index.vue')
+  } catch (e: any) {
+    console.warn(`  ⚠️ Could not scaffold home page: ${e.message}`)
+  }
+}
+
+async function main() {
+  const TARGET_DIR = process.argv.find((a) => a.startsWith('--target-dir='))?.split('=')[1]
+  const APP_NAME = process.argv.find((a) => a.startsWith('--app-name='))?.split('=')[1]
+  const DISPLAY_NAME = process.argv.find((a) => a.startsWith('--display-name='))?.split('=')[1]
+  const SITE_URL = process.argv.find((a) => a.startsWith('--app-url='))?.split('=')[1]
+
+  if (!TARGET_DIR || !APP_NAME || !DISPLAY_NAME || !SITE_URL) {
+    throw new Error('--target-dir, --app-name, --display-name, and --app-url are required')
+  }
+
+  const targetAbsDir = path.resolve(TARGET_DIR)
+  console.log(`\n💧 Hydrating repository in: ${targetAbsDir}`)
+
+  console.log(`\nStep 1: Applying placeholders...`)
+  await applyStarterPlaceholders(targetAbsDir, { APP_NAME, DISPLAY_NAME, SITE_URL })
+
+  console.log(`\nStep 2: Linking wrangler.json...`)
+  await linkWrangler(targetAbsDir, APP_NAME, SITE_URL)
+
+  console.log(`\nStep 3: Scaffolding local dev files...`)
+  const dopplerYamlPath = path.join(targetAbsDir, 'doppler.yaml')
+  await fs.writeFile(dopplerYamlPath, `setup:\n  project: ${APP_NAME}\n  config: dev\n`, 'utf-8')
+  
+  await scaffoldIndexVue(targetAbsDir, DISPLAY_NAME)
+
+  console.log(`\nStep 4: Writing setup sentinels...`)
+  await fs.writeFile(
+    path.join(targetAbsDir, '.setup-complete'),
+    `initialized=${new Date().toISOString()}\napp=${APP_NAME}\n`,
+    'utf-8',
+  )
+  await fs.writeFile(
+    path.join(targetAbsDir, '.template-version'),
+    `template=narduk-nuxt-template\nspawned=${new Date().toISOString()}\napp=${APP_NAME}\n`,
+    'utf-8',
+  )
+
+  console.log(`\nStep 5: Generating favicons...`)
+  // Assuming pnpm install was run in the caller workflow before this script execution, or is run inside the target repo before
+  try {
+    const webFaviconSvg = path.join(targetAbsDir, 'apps', 'web', 'public', 'favicon.svg')
+    if (await fs.stat(webFaviconSvg).then(() => true).catch(() => false)) {
+      spawnSync('pnpm', ['add', '-w', '--save-dev', 'sharp'], { cwd: targetAbsDir, stdio: 'inherit' })
+      spawnSync(
+        'pnpm',
+        [
+          'exec',
+          'tsx',
+          'tools/generate-favicons.ts',
+          `--target=apps/web/public`,
+          `--name=${DISPLAY_NAME}`,
+          `--short-name=${DISPLAY_NAME.slice(0, 12)}`,
+        ],
+        { cwd: targetAbsDir, stdio: 'inherit' }
+      )
+      console.log('  ✅ Favicon assets generated.')
+    }
+  } catch (e: any) {
+    console.warn(`  ⚠️ Favicon generation failed: ${e.message}`)
+  }
+
+  console.log(`\nStep 6: Setting git hooks...`)
+  spawnSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: targetAbsDir, stdio: 'inherit' })
+
+  console.log('\n✅ Repo hydration complete.')
+}
+
+main().catch((err) => {
+  console.error('❌ Repo hydration failed:', err)
+  process.exit(1)
+})

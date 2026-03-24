@@ -5,25 +5,7 @@ import { fleetApps, provisionJobs } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 import { definePublicMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { assertProvisionApiKey } from '#server/utils/provision-api-auth'
-import { createD1Database } from '#server/utils/provision-cloudflare'
-import {
-  createDopplerProject,
-  syncHubSecrets,
-  syncDevConfig,
-  createDopplerServiceToken,
-  getDopplerSecrets,
-  bulkSetSecrets,
-} from '#server/utils/provision-doppler'
-import { setRepoSecret, triggerWorkflow } from '#server/utils/provision-github'
-import {
-  parseServiceAccountJson,
-  getGoogleAccessToken,
-  createGA4Property,
-  createGA4DataStream,
-  registerGscSite,
-  getGscVerificationToken,
-  generateIndexNowKey,
-} from '#server/utils/provision-analytics'
+import { triggerWorkflow } from '#server/utils/provision-github'
 import { allocateFleetNuxtPort, buildLocalNuxtUrl } from '#server/utils/nuxt-port'
 
 const bodySchema = z.object({
@@ -43,21 +25,14 @@ const bodySchema = z.object({
 /**
  * POST /api/fleet/provision
  *
- * Authenticated endpoint to provision a new fleet app. Full server-side
- * infrastructure provisioning with idempotent operations:
+ * Authenticated endpoint to provision a new fleet app.
  *
  *   1. Upsert app in fleet_apps D1 (update if exists, insert if new)
- *   2. Create GitHub repo via REST API
- *   3. Create D1 database via Cloudflare API
- *   4. Create Doppler project + sync hub secrets (per-app secrets only set if missing)
- *   5. Delete-then-recreate Doppler CI service token → set as GitHub repo secret
- *   6. Create GA4 property + data stream
- *   7. Register GSC site + get verification token
- *   8. Reuse or generate IndexNow key
- *   9. Write analytics IDs back to Doppler
- *  10. Dispatch provision-app.yml with pre-provisioned IDs
+ *   2. Create bare GitHub repo
+ *   3. Dispatch provision-app.yml GitHub workflow
  *
- * All steps are idempotent — safe to retry on partial failure or re-provision.
+ * All heavier infrastructure provisioning is now done by granular micro-scripts
+ * running inside the provision-app.yml GitHub Actions workflow.
  */
 export default definePublicMutation(
   {
@@ -102,7 +77,6 @@ export default definePublicMutation(
     const localDevUrl = buildLocalNuxtUrl(nuxtPort)
 
     if (existing.length > 0) {
-      // App already registered — update fields that may have changed and continue
       await db
         .update(fleetApps)
         .set({
@@ -153,7 +127,7 @@ export default definePublicMutation(
       })
     }
 
-    // ── 3. Create GitHub repo ──
+    // ── 3. Create bare GitHub repo ──
     await updateStatus(provisionId, 'creating_repo')
 
     try {
@@ -189,251 +163,7 @@ export default definePublicMutation(
       })
     }
 
-    // ── 4. Create D1 database ──
-    await updateStatus(provisionId, 'provisioning_d1')
-
-    let d1DatabaseId = ''
-    const d1DatabaseName = `${name}-db`
-    try {
-      const cfAccountId = config.cloudflareAccountId
-      const cfToken = config.cloudflareApiToken
-      if (!cfAccountId || !cfToken) {
-        throw new Error('CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN not configured')
-      }
-
-      const d1Result = await createD1Database(cfAccountId, cfToken, d1DatabaseName)
-      d1DatabaseId = d1Result.uuid
-    } catch (err: unknown) {
-      const error = err as { message?: string }
-      await updateStatus(provisionId, 'failed', {
-        errorMessage: `D1 provisioning: ${error.message}`,
-      })
-      throw createError({ statusCode: 502, message: `D1 provisioning failed: ${error.message}` })
-    }
-
-    // ── 5. Doppler project + hub secrets ──
-    await updateStatus(provisionId, 'provisioning_doppler')
-
-    let dopplerServiceTokenValue = ''
-    try {
-      const dopplerToken = config.dopplerApiToken
-      if (!dopplerToken) {
-        throw new Error('DOPPLER_API_TOKEN not configured')
-      }
-
-      // Create project (idempotent)
-      await createDopplerProject(
-        dopplerToken,
-        name,
-        `${displayName} — auto-provisioned by Control Plane`,
-      )
-
-      // Generate random per-app secrets
-      const randomHex = (n: number) =>
-        Array.from(crypto.getRandomValues(new Uint8Array(n)))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')
-
-      const cronSecret = randomHex(32)
-      const sessionPassword = randomHex(32)
-
-      // Sync hub secrets as cross-project references + set per-app secrets
-      await syncHubSecrets(
-        dopplerToken,
-        'narduk-nuxt-template', // hub project
-        'prd', // hub config
-        name, // spoke project
-        'prd', // spoke config
-        {
-          APP_NAME: name,
-          SITE_URL: url,
-          CRON_SECRET: cronSecret,
-          NUXT_SESSION_PASSWORD: sessionPassword,
-        },
-      )
-
-      // Populate dev config so local development works immediately
-      await syncDevConfig(
-        dopplerToken,
-        'narduk-nuxt-template', // hub project
-        'prd', // hub config
-        name, // spoke project
-        {
-          APP_NAME: name,
-          CRON_SECRET: cronSecret,
-          NUXT_SESSION_PASSWORD: sessionPassword,
-          NUXT_PORT: String(nuxtPort),
-        },
-        { siteUrl: localDevUrl },
-      )
-
-      // Create CI service token
-      dopplerServiceTokenValue = await createDopplerServiceToken(
-        dopplerToken,
-        name,
-        'prd',
-        'ci-deploy',
-      )
-    } catch (err: unknown) {
-      const error = err as { message?: string }
-      await updateStatus(provisionId, 'failed', {
-        errorMessage: `Doppler provisioning: ${error.message}`,
-      })
-      throw createError({
-        statusCode: 502,
-        message: `Doppler provisioning failed: ${error.message}`,
-      })
-    }
-
-    // ── 6. Set GitHub repo secrets for CI ──
-    // The new app's CI workflows (reusable-quality.yml, reusable-deploy.yml) need:
-    //   - DOPPLER_TOKEN: fetch secrets at build time
-    //   - GH_PACKAGES_TOKEN: authenticate with GitHub Packages for @narduk-enterprises/* deps
-    //   - CONTROL_PLANE_URL: deploy callback to fleet registry
-    try {
-      const secretsToSet: Array<{ name: string; value: string | null }> = [
-        { name: 'DOPPLER_TOKEN', value: dopplerServiceTokenValue },
-      ]
-
-      // GH_PACKAGES_TOKEN: try 0_global-canonical-tokens first, then hub project
-      const dopplerToken = config.dopplerApiToken
-      if (dopplerToken) {
-        try {
-          // Primary: global canonical tokens (where GH PATs typically live)
-          let ghPackagesToken = ''
-          try {
-            const globalSecrets = await getDopplerSecrets(
-              dopplerToken,
-              '0_global-canonical-tokens',
-              'prd',
-            )
-            ghPackagesToken = globalSecrets.GH_PACKAGES_TOKEN || ''
-          } catch {
-            // Fallback: try hub project
-            const hubSecrets = await getDopplerSecrets(dopplerToken, 'narduk-nuxt-template', 'prd')
-            ghPackagesToken = hubSecrets.GH_PACKAGES_TOKEN || ''
-          }
-          if (ghPackagesToken) {
-            secretsToSet.push({ name: 'GH_PACKAGES_TOKEN', value: ghPackagesToken })
-          } else {
-            console.warn(
-              'GH_PACKAGES_TOKEN not found in Doppler — new repo CI may need manual setup',
-            )
-          }
-        } catch {
-          console.warn(
-            'Could not read GH_PACKAGES_TOKEN from Doppler — new repo CI may need manual setup',
-          )
-        }
-      }
-
-      // CONTROL_PLANE_URL: derive from runtime or use canonical
-      const controlPlaneUrl = config.public.appUrl || 'https://control-plane.nard.uk'
-      secretsToSet.push({ name: 'CONTROL_PLANE_URL', value: controlPlaneUrl })
-
-      // Set all secrets
-      for (const secret of secretsToSet) {
-        if (secret.value) {
-          await setRepoSecret(ghToken, githubRepo, secret.name, secret.value)
-        }
-      }
-    } catch (err: unknown) {
-      const error = err as { message?: string }
-      await updateStatus(provisionId, 'failed', {
-        errorMessage: `GitHub secrets: ${error.message}`,
-      })
-      throw createError({
-        statusCode: 502,
-        message: `GitHub secrets set failed: ${error.message}`,
-      })
-    }
-
-    // ── 7-9. Analytics provisioning ──
-    await updateStatus(provisionId, 'provisioning_analytics')
-
-    let gaPropertyId = ''
-    let gaMeasurementId = ''
-    let gscVerificationFileName = ''
-    let gscVerificationContent = ''
-    let indexNowKey = ''
-
-    try {
-      const serviceAccountJson = config.googleServiceAccountKey
-      const gaAccountId = config.gaAccountId
-
-      if (serviceAccountJson && gaAccountId) {
-        const credentials = parseServiceAccountJson(serviceAccountJson)
-
-        // 7a. GA4 property + data stream
-        const gaAccessToken = await getGoogleAccessToken(credentials, [
-          'https://www.googleapis.com/auth/analytics.edit',
-        ])
-
-        const property = await createGA4Property(gaAccessToken, gaAccountId, name, url)
-        gaPropertyId = property.propertyId
-
-        const stream = await createGA4DataStream(gaAccessToken, property.propertyName, name, url)
-        gaMeasurementId = stream.measurementId
-
-        // 7b. GSC registration + verification token
-        const gscAccessToken = await getGoogleAccessToken(credentials, [
-          'https://www.googleapis.com/auth/webmasters',
-          'https://www.googleapis.com/auth/siteverification',
-        ])
-
-        await registerGscSite(gscAccessToken, url)
-
-        const verification = await getGscVerificationToken(gscAccessToken, url)
-        gscVerificationFileName = verification.fileName
-        gscVerificationContent = verification.fileContent
-      }
-
-      // 8. IndexNow key (idempotent: reuse existing if already in Doppler)
-      const dopplerToken2 = config.dopplerApiToken
-      if (dopplerToken2) {
-        try {
-          const existingSecrets = await getDopplerSecrets(dopplerToken2, name, 'prd')
-          if (existingSecrets.INDEXNOW_KEY) {
-            indexNowKey = existingSecrets.INDEXNOW_KEY
-          }
-        } catch {
-          // Fresh project — generate new key below
-        }
-      }
-      if (!indexNowKey) {
-        indexNowKey = generateIndexNowKey()
-      }
-
-      // 9. Write analytics IDs back to Doppler
-      if (dopplerToken2 && (gaPropertyId || indexNowKey)) {
-        const analyticsSecrets: Record<string, string> = {}
-        if (gaPropertyId) analyticsSecrets.GA_PROPERTY_ID = gaPropertyId
-        if (gaMeasurementId) analyticsSecrets.GA_MEASUREMENT_ID = gaMeasurementId
-        if (indexNowKey) analyticsSecrets.INDEXNOW_KEY = indexNowKey
-        await bulkSetSecrets(dopplerToken2, name, 'prd', analyticsSecrets)
-        // Also write analytics IDs to dev so local dev has them
-        await bulkSetSecrets(dopplerToken2, name, 'dev', analyticsSecrets)
-      }
-
-      // Update fleet_apps with provisioned analytics IDs
-      if (gaPropertyId || gaMeasurementId) {
-        await db
-          .update(fleetApps)
-          .set({
-            ...(gaPropertyId ? { gaPropertyId } : {}),
-            ...(gaMeasurementId ? { gaMeasurementId } : {}),
-            updatedAt: new Date().toISOString(),
-          })
-          .where(eq(fleetApps.name, name))
-        await invalidateFleetAppListCache(event)
-      }
-    } catch (err: unknown) {
-      // Analytics failures are non-fatal — log but continue
-      const error = err as { message?: string }
-      console.warn(`Analytics provisioning warning: ${error.message}`)
-    }
-
-    // ── 10. Dispatch local provision-app.yml ──
+    // ── 4. Dispatch GitHub Action ──
     await updateStatus(provisionId, 'dispatching')
 
     const workflowRepo = 'narduk-enterprises/control-plane'
@@ -446,17 +176,7 @@ export default definePublicMutation(
         'github-repo': githubRepo,
         'provision-id': provisionId,
         'nuxt-port': String(nuxtPort),
-        // Pre-provisioned IDs — init.ts can skip these steps
-        'd1-database-id': d1DatabaseId,
-        'd1-database-name': d1DatabaseName,
-        'ga-property-id': gaPropertyId,
-        'ga-measurement-id': gaMeasurementId,
-        'gsc-verification-file': gscVerificationFileName,
-        'gsc-verification-content': gscVerificationContent,
-        'indexnow-key': indexNowKey,
       })
-
-      await updateStatus(provisionId, 'provisioning')
     } catch (err: unknown) {
       const error = err as { message?: string }
       await updateStatus(provisionId, 'failed', {
@@ -473,16 +193,11 @@ export default definePublicMutation(
       provisionId,
       app: name,
       githubRepo,
-      status: 'provisioning',
+      status: 'dispatching',
       infrastructure: {
         nuxtPort,
-        d1DatabaseId,
-        d1DatabaseName,
-        gaPropertyId: gaPropertyId || null,
-        gaMeasurementId: gaMeasurementId || null,
-        indexNowKey: indexNowKey || null,
       },
-      message: `App '${name}' registered and provisioning started. Local dev will use ${localDevUrl}. Poll GET /api/fleet/provision/${provisionId} for status.`,
+      message: `App '${name}' registered and workflow dispatched. Local dev will use ${localDevUrl}. Poll GET /api/fleet/provision/${provisionId} for status.`,
     }
   },
 )

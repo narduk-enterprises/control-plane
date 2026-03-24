@@ -11,9 +11,19 @@ useWebPageSchema({
   description: 'Provision a new fleet app.',
 })
 
-const { jobs, activeJobs, refreshJobs, isProvisioning, provisionApp } = useFleetProvision()
+const { jobs, activeJobs, refreshJobs, isProvisioning, provisionApp, retryJob } = useFleetProvision()
 
 const toast = useToast()
+
+const expandedJobs = ref(new Set<string>())
+function toggleJob(id: string) {
+  if (expandedJobs.value.has(id)) {
+    expandedJobs.value.delete(id)
+  } else {
+    expandedJobs.value.add(id)
+  }
+}
+
 
 // ── Form state ──
 const form = reactive({
@@ -54,11 +64,7 @@ async function onProvision() {
 const statusSteps = [
   'pending',
   'creating_repo',
-  'provisioning_d1',
-  'provisioning_doppler',
-  'provisioning_analytics',
   'dispatching',
-  'provisioning',
   'cloning',
   'initializing',
   'deploying',
@@ -69,11 +75,7 @@ function statusLabel(status: string): string {
   const labels: Record<string, string> = {
     pending: 'Pending',
     creating_repo: 'Creating Repo',
-    provisioning_d1: 'Creating D1',
-    provisioning_doppler: 'Setting up Doppler',
-    provisioning_analytics: 'Analytics',
-    dispatching: 'Dispatching',
-    provisioning: 'Provisioning',
+    dispatching: 'Dispatching Workflow',
     cloning: 'Cloning Template',
     initializing: 'Running Setup',
     deploying: 'Deploying',
@@ -300,81 +302,127 @@ const breadcrumbItems = computed(() => [
         <div
           v-for="job in jobs"
           :key="job.id"
-          class="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+          class="flex flex-col border-b border-default last:border-0"
         >
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <h3 class="font-medium text-default truncate">{{ job.displayName }}</h3>
-              <UBadge :color="statusColor(job.status)" variant="subtle" size="xs">
-                {{ statusLabel(job.status) }}
-              </UBadge>
+          <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 class="font-medium text-default truncate">{{ job.displayName }}</h3>
+                <UBadge :color="statusColor(job.status)" variant="subtle" size="xs">
+                  {{ statusLabel(job.status) }}
+                </UBadge>
+              </div>
+              <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                <span>{{ job.appName }}</span>
+                <span v-if="job.nuxtPort">localhost:{{ job.nuxtPort }}</span>
+                <span v-if="job.githubRepo" class="flex items-center gap-1">
+                  <UIcon name="i-lucide-github" class="size-3" />
+                  {{ job.githubRepo }}
+                </span>
+                <ClientOnly>
+                  <span>{{ formatTime(job.createdAt) }}</span>
+                  <template #fallback><span class="opacity-0">loading</span></template>
+                </ClientOnly>
+              </div>
+              <p v-if="job.errorMessage" class="mt-1 text-xs text-error">
+                {{ job.errorMessage }}
+              </p>
             </div>
-            <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
-              <span>{{ job.appName }}</span>
-              <span v-if="job.nuxtPort">localhost:{{ job.nuxtPort }}</span>
-              <span v-if="job.githubRepo" class="flex items-center gap-1">
-                <UIcon name="i-lucide-github" class="size-3" />
-                {{ job.githubRepo }}
-              </span>
-              <ClientOnly>
-                <span>{{ formatTime(job.createdAt) }}</span>
-                <template #fallback><span class="opacity-0">loading</span></template>
-              </ClientOnly>
-            </div>
-            <p v-if="job.errorMessage" class="mt-1 text-xs text-error">
-              {{ job.errorMessage }}
-            </p>
-          </div>
-          <div class="flex items-center gap-1 shrink-0">
-            <template v-if="job.status === 'complete'">
-              <UTooltip text="Copy clone command">
+            <div class="flex items-center gap-1 shrink-0">
+              <template v-if="job.status === 'complete'">
+                <UTooltip text="Copy clone command">
+                  <UButton
+                    icon="i-lucide-terminal"
+                    size="xs"
+                    variant="soft"
+                    color="neutral"
+                    class="cursor-pointer"
+                    @click="copyCloneCommand(job)"
+                  />
+                </UTooltip>
+                <UTooltip text="Copy build prompt for agent">
+                  <UButton
+                    icon="i-lucide-copy"
+                    size="xs"
+                    variant="soft"
+                    color="primary"
+                    class="cursor-pointer"
+                    @click="copyBuildCommand(job)"
+                  >
+                    Copy Build Prompt
+                  </UButton>
+                </UTooltip>
+                <UTooltip v-if="job.deployedUrl" text="Open deployed app">
+                  <UButton
+                    :to="job.deployedUrl || job.appUrl"
+                    target="_blank"
+                    icon="i-lucide-external-link"
+                    size="xs"
+                    variant="ghost"
+                    color="neutral"
+                    class="cursor-pointer"
+                  />
+                </UTooltip>
+              </template>
+              <template v-if="job.status === 'failed'">
+                <UTooltip text="Retry Job">
+                  <UButton
+                    icon="i-lucide-refresh-cw"
+                    size="xs"
+                    variant="soft"
+                    color="warning"
+                    class="cursor-pointer"
+                    :loading="isProvisioning"
+                    @click="retryJob(job.id)"
+                  >
+                    Retry
+                  </UButton>
+                </UTooltip>
+                <UTooltip text="View in GitHub Actions">
+                  <UButton
+                    v-if="job.githubRepo"
+                    :to="`https://github.com/${job.githubRepo}/actions`"
+                    target="_blank"
+                    icon="i-lucide-external-link"
+                    size="xs"
+                    variant="ghost"
+                    color="neutral"
+                    class="cursor-pointer"
+                  />
+                </UTooltip>
+              </template>
+              <UTooltip :text="expandedJobs.has(job.id) ? 'Collapse logs' : 'View logs'">
                 <UButton
-                  icon="i-lucide-terminal"
-                  size="xs"
-                  variant="soft"
-                  color="neutral"
-                  class="cursor-pointer"
-                  @click="copyCloneCommand(job)"
-                />
-              </UTooltip>
-              <UTooltip text="Copy build prompt for agent">
-                <UButton
-                  icon="i-lucide-copy"
-                  size="xs"
-                  variant="soft"
-                  color="primary"
-                  class="cursor-pointer"
-                  @click="copyBuildCommand(job)"
-                >
-                  Copy Build Prompt
-                </UButton>
-              </UTooltip>
-            </template>
-            <template v-if="job.status === 'failed'">
-              <UTooltip text="View in GitHub Actions">
-                <UButton
-                  v-if="job.githubRepo"
-                  :to="`https://github.com/${job.githubRepo}/actions`"
-                  target="_blank"
-                  icon="i-lucide-external-link"
+                  :icon="expandedJobs.has(job.id) ? 'i-lucide-chevron-up' : 'i-lucide-log-out'"
                   size="xs"
                   variant="ghost"
                   color="neutral"
                   class="cursor-pointer"
+                  @click="toggleJob(job.id)"
                 />
               </UTooltip>
-            </template>
-            <UTooltip v-if="job.status === 'complete' && job.deployedUrl" text="Open deployed app">
-              <UButton
-                :to="job.deployedUrl || job.appUrl"
-                target="_blank"
-                icon="i-lucide-external-link"
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                class="cursor-pointer"
-              />
-            </UTooltip>
+            </div>
+          </div>
+          
+          <!-- Logs Expansion -->
+          <div v-if="expandedJobs.has(job.id)">
+            <div v-if="job.logs?.length" class="bg-elevated p-3 rounded-md mx-3 mb-4 mt-1 text-xs font-mono max-h-64 overflow-y-auto">
+              <div v-for="log in job.logs" :key="log.id" class="flex items-start gap-2 py-1 border-b border-default last:border-0">
+                <span class="text-muted shrink-0 w-16">{{ new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}</span>
+                <span
+                  :class="{
+                    'text-error': log.level === 'error',
+                    'text-success': log.level === 'success',
+                    'text-info': log.level === 'info',
+                  }"
+                >[{{ log.level.toUpperCase() }}]</span>
+                <span v-if="log.step" class="text-primary">[{{ log.step }}]</span>
+                <span class="text-default whitespace-pre-wrap">{{ log.message }}</span>
+              </div>
+            </div>
+            <div v-else class="bg-elevated p-3 rounded-md mx-3 mb-4 mt-1 text-xs font-mono text-muted">
+              No logs available for this job.
+            </div>
           </div>
         </div>
       </div>

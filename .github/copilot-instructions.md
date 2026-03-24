@@ -4,9 +4,12 @@ Read `AGENTS.md` at the project root for full project rules and conventions.
 
 ## User skills (`~/.skills`)
 
-`pnpm run skills:link` and `pnpm run sync-template` symlink `.cursor/skills`,
-`.codex/skills`, `.agent/skills`, and `.github/skills` directly to `~/.skills`
-for Cursor, Codex, GitHub Copilot, and Google Antigravity. When a task fits a
+`pnpm run skills:link` (or Git `post-checkout`/`post-merge` hooks) syncs
+a physical copy of `~/.skills/` into `.agents/skills/` (the canonical source of truth).
+It then relatively symlinks `.cursor/skills`, `.codex/skills`, `.claude/skills`,
+and `.github/skills` to `.agents/skills/`. This perfectly guarantees all AI agents
+(Cursor, Codex, GitHub Copilot, and Google Antigravity) use exactly the same
+knowledge without duplicating files or breaking remote Git traversal. When a task fits a
 packaged skill there, read its `SKILL.md` and any referenced assets from that
 tree before improvising.
 

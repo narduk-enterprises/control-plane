@@ -84,7 +84,7 @@ export const provisionJobs = sqliteTable('provision_jobs', {
   appUrl: text('app_url').notNull(),
   githubRepo: text('github_repo').notNull(),
   nuxtPort: integer('nuxt_port'),
-  status: text('status').notNull().default('pending'), // pending → cloning → initializing → deploying → complete | failed
+  status: text('status').notNull().default('pending'), // pending → creating_repo → dispatching → cloning → initializing → deploying → complete | failed
   deployedUrl: text('deployed_url'),
   gaPropertyId: text('ga_property_id'),
   errorMessage: text('error_message'),
@@ -96,6 +96,22 @@ export const provisionJobs = sqliteTable('provision_jobs', {
     .$defaultFn(() => new Date().toISOString()),
 })
 
+// ─── Provision Job Logs ──────────────────────────────────────
+// Detailed log events from the provisioning pipeline
+export const provisionJobLogs = sqliteTable('provision_job_logs', {
+  id: text('id').primaryKey(),
+  provisionId: text('provision_id')
+    .notNull()
+    .references(() => provisionJobs.id, { onDelete: 'cascade' }),
+  level: text('level').notNull().default('info'), // 'info', 'error', 'success'
+  message: text('message').notNull(),
+  step: text('step'),
+  createdAt: text('created_at')
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+})
+
+
 // ─── Type helpers ───────────────────────────────────────────
 export type FleetApp = typeof fleetApps.$inferSelect
 export type NewFleetApp = typeof fleetApps.$inferInsert
@@ -105,6 +121,8 @@ export type KvCache = typeof kvCache.$inferSelect
 export type NewKvCache = typeof kvCache.$inferInsert
 export type ProvisionJob = typeof provisionJobs.$inferSelect
 export type NewProvisionJob = typeof provisionJobs.$inferInsert
+export type ProvisionJobLog = typeof provisionJobLogs.$inferSelect
+export type NewProvisionJobLog = typeof provisionJobLogs.$inferInsert
 export type IndexnowPingLog = typeof indexnowPingLog.$inferSelect
 export type NewIndexnowPingLog = typeof indexnowPingLog.$inferInsert
 export type GscSitemapSubmitLog = typeof gscSitemapSubmitLog.$inferSelect

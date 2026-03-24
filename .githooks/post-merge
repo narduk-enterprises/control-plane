@@ -1,0 +1,24 @@
+#!/bin/sh
+# --- START SKILLS SYNC ---
+# Sync global skills into local .agents/skills physical directory
+mkdir -p .agents
+if [ -L .agents/skills ]; then
+  rm -f .agents/skills
+fi
+if [ -f .agents/skills ]; then
+  rm -f .agents/skills
+fi
+mkdir -p .agents/skills
+rsync -a --delete "$HOME/.skills/" .agents/skills/
+
+# Ensure relative symlinks exist for other agents
+mkdir -p .cursor .github .codex .claude
+for root in .cursor .github .codex .claude; do
+  if [ -L "$root/skills" ]; then
+    rm -f "$root/skills"
+  elif [ -d "$root/skills" ]; then
+    rm -rf "$root/skills"
+  fi
+  (cd "$root" && ln -s ../.agents/skills skills)
+done
+# --- END SKILLS SYNC ---

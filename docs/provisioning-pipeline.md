@@ -1,0 +1,171 @@
+# Provisioning Pipeline
+
+End-to-end flow from browser form submission to a live deployed app.
+
+## Pipeline Overview
+
+```mermaid
+sequenceDiagram
+    actor User as Developer / Browser
+    participant UI as provision.vue
+    participant Proxy as POST /provision-ui
+    participant API as POST /provision
+    participant D1 as Fleet D1 Database
+    participant GH as GitHub API
+    participant GHA as GitHub Actions
+
+    User->>UI: Fill form (name, displayName, url)
+    UI->>Proxy: POST /api/fleet/provision-ui (session auth)
+    Proxy->>API: POST /api/fleet/provision (API key auth)
+
+    Note over API,D1: Phase A — Control Plane (Edge)
+
+    API->>D1: Upsert fleet_apps + allocateFleetNuxtPort()
+    API->>D1: Insert provision_jobs (status: pending)
+    API->>GH: POST /orgs/{org}/repos (create bare repo)
+    API->>D1: Update status → creating_repo
+    API->>D1: Update status → dispatching
+    API->>GHA: workflow_dispatch provision-app.yml
+    API-->>Proxy: 200 { provisionId, nuxtPort }
+    Proxy-->>UI: Forward response
+    UI->>UI: Start 5s polling via useFleetProvision
+
+    Note over GHA: Phase B — GitHub Actions Runner
+
+    GHA->>API: POST /provision/{id}/status → cloning
+    GHA->>GHA: Checkout narduk-nuxt-template
+    GHA->>GHA: pnpm export:starter → app-source/
+    GHA->>GHA: pnpm install (starter)
+
+    GHA->>API: POST /provision/{id}/status → initializing
+    GHA->>API: POST /provision/{id}/log (preflight)
+    GHA->>GHA: 0-preflight-check.ts (validate 9 env vars)
+
+    GHA->>API: POST /provision/{id}/log (d1)
+    GHA->>GHA: 1-create-d1.ts → Cloudflare D1 database
+
+    GHA->>API: POST /provision/{id}/log (doppler)
+    GHA->>GHA: 2-create-doppler.ts → Doppler project + secrets
+
+    GHA->>API: POST /provision/{id}/log (github)
+    GHA->>GHA: 3-set-github-secrets.ts → DOPPLER_TOKEN etc.
+
+    GHA->>API: POST /provision/{id}/log (analytics)
+    GHA->>GHA: 4-create-analytics.ts → GA4 + GSC + IndexNow
+
+    GHA->>API: POST /provision/{id}/log (hydrate)
+    GHA->>GHA: 5-hydrate-repo.ts → placeholders + wrangler + favicon
+
+    GHA->>GH: git commit + push to new repo
+    GHA->>API: POST /provision/{id}/status → deploying
+    GHA->>GHA: pnpm build + wrangler deploy
+
+    alt Success
+        GHA->>API: POST /provision/{id}/complete (status: complete)
+    else Failure
+        GHA->>API: POST /provision/{id}/complete (status: failed)
+    end
+
+    UI->>UI: Poll detects terminal status, stop polling
+```
+
+## Provisioning Steps Detail
+
+```mermaid
+flowchart TD
+    START([POST /api/fleet/provision]) --> VALIDATE[Validate body with Zod]
+    VALIDATE --> AUTH[assertProvisionApiKey]
+    AUTH --> UPSERT["Upsert fleet_apps\nallocateFleetNuxtPort(3200-6199)"]
+    UPSERT --> JOB["Insert provision_jobs\nstatus: pending"]
+    JOB --> TOKEN{GH token\nconfigured?}
+    TOKEN -- no --> FAIL_TOKEN[status: failed\nMissing token]
+    TOKEN -- yes --> REPO["Create GitHub repo\nPOST /orgs/{org}/repos"]
+    REPO -- "status 422\n(exists)" --> DISPATCH
+    REPO -- ok --> DISPATCH
+    REPO -- error --> FAIL_REPO["status: failed\nRepo creation error"]
+    DISPATCH["Dispatch provision-app.yml\nvia workflow_dispatch"] --> OK["Return 200\nprovisionId + nuxtPort"]
+    DISPATCH -- error --> FAIL_DISPATCH["status: failed\nWorkflow dispatch error"]
+
+    style FAIL_TOKEN fill:#922,color:#fff
+    style FAIL_REPO fill:#922,color:#fff
+    style FAIL_DISPATCH fill:#922,color:#fff
+    style OK fill:#1a6b35,color:#fff
+```
+
+## GitHub Actions Pipeline Steps
+
+```mermaid
+flowchart LR
+    P["0. Preflight\n9 env vars"] --> D1["1. Create D1\nCloudflare API"]
+    D1 --> DOP["2. Doppler\nProject + Secrets"]
+    DOP --> GHS["3. GitHub Secrets\nDOPPLER_TOKEN\nGH_PACKAGES_TOKEN"]
+    GHS --> ANA["4. Analytics\nGA4 + GSC + IndexNow\n(non-fatal)"]
+    ANA --> HYD["5. Hydrate Repo\nPlaceholders\nWrangler\nFavicons"]
+    HYD --> GIT["git commit\n+ push"]
+    GIT --> BUILD["pnpm build\nwrangler deploy"]
+    BUILD --> CB{Success?}
+    CB -- yes --> COMPLETE["POST /complete\nstatus: complete"]
+    CB -- no --> FAILED["POST /complete\nstatus: failed"]
+
+    style COMPLETE fill:#1a6b35,color:#fff
+    style FAILED fill:#922,color:#fff
+```
+
+## Status Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Job created
+    pending --> creating_repo: Control Plane
+    creating_repo --> dispatching: Repo created
+    dispatching --> provisioning: Workflow dispatched
+
+    provisioning --> cloning: GHA callback
+    cloning --> initializing: GHA callback
+    initializing --> deploying: GHA callback
+
+    deploying --> complete: GHA /complete
+    deploying --> failed: GHA /complete
+
+    creating_repo --> failed: Error
+    dispatching --> failed: Error
+
+    failed --> pending: Retry (admin)
+
+    state complete {
+        [*] --> [*]: Terminal
+    }
+    state failed {
+        [*] --> [*]: Terminal (retryable)
+    }
+```
+
+## Secret Flow
+
+```mermaid
+graph TB
+    HUB["Hub Project\nnarduk-nuxt-template / prd\nCLOUDFLARE_API_TOKEN\nCLOUDFLARE_ACCOUNT_ID\nPOSTHOG / GA / GSC keys"]
+
+    PRD["Spoke PRD\napp-name / prd\nAPP_NAME, SITE_URL\nCRON_SECRET\nNUXT_SESSION_PASSWORD\nGA_PROPERTY_ID\nGA_MEASUREMENT_ID\nINDEXNOW_KEY"]
+
+    DEV["Spoke DEV\napp-name / dev\nSITE_URL = localhost:PORT\nNUXT_PORT = allocated\nCRON_SECRET\nNUXT_SESSION_PASSWORD"]
+
+    GHSEC["GitHub Repo Secrets\norg/app-name\nDOPPLER_TOKEN\nGH_PACKAGES_TOKEN\nCONTROL_PLANE_URL"]
+
+    HUB -->|"syncHubSecrets()"| PRD
+    HUB -->|"syncDevConfig()"| DEV
+    PRD -->|"createDopplerServiceToken()"| GHSEC
+```
+
+## Callback API Routes
+
+```mermaid
+flowchart LR
+    GHA[GitHub Actions] -->|"Bearer PROVISION_API_KEY"| STATUS["POST /provision/{id}/status\nUpdate status field"]
+    GHA -->|"Bearer PROVISION_API_KEY"| LOG["POST /provision/{id}/log\nInsert structured log"]
+    GHA -->|"Bearer PROVISION_API_KEY"| COMPLETE["POST /provision/{id}/complete\nSet final status + metadata"]
+
+    ADMIN[Admin Browser] -->|"Session auth"| RETRY["POST /provision/{id}/retry\nRe-dispatch workflow"]
+    ADMIN -->|"Session auth"| JOBS["GET /provision-ui/jobs\nList jobs with logs"]
+    ADMIN -->|"Session auth"| PROV["POST /provision-ui\nProxy to provision API"]
+```

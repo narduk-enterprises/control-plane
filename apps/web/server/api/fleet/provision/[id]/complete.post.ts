@@ -1,16 +1,28 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { createError, getRouterParam } from 'h3'
-import { provisionJobs } from '#server/database/schema'
+import { fleetApps, provisionJobs } from '#server/database/schema'
+import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 import { definePublicMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { assertProvisionApiKey } from '#server/utils/provision-api-auth'
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().optional(),
+)
+
+const optionalUrlString = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().url().optional(),
+)
+
 const bodySchema = z.object({
   status: z.enum(['complete', 'failed']),
-  deployedUrl: z.string().url().optional(),
-  githubRepo: z.string().optional(),
-  gaPropertyId: z.string().optional(),
-  errorMessage: z.string().optional(),
+  deployedUrl: optionalUrlString,
+  githubRepo: optionalNonEmptyString,
+  gaPropertyId: optionalNonEmptyString,
+  gaMeasurementId: optionalNonEmptyString,
+  errorMessage: optionalNonEmptyString,
 })
 
 /**
@@ -43,21 +55,65 @@ export default definePublicMutation(
       .limit(1)
       .all()
 
-    if (existing.length === 0) {
+    const [job] = existing
+    if (!job) {
       throw createError({ statusCode: 404, message: `Provision job '${id}' not found.` })
     }
 
     const now = new Date().toISOString()
-    await db
-      .update(provisionJobs)
-      .set({
-        status: body.status,
-        deployedUrl: body.deployedUrl ?? null,
-        gaPropertyId: body.gaPropertyId ?? null,
-        errorMessage: body.errorMessage ?? null,
+    const jobUpdates: {
+      status: 'complete' | 'failed'
+      updatedAt: string
+      deployedUrl?: string | null
+      gaPropertyId?: string | null
+      errorMessage?: string | null
+    } = {
+      status: body.status,
+      updatedAt: now,
+    }
+
+    if (body.deployedUrl !== undefined) {
+      jobUpdates.deployedUrl = body.deployedUrl
+    }
+    if (body.gaPropertyId !== undefined) {
+      jobUpdates.gaPropertyId = body.gaPropertyId
+    }
+    if (body.status === 'complete') {
+      jobUpdates.errorMessage = null
+    } else if (body.errorMessage !== undefined) {
+      jobUpdates.errorMessage = body.errorMessage
+    }
+
+    await db.update(provisionJobs).set(jobUpdates).where(eq(provisionJobs.id, id))
+
+    if (body.status === 'complete') {
+      const fleetUpdates: {
+        updatedAt: string
+        url?: string
+        githubRepo?: string
+        gaPropertyId?: string | null
+        gaMeasurementId?: string | null
+      } = {
         updatedAt: now,
-      })
-      .where(eq(provisionJobs.id, id))
+      }
+
+      if (body.deployedUrl) {
+        fleetUpdates.url = body.deployedUrl
+      }
+      if (body.githubRepo) {
+        fleetUpdates.githubRepo = body.githubRepo
+      }
+      if (body.gaPropertyId !== undefined) {
+        fleetUpdates.gaPropertyId = body.gaPropertyId
+      }
+      if (body.gaMeasurementId !== undefined) {
+        fleetUpdates.gaMeasurementId = body.gaMeasurementId
+      }
+
+      await db.update(fleetApps).set(fleetUpdates).where(eq(fleetApps.name, job.appName))
+
+      await invalidateFleetAppListCache(event)
+    }
 
     return {
       ok: true,

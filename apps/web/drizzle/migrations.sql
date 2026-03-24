@@ -127,5 +127,17 @@ CREATE TABLE IF NOT EXISTS `gsc_sitemap_submit_log` (
 
 CREATE INDEX IF NOT EXISTS idx_gsc_sitemap_submit_log_submitted_at ON gsc_sitemap_submit_log(submitted_at);
 
+CREATE TABLE IF NOT EXISTS `provision_job_logs` (
+  `id` text PRIMARY KEY NOT NULL,
+  `provision_id` text NOT NULL REFERENCES `provision_jobs`(`id`) ON DELETE CASCADE,
+  `level` text NOT NULL DEFAULT 'info',
+  `message` text NOT NULL,
+  `step` text,
+  `created_at` text NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_provision_job_logs_provision_id ON provision_job_logs(provision_id);
+CREATE INDEX IF NOT EXISTS idx_provision_job_logs_created_at ON provision_job_logs(created_at);
+
 ALTER TABLE fleet_apps ADD COLUMN nuxt_port INTEGER;
 ALTER TABLE provision_jobs ADD COLUMN nuxt_port INTEGER;

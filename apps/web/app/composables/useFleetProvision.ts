@@ -3,6 +3,15 @@
  * polling active provision jobs for live status updates.
  */
 
+export interface ProvisionJobLog {
+  id: string
+  provisionId: string
+  level: string
+  message: string
+  step?: string | null
+  createdAt: string
+}
+
 export interface ProvisionJob {
   id: string
   appName: string
@@ -16,6 +25,7 @@ export interface ProvisionJob {
   errorMessage?: string | null
   createdAt: string
   updatedAt: string
+  logs?: ProvisionJobLog[]
 }
 
 const TERMINAL_STATUSES = new Set(['complete', 'failed'])
@@ -112,6 +122,33 @@ export function useFleetProvision() {
     }
   }
 
+  async function retryJob(id: string) {
+    isProvisioning.value = true
+    try {
+      await $fetch(`/api/fleet/provision/${id}/retry`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
+      toast.add({
+        title: 'Retry started',
+        description: `Provision job ${id} is being retried.`,
+        color: 'success',
+      })
+      await refreshJobs()
+      startPolling()
+    } catch (err) {
+      const error = err as { data?: { message?: string }; message?: string }
+      toast.add({
+        title: 'Retry failed',
+        description: error.data?.message || error.message || 'Failed to retry job',
+        color: 'error',
+      })
+      throw err
+    } finally {
+      isProvisioning.value = false
+    }
+  }
+
   return {
     jobs,
     activeJobs,
@@ -121,5 +158,6 @@ export function useFleetProvision() {
     refreshJobs,
     isProvisioning,
     provisionApp,
+    retryJob,
   }
 }
