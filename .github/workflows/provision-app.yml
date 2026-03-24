@@ -409,9 +409,24 @@ jobs:
             echo
             git diff --name-status --cached FETCH_HEAD -- || true
             echo "::endgroup::"
-            echo "::error::Remote main already exists and differs from the generated tree. Refusing to rewrite an existing provisioned repository."
-            bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Remote main already exists and differs from generated tree; refusing to overwrite existing history' '{level:"error",step:$s,message:$m}')"
-            exit 1
+            echo "Remote main already exists and differs from the generated tree. Preserving remote history and deploying the existing remote main instead."
+            bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Remote main differs from regenerated output; preserving existing history and deploying remote main unchanged' '{level:"info",step:$s,message:$m}')"
+
+            cd ..
+            rm -rf app-source
+            git clone --depth=1 --branch main "$remote_url" app-source
+
+            echo "::group::Existing remote deployment workspace"
+            cd app-source
+            pwd
+            git log -1 --oneline
+            ls -la
+            ls -la apps || true
+            ls -la apps/web || true
+            echo "::endgroup::"
+
+            pnpm install --no-frozen-lockfile
+            exit 0
           fi
           git commit -m "chore: initialize ${{ inputs.app-name }} from narduk-nuxt-template"
           git branch -M main
