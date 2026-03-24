@@ -34,6 +34,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('❌ GitHub Secrets Provisional failed:', err)
+  console.error('❌ GitHub Secrets Provisioning failed:', err)
   process.exit(1)
 })

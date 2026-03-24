@@ -2,6 +2,8 @@ import { eq } from 'drizzle-orm'
 import { createError, getRouterParam } from 'h3'
 import { provisionJobs, provisionJobLogs } from '#server/database/schema'
 import { defineAdminMutation } from '#layer/server/utils/mutation'
+import { triggerWorkflow } from '#server/utils/provision-github'
+import { dispatchInputsForRetry } from '#server/utils/provision-workflow-dispatch'
 
 /**
  * POST /api/fleet/provision/[id]/retry
@@ -49,28 +51,12 @@ export default defineAdminMutation(
     }
 
     try {
-      await $fetch(
-        `https://api.github.com/repos/narduk-enterprises/control-plane/actions/workflows/provision-app.yml/dispatches`,
-        {
-          method: 'POST',
-          headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${ghToken}`,
-            'X-GitHub-Api-Version': '2022-11-28',
-          },
-          body: {
-            ref: 'main',
-            inputs: {
-              'app-name': job.appName,
-              'display-name': job.displayName,
-              'app-url': job.appUrl,
-              'github-repo': job.githubRepo,
-              'provision-id': job.id,
-              'nuxt-port': job.nuxtPort?.toString() || '',
-              'ga-property-id': job.gaPropertyId || '',
-            },
-          },
-        },
+      const workflowInputs = dispatchInputsForRetry(job)
+      await triggerWorkflow(
+        ghToken,
+        'narduk-enterprises/control-plane',
+        'provision-app.yml',
+        workflowInputs,
       )
 
       await db.insert(provisionJobLogs).values({
@@ -81,11 +67,13 @@ export default defineAdminMutation(
         message: 'Retry triggered by user via control plane',
       })
 
+      const now = new Date().toISOString()
       await db
         .update(provisionJobs)
         .set({
           status: 'pending',
           errorMessage: null,
+          updatedAt: now,
         })
         .where(eq(provisionJobs.id, job.id))
 

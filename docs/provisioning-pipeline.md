@@ -2,6 +2,8 @@
 
 End-to-end flow from browser form submission to a live deployed app.
 
+**Single supported path:** New fleet apps are created only via the **control plane** (`POST /api/fleet/provision` or the admin UI), which dispatches **`narduk-enterprises/control-plane`** `.github/workflows/provision-app.yml`. The read-only template repo **does not** ship a `provision-app.yml` workflow and **does not** run `tools/init.ts` (removed). `tools/provision/*.ts` plus `5-hydrate-repo.ts` perform setup on the runner; the hydrate step writes `.setup-complete`.
+
 ## Pipeline Overview
 
 ```mermaid
@@ -43,6 +45,7 @@ sequenceDiagram
 
     GHA->>API: POST /provision/{id}/log (d1)
     GHA->>GHA: 1-create-d1.ts → Cloudflare D1 database
+    GHA->>API: POST /provision/{id}/dispatch-context (merge D1 ids for retries)
 
     GHA->>API: POST /provision/{id}/log (doppler)
     GHA->>GHA: 2-create-doppler.ts → Doppler project + secrets
@@ -52,9 +55,10 @@ sequenceDiagram
 
     GHA->>API: POST /provision/{id}/log (analytics)
     GHA->>GHA: 4-create-analytics.ts → GA4 + GSC + IndexNow
+    GHA->>API: POST /provision/{id}/dispatch-context (merge GA/GSC/IndexNow for retries)
 
     GHA->>API: POST /provision/{id}/log (hydrate)
-    GHA->>GHA: 5-hydrate-repo.ts → placeholders + wrangler + favicon
+    GHA->>GHA: 5-hydrate-repo.ts → placeholders + wrangler + GSC verify HTML + favicon
 
     GHA->>GH: git commit + push to new repo
     GHA->>API: POST /provision/{id}/status → deploying
@@ -80,13 +84,14 @@ flowchart TD
     JOB --> TOKEN{GH token\nconfigured?}
     TOKEN -- no --> FAIL_TOKEN[status: failed\nMissing token]
     TOKEN -- yes --> REPO["Create GitHub repo\nPOST /orgs/{org}/repos"]
-    REPO -- "status 422\n(exists)" --> DISPATCH
+    REPO -- "422 exists" --> FAIL_422["status: failed\n409 — Retry skips repo create"]
     REPO -- ok --> DISPATCH
     REPO -- error --> FAIL_REPO["status: failed\nRepo creation error"]
     DISPATCH["Dispatch provision-app.yml\nvia workflow_dispatch"] --> OK["Return 200\nprovisionId + nuxtPort"]
     DISPATCH -- error --> FAIL_DISPATCH["status: failed\nWorkflow dispatch error"]
 
     style FAIL_TOKEN fill:#922,color:#fff
+    style FAIL_422 fill:#922,color:#fff
     style FAIL_REPO fill:#922,color:#fff
     style FAIL_DISPATCH fill:#922,color:#fff
     style OK fill:#1a6b35,color:#fff
@@ -94,13 +99,15 @@ flowchart TD
 
 ## GitHub Actions Pipeline Steps
 
+The workflow checks out this repo first so `scripts/provision-cp-callback.sh` is available. **Status** and **log** calls use that script in `best-effort` mode (HTTP failures emit `::warning::` in the job log). **Complete** (success or failure) uses `strict` mode so the step fails if the control plane does not return 200/201 — avoiding silent “green” runs with a stuck job in D1. Payloads for `complete` are built with `jq`.
+
 ```mermaid
 flowchart LR
     P["0. Preflight\n9 env vars"] --> D1["1. Create D1\nCloudflare API"]
     D1 --> DOP["2. Doppler\nProject + Secrets"]
     DOP --> GHS["3. GitHub Secrets\nDOPPLER_TOKEN\nGH_PACKAGES_TOKEN"]
     GHS --> ANA["4. Analytics\nGA4 + GSC + IndexNow\n(non-fatal)"]
-    ANA --> HYD["5. Hydrate Repo\nPlaceholders\nWrangler\nFavicons"]
+    ANA --> HYD["5. Hydrate Repo\nPlaceholders\nWrangler\nGSC verify HTML\nFavicons"]
     HYD --> GIT["git commit\n+ push"]
     GIT --> BUILD["pnpm build\nwrangler deploy"]
     BUILD --> CB{Success?}

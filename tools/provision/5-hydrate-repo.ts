@@ -83,6 +83,37 @@ async function linkWrangler(targetDir: string, appName: string, siteUrl: string)
   } catch (e) { }
 }
 
+/**
+ * Write GSC HTML file verification token into `apps/web/public/` so the first
+ * deploy serves it at `/{filename}`. Values come from `GITHUB_ENV` after
+ * `4-create-analytics.ts` runs in CI.
+ */
+async function writeGscVerificationHtml(targetDir: string): Promise<void> {
+  const rawName = process.env.GSC_VERIFICATION_FILE?.trim()
+  const content = process.env.GSC_VERIFICATION_CONTENT
+  if (!rawName || content === undefined || content === '') {
+    return
+  }
+
+  const base = path.basename(rawName)
+  if (base !== rawName) {
+    console.warn('  ⚠️ GSC_VERIFICATION_FILE was not a plain filename; using basename only.')
+  }
+  if (
+    base.length > 128 ||
+    !/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.html$/i.test(base)
+  ) {
+    console.warn(`  ⚠️ Skipping GSC verification file: invalid or unsafe filename (${base})`)
+    return
+  }
+
+  const publicDir = path.join(targetDir, 'apps', 'web', 'public')
+  await fs.mkdir(publicDir, { recursive: true })
+  const outPath = path.join(publicDir, base)
+  await fs.writeFile(outPath, content, 'utf-8')
+  console.log(`  ✅ Wrote GSC HTML verification file apps/web/public/${base}`)
+}
+
 async function scaffoldIndexVue(targetDir: string, displayName: string) {
   const appIndexPath = path.join(targetDir, 'apps', 'web', 'app', 'pages', 'index.vue')
   try {
@@ -157,6 +188,9 @@ async function main() {
 
   console.log(`\nStep 2: Linking wrangler.json...`)
   await linkWrangler(targetAbsDir, APP_NAME, SITE_URL)
+
+  console.log(`\nStep 2b: GSC HTML verification (if GITHUB_ENV from analytics)...`)
+  await writeGscVerificationHtml(targetAbsDir)
 
   console.log(`\nStep 3: Scaffolding local dev files...`)
   const dopplerYamlPath = path.join(targetAbsDir, 'doppler.yaml')

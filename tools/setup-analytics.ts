@@ -116,7 +116,7 @@ function readDopplerYaml(): { project: string; config: string } | null {
 /**
  * Persist a setup-generated secret. Prefer Doppler (doppler secrets set); otherwise print instructions.
  *
- * @param configOverride — When called from init.ts (via `doppler run --config prd`), pass 'prd'
+ * @param configOverride — When called with `doppler run --config prd`, pass 'prd'
  *   to ensure secrets land in the production config rather than the dev config from doppler.yaml.
  *   Falls back to doppler.yaml if no override is provided.
  */

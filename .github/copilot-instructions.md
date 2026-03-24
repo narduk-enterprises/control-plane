@@ -2,16 +2,16 @@
 
 Read `AGENTS.md` at the project root for full project rules and conventions.
 
-## User skills (`~/.skills`)
+## Repo skills
 
-`pnpm run skills:link` (or Git `post-checkout`/`post-merge` hooks) syncs
-a physical copy of `~/.skills/` into `.agents/skills/` (the canonical source of truth).
-It then relatively symlinks `.cursor/skills`, `.codex/skills`, `.claude/skills`,
-and `.github/skills` to `.agents/skills/`. This perfectly guarantees all AI agents
-(Cursor, Codex, GitHub Copilot, and Google Antigravity) use exactly the same
-knowledge without duplicating files or breaking remote Git traversal. When a task fits a
-packaged skill there, read its `SKILL.md` and any referenced assets from that
-tree before improvising.
+Repo-local canonical skills live in `.agents/skills/`. The agent entry points
+`.agent/skills`, `.cursor/skills`, `.codex/skills`, `.claude/skills`, and
+`.github/skills` are tracked relative symlinks back to that directory, so
+Antigravity, Cursor, Codex, Claude-compatible tooling, and GitHub Copilot all
+read the same vendored skill payload from the repository checkout.
+
+`pnpm run skills:link` only repairs those repo-local symlinks if they drift. It
+does not pull from `~/.skills`.
 
 ### Installing new skills
 

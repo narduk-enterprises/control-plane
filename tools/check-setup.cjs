@@ -1,11 +1,9 @@
 /**
  * check-setup.js — Bootstrap Guard
  * ─────────────────────────────────
- * Runs as a `pre*` hook before dev/build/deploy to ensure `pnpm run setup`
- * has been completed. If the `.setup-complete` sentinel is missing, the
- * script prints instructions and exits with code 1.
- *
- * The sentinel file is written by init.ts at the end of a successful setup.
+ * Runs as a `pre*` hook before dev/build/deploy to ensure a `.setup-complete`
+ * sentinel exists (written by the control-plane provisioning pipeline’s hydrate
+ * step for new apps, or committed for authoring monorepos).
  */
 const fs = require('node:fs')
 const path = require('node:path')
@@ -18,24 +16,19 @@ if (!fs.existsSync(SENTINEL)) {
   console.error('┌──────────────────────────────────────────────────────────────┐')
   console.error('│  🚨  PROJECT SETUP NOT COMPLETE                             │')
   console.error('│                                                              │')
-  console.error('│  This app must be provisioned before dev/build.              │')
+  console.error('│  New fleet apps are provisioned only through the control     │')
+  console.error('│  plane (GitHub Action hydrates the repo and writes            │')
+  console.error('│  .setup-complete). There is no local init.ts.                │')
   console.error('│                                                              │')
-  console.error('│  RECOMMENDED: Use the control plane provision API:           │')
+  console.error('│  PROVISION (API):                                            │')
   console.error('│    POST https://control-plane.nard.uk/api/fleet/provision    │')
+  console.error('│    Authorization: Bearer $PROVISION_API_KEY                  │')
   console.error('│                                                              │')
-  console.error('│  MANUAL SETUP:                                               │')
+  console.error('│  AUTHORING (template / control-plane monorepo):              │')
+  console.error('│    This clone should include a tracked .setup-complete.      │')
+  console.error('│    If you removed it, restore from git or re-clone.          │')
   console.error('│                                                              │')
-  console.error('│  1. Install dependencies:                                    │')
-  console.error('│     pnpm install                                             │')
-  console.error('│                                                              │')
-  console.error('│  2. Run the setup script:                                    │')
-  console.error('│     pnpm run setup -- --name="app" --display="App" \\         │')
-  console.error('│       --url="https://app.com"                                │')
-  console.error('│                                                              │')
-  console.error('│  3. If you are still on the authoring workspace, export a    │')
-  console.error('│     starter first: pnpm run export:starter -- ../my-app      │')
-  console.error('│                                                              │')
-  console.error('│  See AGENTS.md and README.md for full setup details.        │')
+  console.error('│  See docs/provisioning-pipeline.md and AGENTS.md.             │')
   console.error('└──────────────────────────────────────────────────────────────┘')
   console.error()
   process.exit(1)

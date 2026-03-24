@@ -19,6 +19,7 @@ export interface ProvisionJob {
   appUrl: string
   githubRepo: string
   nuxtPort?: number | null
+  appDescription?: string | null
   status: string
   deployedUrl?: string | null
   gaPropertyId?: string | null
@@ -86,14 +87,14 @@ export function useFleetProvision() {
   // ── Provision ──
   const isProvisioning = ref(false)
 
-  async function provisionApp(name: string, displayName: string, url: string) {
+  async function provisionApp(name: string, displayName: string, url: string, description?: string) {
     isProvisioning.value = true
     try {
       const result = await $fetch<{ ok: boolean; provisionId: string; app: string }>(
         '/api/fleet/provision-ui',
         {
           method: 'POST',
-          body: { name, displayName, url },
+          body: { name, displayName, url, description },
           headers: { 'X-Requested-With': 'XMLHttpRequest' },
         },
       )
@@ -116,6 +117,7 @@ export function useFleetProvision() {
         description: error.data?.message || error.message || 'Failed to start provisioning',
         color: 'error',
       })
+      await refreshJobs()
       throw err
     } finally {
       isProvisioning.value = false

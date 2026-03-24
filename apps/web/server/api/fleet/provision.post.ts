@@ -7,6 +7,7 @@ import { definePublicMutation, readValidatedMutationBody } from '#layer/server/u
 import { assertProvisionApiKey } from '#server/utils/provision-api-auth'
 import { triggerWorkflow } from '#server/utils/provision-github'
 import { allocateFleetNuxtPort, buildLocalNuxtUrl } from '#server/utils/nuxt-port'
+import { buildProvisionWorkflowDispatchInputs } from '#server/utils/provision-workflow-dispatch'
 
 const bodySchema = z.object({
   name: z
@@ -17,8 +18,16 @@ const bodySchema = z.object({
       /^[a-z0-9][a-z0-9-]*$/,
       'Must be lowercase alphanumeric with hyphens, starting with a letter or number',
     ),
-  displayName: z.string().min(1).max(200),
+  displayName: z
+    .string()
+    .min(1)
+    .max(200)
+    .regex(
+      /^[a-zA-Z0-9 \-'.&]+$/,
+      'Display name may only contain letters, numbers, spaces, hyphens, apostrophes, periods, and ampersands',
+    ),
   url: z.string().url(),
+  description: z.string().max(1000).optional(),
   githubOrg: z.string().min(1).optional().default('narduk-enterprises'),
 })
 
@@ -43,7 +52,7 @@ export default definePublicMutation(
     },
   },
   async ({ event, body }) => {
-    const { name, displayName, url, githubOrg } = body
+    const { name, displayName, url, description, githubOrg } = body
     const githubRepo = `${githubOrg}/${name}`
     const now = new Date().toISOString()
     const config = useRuntimeConfig(event)
@@ -83,6 +92,7 @@ export default definePublicMutation(
           url,
           githubRepo,
           nuxtPort,
+          appDescription: description ?? null,
           isActive: true,
           updatedAt: now,
         })
@@ -94,6 +104,7 @@ export default definePublicMutation(
         dopplerProject: name,
         githubRepo,
         nuxtPort,
+        appDescription: description ?? null,
         isActive: true,
         createdAt: now,
         updatedAt: now,
@@ -104,6 +115,16 @@ export default definePublicMutation(
     // ── 2. Create provision job ──
     const provisionId = `prov_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
+    const dispatchInputs = buildProvisionWorkflowDispatchInputs({
+      appName: name,
+      displayName,
+      appUrl: url,
+      githubRepo,
+      provisionId,
+      nuxtPort: String(nuxtPort),
+      appDescription: description,
+    })
+
     await db.insert(provisionJobs).values({
       id: provisionId,
       appName: name,
@@ -112,6 +133,7 @@ export default definePublicMutation(
       githubRepo,
       nuxtPort,
       status: 'pending',
+      dispatchInputsJson: JSON.stringify(dispatchInputs),
       createdAt: now,
       updatedAt: now,
     })
@@ -148,11 +170,24 @@ export default definePublicMutation(
         }),
       })
 
-      if (!repoRes.ok && repoRes.status !== 422) {
+      if (!repoRes.ok) {
         const errText = await repoRes.text().catch(() => '')
+        if (repoRes.status === 422) {
+          await updateStatus(provisionId, 'failed', {
+            errorMessage:
+              'GitHub repository already exists. Use Retry on this job to run the workflow (no second repo create), or choose a different app name / delete the empty repo.',
+          })
+          throw createError({
+            statusCode: 409,
+            message:
+              'Repository already exists. The job is marked failed; open Fleet provisioning and use Retry if that repo should receive the template, or pick another name.',
+          })
+        }
         throw new Error(`GitHub repo creation failed: ${repoRes.status} ${errText}`)
       }
     } catch (err: unknown) {
+      const h3 = err as { statusCode?: number }
+      if (h3.statusCode === 409) throw err
       const error = err as { message?: string }
       await updateStatus(provisionId, 'failed', {
         errorMessage: `Repo creation: ${error.message}`,
@@ -169,14 +204,7 @@ export default definePublicMutation(
     const workflowRepo = 'narduk-enterprises/control-plane'
 
     try {
-      await triggerWorkflow(ghToken, workflowRepo, 'provision-app.yml', {
-        'app-name': name,
-        'display-name': displayName,
-        'app-url': url,
-        'github-repo': githubRepo,
-        'provision-id': provisionId,
-        'nuxt-port': String(nuxtPort),
-      })
+      await triggerWorkflow(ghToken, workflowRepo, 'provision-app.yml', dispatchInputs)
     } catch (err: unknown) {
       const error = err as { message?: string }
       await updateStatus(provisionId, 'failed', {

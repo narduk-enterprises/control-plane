@@ -12,6 +12,7 @@ const bodySchema = z.object({
     ),
   displayName: z.string().min(1).max(200),
   url: z.string().url(),
+  description: z.string().max(1000).optional(),
 })
 
 /**

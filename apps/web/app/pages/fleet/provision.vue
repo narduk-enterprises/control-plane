@@ -30,6 +30,7 @@ const form = reactive({
   name: '',
   displayName: '',
   url: '',
+  description: '',
 })
 
 // Auto-derive URL from name
@@ -53,10 +54,16 @@ const formValid = computed(() => form.name && nameValid.value && form.displayNam
 
 async function onProvision() {
   if (!formValid.value) return
-  await provisionApp(form.name, form.displayName, form.url)
+  // Sanitize description: strip HTML, keep safe chars (architect review fix #7)
+  const sanitized = form.description
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^a-zA-Z0-9 .,!?;:'"()\-\n]/g, '')
+    .trim()
+  await provisionApp(form.name, form.displayName, form.url, sanitized || undefined)
   form.name = ''
   form.displayName = ''
   form.url = ''
+  form.description = ''
   urlDerived.value = true
 }
 
@@ -213,6 +220,17 @@ const breadcrumbItems = computed(() => [
             placeholder="https://my-cool-app.nard.uk"
             class="w-full"
             @input="onUrlInput"
+          />
+        </UFormField>
+      </div>
+      <div class="mt-4">
+        <UFormField label="App Description" hint="Optional — AI generates a custom theme, layout, icon, and logo from this">
+          <UTextarea
+            v-model="form.description"
+            placeholder="A recipe sharing app for home cooks. Features recipe search, meal planning, and grocery lists. Warm, inviting, food-centric design."
+            class="w-full"
+            :rows="3"
+            :maxlength="1000"
           />
         </UFormField>
       </div>
@@ -393,7 +411,7 @@ const breadcrumbItems = computed(() => [
               </template>
               <UTooltip :text="expandedJobs.has(job.id) ? 'Collapse logs' : 'View logs'">
                 <UButton
-                  :icon="expandedJobs.has(job.id) ? 'i-lucide-chevron-up' : 'i-lucide-log-out'"
+                  :icon="expandedJobs.has(job.id) ? 'i-lucide-chevron-up' : 'i-lucide-scroll-text'"
                   size="xs"
                   variant="ghost"
                   color="neutral"

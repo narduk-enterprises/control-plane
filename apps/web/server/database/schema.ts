@@ -3,9 +3,7 @@
  * Re-exports the layer's base tables and adds control-plane–specific tables.
  */
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
-
 export * from '#layer/server/database/schema'
-
 // ─── Fleet Apps Registry ────────────────────────────────────
 // Public app registry used by status/audit/analytics APIs. Seeded from the
 // managed-repo catalog in server/data/managed-repos.ts.
@@ -18,6 +16,7 @@ export const fleetApps = sqliteTable('fleet_apps', {
   gaMeasurementId: text('ga_measurement_id'),
   posthogAppName: text('posthog_app_name'),
   githubRepo: text('github_repo'),
+  appDescription: text('app_description'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at')
     .notNull()
@@ -87,6 +86,8 @@ export const provisionJobs = sqliteTable('provision_jobs', {
   status: text('status').notNull().default('pending'), // pending → creating_repo → dispatching → cloning → initializing → deploying → complete | failed
   deployedUrl: text('deployed_url'),
   gaPropertyId: text('ga_property_id'),
+  /** Last workflow_dispatch inputs (JSON) for full parity on retry */
+  dispatchInputsJson: text('dispatch_inputs_json'),
   errorMessage: text('error_message'),
   createdAt: text('created_at')
     .notNull()

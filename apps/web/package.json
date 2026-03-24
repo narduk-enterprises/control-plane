@@ -20,6 +20,7 @@
     "lint": "eslint . --max-warnings 0",
     "test:hydration": "node scripts/hydration-smoke.mjs",
     "test:integration": "vitest run --config vitest.config.ts",
+    "test:unit": "vitest run tests/unit --config vitest.config.ts",
     "quality": "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
     "db:reset": "bash ../../tools/db-migrate.sh control-plane-db --local --dir node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle --dir drizzle --reset && pnpm run db:seed",
     "db:ready": "pnpm run db:migrate && pnpm run db:seed",

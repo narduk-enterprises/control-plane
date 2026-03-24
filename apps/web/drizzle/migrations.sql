@@ -141,3 +141,5 @@ CREATE INDEX IF NOT EXISTS idx_provision_job_logs_created_at ON provision_job_lo
 
 ALTER TABLE fleet_apps ADD COLUMN nuxt_port INTEGER;
 ALTER TABLE provision_jobs ADD COLUMN nuxt_port INTEGER;
+
+ALTER TABLE provision_jobs ADD COLUMN dispatch_inputs_json text;

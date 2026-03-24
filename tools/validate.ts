@@ -16,7 +16,7 @@ import { runCommand } from './command'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 
-// Construct the template name from parts so init.ts string replacement can never corrupt it.
+// Construct the template name from parts so string replacement can never corrupt it.
 const TEMPLATE_NAME = ['narduk', 'nuxt', 'template'].join('-')
 
 // --- Helper Functions ---
@@ -43,7 +43,7 @@ async function main() {
 
   let allGood = true
   if (!APP_NAME || APP_NAME.includes(TEMPLATE_NAME)) {
-    console.error(`  ❌ Project name is still '${APP_NAME}'. Has init been run?`)
+    console.error(`  ❌ Project name is still '${APP_NAME}'. Has the project been provisioned or renamed?`)
     allGood = false
   }
 
@@ -398,7 +398,7 @@ async function main() {
     console.log('🎉 All infrastructure checks passed successfully! Your project is ready.')
   } else {
     console.error(
-      '⚠️ Some checks failed. Please review the errors above and fix the issues, or rerun init.',
+      '⚠️ Some checks failed. Please review the errors above and fix the issues, or re-run provisioning / fix config.',
     )
     process.exit(1)
   }

@@ -2,6 +2,9 @@
  * Doppler project + secrets provisioning via REST API.
  * All operations are idempotent — safe to call multiple times.
  *
+ * Uses Config Inheritance to share hub secrets with spoke projects,
+ * eliminating the need for cross-project reference strings.
+ *
  * Requires a Doppler Workplace-level API token (dp.ct.* or dp.pt.*)
  * stored in 0_global-canonical-tokens and hub-ref'd into control-plane.
  */
@@ -52,8 +55,6 @@ export async function createDopplerProject(
 
 /**
  * Bulk set secrets on a Doppler project/config. Overwrites existing values.
- * Supports both plain values and cross-project reference syntax
- * (e.g. `${narduk-nuxt-template.prd.KEY}`).
  */
 export async function bulkSetSecrets(
   apiToken: string,
@@ -76,6 +77,40 @@ export async function bulkSetSecrets(
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`Doppler secrets set failed: ${res.status} ${text}`)
+  }
+}
+
+/**
+ * Delete specific secrets from a Doppler project/config.
+ * Used during migration to remove old cross-project reference strings.
+ */
+export async function deleteSecrets(
+  apiToken: string,
+  project: string,
+  config: string,
+  keys: string[],
+): Promise<void> {
+  if (keys.length === 0) return
+
+  // Doppler's bulk set with empty string doesn't delete — use the delete endpoint
+  const secrets: Record<string, null> = {}
+  for (const key of keys) {
+    secrets[key] = null
+  }
+
+  const res = await fetch(`${DOPPLER_API_BASE}/configs/config/secrets`, {
+    method: 'POST',
+    headers: dopplerHeaders(apiToken),
+    body: JSON.stringify({
+      project,
+      config,
+      secrets,
+    }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Doppler secrets delete failed: ${res.status} ${text}`)
   }
 }
 
@@ -155,35 +190,72 @@ export async function createDopplerServiceToken(
   return data.token.key
 }
 
-/** Hub keys that should use cross-project references (matching init.ts hub ref list). */
-const HUB_KEYS_TO_SYNC = [
-  'CLOUDFLARE_API_TOKEN',
-  'CLOUDFLARE_ACCOUNT_ID',
-  'CONTROL_PLANE_API_KEY',
-  'GITHUB_TOKEN_PACKAGES_READ',
-  'POSTHOG_PUBLIC_KEY',
-  'POSTHOG_PROJECT_ID',
-  'POSTHOG_HOST',
-  'POSTHOG_PERSONAL_API_KEY',
-  'GA_ACCOUNT_ID',
-  'GSC_SERVICE_ACCOUNT_JSON',
-  'GSC_USER_EMAIL',
-  'APPLE_KEY_ID',
-  'APPLE_SECRET_KEY',
-  'APPLE_TEAM_ID',
-  'CSP_SCRIPT_SRC',
-  'CSP_CONNECT_SRC',
-]
+// ─── Config Inheritance API ─────────────────────────────────────────────────
 
 /**
- * Sync hub secrets to a spoke project using **cross-project references**.
- * Instead of copying resolved values, writes Doppler cross-project reference
- * syntax (`${hub.config.KEY}`) so spoke secrets stay in sync automatically
- * when hub values rotate.
+ * Mark a config as inheritable so other configs can inherit from it.
+ * Idempotent: safe to call multiple times.
  *
- * Hub secrets: always synced as cross-project references (overwritten).
- * Per-app secrets: APP_NAME/SITE_URL are always synced; secret values are only
- * set if missing so retries do not rotate them unexpectedly.
+ * POST /v3/configs/config/inheritable
+ */
+export async function setConfigInheritable(
+  apiToken: string,
+  project: string,
+  config: string,
+  inheritable: boolean = true,
+): Promise<void> {
+  const res = await fetch(`${DOPPLER_API_BASE}/configs/config/inheritable`, {
+    method: 'POST',
+    headers: dopplerHeaders(apiToken),
+    body: JSON.stringify({ project, config, inheritable }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(
+      `Failed to set config ${project}/${config} inheritable=${inheritable}: ${res.status} ${text}`,
+    )
+  }
+}
+
+/**
+ * Set config inheritance: child config will inherit ALL secrets from parent configs.
+ * Replaces any existing inheritance configuration (PUT semantics).
+ *
+ * POST /v3/configs/config/inherits
+ */
+export async function setConfigInherits(
+  apiToken: string,
+  childProject: string,
+  childConfig: string,
+  parentConfigs: Array<{ project: string; config: string }>,
+): Promise<void> {
+  const res = await fetch(`${DOPPLER_API_BASE}/configs/config/inherits`, {
+    method: 'POST',
+    headers: dopplerHeaders(apiToken),
+    body: JSON.stringify({
+      project: childProject,
+      config: childConfig,
+      inherits: parentConfigs,
+    }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(
+      `Failed to set inheritance for ${childProject}/${childConfig}: ${res.status} ${text}`,
+    )
+  }
+}
+
+/**
+ * Sync hub secrets to a spoke project using **Config Inheritance**.
+ * Instead of writing cross-project reference strings, establishes an inheritance
+ * link so all hub secrets flow automatically.
+ *
+ * Hub secrets: flow via inheritance (automatic).
+ * Per-app secrets: APP_NAME/SITE_URL are always synced; generated secrets
+ * (CRON_SECRET, NUXT_SESSION_PASSWORD) are only set if missing.
  */
 export async function syncHubSecrets(
   apiToken: string,
@@ -193,7 +265,15 @@ export async function syncHubSecrets(
   spokeConfig: string,
   perAppSecrets: Record<string, string>,
 ): Promise<{ synced: number }> {
-  // Read existing spoke secrets to avoid clobbering per-app values
+  // 1. Mark spoke/prd as inheritable (so spoke/dev can inherit from it)
+  await setConfigInheritable(apiToken, spokeProject, spokeConfig, true)
+
+  // 2. Link spoke/prd → hub/prd (all hub secrets flow automatically)
+  await setConfigInherits(apiToken, spokeProject, spokeConfig, [
+    { project: hubProject, config: hubConfig },
+  ])
+
+  // 3. Read existing spoke secrets to avoid clobbering per-app values
   let existingSpokeSecrets: Record<string, string> = {}
   try {
     existingSpokeSecrets = await getDopplerSecrets(apiToken, spokeProject, spokeConfig)
@@ -201,15 +281,10 @@ export async function syncHubSecrets(
     // If the config doesn't exist yet (fresh project), that's fine — set everything
   }
 
+  // 4. Set per-app secrets only (hub secrets are now inherited)
   const secretsToSet: Record<string, string> = {}
   const PER_APP_KEYS_TO_ALWAYS_SYNC = new Set(['APP_NAME', 'SITE_URL'])
 
-  // Hub secrets: write as cross-project references (always overwrite to fix any stale values)
-  for (const key of HUB_KEYS_TO_SYNC) {
-    secretsToSet[key] = `\${${hubProject}.${hubConfig}.${key}}`
-  }
-
-  // Per-app secrets: only set if MISSING in spoke (don't clobber existing values)
   for (const [key, value] of Object.entries(perAppSecrets)) {
     if (PER_APP_KEYS_TO_ALWAYS_SYNC.has(key) || !existingSpokeSecrets[key]) {
       secretsToSet[key] = value
@@ -224,21 +299,24 @@ export async function syncHubSecrets(
 }
 
 /**
- * Populate the `dev` config by mirroring hub cross-project references and
- * per-app secrets from `prd`, with SITE_URL overridden to localhost.
- *
- * This ensures `doppler run -- pnpm dev` works immediately after provisioning.
- * APP_NAME, SITE_URL, and NUXT_PORT are always refreshed in `dev`.
+ * Populate the `dev` config using **Config Inheritance** from spoke/prd.
+ * All hub secrets and per-app secrets chain down: hub/prd → spoke/prd → spoke/dev.
+ * Only SITE_URL (localhost) and NUXT_PORT need to be set directly in dev.
  */
 export async function syncDevConfig(
   apiToken: string,
-  hubProject: string,
-  hubConfig: string,
+  _hubProject: string,
+  _hubConfig: string,
   spokeProject: string,
   perAppSecrets: Record<string, string>,
   options: { siteUrl?: string } = {},
 ): Promise<{ synced: number }> {
-  // Read existing dev secrets to avoid clobbering
+  // 1. Link spoke/dev → spoke/prd (hub secrets chain through: hub/prd → spoke/prd → spoke/dev)
+  await setConfigInherits(apiToken, spokeProject, 'dev', [
+    { project: spokeProject, config: 'prd' },
+  ])
+
+  // 2. Read existing dev secrets to avoid clobbering
   let existingDevSecrets: Record<string, string> = {}
   try {
     existingDevSecrets = await getDopplerSecrets(apiToken, spokeProject, 'dev')
@@ -246,19 +324,15 @@ export async function syncDevConfig(
     // Fresh project — set everything
   }
 
+  // 3. Only set dev-specific overrides (everything else comes via inheritance)
   const secretsToSet: Record<string, string> = {}
-  const DEV_KEYS_TO_ALWAYS_SYNC = new Set(['APP_NAME', 'SITE_URL', 'NUXT_PORT'])
+  const DEV_KEYS_TO_ALWAYS_SYNC = new Set(['SITE_URL', 'NUXT_PORT'])
 
-  // Hub secrets: same cross-project references as prd
-  for (const key of HUB_KEYS_TO_SYNC) {
-    secretsToSet[key] = `\${${hubProject}.${hubConfig}.${key}}`
-  }
-
-  // Per-app secrets: only set if missing, with SITE_URL override for local dev
   const devAppSecrets = {
-    ...perAppSecrets,
     SITE_URL: options.siteUrl || 'http://localhost:3000',
+    NUXT_PORT: perAppSecrets.NUXT_PORT || '3000',
   }
+
   for (const [key, value] of Object.entries(devAppSecrets)) {
     if (DEV_KEYS_TO_ALWAYS_SYNC.has(key) || !existingDevSecrets[key]) {
       secretsToSet[key] = value

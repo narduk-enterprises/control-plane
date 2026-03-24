@@ -8,6 +8,13 @@
       "when": 1772644072738,
       "tag": "0000_far_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1774369048101,
+      "tag": "0001_goofy_legion",
+      "breakpoints": true
     }
   ]
 }

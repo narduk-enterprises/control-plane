@@ -87,7 +87,7 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    /** Optional: secret for cron routes (e.g. cache warming). Set CRON_SECRET in Doppler; init.ts provisions it. */
+    /** Optional: secret for cron routes (e.g. cache warming). Set CRON_SECRET in Doppler; provisioning sets it. */
     cronSecret: process.env.CRON_SECRET || '',
     ownerTagSecret: process.env.OWNER_TAG_SECRET || '',
     /** Optional shared UUID for PostHog `identify` after `/api/owner-tag` (same value across fleet = one owner person). */

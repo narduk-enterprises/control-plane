@@ -35,7 +35,7 @@ Workers** with **D1 SQLite** (Drizzle ORM).
 | **Isolate**       | A Cloudflare Workers V8 isolate — a lightweight, stateless execution environment. Each request may hit a different isolate, so in-memory state is not shared across requests. |
 | **Per-isolate**   | Scoped to a single V8 isolate instance. Per-isolate rate limiting, for example, only tracks requests within one isolate's memory.                                             |
 | **Hub project**   | A Doppler project that stores shared infrastructure secrets (e.g. `narduk-nuxt-template`). You do NOT create these.                                                           |
-| **Spoke project** | A Doppler project for a specific app that references hub secrets via cross-project references. Created by `init.ts` (via `pnpm run setup`).                                   |
+| **Spoke project** | A Doppler project for a specific app that references hub secrets via cross-project references. Created by the control-plane provisioning pipeline (`tools/provision/2-create-doppler.ts`). |
 
 For full-featured example implementations, see the **Showcase** apps in
 `apps/showcase/`, `apps/example-auth/`, `apps/example-blog/`,
@@ -89,7 +89,7 @@ Manifest below)._
 > **⚠️ Start with `apps/web/app/pages/index.vue`**  
 > The shared layer ships its own `pages/index.vue`. Until your app overrides it,
 > the root route `/` silently serves the raw template page — no error, no
-> warning. **`pnpm run setup` writes a placeholder for you automatically.**
+> warning. **Provisioning (control plane) scaffolds `apps/web/app/pages/index.vue` via `5-hydrate-repo.ts`.**
 > Replace it before building any other page. The same rule applies to
 > `app/app.vue` if you need a custom app shell (nav, layout, etc.).
 
@@ -322,61 +322,23 @@ Sitemap and robots.txt are automatic. OG image templates live in
 
 ## Starting a New Project from This Template
 
-Follow these steps **in order** — the init script handles renaming, D1
-provisioning, and Doppler setup.
+**Supported path:** Provision through the **control plane** (`POST /api/fleet/provision` with `PROVISION_API_KEY`, or the admin UI). That dispatches `narduk-enterprises/control-plane`’s `provision-app.yml`, which exports a starter from `narduk-nuxt-template`, runs `tools/provision/*.ts`, hydrates the repo (including `.setup-complete`), pushes to the new GitHub repo, and deploys. There is no `tools/init.ts` and no `pnpm run setup` for infrastructure.
 
-> **Doppler is optional for initial setup.** Steps that require Doppler (project
-> creation, hub secret sync, GitHub CI token, analytics) are skipped gracefully
-> when the Doppler CLI is not installed or configured. You can complete them
-> later by running `doppler setup` and re-running `pnpm run setup` with
-> `--repair`. Note: If you do have Doppler installed but your hub secrets are
-> not fully configured yet, the setup script will intelligently **defer** the
-> analytics provisioning step with a clear follow-up command.
+After the pipeline finishes, clone your new repo, run `pnpm install`, `doppler setup --project <app> --config dev`, `pnpm run db:migrate` as needed, then `doppler run -- pnpm run dev`. See `docs/provisioning-pipeline.md`.
 
-1. Clone:
-   `git clone https://github.com/narduk-enterprises/narduk-nuxt-template.git my-app && cd my-app`
-2. Clear the template's git history and set up your own repository (Required for
-   GitHub CI secrets to bind properly):
-   ```bash
-   rm -rf .git
-   git init
-   git remote add origin git@github.com:your-username/my-app.git
-   ```
-3. Install dependencies: `pnpm install`
-4. **Run the initialization script** (renames everything, provisions D1, creates
-   Doppler project, pushes CI token to GitHub):
-   ```bash
-   pnpm run setup -- --name="your-app-name" --display="Your Display Name" --url="https://yoururl.com"
-   ```
-5. **Configure Local D1 (Critical Step):** If your app uses the database, you
-   MUST add `nitro-cloudflare-dev` to your app to proxy D1 to the dev server:
-   - `pnpm --filter your-app-name add -D nitro-cloudflare-dev`
-   - In your app's `nuxt.config.ts`, add:
-     ```ts
-     modules: ['nitro-cloudflare-dev'],
-     nitro: { cloudflareDev: { configPath: resolve(__dirname, 'wrangler.json') } }
-     ```
-6. Wire up Doppler locally: `doppler setup --project your-app-name --config dev`
-7. Start dev: `doppler run -- pnpm run dev`
-8. Verify infrastructure: `pnpm run validate`
+The read-only template repo does **not** ship `.github/workflows/provision-app.yml`.
 
 > **🛡️ Bootstrap Guard:** `pnpm dev`, `pnpm build`, and `pnpm deploy` are
-> **blocked** until `pnpm run setup` has been completed. The setup script writes
-> a `.setup-complete` sentinel file; the `pre*` hooks in `package.json` check
-> for it. If you see a "PROJECT SETUP NOT COMPLETE" error, follow steps 1–4
-> above.
+> **blocked** without a `.setup-complete` sentinel (written by the hydrate step
+> when provisioning completes). Authoring monorepos (template / control-plane)
+> keep a tracked `.setup-complete` for local work.
 
 > **❌ GitHub Actions CI Preflight Failures:** The `ci.yml` deploy job requires
 > a `DOPPLER_TOKEN` (recommended) or `CLOUDFLARE_API_TOKEN` /
-> `CLOUDFLARE_ACCOUNT_ID` in your GitHub repository secrets. If they are
-> missing, the deploy will fail at the "preflight" step. The `pnpm run setup`
-> script tries to create the `DOPPLER_TOKEN` in GitHub automatically (Step 6),
-> but it **will skip this step if you have not set up your git remote** (Step
-> 2). **Fix:** Check your GitHub repository secrets. If `DOPPLER_TOKEN` is
-> missing, ensure your git remote is set up (`git remote add origin ...`), then
-> run
-> `pnpm run setup -- --name="your-app-name" --display="Your Display Name" --url="https://yoururl.com" --repair`
-> to inject the secret.
+> `CLOUDFLARE_ACCOUNT_ID` in your GitHub repository secrets. Provisioning sets
+> `DOPPLER_TOKEN` on the new repo via `tools/provision/3-set-github-secrets.ts`.
+> If it is missing, fix secrets in GitHub or re-run provisioning / repair from
+> the control plane.
 
 ## 🚨 CRITICAL RULE: NEVER COMMIT TO THIS REPOSITORY 🚨
 
@@ -476,33 +438,13 @@ capability. For working reference implementations, refer to the showcase apps:
 
 ## 🚀 Initialization Routine (New Projects)
 
-**When:** You have just cloned this template to begin a new application.
-**CRITICAL:** This must be your very first step before writing any code.
+**When:** You are creating a new fleet app.
 
-> **Doppler-optional:** Running setup without Doppler is supported. Steps that
-> require Doppler (project creation, hub secret sync, GitHub CI token,
-> analytics) are skipped with a clear message. After configuring Doppler, re-run
-> with `--repair` to complete those steps.
+**Steps:** Use the control plane to provision (see **Starting a New Project from This Template** above). After the repo exists, configure Doppler locally and migrate:
 
-**Steps:**
-
-1. Run the setup script from the root directory:
-   ```bash
-   pnpm run setup -- --name="your-app-name" --display="Your Display Name" --url="https://yoururl.com"
-   ```
-   _(This will rename the project, create the Cloudflare D1 database, spin up
-   the Doppler project if available, and rewrite `wrangler.json`.)_
-2. Configure your Doppler secrets (see Secrets & Env below).
-3. Pull Doppler secrets and initialize the local database schema
-   (non-interactive):
-   ```bash
-   doppler setup --project <app-name> --config dev && pnpm run db:migrate
-   ```
-4. If setup was run without Doppler, complete the Doppler steps:
-   ```bash
-   pnpm run setup -- --name="your-app-name" --display="Your Display Name" --url="https://yoururl.com" --repair
-   ```
-5. Commit the initialization.
+```bash
+doppler setup --project <app-name> --config dev && pnpm run db:migrate
+```
 
 ---
 
@@ -578,10 +520,10 @@ this after the Initialization Routine.
    - `site.name` — change to your app's name
    - `site.description` — change to your app's description
    - `schemaOrg.identity.name` — match your app name
-     > _Note: If you ran `pnpm run setup` with `--display`, these values were
-     > already replaced automatically._
+     > _Note: If you provisioned with a display name, metadata was set during
+     > hydration._
 
-6. **Replace `apps/web/app/pages/index.vue`** — `pnpm run setup` scaffolds this
+6. **Replace `apps/web/app/pages/index.vue`** — provisioning scaffolds this
    for you, but it is a placeholder. Build your actual home page here first,
    before creating any other page, to prevent the layer's template UI from
    showing at `/`.
@@ -632,7 +574,7 @@ projects manually.
 | `narduk-nuxt-template` | Cloud infrastructure credentials | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`                                                                                     |
 | `narduk-analytics`     | Centralized analytics management | `POSTHOG_PUBLIC_KEY`, `POSTHOG_PROJECT_ID`, `POSTHOG_HOST`, `POSTHOG_PERSONAL_API_KEY`, `GA_ACCOUNT_ID`, `GSC_SERVICE_ACCOUNT_JSON` |
 
-#### App Spoke Projects (one per app — created by `init.ts`)
+#### App Spoke Projects (one per app — created by the provisioning pipeline)
 
 Each app gets its own Doppler project (e.g. `my-cool-app`). The spoke inherits
 credentials from hubs using **cross-project references**, plus stores its own
@@ -659,9 +601,9 @@ doppler secrets set CLOUDFLARE_API_TOKEN='${narduk-nuxt-template.prd.CLOUDFLARE_
 | `POSTHOG_PUBLIC_KEY`    | `← narduk-analytics` hub ref                     | `prd`  | Shared across all apps (single PostHog project) |
 | `POSTHOG_PROJECT_ID`    | `← narduk-analytics` hub ref                     | `prd`  | Shared across all apps                          |
 | `POSTHOG_HOST`          | `← narduk-analytics` hub ref                     | `prd`  | Defaults to `https://us.i.posthog.com`          |
-| `APP_NAME`              | Per-app (set by `init.ts`)                       | `prd`  | Differentiates apps in PostHog events           |
+| `APP_NAME`              | Per-app (set during provisioning)                | `prd`  | Differentiates apps in PostHog events           |
 | `SITE_URL`              | Per-app                                          | `prd`  | e.g. `https://myapp.com`                        |
-| `NUXT_PORT`             | Per-app (control plane or `init.ts`)             | `dev`  | Dedicated local Nuxt dev-server port            |
+| `NUXT_PORT`             | Per-app (allocated by control plane)               | `dev`  | Dedicated local Nuxt dev-server port            |
 | `GA_MEASUREMENT_ID`     | Per-app (auto-generated by `setup-analytics.ts`) | `prd`  | `G-XXXXXXX`                                     |
 | `INDEXNOW_KEY`          | Per-app (auto-generated by `setup-analytics.ts`) | `prd`  | 32-char hex                                     |
 | `GA_PROPERTY_ID`        | Per-app (auto-generated)                         | `prd`  | GA4 property identifier                         |
@@ -675,8 +617,8 @@ doppler secrets set CLOUDFLARE_API_TOKEN='${narduk-nuxt-template.prd.CLOUDFLARE_
   `http://localhost:${NUXT_PORT}` and `NUXT_PORT` is unique per app, so local
   clones can run in parallel without sharing the same port. You can override any
   key for local testing without affecting production.
-- **`prd` config:** Used by CI/CD (`deploy.yml`). The `init.ts` script
-  provisions hub references in `prd` only. The `DOPPLER_TOKEN` GitHub secret is
+- **`prd` config:** Used by CI/CD (`deploy.yml`). Provisioning (`2-create-doppler.ts`)
+  sets hub references in `prd`. The `DOPPLER_TOKEN` GitHub secret is
   scoped to `prd`. **CRITICAL:** Deployments will fail with "Cloudflare
   credentials missing" if your `prd` config does not contain
   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (either directly or via hub
@@ -689,13 +631,13 @@ doppler secrets set CLOUDFLARE_API_TOKEN='${narduk-nuxt-template.prd.CLOUDFLARE_
 
 1. GitHub must have either the `DOPPLER_TOKEN` secret (recommended) or both
    `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-2. If setup was run without a git remote, add the remote and re-run with
-   `--repair` to set `DOPPLER_TOKEN`.
+2. If `DOPPLER_TOKEN` was never set on the repo, fix via GitHub secrets or
+   re-provision from the control plane.
 3. The app's Doppler `prd` config must expose `CLOUDFLARE_API_TOKEN` and
    `CLOUDFLARE_ACCOUNT_ID` (via hub sync or direct) so the deploy job can run
    `wrangler deploy`.
 
-4. `init.ts` creates a Doppler service token (`ci-deploy`) scoped to
+4. Provisioning creates a Doppler service token (`ci-deploy`) scoped to
    `<app-name>/prd`
 5. The token is stored as `DOPPLER_TOKEN` GitHub Actions secret
 6. On push to `main`, `deploy.yml` uses the `dopplerhq/secrets-fetch-action` to

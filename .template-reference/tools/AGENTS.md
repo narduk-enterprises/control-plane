@@ -12,15 +12,14 @@ These are **Node.js automation scripts** that run locally or in CI. They are
 
 | Script                 | Purpose                                                                                                                                                                           | Usage                                                        |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `init.ts`              | Transforms a fresh template clone into a ready-to-deploy app (renames, provisions D1, Doppler, analytics). Prefer the control plane provision API which calls this automatically. | `pnpm run setup -- --name="..." --display="..." --url="..."` |
 | `validate.ts`          | Confirms infrastructure is correctly provisioned (D1, Doppler, GitHub secrets)                                                                                                    | `pnpm run validate`                                          |
 | `generate-favicons.ts` | Generates all favicon variants (apple-touch-icon, ico, PNG, webmanifest) from a source SVG                                                                                        | `pnpm generate:favicons`                                     |
-| `setup-analytics.ts`   | Bootstraps GA4, Google Search Console, and IndexNow                                                                                                                               | Called by `init.ts` or run directly                          |
+| `setup-analytics.ts`   | Bootstraps GA4, Google Search Console, and IndexNow                                                                                                                               | Run directly or from control-plane `tools/provision/4-create-analytics.ts` |
 | `gsc-toolbox.ts`       | Google Search Console API utilities                                                                                                                                               | Used by `setup-analytics.ts`                                 |
 
 ## vs. `scripts/`
 
 The `scripts/` directory at the repo root contains **shell helper scripts** for
 developer convenience (`dev-kill.sh`, `run-dev-auth.sh`). The `tools/` directory
-contains **TypeScript automation** for project initialization and
-infrastructure.
+contains **TypeScript automation** for validation and supporting scripts.
+**New apps:** provision only via the control plane; there is no `init.ts`.

@@ -5,6 +5,17 @@ async function main() {
   const APP_NAME = process.argv.find((a) => a.startsWith('--app-name='))?.split('=')[1]
   if (!APP_NAME) throw new Error('--app-name is required')
 
+  const existingId = process.env.D1_DATABASE_ID?.trim()
+  if (existingId) {
+    const dbName = process.env.D1_DATABASE_NAME?.trim() || `${APP_NAME}-db`
+    console.log(`Reusing existing D1 database: ${dbName} (${existingId})`)
+    if (process.env.GITHUB_ENV) {
+      fs.appendFileSync(process.env.GITHUB_ENV, `D1_DATABASE_ID=${existingId}\n`)
+      fs.appendFileSync(process.env.GITHUB_ENV, `D1_DATABASE_NAME=${dbName}\n`)
+    }
+    return
+  }
+
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
   const apiToken = process.env.CLOUDFLARE_API_TOKEN
 

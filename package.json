@@ -10,13 +10,13 @@
     "build": "doppler run -- pnpm -r build",
     "preship": "node tools/check-setup.cjs && pnpm install --frozen-lockfile && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check",
     "ship": "pnpm exec tsx tools/ship.ts",
-    "postinstall": "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  Run pnpm run setup before doing anything else! See AGENTS.md.\\n')\"",
+    "postinstall": "node -e \"if(!require('fs').existsSync('.setup-complete'))console.log('\\n⚠️  New apps: provision via the control plane (see AGENTS.md). This repo should already include .setup-complete.\\n')\"",
     "build:plugins": "pnpm --filter @narduk/eslint-config build",
     "prelint": "pnpm run build:plugins",
     "lint": "pnpm run prelint && turbo run lint",
     "typecheck": "turbo run typecheck",
     "quality": "pnpm run quality:fix && pnpm run quality:check",
-    "setup": "pnpm exec tsx tools/init.ts",
+    "setup": "pnpm run skills:link",
     "update-layer": "pnpm exec tsx tools/update-layer.ts",
     "sync-template": "pnpm exec tsx tools/sync-template.ts .",
     "validate": "pnpm exec tsx tools/validate.ts",
@@ -43,7 +43,8 @@
     "check": "pnpm run quality:check",
     "skills:link": "pnpm exec tsx tools/ensure-skills-links.ts",
     "cleanup:node-leaks": "sh scripts/cleanup-node-leaks.sh",
-    "test:e2e:web": "pnpm --filter web test:e2e"
+    "test:e2e:web": "pnpm --filter web test:e2e",
+    "cpctl:install": "cd cpctl && go install ."
   },
   "pnpm": {
     "overrides": {

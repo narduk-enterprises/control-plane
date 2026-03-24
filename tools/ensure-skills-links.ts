@@ -1,24 +1,25 @@
 #!/usr/bin/env -S pnpm exec tsx
 /**
- * Wires each agent’s `skills` directory to the global library at ~/.skills using the new
- * physical-copy architecture:
- * - `.agents/skills` → Physical copy of ~/.skills (via rsync)
- * - `.cursor/skills`, `.codex/skills`, `.github/skills`, `.agent/skills`, `.claude/skills` → Symlinks to `../.agents/skills`
+ * Ensures each agent-facing `skills` entry in the repo points at the vendored
+ * `.agents/skills` directory:
+ * - `.agents/skills` → canonical, physical repo content
+ * - `.cursor/skills`, `.codex/skills`, `.github/skills`, `.agent/skills`,
+ *   `.claude/skills` → relative symlinks to `../.agents/skills`
  *
- * Invoked by `pnpm run skills:link`, at the start of `sync-template` / `update-layer`
- * (before the app dirty check), and from `sync-fleet` when auto-commit skips a dirty app.
+ * Invoked by `pnpm run skills:link`, at the start of `sync-template` /
+ * `update-layer`, and from `sync-fleet` when auto-commit skips a dirty app.
  */
 import {
   existsSync,
   lstatSync,
   mkdirSync,
+  readdirSync,
   readlinkSync,
   rmSync,
   symlinkSync,
 } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const selfPath = fileURLToPath(import.meta.url)
@@ -26,6 +27,9 @@ const entryPath = process.argv[1] ? resolve(process.argv[1]) : ''
 const isMainModule = Boolean(entryPath && entryPath === selfPath)
 
 const AGENT_SKILL_ROOTS = ['.cursor', '.codex', '.agent', '.github', '.claude']
+const RELATIVE_SKILLS_TARGET = '../.agents/skills'
+const TRANSIENT_SKILLS_DIRECTORIES = new Set(['.git', '__pycache__', '.pytest_cache', 'node_modules'])
+const TRANSIENT_SKILLS_FILES = new Set(['.DS_Store'])
 
 export interface EnsureSkillsLinksOptions {
   dryRun?: boolean
@@ -50,45 +54,64 @@ function pathOccupied(linkPath: string): boolean {
   }
 }
 
+function pruneSkillsArtifacts(
+  rootDir: string,
+  dryRun: boolean,
+  log: (message: string) => void,
+): void {
+  if (!existsSync(rootDir) || !lstatSync(rootDir).isDirectory()) return
+
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = join(dir, entry.name)
+
+      if (entry.isDirectory()) {
+        if (TRANSIENT_SKILLS_DIRECTORIES.has(entry.name)) {
+          log(`  REMOVE transient skills dir: ${fullPath}`)
+          if (!dryRun) rmSync(fullPath, { recursive: true, force: true })
+          continue
+        }
+
+        visit(fullPath)
+        continue
+      }
+
+      if (TRANSIENT_SKILLS_FILES.has(entry.name) || entry.name.endsWith('.pyc')) {
+        log(`  REMOVE transient skills file: ${fullPath}`)
+        if (!dryRun) rmSync(fullPath, { force: true })
+      }
+    }
+  }
+
+  visit(rootDir)
+}
+
 export function ensureSkillsLinks(appDir: string, options: EnsureSkillsLinksOptions = {}): void {
   const dryRun = options.dryRun ?? false
   const log = options.log ?? console.log
-  const home = process.env.HOME || ''
-
-  if (!home) {
-    log('  SKIP: skills links (HOME is not set)')
-    return
-  }
-
-  const globalSkillsDir = join(home, '.skills')
-  if (!existsSync(globalSkillsDir)) {
-    log(`  ADD: mkdir ${globalSkillsDir}`)
-    if (!dryRun) {
-      mkdirSync(globalSkillsDir, { recursive: true })
-    }
-  }
-
-  // 1. Rsync the global skills to local .agents/skills
   const localAgentsDir = join(appDir, '.agents')
   const localSkillsDir = join(localAgentsDir, 'skills')
   ensureParentDir(localAgentsDir, dryRun, log)
-  
-  log(`  SYNC: Physical sync from ~/.skills to .agents/skills via rsync`)
-  if (!dryRun) {
-    try {
-      execSync(`rsync -a --delete "${globalSkillsDir}/" "${localSkillsDir}/"`, { stdio: 'pipe' })
-    } catch (err) {
-      log(`  ERROR: rsync failed. Ensure rsync is installed.`)
-    }
+
+  if (!existsSync(localSkillsDir)) {
+    log('  SKIP: skills links (.agents/skills is missing in this repo)')
+    return
   }
 
-  // 2. Symlink others to ../.agents/skills
+  const localSkillsStat = lstatSync(localSkillsDir)
+  if (!localSkillsStat.isDirectory() || localSkillsStat.isSymbolicLink()) {
+    log('  SKIP: skills links (.agents/skills must be a physical repo directory)')
+    return
+  }
+
+  pruneSkillsArtifacts(localSkillsDir, dryRun, log)
+
   for (const root of AGENT_SKILL_ROOTS) {
     const rootDir = join(appDir, root)
     const linkPath = join(rootDir, 'skills')
-    
+
     ensureParentDir(rootDir, dryRun, log)
-    
+
     let needsReplace = false
     if (pathOccupied(linkPath)) {
       needsReplace = true
@@ -96,8 +119,8 @@ export function ensureSkillsLinks(appDir: string, options: EnsureSkillsLinksOpti
         const st = lstatSync(linkPath)
         if (st.isSymbolicLink()) {
           const target = readlinkSync(linkPath)
-          if (target === '../.agents/skills') {
-            needsReplace = false // already correct
+          if (target === RELATIVE_SKILLS_TARGET) {
+            needsReplace = false
           }
         }
       } catch {}
@@ -110,25 +133,23 @@ export function ensureSkillsLinks(appDir: string, options: EnsureSkillsLinksOpti
         log(`  REMOVE old symlink/dir: ${linkPath}`)
         if (!dryRun) rmSync(linkPath, { recursive: true, force: true })
       }
-      
-      log(`  ADD symlink: ${root}/skills -> ../.agents/skills`)
+
+      log(`  ADD symlink: ${root}/skills -> ${RELATIVE_SKILLS_TARGET}`)
       if (!dryRun) {
-        // Create relative symlink
         const originalDir = process.cwd()
         process.chdir(rootDir)
         try {
-          symlinkSync('../.agents/skills', 'skills')
+          symlinkSync(RELATIVE_SKILLS_TARGET, 'skills')
         } finally {
           process.chdir(originalDir)
         }
       }
     }
   }
-  
-  // Clean up legacy repo-root .skills
+
   const legacyRootSkills = join(appDir, '.skills')
   if (pathOccupied(legacyRootSkills)) {
-    log(`  REMOVE: legacy repo-root .skills`)
+    log('  REMOVE: legacy repo-root .skills')
     if (!dryRun) rmSync(legacyRootSkills, { recursive: true, force: true })
   }
 }
