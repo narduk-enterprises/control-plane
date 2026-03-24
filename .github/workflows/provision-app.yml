@@ -306,10 +306,16 @@ jobs:
           pnpm exec wrangler deploy
 
       - name: Verify GSC ownership (post-deploy)
-        if: ${{ inputs.gsc-verification-file != '' || env.GSC_VERIFICATION_FILE != '' }}
         working-directory: app-source
         continue-on-error: true
+        env:
+          INPUT_GSC_VERIFICATION_FILE: ${{ inputs.gsc-verification-file }}
         run: |
+          if [ -z "${INPUT_GSC_VERIFICATION_FILE}" ] && [ -z "${GSC_VERIFICATION_FILE:-}" ]; then
+            echo "ℹ️ Skipping GSC verification — no verification file was provided or generated."
+            exit 0
+          fi
+
           if [ -f "tools/gsc-verify.ts" ]; then
             pnpm exec tsx tools/gsc-verify.ts || echo "⚠️ GSC verification deferred — site may not be live yet"
           fi
