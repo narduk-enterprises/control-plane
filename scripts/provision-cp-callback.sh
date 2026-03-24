@@ -7,10 +7,21 @@ warn() {
   echo "::warning::$*" >&2
 }
 
+callback_env_ready() {
+  [[ -n "${CONTROL_PLANE_URL:-}" && -n "${PROVISION_API_KEY:-}" && -n "${PROVISION_ID:-}" ]]
+}
+
 cp_post() {
   local mode=$1
   local subpath=$2
   local body=$3
+
+  if ! callback_env_ready; then
+    warn "Skipping callback ${subpath}: missing CONTROL_PLANE_URL, PROVISION_API_KEY, or PROVISION_ID"
+    [[ "$mode" == strict ]] && exit 1
+    return 0
+  fi
+
   local url="${CONTROL_PLANE_URL%/}/api/fleet/provision/${PROVISION_ID}/${subpath}"
   local tmp code curl_ec
   tmp=$(mktemp)
@@ -45,7 +56,6 @@ case "$cmd" in
     cp_post "${2:?}" "${3:?}" "${4:?}"
     ;;
   complete-success)
-    : "${CONTROL_PLANE_URL:?}" "${PROVISION_API_KEY:?}" "${PROVISION_ID:?}"
     : "${INPUT_APP_URL:?}" "${INPUT_GITHUB_REPO:?}"
     body=$(
       jq -n \
@@ -65,7 +75,6 @@ case "$cmd" in
     cp_post strict complete "$body"
     ;;
   complete-failed)
-    : "${CONTROL_PLANE_URL:?}" "${PROVISION_API_KEY:?}" "${PROVISION_ID:?}"
     : "${FAILURE_MESSAGE:?}"
     body=$(
       jq -n \

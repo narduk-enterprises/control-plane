@@ -27,15 +27,16 @@ function timingSafeEqual(a: string, b: string): boolean {
   return result === 0
 }
 
-export function assertProvisionApiKey(
-  event: H3Event,
-  message = 'Unauthorized',
-): void {
+export function assertProvisionApiKey(event: H3Event, message = 'Unauthorized'): void {
   const config = useRuntimeConfig(event)
   const authHeader = getHeader(event, 'authorization')
   const providedKey = authHeader?.replace('Bearer ', '')
 
-  if (!config.provisionApiKey || !providedKey || !timingSafeEqual(providedKey, config.provisionApiKey)) {
+  if (
+    !config.provisionApiKey ||
+    !providedKey ||
+    !timingSafeEqual(providedKey, config.provisionApiKey)
+  ) {
     throw createError({ statusCode: 401, message })
   }
 }

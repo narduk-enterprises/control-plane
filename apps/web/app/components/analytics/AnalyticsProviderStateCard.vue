@@ -20,7 +20,10 @@ defineProps<{
   <UCard class="rounded-2xl border border-default/70 bg-elevated/25">
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
-        <NuxtLink :to="href" class="truncate text-base font-semibold text-default hover:text-primary">
+        <NuxtLink
+          :to="href"
+          class="truncate text-base font-semibold text-default hover:text-primary"
+        >
           {{ appName }}
         </NuxtLink>
         <p v-if="hint" class="mt-1 truncate text-xs text-muted">{{ hint }}</p>

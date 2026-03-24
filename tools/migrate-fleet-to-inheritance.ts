@@ -84,19 +84,15 @@ const FLEET_APPS = [
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run')
-  const filterArg = process.argv.find(a => a.startsWith('--filter-apps='))
-  const filterApps = filterArg
-    ? new Set(filterArg.split('=')[1].split(','))
-    : null
+  const filterArg = process.argv.find((a) => a.startsWith('--filter-apps='))
+  const filterApps = filterArg ? new Set(filterArg.split('=')[1].split(',')) : null
 
   const apiToken = process.env.DOPPLER_API_TOKEN || process.env.DOPPLER_TOKEN
   if (!apiToken) {
     throw new Error('DOPPLER_API_TOKEN or DOPPLER_TOKEN is required in environment')
   }
 
-  const apps = filterApps
-    ? FLEET_APPS.filter(a => filterApps.has(a))
-    : FLEET_APPS
+  const apps = filterApps ? FLEET_APPS.filter((a) => filterApps.has(a)) : FLEET_APPS
 
   console.log(`\n${'='.repeat(60)}`)
   console.log(`Doppler Config Inheritance Migration`)
@@ -149,7 +145,7 @@ async function main() {
         console.log(`  ⚠️  Could not read ${app}/prd secrets — skipping cleanup`)
       }
 
-      const prdKeysToDelete = OLD_HUB_REF_KEYS.filter(key => key in prdSecrets)
+      const prdKeysToDelete = OLD_HUB_REF_KEYS.filter((key) => key in prdSecrets)
       if (prdKeysToDelete.length > 0) {
         console.log(`  🗑️  Deleting ${prdKeysToDelete.length} hub keys from ${app}/prd`)
         if (!dryRun) {
@@ -168,7 +164,7 @@ async function main() {
         console.log(`  ⚠️  Could not read ${app}/dev secrets — skipping cleanup`)
       }
 
-      const devKeysToDelete = OLD_HUB_REF_KEYS.filter(key => key in devSecrets)
+      const devKeysToDelete = OLD_HUB_REF_KEYS.filter((key) => key in devSecrets)
       if (devKeysToDelete.length > 0) {
         console.log(`  🗑️  Deleting ${devKeysToDelete.length} hub keys from ${app}/dev`)
         if (!dryRun) {

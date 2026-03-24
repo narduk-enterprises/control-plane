@@ -21,11 +21,7 @@ export default defineAdminMutation(
     }
 
     const db = useDatabase(event)
-    const job = await db
-      .select()
-      .from(provisionJobs)
-      .where(eq(provisionJobs.id, id))
-      .get()
+    const job = await db.select().from(provisionJobs).where(eq(provisionJobs.id, id)).get()
 
     if (!job) {
       throw createError({
@@ -73,6 +69,10 @@ export default defineAdminMutation(
         .set({
           status: 'pending',
           errorMessage: null,
+          githubRunId: null,
+          githubRunUrl: null,
+          githubRunStatus: null,
+          githubRunConclusion: null,
           updatedAt: now,
         })
         .where(eq(provisionJobs.id, job.id))

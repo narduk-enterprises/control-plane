@@ -28,13 +28,13 @@ Workers** with **D1 SQLite** (Drizzle ORM).
 
 ## Glossary
 
-| Term              | Meaning                                                                                                                                                                       |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Layer**         | A Nuxt Layer (`layers/narduk-nuxt-layer/`) — shared components, composables, plugins, server utils, and CSS that all apps inherit. Lives in `layers/`. Not deployed directly. |
-| **Package**       | A workspace package (`packages/eslint-config/`) — standalone npm packages consumed by apps. Lives in `packages/`.                                                             |
-| **Isolate**       | A Cloudflare Workers V8 isolate — a lightweight, stateless execution environment. Each request may hit a different isolate, so in-memory state is not shared across requests. |
-| **Per-isolate**   | Scoped to a single V8 isolate instance. Per-isolate rate limiting, for example, only tracks requests within one isolate's memory.                                             |
-| **Hub project**   | A Doppler project that stores shared infrastructure secrets (e.g. `narduk-nuxt-template`). You do NOT create these.                                                           |
+| Term              | Meaning                                                                                                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Layer**         | A Nuxt Layer (`layers/narduk-nuxt-layer/`) — shared components, composables, plugins, server utils, and CSS that all apps inherit. Lives in `layers/`. Not deployed directly.              |
+| **Package**       | A workspace package (`packages/eslint-config/`) — standalone npm packages consumed by apps. Lives in `packages/`.                                                                          |
+| **Isolate**       | A Cloudflare Workers V8 isolate — a lightweight, stateless execution environment. Each request may hit a different isolate, so in-memory state is not shared across requests.              |
+| **Per-isolate**   | Scoped to a single V8 isolate instance. Per-isolate rate limiting, for example, only tracks requests within one isolate's memory.                                                          |
+| **Hub project**   | A Doppler project that stores shared infrastructure secrets (e.g. `narduk-nuxt-template`). You do NOT create these.                                                                        |
 | **Spoke project** | A Doppler project for a specific app that references hub secrets via cross-project references. Created by the control-plane provisioning pipeline (`tools/provision/2-create-doppler.ts`). |
 
 For full-featured example implementations, see the **Showcase** apps in
@@ -89,9 +89,10 @@ Manifest below)._
 > **⚠️ Start with `apps/web/app/pages/index.vue`**  
 > The shared layer ships its own `pages/index.vue`. Until your app overrides it,
 > the root route `/` silently serves the raw template page — no error, no
-> warning. **Provisioning (control plane) scaffolds `apps/web/app/pages/index.vue` via `5-hydrate-repo.ts`.**
-> Replace it before building any other page. The same rule applies to
-> `app/app.vue` if you need a custom app shell (nav, layout, etc.).
+> warning. **Provisioning (control plane) scaffolds
+> `apps/web/app/pages/index.vue` via `5-hydrate-repo.ts`.** Replace it before
+> building any other page. The same rule applies to `app/app.vue` if you need a
+> custom app shell (nav, layout, etc.).
 
 ## What the Layer Provides (DO NOT Duplicate)
 
@@ -322,11 +323,20 @@ Sitemap and robots.txt are automatic. OG image templates live in
 
 ## Starting a New Project from This Template
 
-**Supported path:** Provision through the **control plane** (`POST /api/fleet/provision` with `PROVISION_API_KEY`, or the admin UI). That dispatches `narduk-enterprises/control-plane`’s `provision-app.yml`, which exports a starter from `narduk-nuxt-template`, runs `tools/provision/*.ts`, hydrates the repo (including `.setup-complete`), pushes to the new GitHub repo, and deploys. There is no `tools/init.ts` and no `pnpm run setup` for infrastructure.
+**Supported path:** Provision through the **control plane**
+(`POST /api/fleet/provision` with `PROVISION_API_KEY`, or the admin UI). That
+dispatches `narduk-enterprises/control-plane`’s `provision-app.yml`, which
+exports a starter from `narduk-nuxt-template`, runs `tools/provision/*.ts`,
+hydrates the repo (including `.setup-complete`), pushes to the new GitHub repo,
+and deploys. There is no `tools/init.ts` and no `pnpm run setup` for
+infrastructure.
 
-After the pipeline finishes, clone your new repo, run `pnpm install`, `doppler setup --project <app> --config dev`, `pnpm run db:migrate` as needed, then `doppler run -- pnpm run dev`. See `docs/provisioning-pipeline.md`.
+After the pipeline finishes, clone your new repo, run `pnpm install`,
+`doppler setup --project <app> --config dev`, `pnpm run db:migrate` as needed,
+then `doppler run -- pnpm run dev`. See `docs/provisioning-pipeline.md`.
 
-The read-only template repo does **not** ship `.github/workflows/provision-app.yml`.
+The read-only template repo does **not** ship
+`.github/workflows/provision-app.yml`.
 
 > **🛡️ Bootstrap Guard:** `pnpm dev`, `pnpm build`, and `pnpm deploy` are
 > **blocked** without a `.setup-complete` sentinel (written by the hydrate step
@@ -440,7 +450,9 @@ capability. For working reference implementations, refer to the showcase apps:
 
 **When:** You are creating a new fleet app.
 
-**Steps:** Use the control plane to provision (see **Starting a New Project from This Template** above). After the repo exists, configure Doppler locally and migrate:
+**Steps:** Use the control plane to provision (see **Starting a New Project from
+This Template** above). After the repo exists, configure Doppler locally and
+migrate:
 
 ```bash
 doppler setup --project <app-name> --config dev && pnpm run db:migrate
@@ -523,10 +535,10 @@ this after the Initialization Routine.
      > _Note: If you provisioned with a display name, metadata was set during
      > hydration._
 
-6. **Replace `apps/web/app/pages/index.vue`** — provisioning scaffolds this
-   for you, but it is a placeholder. Build your actual home page here first,
-   before creating any other page, to prevent the layer's template UI from
-   showing at `/`.
+6. **Replace `apps/web/app/pages/index.vue`** — provisioning scaffolds this for
+   you, but it is a placeholder. Build your actual home page here first, before
+   creating any other page, to prevent the layer's template UI from showing at
+   `/`.
 
 ---
 
@@ -603,7 +615,7 @@ doppler secrets set CLOUDFLARE_API_TOKEN='${narduk-nuxt-template.prd.CLOUDFLARE_
 | `POSTHOG_HOST`          | `← narduk-analytics` hub ref                     | `prd`  | Defaults to `https://us.i.posthog.com`          |
 | `APP_NAME`              | Per-app (set during provisioning)                | `prd`  | Differentiates apps in PostHog events           |
 | `SITE_URL`              | Per-app                                          | `prd`  | e.g. `https://myapp.com`                        |
-| `NUXT_PORT`             | Per-app (allocated by control plane)               | `dev`  | Dedicated local Nuxt dev-server port            |
+| `NUXT_PORT`             | Per-app (allocated by control plane)             | `dev`  | Dedicated local Nuxt dev-server port            |
 | `GA_MEASUREMENT_ID`     | Per-app (auto-generated by `setup-analytics.ts`) | `prd`  | `G-XXXXXXX`                                     |
 | `INDEXNOW_KEY`          | Per-app (auto-generated by `setup-analytics.ts`) | `prd`  | 32-char hex                                     |
 | `GA_PROPERTY_ID`        | Per-app (auto-generated)                         | `prd`  | GA4 property identifier                         |
@@ -617,10 +629,10 @@ doppler secrets set CLOUDFLARE_API_TOKEN='${narduk-nuxt-template.prd.CLOUDFLARE_
   `http://localhost:${NUXT_PORT}` and `NUXT_PORT` is unique per app, so local
   clones can run in parallel without sharing the same port. You can override any
   key for local testing without affecting production.
-- **`prd` config:** Used by CI/CD (`deploy.yml`). Provisioning (`2-create-doppler.ts`)
-  sets hub references in `prd`. The `DOPPLER_TOKEN` GitHub secret is
-  scoped to `prd`. **CRITICAL:** Deployments will fail with "Cloudflare
-  credentials missing" if your `prd` config does not contain
+- **`prd` config:** Used by CI/CD (`deploy.yml`). Provisioning
+  (`2-create-doppler.ts`) sets hub references in `prd`. The `DOPPLER_TOKEN`
+  GitHub secret is scoped to `prd`. **CRITICAL:** Deployments will fail with
+  "Cloudflare credentials missing" if your `prd` config does not contain
   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (either directly or via hub
   reference).
 - **`stg` config:** Available if needed; not provisioned by default.

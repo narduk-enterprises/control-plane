@@ -64,12 +64,16 @@ export default definePublicMutation(
     const jobUpdates: {
       status: 'complete' | 'failed'
       updatedAt: string
+      githubRunStatus: string
+      githubRunConclusion: string
       deployedUrl?: string | null
       gaPropertyId?: string | null
       errorMessage?: string | null
     } = {
       status: body.status,
       updatedAt: now,
+      githubRunStatus: 'completed',
+      githubRunConclusion: body.status === 'complete' ? 'success' : 'failure',
     }
 
     if (body.deployedUrl !== undefined) {

@@ -44,8 +44,8 @@ const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || ''
 const PROVISION_API_KEY = process.env.PROVISION_API_KEY || ''
 
 const CODE_MODEL = 'gpt-5.4'
-const MAX_SFC_ATTEMPTS = 3         // Hard gate: SFC must parse
-const MAX_TYPECHECK_FIXES = 3      // Soft gate: typecheck fix attempts, then accept
+const MAX_SFC_ATTEMPTS = 3 // Hard gate: SFC must parse
+const MAX_TYPECHECK_FIXES = 3 // Soft gate: typecheck fix attempts, then accept
 const PER_REQUEST_TIMEOUT_MS = 60_000
 const TOTAL_TIMEOUT_MS = 300_000
 const MAX_TOKENS = 6000
@@ -63,7 +63,7 @@ async function logToProvision(level: string, step: string, message: string): Pro
     await fetch(`${CONTROL_PLANE_URL}/api/fleet/provision/${PROVISION_ID}/log`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PROVISION_API_KEY}`,
+        Authorization: `Bearer ${PROVISION_API_KEY}`,
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
       },
@@ -97,7 +97,7 @@ async function callOpenAI(
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -131,7 +131,7 @@ async function generateImage(prompt: string): Promise<Buffer | null> {
     const res = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -139,7 +139,7 @@ async function generateImage(prompt: string): Promise<Buffer | null> {
         prompt,
         n: 1,
         response_format: 'b64_json',
-        size: '1024x1024'
+        size: '1024x1024',
       }),
       signal: AbortSignal.timeout(PER_REQUEST_TIMEOUT_MS),
     })
@@ -285,7 +285,11 @@ interface GeneratedFiles {
   appVue: string
 }
 
-async function writeGeneratedFiles(targetDir: string, files: GeneratedFiles, model: string): Promise<void> {
+async function writeGeneratedFiles(
+  targetDir: string,
+  files: GeneratedFiles,
+  model: string,
+): Promise<void> {
   const webApp = path.join(targetDir, 'apps', 'web', 'app')
 
   // Write app.config.ts
@@ -515,7 +519,9 @@ async function main(): Promise<void> {
     console.warn('\n  ⚠️ All SFC generation attempts failed. Restoring default scaffold.')
     await restoreFiles(backup)
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-    console.log(`\n  📊 AI theme fallback: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`)
+    console.log(
+      `\n  📊 AI theme fallback: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`,
+    )
     console.log('\n✅ Step 7 complete (fallback).')
     return
   }
@@ -544,7 +550,10 @@ async function main(): Promise<void> {
       const output = (error.stdout || '') + '\n' + (error.stderr || '')
 
       // Extract TS error lines
-      const typeErrors = output.split('\n').filter(line => line.includes('error TS') || line.includes('ERROR ')).map(line => line.trim())
+      const typeErrors = output
+        .split('\n')
+        .filter((line) => line.includes('error TS') || line.includes('ERROR '))
+        .map((line) => line.trim())
       if (typeErrors.length === 0) {
         typeErrors.push('Typecheck failed with unknown error: ' + output.slice(-500))
       }
@@ -573,10 +582,16 @@ async function main(): Promise<void> {
           // Quick SFC re-validation
           const sfcErrors: string[] = []
           if (fixedFiles.indexVue.trim()) {
-            sfcErrors.push(...(await validateSfc(fixedFiles.indexVue, 'index.vue')).map(e => `index.vue: ${e}`))
+            sfcErrors.push(
+              ...(await validateSfc(fixedFiles.indexVue, 'index.vue')).map(
+                (e) => `index.vue: ${e}`,
+              ),
+            )
           }
           if (fixedFiles.appVue.trim() && fixedFiles.appVue.length > 50) {
-            sfcErrors.push(...(await validateSfc(fixedFiles.appVue, 'app.vue')).map(e => `app.vue: ${e}`))
+            sfcErrors.push(
+              ...(await validateSfc(fixedFiles.appVue, 'app.vue')).map((e) => `app.vue: ${e}`),
+            )
           }
           if (sfcErrors.length > 0) {
             console.warn(`   ❌ Fix broke SFC structure: ${sfcErrors.join(', ')}`)
@@ -603,7 +618,9 @@ async function main(): Promise<void> {
   if (typecheckPassed) {
     console.log('\n  ✅ Theme generated AND passed typecheck!')
   } else {
-    console.log('\n  ⚠️ Theme generated but typecheck did not pass — code accepted as-is for manual fixup.')
+    console.log(
+      '\n  ⚠️ Theme generated but typecheck did not pass — code accepted as-is for manual fixup.',
+    )
   }
 
   // Step 3: Image generation (favicon + logo)
@@ -636,14 +653,10 @@ async function main(): Promise<void> {
 
   // Log results (Rec D)
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-  const status = typecheckPassed ? 'success' : (sfcPassed ? 'accepted-with-warnings' : 'fallback')
+  const status = typecheckPassed ? 'success' : sfcPassed ? 'accepted-with-warnings' : 'fallback'
   const logMsg = `AI theme ${status}: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`
   console.log(`\n  📊 ${logMsg}`)
-  await logToProvision(
-    typecheckPassed ? 'success' : 'info',
-    'ai-theme',
-    logMsg,
-  )
+  await logToProvision(typecheckPassed ? 'success' : 'info', 'ai-theme', logMsg)
 
   console.log(`\n✅ Step 7 complete (${status}).`)
 }

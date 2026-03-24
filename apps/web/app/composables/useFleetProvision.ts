@@ -21,6 +21,10 @@ export interface ProvisionJob {
   nuxtPort?: number | null
   appDescription?: string | null
   status: string
+  githubRunId?: string | null
+  githubRunUrl?: string | null
+  githubRunStatus?: string | null
+  githubRunConclusion?: string | null
   deployedUrl?: string | null
   gaPropertyId?: string | null
   errorMessage?: string | null
@@ -50,6 +54,40 @@ export function useFleetProvision() {
   const activeJobs = computed(() => jobs.value.filter((j) => !TERMINAL_STATUSES.has(j.status)))
   const completedJobs = computed(() => jobs.value.filter((j) => j.status === 'complete'))
   const failedJobs = computed(() => jobs.value.filter((j) => j.status === 'failed'))
+  const lastKnownStatuses = ref<Record<string, string>>({})
+
+  watch(
+    jobs,
+    (nextJobs) => {
+      const nextStatuses: Record<string, string> = {}
+
+      for (const job of nextJobs) {
+        const previousStatus = lastKnownStatuses.value[job.id]
+        nextStatuses[job.id] = job.status
+
+        if (!previousStatus || previousStatus === job.status) {
+          continue
+        }
+
+        if (job.status === 'failed') {
+          toast.add({
+            title: 'Provision failed',
+            description: job.errorMessage || `${job.displayName} failed in GitHub Actions.`,
+            color: 'error',
+          })
+        } else if (job.status === 'complete') {
+          toast.add({
+            title: 'Provision complete',
+            description: `${job.displayName} is ready.`,
+            color: 'success',
+          })
+        }
+      }
+
+      lastKnownStatuses.value = nextStatuses
+    },
+    { immediate: true },
+  )
 
   // ── Auto-poll when there are active jobs ──
   const pollTimer = ref<ReturnType<typeof setInterval> | null>(null)
@@ -87,7 +125,12 @@ export function useFleetProvision() {
   // ── Provision ──
   const isProvisioning = ref(false)
 
-  async function provisionApp(name: string, displayName: string, url: string, description?: string) {
+  async function provisionApp(
+    name: string,
+    displayName: string,
+    url: string,
+    description?: string,
+  ) {
     isProvisioning.value = true
     try {
       const result = await $fetch<{ ok: boolean; provisionId: string; app: string }>(

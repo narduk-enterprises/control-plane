@@ -58,7 +58,8 @@ function formatBuildTimeLocal(buildTime: string | null | undefined): string | nu
 }
 
 onMounted(() => {
-  buildTimeLocal.value = window.__NARDUK_BUILD__?.localBuildTime ?? formatBuildTimeLocal(runtimeConfig.buildTime)
+  buildTimeLocal.value =
+    window.__NARDUK_BUILD__?.localBuildTime ?? formatBuildTimeLocal(runtimeConfig.buildTime)
 })
 
 watch(route, () => {
@@ -190,7 +191,9 @@ function isActive(path: string) {
           <p class="text-sm text-muted">
             &copy; {{ currentYear }} {{ appName }}. All rights reserved.
           </p>
-          <div class="flex flex-wrap items-center justify-center gap-4 text-sm text-muted sm:justify-end">
+          <div
+            class="flex flex-wrap items-center justify-center gap-4 text-sm text-muted sm:justify-end"
+          >
             <span v-if="buildTimeLocal" class="flex items-center gap-1">
               <UIcon name="i-lucide-clock-3" class="size-4 text-primary" />
               Last deployed {{ buildTimeLocal }}

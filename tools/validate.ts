@@ -43,7 +43,9 @@ async function main() {
 
   let allGood = true
   if (!APP_NAME || APP_NAME.includes(TEMPLATE_NAME)) {
-    console.error(`  ❌ Project name is still '${APP_NAME}'. Has the project been provisioned or renamed?`)
+    console.error(
+      `  ❌ Project name is still '${APP_NAME}'. Has the project been provisioned or renamed?`,
+    )
     allGood = false
   }
 

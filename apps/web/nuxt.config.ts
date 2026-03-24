@@ -5,6 +5,8 @@ import { resolve, dirname } from 'node:path'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const localNuxtPort = Number(process.env.NUXT_PORT || 3000)
 const localSiteUrl = `http://127.0.0.1:${Number.isFinite(localNuxtPort) ? localNuxtPort : 3000}`
+/** `import.meta.dev` is not reliable in nuxt.config (Nuxt evaluates config outside the app graph). */
+const isNuxtDev = process.env.NODE_ENV === 'development'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -42,11 +44,8 @@ export default defineNuxtConfig({
     session: {
       password:
         process.env.NUXT_SESSION_PASSWORD ||
-        (import.meta.dev ? 'control-plane-dev-session-secret-min-32-chars' : ''),
-      cookie: {
-        // Secure=true requires HTTPS; disable in dev so localhost HTTP sessions work
-        secure: !import.meta.dev,
-      },
+        (isNuxtDev ? 'control-plane-dev-session-secret-min-32-chars' : ''),
+      // Omit `cookie` here: layer uses `$development` for non-Secure cookies on `nuxt dev`.
     },
     cronSecret: process.env.CRON_SECRET || '',
     githubToken: process.env.GITHUB_TOKEN || '',

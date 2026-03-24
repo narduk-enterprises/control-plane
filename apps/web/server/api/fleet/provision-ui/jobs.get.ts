@@ -1,6 +1,7 @@
-import { eq, desc } from 'drizzle-orm'
+import { desc, inArray } from 'drizzle-orm'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { provisionJobs, provisionJobLogs } from '#server/database/schema'
+import { reconcileProvisionJobWithGitHub } from '#server/utils/provision-job-reconciliation'
 
 const LOGS_PER_JOB = 200
 
@@ -22,21 +23,34 @@ export default defineEventHandler(async (event) => {
 
   if (jobs.length === 0) return { jobs: [] }
 
-  const jobsWithLogs = await Promise.all(
-    jobs.map(async (j) => {
-      const logRows = await db
-        .select()
-        .from(provisionJobLogs)
-        .where(eq(provisionJobLogs.provisionId, j.id))
-        .orderBy(desc(provisionJobLogs.createdAt))
-        .limit(LOGS_PER_JOB)
-        .all()
-      return {
-        ...j,
-        logs: [...logRows].reverse(),
-      }
-    }),
+  const reconciledJobs = await Promise.all(
+    jobs.map((job) => reconcileProvisionJobWithGitHub(event, job)),
   )
+
+  const jobIds = reconciledJobs.map((job) => job.id)
+  const logRows =
+    jobIds.length > 0
+      ? await db
+          .select()
+          .from(provisionJobLogs)
+          .where(inArray(provisionJobLogs.provisionId, jobIds))
+          .orderBy(desc(provisionJobLogs.createdAt))
+          .all()
+      : []
+
+  const logsByJob = new Map<string, typeof logRows>()
+  for (const logRow of logRows) {
+    const jobLogs = logsByJob.get(logRow.provisionId) ?? []
+    if (jobLogs.length < LOGS_PER_JOB) {
+      jobLogs.push(logRow)
+      logsByJob.set(logRow.provisionId, jobLogs)
+    }
+  }
+
+  const jobsWithLogs = reconciledJobs.map((job) => ({
+    ...job,
+    logs: [...(logsByJob.get(job.id) ?? [])].reverse(),
+  }))
 
   return { jobs: jobsWithLogs }
 })

@@ -20,10 +20,8 @@ vi.stubGlobal('useRuntimeConfig', () => ({
     controlPlaneUrl: 'https://control-plane.nard.uk',
   },
 }))
-vi.stubGlobal(
-  'createError',
-  (input: { statusCode: number; statusMessage: string }) =>
-    Object.assign(new Error(input.statusMessage), input),
+vi.stubGlobal('createError', (input: { statusCode: number; statusMessage: string }) =>
+  Object.assign(new Error(input.statusMessage), input),
 )
 
 describe('control-plane proxy route', () => {

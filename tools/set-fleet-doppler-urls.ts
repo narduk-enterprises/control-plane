@@ -106,8 +106,6 @@ function generateIndexNowKey(): string {
   return randomBytes(16).toString('hex')
 }
 
-
-
 async function main() {
   if (!isDopplerAvailable()) {
     console.error(
@@ -129,8 +127,6 @@ async function main() {
     }
   }
   console.log('')
-
-
 
   if (ensureIndexnow) {
     console.log(

@@ -179,7 +179,13 @@ function toneFor(severity: string) {
               <p class="text-sm text-default">{{ insight.message }}</p>
               <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
                 <UBadge
-                  :color="insight.severity === 'critical' ? 'error' : insight.severity === 'warning' ? 'warning' : 'neutral'"
+                  :color="
+                    insight.severity === 'critical'
+                      ? 'error'
+                      : insight.severity === 'warning'
+                        ? 'warning'
+                        : 'neutral'
+                  "
                   variant="subtle"
                   size="sm"
                 >

@@ -142,4 +142,5 @@ If the new skill should be called out explicitly, update
 - [ ] Instructions are actionable and agent-readable
 - [ ] No duplicate skill exists
 - [ ] `pnpm run skills:link` passes
-- [ ] Skill resolves from `.agent`, `.cursor`, `.codex`, `.claude`, and `.github`
+- [ ] Skill resolves from `.agent`, `.cursor`, `.codex`, `.claude`, and
+      `.github`

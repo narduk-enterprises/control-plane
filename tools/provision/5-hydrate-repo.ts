@@ -46,7 +46,10 @@ async function linkWrangler(targetDir: string, appName: string, siteUrl: string)
   const appsDir = path.join(targetDir, 'apps')
   try {
     const entries = await fs.readdir(appsDir, { withFileTypes: true })
-    const appDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name).filter((name) => !name.startsWith('example-'))
+    const appDirs = entries
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .filter((name) => !name.startsWith('example-'))
 
     for (const appDir of appDirs) {
       const wranglerPath = path.join(appsDir, appDir, 'wrangler.json')
@@ -68,19 +71,21 @@ async function linkWrangler(targetDir: string, appName: string, siteUrl: string)
             const urlObj = new URL(siteUrl)
             if (!urlObj.hostname.endsWith('.workers.dev')) {
               if (!parsedWrangler.routes) parsedWrangler.routes = []
-              const existingRoute = parsedWrangler.routes.find((r: any) => r.pattern === urlObj.hostname)
+              const existingRoute = parsedWrangler.routes.find(
+                (r: any) => r.pattern === urlObj.hostname,
+              )
               if (!existingRoute) {
                 parsedWrangler.routes.push({ pattern: urlObj.hostname, custom_domain: true })
               }
             }
-          } catch (_e) { }
+          } catch (_e) {}
         }
 
         await fs.writeFile(wranglerPath, JSON.stringify(parsedWrangler, null, 2) + '\n', 'utf-8')
         console.log(`  ✅ Updated apps/${appDir}/wrangler.json`)
-      } catch (e) { }
+      } catch (e) {}
     }
-  } catch (e) { }
+  } catch (e) {}
 }
 
 /**
@@ -99,10 +104,7 @@ async function writeGscVerificationHtml(targetDir: string): Promise<void> {
   if (base !== rawName) {
     console.warn('  ⚠️ GSC_VERIFICATION_FILE was not a plain filename; using basename only.')
   }
-  if (
-    base.length > 128 ||
-    !/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.html$/i.test(base)
-  ) {
+  if (base.length > 128 || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.html$/i.test(base)) {
     console.warn(`  ⚠️ Skipping GSC verification file: invalid or unsafe filename (${base})`)
     return
   }
@@ -117,7 +119,10 @@ async function writeGscVerificationHtml(targetDir: string): Promise<void> {
 async function scaffoldIndexVue(targetDir: string, displayName: string) {
   const appIndexPath = path.join(targetDir, 'apps', 'web', 'app', 'pages', 'index.vue')
   try {
-    const exists = await fs.stat(appIndexPath).then(() => true).catch(() => false)
+    const exists = await fs
+      .stat(appIndexPath)
+      .then(() => true)
+      .catch(() => false)
     if (exists) {
       console.log('  ⏭ apps/web/app/pages/index.vue already exists — skipping scaffold.')
       return
@@ -195,7 +200,7 @@ async function main() {
   console.log(`\nStep 3: Scaffolding local dev files...`)
   const dopplerYamlPath = path.join(targetAbsDir, 'doppler.yaml')
   await fs.writeFile(dopplerYamlPath, `setup:\n  project: ${APP_NAME}\n  config: dev\n`, 'utf-8')
-  
+
   await scaffoldIndexVue(targetAbsDir, DISPLAY_NAME)
 
   console.log(`\nStep 4: Writing setup sentinels...`)
@@ -214,8 +219,16 @@ async function main() {
   // Assuming pnpm install was run in the caller workflow before this script execution, or is run inside the target repo before
   try {
     const webFaviconSvg = path.join(targetAbsDir, 'apps', 'web', 'public', 'favicon.svg')
-    if (await fs.stat(webFaviconSvg).then(() => true).catch(() => false)) {
-      spawnSync('pnpm', ['add', '-w', '--save-dev', 'sharp'], { cwd: targetAbsDir, stdio: 'inherit' })
+    if (
+      await fs
+        .stat(webFaviconSvg)
+        .then(() => true)
+        .catch(() => false)
+    ) {
+      spawnSync('pnpm', ['add', '-w', '--save-dev', 'sharp'], {
+        cwd: targetAbsDir,
+        stdio: 'inherit',
+      })
       spawnSync(
         'pnpm',
         [
@@ -226,7 +239,7 @@ async function main() {
           `--name=${DISPLAY_NAME}`,
           `--short-name=${DISPLAY_NAME.slice(0, 12)}`,
         ],
-        { cwd: targetAbsDir, stdio: 'inherit' }
+        { cwd: targetAbsDir, stdio: 'inherit' },
       )
       console.log('  ✅ Favicon assets generated.')
     }
@@ -235,7 +248,10 @@ async function main() {
   }
 
   console.log(`\nStep 6: Setting git hooks...`)
-  spawnSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: targetAbsDir, stdio: 'inherit' })
+  spawnSync('git', ['config', 'core.hooksPath', '.githooks'], {
+    cwd: targetAbsDir,
+    stdio: 'inherit',
+  })
 
   console.log('\n✅ Repo hydration complete.')
 }

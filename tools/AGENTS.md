@@ -10,16 +10,16 @@ These are **Node.js automation scripts** that run locally or in CI. They are
 
 ## Scripts
 
-| Script                      | Purpose                                                                                                                          | Usage                                                                    |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `provision/*.ts`, `5-hydrate-repo.ts` | Control-plane provisioning runner + repo hydration (no `init.ts`) | Invoked from `.github/workflows/provision-app.yml`                       |
-| `validate.ts`               | Confirms infrastructure is correctly provisioned (D1, Doppler, GitHub secrets; includes `CRON_SECRET` for hourly analytics cron) | `pnpm run validate`                                                      |
-| `verify-analytics-cron.ts`  | After deploy: curl `/_cron/fleet-status`, inspect `kv_cache` via remote D1, print `wrangler tail` hint                           | `pnpm run verify:cron` (Doppler `prd`)                                   |
-| `generate-favicons.ts`      | Generates all favicon variants (apple-touch-icon, ico, PNG, webmanifest) from a source SVG                                       | `pnpm generate:favicons`                                                 |
-| `setup-analytics.ts`        | Bootstraps GA4, Google Search Console, and IndexNow                                                                              | Called from `tools/provision/4-create-analytics.ts` or run directly      |
-| `gsc-toolbox.ts`            | Google Search Console API utilities                                                                                              | Used by `setup-analytics.ts`                                             |
-| `set-fleet-doppler-urls.ts` | Bulk-set `SITE_URL` (default) or analytics keys (`--sync-analytics`) across all fleet Doppler projects                           | `npx tsx tools/set-fleet-doppler-urls.ts [--sync-analytics] [--dry-run]` |
-| `validate-fleet-doppler.ts` | Verify all fleet apps have required Doppler secrets: `SITE_URL`, `POSTHOG_PUBLIC_KEY`, `POSTHOG_HOST`, `GA_MEASUREMENT_ID`       | `pnpm run check:fleet-doppler`                                           |
+| Script                                | Purpose                                                                                                                          | Usage                                                                    |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `provision/*.ts`, `5-hydrate-repo.ts` | Control-plane provisioning runner + repo hydration (no `init.ts`)                                                                | Invoked from `.github/workflows/provision-app.yml`                       |
+| `validate.ts`                         | Confirms infrastructure is correctly provisioned (D1, Doppler, GitHub secrets; includes `CRON_SECRET` for hourly analytics cron) | `pnpm run validate`                                                      |
+| `verify-analytics-cron.ts`            | After deploy: curl `/_cron/fleet-status`, inspect `kv_cache` via remote D1, print `wrangler tail` hint                           | `pnpm run verify:cron` (Doppler `prd`)                                   |
+| `generate-favicons.ts`                | Generates all favicon variants (apple-touch-icon, ico, PNG, webmanifest) from a source SVG                                       | `pnpm generate:favicons`                                                 |
+| `setup-analytics.ts`                  | Bootstraps GA4, Google Search Console, and IndexNow                                                                              | Called from `tools/provision/4-create-analytics.ts` or run directly      |
+| `gsc-toolbox.ts`                      | Google Search Console API utilities                                                                                              | Used by `setup-analytics.ts`                                             |
+| `set-fleet-doppler-urls.ts`           | Bulk-set `SITE_URL` (default) or analytics keys (`--sync-analytics`) across all fleet Doppler projects                           | `npx tsx tools/set-fleet-doppler-urls.ts [--sync-analytics] [--dry-run]` |
+| `validate-fleet-doppler.ts`           | Verify all fleet apps have required Doppler secrets: `SITE_URL`, `POSTHOG_PUBLIC_KEY`, `POSTHOG_HOST`, `GA_MEASUREMENT_ID`       | `pnpm run check:fleet-doppler`                                           |
 
 ## vs. `scripts/`
 

@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import type { AnalyticsSurface } from '~/utils/analyticsPresentation'
-import {
-  ANALYTICS_SURFACE_OPTIONS,
-  normalizeAnalyticsSurface,
-} from '~/utils/analyticsPresentation'
+import { ANALYTICS_SURFACE_OPTIONS, normalizeAnalyticsSurface } from '~/utils/analyticsPresentation'
 
 const route = useRoute()
 const router = useRouter()
@@ -73,7 +70,8 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
           Analytics Dashboard
         </h1>
         <p class="text-sm text-muted">
-          Provider-first analytics surfaces with cached fleet snapshots and lazy indexing workspaces.
+          Provider-first analytics surfaces with cached fleet snapshots and lazy indexing
+          workspaces.
         </p>
         <div
           v-if="isDateBoundSurface && (serverStale || summaryRevalidating)"

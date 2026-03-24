@@ -20,7 +20,10 @@ const bodySchema = z.record(z.string(), z.string()).superRefine((val, ctx) => {
     if (!allowedPatchKeys.has(k)) {
       ctx.addIssue({
         code: 'custom',
-        message: k === 'provision-id' ? 'provision-id cannot be updated via this endpoint' : `Unknown key: ${k}`,
+        message:
+          k === 'provision-id'
+            ? 'provision-id cannot be updated via this endpoint'
+            : `Unknown key: ${k}`,
         path: [k],
       })
     }

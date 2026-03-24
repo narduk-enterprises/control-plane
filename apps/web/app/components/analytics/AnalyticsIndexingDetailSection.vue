@@ -16,13 +16,16 @@ const metrics = computed(() => props.provider?.metrics)
 const providerStatus = computed(() => props.provider?.status ?? 'no_data')
 const providerMessage = computed(
   () =>
-    props.provider?.message || 'IndexNow submission history and sitemap analysis for this app live here.',
+    props.provider?.message ||
+    'IndexNow submission history and sitemap analysis for this app live here.',
 )
 const lastSubmissionLabel = computed(() => {
   if (!metrics.value?.lastSubmission) return 'Never'
   return new Date(metrics.value.lastSubmission).toLocaleString()
 })
-const lastBatchLabel = computed(() => metrics.value?.lastSubmittedCount?.toLocaleString() ?? 'Unknown')
+const lastBatchLabel = computed(
+  () => metrics.value?.lastSubmittedCount?.toLocaleString() ?? 'Unknown',
+)
 </script>
 
 <template>

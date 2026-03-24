@@ -97,6 +97,7 @@ export default defineNuxtConfig({
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       cookie: {
+        // `secure: true` for prod; `$development` turns it off for `nuxt dev`. Avoid `import.meta.dev` here (unreliable in nuxt.config — nuxt/nuxt#32098).
         secure: true,
       },
     },

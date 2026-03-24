@@ -5,8 +5,22 @@ import { provisionJobs } from '#server/database/schema'
 import { definePublicMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { assertProvisionApiKey } from '#server/utils/provision-api-auth'
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().optional(),
+)
+
+const optionalUrlString = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().url().optional(),
+)
+
 const bodySchema = z.object({
   status: z.enum(['pending', 'cloning', 'initializing', 'deploying', 'complete', 'failed']),
+  githubRunId: optionalNonEmptyString,
+  githubRunUrl: optionalUrlString,
+  githubRunStatus: optionalNonEmptyString,
+  githubRunConclusion: optionalNonEmptyString,
 })
 
 /**
@@ -44,10 +58,25 @@ export default definePublicMutation(
     }
 
     const now = new Date().toISOString()
-    await db
-      .update(provisionJobs)
-      .set({ status: body.status, updatedAt: now })
-      .where(eq(provisionJobs.id, id))
+    const updates: {
+      status: string
+      updatedAt: string
+      githubRunId?: string
+      githubRunUrl?: string
+      githubRunStatus?: string | null
+      githubRunConclusion?: string | null
+    } = {
+      status: body.status,
+      updatedAt: now,
+    }
+
+    if (body.githubRunId !== undefined) updates.githubRunId = body.githubRunId
+    if (body.githubRunUrl !== undefined) updates.githubRunUrl = body.githubRunUrl
+    if (body.githubRunStatus !== undefined) updates.githubRunStatus = body.githubRunStatus
+    if (body.githubRunConclusion !== undefined)
+      updates.githubRunConclusion = body.githubRunConclusion
+
+    await db.update(provisionJobs).set(updates).where(eq(provisionJobs.id, id))
 
     return { ok: true, id, status: body.status }
   },

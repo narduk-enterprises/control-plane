@@ -28,7 +28,12 @@ const isMainModule = Boolean(entryPath && entryPath === selfPath)
 
 const AGENT_SKILL_ROOTS = ['.cursor', '.codex', '.agent', '.github', '.claude']
 const RELATIVE_SKILLS_TARGET = '../.agents/skills'
-const TRANSIENT_SKILLS_DIRECTORIES = new Set(['.git', '__pycache__', '.pytest_cache', 'node_modules'])
+const TRANSIENT_SKILLS_DIRECTORIES = new Set([
+  '.git',
+  '__pycache__',
+  '.pytest_cache',
+  'node_modules',
+])
 const TRANSIENT_SKILLS_FILES = new Set(['.DS_Store'])
 
 export interface EnsureSkillsLinksOptions {

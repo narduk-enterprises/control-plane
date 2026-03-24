@@ -32,7 +32,12 @@ export default definePublicMutation(
     const db = useDatabase(event)
 
     // Find the provision job
-    const jobs = await db.select().from(provisionJobs).where(eq(provisionJobs.id, id)).limit(1).all()
+    const jobs = await db
+      .select()
+      .from(provisionJobs)
+      .where(eq(provisionJobs.id, id))
+      .limit(1)
+      .all()
 
     if (jobs.length === 0) {
       throw createError({ statusCode: 404, message: `Provision job '${id}' not found.` })

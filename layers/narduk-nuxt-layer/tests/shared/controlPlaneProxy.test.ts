@@ -21,9 +21,7 @@ describe('controlPlaneProxy helpers', () => {
         'https://control-plane.nard.uk',
         'https://bluebonnet-status.example.com',
       ),
-    ).toBe(
-      '/api/control-plane/fleet/posthog/bluebonnet-status-online?startDate=2026-02-21',
-    )
+    ).toBe('/api/control-plane/fleet/posthog/bluebonnet-status-online?startDate=2026-02-21')
   })
 
   it('ignores non-fleet and non-control-plane URLs', () => {

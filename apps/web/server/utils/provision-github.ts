@@ -7,6 +7,13 @@
 
 const GH_API_BASE = 'https://api.github.com'
 
+export interface GithubWorkflowRun {
+  id: number
+  htmlUrl: string
+  status: string
+  conclusion: string | null
+}
+
 function ghHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
@@ -92,6 +99,38 @@ export async function triggerWorkflow(
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`GitHub workflow dispatch failed: ${res.status} ${text}`)
+  }
+}
+
+/**
+ * Fetch a specific GitHub Actions workflow run by numeric run ID.
+ */
+export async function getWorkflowRun(
+  ghToken: string,
+  repo: string,
+  runId: string,
+): Promise<GithubWorkflowRun> {
+  const res = await fetch(`${GH_API_BASE}/repos/${repo}/actions/runs/${runId}`, {
+    headers: ghHeaders(ghToken),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`GitHub workflow run fetch failed: ${res.status} ${text}`)
+  }
+
+  const data = (await res.json()) as {
+    id: number
+    html_url: string
+    status: string
+    conclusion: string | null
+  }
+
+  return {
+    id: data.id,
+    htmlUrl: data.html_url,
+    status: data.status,
+    conclusion: data.conclusion,
   }
 }
 

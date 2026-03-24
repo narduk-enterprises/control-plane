@@ -4,11 +4,11 @@ End-to-end pipeline from a provisioning request to a live, deployed app.
 
 Three phases, each running in a different environment:
 
-| Phase | Where | Trigger |
-|-------|-------|---------|
-| **A - Control Plane API** | Cloudflare Worker (edge) | `POST /api/fleet/provision` |
-| **B - GitHub Actions** | `provision-app.yml` on `narduk-enterprises/control-plane` | Dispatched from Phase A |
-| **C - Local / Developer** | Developer machine | After clone: `doppler run -- pnpm dev`; ship via `pnpm ship` |
+| Phase                     | Where                                                     | Trigger                                                      |
+| ------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| **A - Control Plane API** | Cloudflare Worker (edge)                                  | `POST /api/fleet/provision`                                  |
+| **B - GitHub Actions**    | `provision-app.yml` on `narduk-enterprises/control-plane` | Dispatched from Phase A                                      |
+| **C - Local / Developer** | Developer machine                                         | After clone: `doppler run -- pnpm dev`; ship via `pnpm ship` |
 
 ---
 
@@ -17,17 +17,28 @@ Three phases, each running in a different environment:
 The API **only**:
 
 1. Upserts `fleet_apps` and allocates `NUXT_PORT`
-2. Inserts `provision_jobs` (`pending` → `creating_repo` → `dispatching` or `failed`)
-3. Creates the **empty** GitHub repo under the target org (`POST /orgs/{org}/repos`)
-4. Dispatches `provision-app.yml` with `workflow_dispatch` inputs (including `provision-id`)
+2. Inserts `provision_jobs` (`pending` → `creating_repo` → `dispatching` or
+   `failed`)
+3. Creates the **empty** GitHub repo under the target org
+   (`POST /orgs/{org}/repos`)
+4. Dispatches `provision-app.yml` with `workflow_dispatch` inputs (including
+   `provision-id`)
 
-**Not** done on the edge: Cloudflare D1 for the **new app**, Doppler spoke project, GitHub repo secrets on the **new** repo, GA4/GSC/IndexNow, hydration, or deploy. Those run in Phase B.
+**Not** done on the edge: Cloudflare D1 for the **new app**, Doppler spoke
+project, GitHub repo secrets on the **new** repo, GA4/GSC/IndexNow, hydration,
+or deploy. Those run in Phase B.
 
 ### Repository already exists (HTTP 422)
 
-If the repo name already exists on GitHub, Phase A marks the job **failed** and returns **409**. No workflow is dispatched (avoiding a duplicate run against an unknown repo state).
+If the repo name already exists on GitHub, Phase A marks the job **failed** and
+returns **409**. No workflow is dispatched (avoiding a duplicate run against an
+unknown repo state).
 
-**Recovery:** In the control plane UI, use **Retry** on that job. Retry **re-dispatches** the workflow only; it does not call `POST /orgs/.../repos` again. Use this when the repo is empty or acceptable to overwrite with `git push --force` from the pipeline. Otherwise delete the repo or pick a different app name and start a new provision.
+**Recovery:** In the control plane UI, use **Retry** on that job. Retry
+**re-dispatches** the workflow only; it does not call `POST /orgs/.../repos`
+again. Use this when the repo is empty or acceptable to overwrite with
+`git push --force` from the pipeline. Otherwise delete the repo or pick a
+different app name and start a new provision.
 
 ---
 
@@ -77,7 +88,11 @@ sequenceDiagram
 
 ## After provisioning (local dev)
 
-There is no `tools/init.ts` and no `pnpm run setup` for infra. A provisioned repo already has `.setup-complete`, `doppler.yaml`, and wrangler wired by the pipeline. Clone the new repo, run `pnpm install`, `doppler setup --project <app> --config dev`, then `doppler run -- pnpm dev`. See `docs/provisioning-pipeline.md`.
+There is no `tools/init.ts` and no `pnpm run setup` for infra. A provisioned
+repo already has `.setup-complete`, `doppler.yaml`, and wrangler wired by the
+pipeline. Clone the new repo, run `pnpm install`,
+`doppler setup --project <app> --config dev`, then `doppler run -- pnpm dev`.
+See `docs/provisioning-pipeline.md`.
 
 ---
 

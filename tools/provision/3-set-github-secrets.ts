@@ -10,7 +10,10 @@ async function main() {
   }
 
   const dopplerToken = process.env.APP_DOPPLER_TOKEN || process.env.DOPPLER_TOKEN
-  const ghPackagesToken = process.env.GH_PACKAGES_TOKEN
+  const ghPackagesToken =
+    process.env.GH_PACKAGES_TOKEN ||
+    process.env.GITHUB_PACKAGES_TOKEN ||
+    process.env.GITHUB_TOKEN_PACKAGES_READ
   const controlPlaneUrl = process.env.CONTROL_PLANE_URL
 
   if (!dopplerToken) {

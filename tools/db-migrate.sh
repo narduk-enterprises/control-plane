@@ -101,6 +101,99 @@ record_migration() {
   append_applied "$migration_id"
 }
 
+is_schema_already_applied_output() {
+  local output="$1"
+  echo "$output" | grep -qiE "duplicate column name|already exists"
+}
+
+split_sql_file() {
+  local source_file="$1"
+  local output_dir="$2"
+
+  sed 's/--> statement-breakpoint/\n--__BREAKPOINT__\n/g' "$source_file" | awk -v out_dir="$output_dir" '
+    function flush() {
+      gsub(/^[[:space:]\r\n]+|[[:space:]\r\n]+$/, "", statement)
+      if (statement == "") {
+        statement = ""
+        return
+      }
+
+      count += 1
+      path = sprintf("%s/%04d.sql", out_dir, count)
+      print statement > path
+      close(path)
+      statement = ""
+    }
+
+    /^--__BREAKPOINT__$/ {
+      flush()
+      next
+    }
+
+    {
+      if (statement != "") {
+        statement = statement ORS $0
+      } else {
+        statement = $0
+      }
+
+      if ($0 ~ /;[[:space:]]*$/) {
+        flush()
+      }
+    }
+
+    END {
+      flush()
+    }
+  '
+}
+
+reconcile_migration_file() {
+  local migration_id="$1"
+  local source_file="$2"
+  local temp_dir
+  local statement_file
+  local statement_output
+  local statement_exit
+  local saw_statement=false
+
+  temp_dir=$(mktemp -d)
+  split_sql_file "$source_file" "$temp_dir"
+
+  for statement_file in "$temp_dir"/*.sql; do
+    [ -f "$statement_file" ] || continue
+    saw_statement=true
+
+    statement_output=""
+    set +e
+    statement_output=$(wrangler d1 execute "$DB_NAME" "$LOCATION_FLAG" --file="$statement_file" 2>&1)
+    statement_exit=$?
+    set -e
+
+    if [ $statement_exit -eq 0 ]; then
+      continue
+    fi
+
+    if is_schema_already_applied_output "$statement_output"; then
+      continue
+    fi
+
+    echo "❌  ${migration_id} failed during statement reconciliation:"
+    echo "$statement_output"
+    rm -rf "$temp_dir"
+    return 1
+  done
+
+  rm -rf "$temp_dir"
+
+  if [ "$saw_statement" = false ]; then
+    echo "❌  ${migration_id} could not be split into statements"
+    return 1
+  fi
+
+  return 0
+}
+
 scope_for_dir() {
   local dir="$1"
   dir="${dir#./}"
@@ -156,8 +249,9 @@ for dir in "${DRIZZLE_DIRS[@]}"; do
 
     if [ $MIGRATE_EXIT -eq 0 ]; then
       : # Success — record normally below
-    elif echo "$MIGRATE_OUTPUT" | grep -qiE "duplicate column name|already exists"; then
-      echo "⚠️  ${migration_id}: schema already applied (skipping) — recording as applied"
+    elif is_schema_already_applied_output "$MIGRATE_OUTPUT"; then
+      echo "⚠️  ${migration_id}: schema overlap detected — reconciling statement by statement"
+      reconcile_migration_file "$migration_id" "$f"
     else
       echo "❌  ${migration_id} failed:"
       echo "$MIGRATE_OUTPUT"

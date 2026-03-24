@@ -1,6 +1,7 @@
 -- ─────────────────────────────────────────────────────────────
--- Consolidated D1 migrations — runs on every `pnpm run dev`
--- All statements are idempotent (CREATE TABLE IF NOT EXISTS).
+-- Consolidated bootstrap schema for a fresh local D1 database.
+-- Mirrors the current app + layer schema in one file for inspection/bootstrap.
+-- `db:migrate` uses the tracked drizzle/*.sql files via tools/db-migrate.sh.
 -- ─────────────────────────────────────────────────────────────
 
 -- ═══ Layer base tables ══════════════════════════════════════
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS `fleet_apps` (
   `ga_measurement_id` TEXT,
   `posthog_app_name` TEXT,
   `github_repo`      TEXT,
+  `app_description`  TEXT,
   `is_active`        INTEGER NOT NULL DEFAULT 1,
   `created_at`       TEXT NOT NULL,
   `updated_at`       TEXT NOT NULL
@@ -93,6 +95,7 @@ CREATE TABLE IF NOT EXISTS `provision_jobs` (
   `status`         TEXT NOT NULL DEFAULT 'pending',
   `deployed_url`   TEXT,
   `ga_property_id` TEXT,
+  `dispatch_inputs_json` TEXT,
   `error_message`  TEXT,
   `created_at`     TEXT NOT NULL,
   `updated_at`     TEXT NOT NULL
@@ -138,8 +141,3 @@ CREATE TABLE IF NOT EXISTS `provision_job_logs` (
 
 CREATE INDEX IF NOT EXISTS idx_provision_job_logs_provision_id ON provision_job_logs(provision_id);
 CREATE INDEX IF NOT EXISTS idx_provision_job_logs_created_at ON provision_job_logs(created_at);
-
-ALTER TABLE fleet_apps ADD COLUMN nuxt_port INTEGER;
-ALTER TABLE provision_jobs ADD COLUMN nuxt_port INTEGER;
-
-ALTER TABLE provision_jobs ADD COLUMN dispatch_inputs_json text;

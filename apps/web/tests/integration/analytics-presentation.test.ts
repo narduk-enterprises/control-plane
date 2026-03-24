@@ -25,7 +25,10 @@ function providerSnapshot(
   }
 }
 
-function snapshot(name: string, overrides: Partial<FleetAnalyticsSnapshot> = {}): FleetAnalyticsSnapshot {
+function snapshot(
+  name: string,
+  overrides: Partial<FleetAnalyticsSnapshot> = {},
+): FleetAnalyticsSnapshot {
   return {
     app: {
       name,
@@ -64,10 +67,16 @@ describe('analytics presentation helpers', () => {
 
     const issueSnapshots: Record<string, FleetAnalyticsSnapshot | null> = {
       alpha: snapshot('alpha', {
-        ga: providerSnapshot({ status: 'missing_config', message: 'No GA4 property ID configured.' }),
+        ga: providerSnapshot({
+          status: 'missing_config',
+          message: 'No GA4 property ID configured.',
+        }),
       }),
       beta: snapshot('beta', {
-        ga: providerSnapshot({ status: 'missing_config', message: 'No GA4 property ID configured.' }),
+        ga: providerSnapshot({
+          status: 'missing_config',
+          message: 'No GA4 property ID configured.',
+        }),
       }),
     }
 

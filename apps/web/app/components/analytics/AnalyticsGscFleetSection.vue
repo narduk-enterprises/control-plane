@@ -37,7 +37,10 @@ const rows = computed(() =>
         sortValue: totals?.clicks ?? -1,
       }
     })
-    .sort((left, right) => right.sortValue - left.sortValue || left.appName.localeCompare(right.appName)),
+    .sort(
+      (left, right) =>
+        right.sortValue - left.sortValue || left.appName.localeCompare(right.appName),
+    ),
 )
 
 const healthyCount = computed(() => rows.value.filter((row) => row.status === 'healthy').length)

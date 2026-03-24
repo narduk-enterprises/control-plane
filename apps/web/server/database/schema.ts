@@ -3,6 +3,7 @@
  * Re-exports the layer's base tables and adds control-plane–specific tables.
  */
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+
 export * from '#layer/server/database/schema'
 // ─── Fleet Apps Registry ────────────────────────────────────
 // Public app registry used by status/audit/analytics APIs. Seeded from the
@@ -84,6 +85,10 @@ export const provisionJobs = sqliteTable('provision_jobs', {
   githubRepo: text('github_repo').notNull(),
   nuxtPort: integer('nuxt_port'),
   status: text('status').notNull().default('pending'), // pending → creating_repo → dispatching → cloning → initializing → deploying → complete | failed
+  githubRunId: text('github_run_id'),
+  githubRunUrl: text('github_run_url'),
+  githubRunStatus: text('github_run_status'),
+  githubRunConclusion: text('github_run_conclusion'),
   deployedUrl: text('deployed_url'),
   gaPropertyId: text('ga_property_id'),
   /** Last workflow_dispatch inputs (JSON) for full parity on retry */
@@ -111,7 +116,6 @@ export const provisionJobLogs = sqliteTable('provision_job_logs', {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 })
-
 
 // ─── Type helpers ───────────────────────────────────────────
 export type FleetApp = typeof fleetApps.$inferSelect

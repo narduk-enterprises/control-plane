@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { getHeader, createError, getRouterParam } from 'h3'
 import { provisionJobs } from '#server/database/schema'
+import { reconcileProvisionJobWithGitHub } from '#server/utils/provision-job-reconciliation'
 
 /**
  * GET /api/fleet/provision/[id]
@@ -29,7 +30,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: `Provision job '${id}' not found.` })
   }
 
-  const job = jobs[0]!
+  const job = await reconcileProvisionJobWithGitHub(event, jobs[0]!)
 
   return {
     id: job.id,
@@ -39,6 +40,10 @@ export default defineEventHandler(async (event) => {
     githubRepo: job.githubRepo,
     nuxtPort: job.nuxtPort,
     status: job.status,
+    githubRunId: job.githubRunId,
+    githubRunUrl: job.githubRunUrl,
+    githubRunStatus: job.githubRunStatus,
+    githubRunConclusion: job.githubRunConclusion,
     deployedUrl: job.deployedUrl,
     gaPropertyId: job.gaPropertyId,
     errorMessage: job.errorMessage,

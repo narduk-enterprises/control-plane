@@ -11,7 +11,8 @@ useWebPageSchema({
   description: 'Provision a new fleet app.',
 })
 
-const { jobs, activeJobs, refreshJobs, isProvisioning, provisionApp, retryJob } = useFleetProvision()
+const { jobs, activeJobs, refreshJobs, isProvisioning, provisionApp, retryJob } =
+  useFleetProvision()
 
 const toast = useToast()
 
@@ -23,7 +24,6 @@ function toggleJob(id: string) {
     expandedJobs.value.add(id)
   }
 }
-
 
 // ── Form state ──
 const form = reactive({
@@ -56,8 +56,8 @@ async function onProvision() {
   if (!formValid.value) return
   // Sanitize description: strip HTML, keep safe chars (architect review fix #7)
   const sanitized = form.description
-    .replace(/<[^>]*>/g, '')
-    .replace(/[^a-zA-Z0-9 .,!?;:'"()\-\n]/g, '')
+    .replaceAll(/<[^>]*>/g, '')
+    .replaceAll(/[^a-z0-9 .,!?;:'"()\n-]/gi, '')
     .trim()
   await provisionApp(form.name, form.displayName, form.url, sanitized || undefined)
   form.name = ''
@@ -173,8 +173,8 @@ const breadcrumbItems = computed(() => [
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">Provision App</h1>
         <p class="mt-1 text-sm text-muted">
-          Create a new fleet app from the template — GitHub repo, D1, Doppler, a dedicated local
-          dev port, analytics, and first deploy.
+          Create a new fleet app from the template — GitHub repo, D1, Doppler, a dedicated local dev
+          port, analytics, and first deploy.
         </p>
       </div>
       <UButton
@@ -224,7 +224,10 @@ const breadcrumbItems = computed(() => [
         </UFormField>
       </div>
       <div class="mt-4">
-        <UFormField label="App Description" hint="Optional — AI generates a custom theme, layout, icon, and logo from this">
+        <UFormField
+          label="App Description"
+          hint="Optional — AI generates a custom theme, layout, icon, and logo from this"
+        >
           <UTextarea
             v-model="form.description"
             placeholder="A recipe sharing app for home cooks. Features recipe search, meal planning, and grocery lists. Warm, inviting, food-centric design."
@@ -280,9 +283,22 @@ const breadcrumbItems = computed(() => [
                   Local dev: http://localhost:{{ job.nuxtPort }}
                 </p>
               </div>
-              <UBadge :color="statusColor(job.status)" variant="subtle" class="shrink-0">
-                {{ statusLabel(job.status) }}
-              </UBadge>
+              <div class="flex items-center gap-2">
+                <UTooltip v-if="job.githubRunUrl" text="Open GitHub Actions run">
+                  <UButton
+                    :to="job.githubRunUrl"
+                    target="_blank"
+                    icon="i-lucide-github"
+                    size="xs"
+                    variant="ghost"
+                    color="neutral"
+                    class="cursor-pointer"
+                  />
+                </UTooltip>
+                <UBadge :color="statusColor(job.status)" variant="subtle" class="shrink-0">
+                  {{ statusLabel(job.status) }}
+                </UBadge>
+              </div>
             </div>
             <!-- Progress bar -->
             <div class="w-full rounded-full bg-elevated h-2">
@@ -398,8 +414,8 @@ const breadcrumbItems = computed(() => [
                 </UTooltip>
                 <UTooltip text="View in GitHub Actions">
                   <UButton
-                    v-if="job.githubRepo"
-                    :to="`https://github.com/${job.githubRepo}/actions`"
+                    v-if="job.githubRunUrl || job.githubRepo"
+                    :to="job.githubRunUrl || `https://github.com/${job.githubRepo}/actions`"
                     target="_blank"
                     icon="i-lucide-external-link"
                     size="xs"
@@ -421,24 +437,41 @@ const breadcrumbItems = computed(() => [
               </UTooltip>
             </div>
           </div>
-          
+
           <!-- Logs Expansion -->
           <div v-if="expandedJobs.has(job.id)">
-            <div v-if="job.logs?.length" class="bg-elevated p-3 rounded-md mx-3 mb-4 mt-1 text-xs font-mono max-h-64 overflow-y-auto">
-              <div v-for="log in job.logs" :key="log.id" class="flex items-start gap-2 py-1 border-b border-default last:border-0">
-                <span class="text-muted shrink-0 w-16">{{ new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}</span>
+            <div
+              v-if="job.logs?.length"
+              class="bg-elevated p-3 rounded-md mx-3 mb-4 mt-1 text-xs font-mono max-h-64 overflow-y-auto"
+            >
+              <div
+                v-for="log in job.logs"
+                :key="log.id"
+                class="flex items-start gap-2 py-1 border-b border-default last:border-0"
+              >
+                <span class="text-muted shrink-0 w-16">{{
+                  new Date(log.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })
+                }}</span>
                 <span
                   :class="{
                     'text-error': log.level === 'error',
                     'text-success': log.level === 'success',
                     'text-info': log.level === 'info',
                   }"
-                >[{{ log.level.toUpperCase() }}]</span>
+                  >[{{ log.level.toUpperCase() }}]</span
+                >
                 <span v-if="log.step" class="text-primary">[{{ log.step }}]</span>
                 <span class="text-default whitespace-pre-wrap">{{ log.message }}</span>
               </div>
             </div>
-            <div v-else class="bg-elevated p-3 rounded-md mx-3 mb-4 mt-1 text-xs font-mono text-muted">
+            <div
+              v-else
+              class="bg-elevated p-3 rounded-md mx-3 mb-4 mt-1 text-xs font-mono text-muted"
+            >
               No logs available for this job.
             </div>
           </div>

@@ -23,7 +23,7 @@ const bodySchema = z.object({
     .min(1)
     .max(200)
     .regex(
-      /^[a-zA-Z0-9 \-'.&]+$/,
+      /^[a-z0-9 \-'.&]+$/i,
       'Display name may only contain letters, numbers, spaces, hyphens, apostrophes, periods, and ampersands',
     ),
   url: z.string().url(),

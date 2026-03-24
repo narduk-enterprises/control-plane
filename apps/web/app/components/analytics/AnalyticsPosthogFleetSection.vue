@@ -34,7 +34,10 @@ const rows = computed(() =>
         sortValue: Number(summary?.event_count ?? -1),
       }
     })
-    .sort((left, right) => right.sortValue - left.sortValue || left.appName.localeCompare(right.appName)),
+    .sort(
+      (left, right) =>
+        right.sortValue - left.sortValue || left.appName.localeCompare(right.appName),
+    ),
 )
 
 const healthyCount = computed(() => rows.value.filter((row) => row.status === 'healthy').length)
@@ -46,7 +49,9 @@ const healthyCount = computed(() => rows.value.filter((row) => row.status === 'h
       <UBadge color="primary" variant="subtle" size="sm">
         {{ healthyCount }}/{{ rows.length }} healthy
       </UBadge>
-      <span>Product analytics stays isolated from acquisition metrics and indexing operations.</span>
+      <span
+        >Product analytics stays isolated from acquisition metrics and indexing operations.</span
+      >
     </div>
 
     <div

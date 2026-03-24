@@ -58,7 +58,7 @@ describe('provision-workflow-dispatch', () => {
         'd1-database-id': 'abc',
         'provision-id': 'stored-id',
         extra: 1,
-        'bad': null,
+        bad: null,
       }),
     )
     expect(parsed).toEqual({ 'd1-database-id': 'abc', 'provision-id': 'stored-id' })

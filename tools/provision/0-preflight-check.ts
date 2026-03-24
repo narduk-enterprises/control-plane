@@ -3,13 +3,19 @@ async function main() {
   const warnings: string[] = []
 
   const requiredEnvVars = [
-    'CONTROL_PLANE_URL',
-    'PROVISION_API_KEY',
-    'GH_SERVICE_TOKEN',
-    'GH_PACKAGES_TOKEN',
-    'CLOUDFLARE_API_TOKEN',
-    'CLOUDFLARE_ACCOUNT_ID',
-    'DOPPLER_API_TOKEN',
+    { label: 'CONTROL_PLANE_URL', keys: ['CONTROL_PLANE_URL'] },
+    { label: 'PROVISION_API_KEY', keys: ['PROVISION_API_KEY'] },
+    {
+      label: 'GH_SERVICE_TOKEN',
+      keys: ['GH_SERVICE_TOKEN', 'CONTROL_PLANE_GH_SERVICE_TOKEN'],
+    },
+    {
+      label: 'GH_PACKAGES_TOKEN',
+      keys: ['GH_PACKAGES_TOKEN', 'GITHUB_PACKAGES_TOKEN', 'GITHUB_TOKEN_PACKAGES_READ'],
+    },
+    { label: 'CLOUDFLARE_API_TOKEN', keys: ['CLOUDFLARE_API_TOKEN'] },
+    { label: 'CLOUDFLARE_ACCOUNT_ID', keys: ['CLOUDFLARE_ACCOUNT_ID'] },
+    { label: 'DOPPLER_API_TOKEN', keys: ['DOPPLER_API_TOKEN', 'DOPPLER_TOKEN'] },
   ]
 
   const optionalEnvVars = ['GSC_SERVICE_ACCOUNT_JSON', 'GA_ACCOUNT_ID']
@@ -17,8 +23,8 @@ async function main() {
   console.log('✈️  Running preflight checks...')
 
   for (const envVar of requiredEnvVars) {
-    if (!process.env[envVar]) {
-      missing.push(envVar)
+    if (!envVar.keys.some((key) => process.env[key])) {
+      missing.push(envVar.label)
     }
   }
 
