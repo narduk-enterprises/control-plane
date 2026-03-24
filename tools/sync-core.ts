@@ -74,6 +74,15 @@ function ensureDir(filePath: string) {
   mkdirSync(dirname(filePath), { recursive: true })
 }
 
+function pathOccupied(filePath: string): boolean {
+  try {
+    lstatSync(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
 function filesIdentical(left: string, right: string): boolean {
   try {
     return readFileSync(left).equals(readFileSync(right))
@@ -113,17 +122,19 @@ function syncFile(
   const srcLstat = lstatSync(sourcePath)
   if (srcLstat.isSymbolicLink()) {
     const wantTarget = readlinkSync(sourcePath, 'utf8')
-    if (existsSync(targetPath) && symlinkTargetsMatch(sourcePath, targetPath)) {
+    const occupied = pathOccupied(targetPath)
+
+    if (occupied && symlinkTargetsMatch(sourcePath, targetPath)) {
       counters.skipped += 1
       return
     }
 
-    const action = existsSync(targetPath) ? 'UPDATE' : 'ADD'
+    const action = occupied ? 'UPDATE' : 'ADD'
     log(`  ${action}: ${relative(templateDir, sourcePath)}`)
 
     if (!dryRun) {
       ensureDir(targetPath)
-      if (existsSync(targetPath)) {
+      if (occupied) {
         rmSync(targetPath, { recursive: true, force: true })
       }
       symlinkSync(wantTarget, targetPath)
@@ -168,17 +179,19 @@ function syncDirectoryRecursive(
 
   if (stat.isSymbolicLink()) {
     const wantTarget = readlinkSync(sourceRoot, 'utf8')
-    if (existsSync(targetRoot) && symlinkTargetsMatch(sourceRoot, targetRoot)) {
+    const occupied = pathOccupied(targetRoot)
+
+    if (occupied && symlinkTargetsMatch(sourceRoot, targetRoot)) {
       counters.skipped += 1
       return
     }
 
-    const action = existsSync(targetRoot) ? 'UPDATE' : 'ADD'
+    const action = occupied ? 'UPDATE' : 'ADD'
     log(`  ${action}: ${relative(templateDir, sourceRoot)}`)
 
     if (!dryRun) {
       ensureDir(targetRoot)
-      if (existsSync(targetRoot)) {
+      if (occupied) {
         rmSync(targetRoot, { recursive: true, force: true })
       }
       symlinkSync(wantTarget, targetRoot)

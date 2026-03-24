@@ -108,7 +108,18 @@ export async function getSessionUser(event: H3Event): Promise<User | null> {
     .where(and(eq(sessions.id, token), gt(sessions.expiresAt, now)))
     .limit(1)
 
-  return (rows[0] as User) ?? null
+  const row = rows[0]
+  if (!row) return null
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    passwordHash: row.passwordHash,
+    appleId: row.appleId,
+    isAdmin: row.isAdmin,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  } satisfies User
 }
 
 /**

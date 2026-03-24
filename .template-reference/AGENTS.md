@@ -56,6 +56,18 @@ without first checking the workspace guide.
   `@ts-ignore`, or similar suppressions unless the exception is explicitly
   tracked and justified.
 
+## Provisioned app build (GitHub Agentic Workflows)
+
+- After the control plane creates the repo, run **Actions →
+  `provisioned-app-build`** (or your org’s entry) when ready. Work should land
+  on **`integrate/build`** and finish as **one PR** to `main`.
+- Agent-facing secrets: GitHub environment **`copilot`**, populated from Doppler
+  config **`copilot`** / **`prd_copilot`** via
+  `pnpm run sync:copilot-secrets -- <slug>` (run from a checkout that includes
+  `tools/sync-copilot-secrets.ts`).
+- Canonical machine input: **`provision.json`**; product spec: **`SPEC.md`** →
+  **`UI_PLAN.md`** → **`CONTRACT.md`** before implementation.
+
 ## Quality Commands
 
 - Main app quality: `pnpm --filter web run quality`

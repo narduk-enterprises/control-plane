@@ -86,7 +86,7 @@ function handleSavePrompt(name: string) {
           <div class="flex gap-2">
             <USelectMenu
               :model-value="adminAi.currentModel.value"
-              :options="availableModels"
+              :items="availableModels"
               class="flex-1 w-full"
               @update:model-value="handleModelChange"
             />

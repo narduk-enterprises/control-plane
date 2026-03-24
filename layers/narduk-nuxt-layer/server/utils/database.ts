@@ -2,6 +2,7 @@
 import type { H3Event } from 'h3'
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
 import * as schema from '../database/schema'
+import { useLogger } from './logger'
 
 /**
  * Return a Drizzle ORM instance for the current request.
@@ -24,7 +25,16 @@ export function useDatabase(event: H3Event): DrizzleD1Database<typeof schema> {
     })
   }
 
-  const db = drizzle(d1, { schema })
+  const db = drizzle(d1, {
+    schema,
+    logger: import.meta.dev
+      ? {
+          logQuery(query, params) {
+            useLogger(event).child('D1').debug('sql', { query, params })
+          },
+        }
+      : undefined,
+  })
   event.context._db = db
   return db
 }
@@ -60,7 +70,16 @@ export function createAppDatabase<T extends Record<string, unknown>>(appSchema: 
       })
     }
 
-    const db = drizzle(d1, { schema: appSchema })
+    const db = drizzle(d1, {
+      schema: appSchema,
+      logger: import.meta.dev
+        ? {
+            logQuery(query, params) {
+              useLogger(event).child('D1').debug('sql', { query, params })
+            },
+          }
+        : undefined,
+    })
     event.context._appDb = db
     return db
   }

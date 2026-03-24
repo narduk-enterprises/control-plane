@@ -1,11 +1,37 @@
 import type { H3Event } from 'h3'
 
 /**
+ * Cloudflare Workers Rate Limiting binding (see `ratelimits` in wrangler.json).
+ * Counters are coordinated per PoP (not per-isolate memory). Complements the
+ * in-memory limiter below for defense in depth.
+ *
+ * @see https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
+ */
+export interface CloudflareRateLimitBinding {
+  limit(input: { key: string }): Promise<{ success: boolean }>
+}
+
+/** Wrangler binding names — must match `ratelimits[].name` in each app. */
+export type LayerRateLimitBindingName =
+  | 'RL_10'
+  | 'RL_20'
+  | 'RL_30'
+  | 'RL_60'
+  | 'RL_120'
+  | 'RL_240'
+  | 'RL_300'
+
+export type LayerRateLimitEnv = Partial<
+  Record<LayerRateLimitBindingName, CloudflareRateLimitBinding>
+>
+
+/**
  * Lightweight in-memory sliding-window rate limiter.
  *
  * Designed for Cloudflare Workers where each isolate has its own memory —
  * this provides per-isolate protection against brute-force/credential-stuffing.
- * For stricter global limits, use Cloudflare Rate Limiting rules.
+ * When `ratelimits` bindings are configured, `enforceRateLimitPolicy` also
+ * calls the platform limiter (per-PoP, shared across isolates in that location).
  *
  * NOTE: The module-scope `buckets` Map is INTENTIONAL. It provides within-isolate
  * rate limiting across requests handled by the same Worker instance. This state
@@ -62,6 +88,29 @@ export const RATE_LIMIT_POLICIES = {
 
 const buckets = new Map<string, Map<string, RateLimitEntry>>()
 let cleanupCounter = 0
+
+/** Maps policy maxRequests (per minute) to a wrangler `ratelimits` binding. */
+const RATE_LIMIT_BINDING_BY_MAX: Partial<Record<number, LayerRateLimitBindingName>> = {
+  10: 'RL_10',
+  20: 'RL_20',
+  30: 'RL_30',
+  60: 'RL_60',
+  120: 'RL_120',
+  240: 'RL_240',
+  300: 'RL_300',
+}
+
+function getCloudflareRateLimiter(
+  event: H3Event,
+  policy: RateLimitPolicy,
+): CloudflareRateLimitBinding | null {
+  const bindingName = RATE_LIMIT_BINDING_BY_MAX[policy.maxRequests]
+  if (!bindingName) return null
+
+  const env = event.context.cloudflare?.env as LayerRateLimitEnv | undefined
+  const limiter = env?.[bindingName]
+  return limiter ?? null
+}
 
 function getClientIp(event: H3Event): string {
   return (
@@ -128,9 +177,28 @@ export async function enforceRateLimit(
   }
 }
 
+async function enforceCloudflareRateLimit(event: H3Event, policy: RateLimitPolicy): Promise<void> {
+  const limiter = getCloudflareRateLimiter(event, policy)
+  if (!limiter) return
+
+  const ip = getClientIp(event)
+  const key = `${policy.namespace}:${ip}`
+  const { success } = await limiter.limit({ key })
+
+  if (!success) {
+    const retryAfterSec = Math.max(1, Math.ceil(policy.windowMs / 1000))
+    setResponseHeader(event, 'Retry-After', retryAfterSec)
+    throw createError({
+      statusCode: 429,
+      message: 'Too many requests. Please try again later.',
+    })
+  }
+}
+
 export async function enforceRateLimitPolicy(
   event: H3Event,
   policy: RateLimitPolicy,
 ): Promise<void> {
+  await enforceCloudflareRateLimit(event, policy)
   await enforceRateLimit(event, policy.namespace, policy.maxRequests, policy.windowMs)
 }

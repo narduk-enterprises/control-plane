@@ -308,17 +308,7 @@ async function main() {
 
   let targets = [targetArg]
 
-  if (targetArg === 'showcase') {
-    // Expand showcase macro
-    targets = [
-      'showcase',
-      'example-auth',
-      'example-blog',
-      'example-marketing',
-      'example-og-image',
-      'example-apple-maps',
-    ]
-  } else if (targetArg.includes(',')) {
+  if (targetArg.includes(',')) {
     targets = targetArg.split(',').map((t) => t.trim())
   }
 

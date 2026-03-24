@@ -113,7 +113,7 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   predev: 'node tools/check-setup.cjs',
   prebuild: 'node tools/check-setup.cjs',
   preship:
-    'node tools/check-setup.cjs && pnpm install --frozen-lockfile && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check',
+    'node tools/check-setup.cjs && pnpm install --frozen-lockfile && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check',
   ship: 'pnpm exec tsx tools/ship.ts',
   setup: 'pnpm run skills:link',
   validate: 'pnpm exec tsx tools/validate.ts',

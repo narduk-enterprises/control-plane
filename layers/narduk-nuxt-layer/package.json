@@ -21,7 +21,7 @@
     "typecheck": "nuxt typecheck",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run --coverage",
     "quality": "pnpm run test:unit",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
@@ -61,6 +61,7 @@
     "prettier": "^3.8.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.9.3",
+    "@vitest/coverage-v8": "4.0.18",
     "vitest": "^4.0.18",
     "vue-tsc": "^3.2.5",
     "wrangler": "^4.20.0"
