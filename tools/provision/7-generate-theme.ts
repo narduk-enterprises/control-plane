@@ -1,7 +1,8 @@
 /**
  * 7-generate-theme.ts
  *
- * AI-powered theme, splash landing page, icon, and logo generation using OpenAI + DALL-E.
+ * AI-powered theme, splash landing page, icon, and logo generation using
+ * OpenAI with xAI text fallback + DALL-E.
  *
  * This script is NON-FATAL — it exits 0 on every path.
  * If generation fails, the default scaffold from step 5 remains intact.
@@ -38,12 +39,13 @@ const APP_URL = getArg('app-url')
 const TARGET_DIR = getArg('target-dir')
 const PROVISION_ID = getArg('provision-id')
 
-const XAI_API_KEY = process.env.XAI_API_KEY || ''
+const XAI_API_KEY = process.env.XAI_API_KEY || process.env.GROK_API_KEY || ''
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''
 const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || ''
 const PROVISION_API_KEY = process.env.PROVISION_API_KEY || ''
 
-const CODE_MODEL = 'gpt-5.4'
+const OPENAI_CODE_MODEL = 'gpt-5.4'
+const XAI_CODE_MODEL = process.env.XAI_CODE_MODEL?.trim() || 'grok-4'
 const MAX_SFC_ATTEMPTS = 3 // Hard gate: SFC must parse
 const MAX_TYPECHECK_FIXES = 3 // Soft gate: typecheck fix attempts, then accept
 const PER_REQUEST_TIMEOUT_MS = 60_000
@@ -61,6 +63,7 @@ const REQUIRED_STARTER_FILES = [
   'apps/web/wrangler.json',
   'apps/web/public/site.webmanifest',
 ] as const
+type TextProvider = 'openai' | 'xai'
 
 // ─── Helpers ──────────────────────────────────────────────────
 function maskApiKey(key: string): string {
@@ -232,21 +235,64 @@ async function collectWorkspaceContext(targetDir: string): Promise<Record<string
   }
 }
 
-// ─── xAI API ──────────────────────────────────────────────────
-interface XaiModel {
-  id: string
-  name?: string
-}
-
 interface ChatResponse {
   choices?: Array<{ message?: { content?: string } }>
   usage?: { total_tokens?: number }
 }
 
+class TextProviderError extends Error {
+  provider: TextProvider
+  status?: number
+
+  constructor(provider: TextProvider, message: string, status?: number) {
+    super(message)
+    this.name = 'TextProviderError'
+    this.provider = provider
+    this.status = status
+  }
+}
+
+interface TextGenerationResult {
+  content: string
+  tokens: number
+  provider: TextProvider
+  model: string
+  attemptedProviders: TextProvider[]
+  fallbackReason?: string
+}
+
+function getProviderOrder(preferXai: boolean): TextProvider[] {
+  const providers: TextProvider[] = []
+
+  if (preferXai) {
+    if (XAI_API_KEY) providers.push('xai')
+    if (OPENAI_API_KEY) providers.push('openai')
+    return providers
+  }
+
+  if (OPENAI_API_KEY) providers.push('openai')
+  if (XAI_API_KEY) providers.push('xai')
+  return providers
+}
+
+function shouldPreferXaiAfterFailure(error: unknown): boolean {
+  if (!(error instanceof TextProviderError)) return false
+  if (error.provider !== 'openai') return false
+  if (error.status === 429) return true
+
+  const message = error.message.toLowerCase()
+  return (
+    message.includes('quota') ||
+    message.includes('rate limit') ||
+    message.includes('insufficient_quota') ||
+    message.includes('billing')
+  )
+}
+
 async function callOpenAI(
   systemPrompt: string,
   userPrompt: string,
-): Promise<{ content: string; tokens: number }> {
+): Promise<{ content: string; tokens: number; provider: TextProvider; model: string }> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -254,7 +300,7 @@ async function callOpenAI(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: CODE_MODEL,
+      model: OPENAI_CODE_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -266,12 +312,103 @@ async function callOpenAI(
   })
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
-    throw new Error(`OpenAI API ${res.status}: ${errText.slice(0, 200)}`)
+    throw new TextProviderError('openai', `OpenAI API ${res.status}: ${errText.slice(0, 200)}`, res.status)
   }
   const data = (await res.json()) as ChatResponse
   const content = data.choices?.[0]?.message?.content ?? ''
   const tokens = data.usage?.total_tokens ?? 0
-  return { content, tokens }
+  return { content, tokens, provider: 'openai', model: OPENAI_CODE_MODEL }
+}
+
+async function callXai(
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<{ content: string; tokens: number; provider: TextProvider; model: string }> {
+  const res = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${XAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: XAI_CODE_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      stream: false,
+      temperature: 0.7,
+    }),
+    signal: AbortSignal.timeout(PER_REQUEST_TIMEOUT_MS),
+  })
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    throw new TextProviderError('xai', `xAI API ${res.status}: ${errText.slice(0, 200)}`, res.status)
+  }
+  const data = (await res.json()) as ChatResponse
+  const content = data.choices?.[0]?.message?.content ?? ''
+  const tokens = data.usage?.total_tokens ?? 0
+  return { content, tokens, provider: 'xai', model: XAI_CODE_MODEL }
+}
+
+async function callTextModel(
+  systemPrompt: string,
+  userPrompt: string,
+  preferXai: boolean,
+): Promise<TextGenerationResult> {
+  const providerOrder = getProviderOrder(preferXai)
+  if (providerOrder.length === 0) {
+    throw new TextProviderError(
+      'openai',
+      'No text provider configured. Set OPENAI_API_KEY or XAI_API_KEY.',
+    )
+  }
+
+  let fallbackReason: string | undefined
+  let lastError: unknown
+  const attemptedProviders: TextProvider[] = []
+
+  for (const provider of providerOrder) {
+    attemptedProviders.push(provider)
+    try {
+      const result =
+        provider === 'openai'
+          ? await callOpenAI(systemPrompt, userPrompt)
+          : await callXai(systemPrompt, userPrompt)
+      return {
+        ...result,
+        attemptedProviders,
+        fallbackReason,
+      }
+    } catch (error: unknown) {
+      lastError = error
+      if (
+        provider === 'openai' &&
+        XAI_API_KEY &&
+        providerOrder.includes('xai') &&
+        shouldPreferXaiAfterFailure(error)
+      ) {
+        fallbackReason =
+          error instanceof Error
+            ? `OpenAI failed; falling back to xAI. ${error.message}`
+            : 'OpenAI failed; falling back to xAI.'
+        continue
+      }
+
+      const isLastProvider = provider === providerOrder[providerOrder.length - 1]
+      if (!isLastProvider) {
+        fallbackReason =
+          error instanceof Error
+            ? `${provider} failed; trying next provider. ${error.message}`
+            : `${provider} failed; trying next provider.`
+        continue
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Text generation failed for all configured providers.')
 }
 
 // ─── Image Generation ─────────────────────────────────────────
@@ -584,7 +721,12 @@ async function main(): Promise<void> {
     appDescription: APP_DESCRIPTION,
     targetDir: TARGET_DIR,
     provisionId: PROVISION_ID,
-    model: CODE_MODEL,
+    preferredModel: OPENAI_CODE_MODEL,
+    fallbackModel: XAI_CODE_MODEL,
+    providerAvailability: {
+      openai: Boolean(OPENAI_API_KEY),
+      xai: Boolean(XAI_API_KEY),
+    },
     maxSfcAttempts: MAX_SFC_ATTEMPTS,
     maxTypecheckFixes: MAX_TYPECHECK_FIXES,
     typecheckTimeoutMs: TYPECHECK_TIMEOUT_MS,
@@ -596,7 +738,12 @@ async function main(): Promise<void> {
     appDescription: APP_DESCRIPTION,
     targetDir: TARGET_DIR,
     provisionId: PROVISION_ID,
-    model: CODE_MODEL,
+    preferredModel: OPENAI_CODE_MODEL,
+    fallbackModel: XAI_CODE_MODEL,
+    providerAvailability: {
+      openai: Boolean(OPENAI_API_KEY),
+      xai: Boolean(XAI_API_KEY),
+    },
     maxSfcAttempts: MAX_SFC_ATTEMPTS,
     maxTypecheckFixes: MAX_TYPECHECK_FIXES,
     typecheckTimeoutMs: TYPECHECK_TIMEOUT_MS,
@@ -638,12 +785,12 @@ async function main(): Promise<void> {
     return
   }
 
-  if (!OPENAI_API_KEY) {
-    console.log('   ℹ️ OPENAI_API_KEY not set — skipping AI theme generation.')
+  if (!OPENAI_API_KEY && !XAI_API_KEY) {
+    console.log('   ℹ️ No text-model API key set — skipping AI theme generation.')
     await logToProvision(
       'info',
       'ai-theme',
-      'Skipping AI theme generation: OPENAI_API_KEY not set.',
+      'Skipping AI theme generation: neither OPENAI_API_KEY nor XAI_API_KEY is set.',
     )
     return
   }
@@ -657,11 +804,18 @@ async function main(): Promise<void> {
     return
   }
 
-  console.log(`   Model: ${CODE_MODEL}`)
-  console.log(`   Key: ${maskApiKey(OPENAI_API_KEY)}`)
+  console.log(`   Preferred text model: ${OPENAI_CODE_MODEL}`)
+  console.log(`   Fallback text model: ${XAI_CODE_MODEL}`)
+  console.log(
+    `   OpenAI key: ${OPENAI_API_KEY ? maskApiKey(OPENAI_API_KEY) : 'not configured'}`,
+  )
+  console.log(`   xAI key: ${XAI_API_KEY ? maskApiKey(XAI_API_KEY) : 'not configured'}`)
 
   const startTime = Date.now()
   const generatedAssets: string[] = []
+  let preferXai = false
+  let selectedProvider: TextProvider | null = null
+  let selectedModel: string | null = null
   const workspaceContext = await collectWorkspaceContext(targetAbsDir)
   const workspaceContextJson = JSON.stringify(workspaceContext, null, 2)
   await logJsonToProvision('info', 'ai-theme', 'AI theme workspace context', workspaceContext)
@@ -672,7 +826,7 @@ async function main(): Promise<void> {
 
   // ─── Phase 1: Generate structurally valid SFCs ──────────────
   console.log('\n  Step 7.1: Generating theme and layout...')
-  const systemPrompt = buildSystemPrompt(CODE_MODEL)
+  const systemPrompt = buildSystemPrompt(OPENAI_CODE_MODEL)
   let sfcPassed = false
   let totalTokens = 0
   let attemptCount = 0
@@ -700,9 +854,31 @@ async function main(): Promise<void> {
         attempt > 1 ? lastErrors : undefined,
       )
 
-      const { content, tokens } = await callOpenAI(systemPrompt, userPrompt)
+      const { content, tokens, provider, model, attemptedProviders, fallbackReason } =
+        await callTextModel(systemPrompt, userPrompt, preferXai)
       totalTokens += tokens
       lastRawResponse = content
+      selectedProvider = provider
+      selectedModel = model
+
+      if (fallbackReason) {
+        preferXai = provider === 'xai'
+        console.warn(`   ⚠️ ${fallbackReason}`)
+        await logJsonToProvision('info', 'ai-theme', 'AI theme provider fallback', {
+          attempt,
+          fallbackReason,
+          attemptedProviders,
+          selectedProvider: provider,
+          selectedModel: model,
+        })
+        printJsonToConsole('AI theme provider fallback', {
+          attempt,
+          fallbackReason,
+          attemptedProviders,
+          selectedProvider: provider,
+          selectedModel: model,
+        })
+      }
 
       // Parse JSON response
       const files = parseAiResponse(content)
@@ -766,12 +942,18 @@ async function main(): Promise<void> {
       console.log(`   ✅ SFC validation passed on attempt ${attempt}.`)
       await logJsonToProvision('success', 'ai-theme', 'AI theme SFC generation output', {
         attempt,
+        provider,
+        model,
         tokens,
+        attemptedProviders,
         generatedFiles: summarizeGeneratedFiles(files),
       })
       printJsonToConsole('AI theme SFC generation output', {
         attempt,
+        provider,
+        model,
         tokens,
+        attemptedProviders,
         generatedFiles: summarizeGeneratedFiles(files),
       })
       break
@@ -797,10 +979,11 @@ async function main(): Promise<void> {
     await restoreFiles(backup)
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
     console.log(
-      `\n  📊 AI theme fallback: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`,
+      `\n  📊 AI theme fallback: provider=${selectedProvider ?? 'none'}, model=${selectedModel ?? 'none'}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`,
     )
     await logJsonToProvision('info', 'ai-theme', 'AI theme fallback output', {
-      model: CODE_MODEL,
+      provider: selectedProvider,
+      model: selectedModel,
       attempts: attemptCount,
       tokens: totalTokens,
       elapsedSeconds: Number(elapsed),
@@ -808,7 +991,8 @@ async function main(): Promise<void> {
       restoredScaffold: true,
     })
     printJsonToConsole('AI theme fallback output', {
-      model: CODE_MODEL,
+      provider: selectedProvider,
+      model: selectedModel,
       attempts: attemptCount,
       tokens: totalTokens,
       elapsedSeconds: Number(elapsed),
@@ -820,7 +1004,7 @@ async function main(): Promise<void> {
   }
 
   // Write the structurally valid files to disk
-  await writeGeneratedFiles(targetAbsDir, lastGoodFiles, CODE_MODEL)
+  await writeGeneratedFiles(targetAbsDir, lastGoodFiles, selectedModel ?? OPENAI_CODE_MODEL)
 
   // ─── Phase 2: Typecheck fix loop (soft gate) ────────────────
   console.log('\n  Step 7.2: Running Nuxt Typecheck quality gate...')
@@ -889,10 +1073,32 @@ async function main(): Promise<void> {
             lastRawResponse,
             typeErrors,
           )
-          const { content, tokens } = await callOpenAI(systemPrompt, fixPrompt)
+          const { content, tokens, provider, model, attemptedProviders, fallbackReason } =
+            await callTextModel(systemPrompt, fixPrompt, preferXai)
           totalTokens += tokens
           attemptCount++
           lastRawResponse = content
+          selectedProvider = provider
+          selectedModel = model
+
+          if (fallbackReason) {
+            preferXai = provider === 'xai'
+            console.warn(`   ⚠️ ${fallbackReason}`)
+            await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix provider fallback', {
+              fixAttempt: fix,
+              fallbackReason,
+              attemptedProviders,
+              selectedProvider: provider,
+              selectedModel: model,
+            })
+            printJsonToConsole('AI theme typecheck fix provider fallback', {
+              fixAttempt: fix,
+              fallbackReason,
+              attemptedProviders,
+              selectedProvider: provider,
+              selectedModel: model,
+            })
+          }
 
           const fixedFiles = parseAiResponse(content)
           if (!fixedFiles) {
@@ -935,22 +1141,29 @@ async function main(): Promise<void> {
               generatedFiles: summarizeGeneratedFiles(fixedFiles),
             })
             // Rewrite original good files for next typecheck attempt
-            await writeGeneratedFiles(targetAbsDir, lastGoodFiles!, CODE_MODEL)
+            await writeGeneratedFiles(
+              targetAbsDir,
+              lastGoodFiles!,
+              selectedModel ?? OPENAI_CODE_MODEL,
+            )
             continue
           }
 
           // Write fixed files
           lastGoodFiles = fixedFiles
-          await writeGeneratedFiles(targetAbsDir, fixedFiles, CODE_MODEL)
+          await writeGeneratedFiles(targetAbsDir, fixedFiles, selectedModel ?? OPENAI_CODE_MODEL)
           await logJsonToProvision('info', 'ai-theme', 'AI theme typecheck fix output', {
             fixAttempt: fix,
             generatedFiles: summarizeGeneratedFiles(fixedFiles),
-          })
-          printJsonToConsole('AI theme typecheck fix output', {
-            fixAttempt: fix,
-            generatedFiles: summarizeGeneratedFiles(fixedFiles),
-          })
-        } catch (apiErr: unknown) {
+            })
+            printJsonToConsole('AI theme typecheck fix output', {
+              fixAttempt: fix,
+              provider,
+              model,
+              attemptedProviders,
+              generatedFiles: summarizeGeneratedFiles(fixedFiles),
+            })
+          } catch (apiErr: unknown) {
           console.warn(`   ❌ AI fix API error: ${(apiErr as Error).message}`)
           await logJsonToProvision('error', 'ai-theme', 'AI theme typecheck fix API error', {
             fixAttempt: fix,
@@ -961,7 +1174,11 @@ async function main(): Promise<void> {
             error: (apiErr as Error).message,
           })
           // Rewrite last good files so typecheck can re-run
-          await writeGeneratedFiles(targetAbsDir, lastGoodFiles!, CODE_MODEL)
+          await writeGeneratedFiles(
+            targetAbsDir,
+            lastGoodFiles!,
+            selectedModel ?? OPENAI_CODE_MODEL,
+          )
         }
       } else {
         console.log(`   ℹ️ Typecheck fix attempts exhausted — accepting code as-is.`)
@@ -1011,7 +1228,7 @@ async function main(): Promise<void> {
   // Log results (Rec D)
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
   const status = typecheckPassed ? 'success' : sfcPassed ? 'accepted-with-warnings' : 'fallback'
-  const logMsg = `AI theme ${status}: model=${CODE_MODEL}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`
+  const logMsg = `AI theme ${status}: provider=${selectedProvider ?? 'unknown'}, model=${selectedModel ?? 'unknown'}, attempts=${attemptCount}, tokens=${totalTokens}, elapsed=${elapsed}s`
   console.log(`\n  📊 ${logMsg}`)
   await logToProvision(typecheckPassed ? 'success' : 'info', 'ai-theme', logMsg)
   await logJsonToProvision(
@@ -1020,7 +1237,8 @@ async function main(): Promise<void> {
     'AI theme final output summary',
     {
       status,
-      model: CODE_MODEL,
+      provider: selectedProvider,
+      model: selectedModel,
       attempts: attemptCount,
       tokens: totalTokens,
       elapsedSeconds: Number(elapsed),
@@ -1031,7 +1249,8 @@ async function main(): Promise<void> {
   )
   printJsonToConsole('AI theme final output summary', {
     status,
-    model: CODE_MODEL,
+    provider: selectedProvider,
+    model: selectedModel,
     attempts: attemptCount,
     tokens: totalTokens,
     elapsedSeconds: Number(elapsed),
