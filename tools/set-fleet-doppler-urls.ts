@@ -1,6 +1,6 @@
 /**
- * Set Doppler secrets in each fleet app's project (prd) to match the control-plane registry.
- * Fetches the app list from the control plane API.
+ * Set Doppler secrets in each fleet app's project (prd) to match control-plane metadata.
+ * Fetches managed repo metadata from the control plane API.
  *
  * Usage:
  *   npx tsx tools/set-fleet-doppler-urls.ts             # set SITE_URL in all fleet projects
@@ -13,7 +13,7 @@
  * Requires: doppler CLI (doppler.com/docs/cli), auth (doppler login or DOPPLER_TOKEN),
  * and write access to each fleet project in Doppler.
  *
- * GET /api/fleet/apps requires admin: set CONTROL_PLANE_API_KEY or FLEET_API_KEY (nk_...).
+ * Control-plane admin routes require CONTROL_PLANE_API_KEY or FLEET_API_KEY (nk_...).
  */
 
 import { randomBytes } from 'node:crypto'
@@ -40,8 +40,12 @@ function parseFilterAppsArg(): Set<string> | null {
 
 interface FleetApp {
   name: string
-  url: string
+  publicUrl: string
   dopplerProject: string
+}
+
+interface RuntimeFleetApp {
+  name: string
   nuxtPort?: number | null
 }
 
@@ -54,19 +58,40 @@ function fleetApiHeaders(): Record<string, string> {
 
 async function fetchFleetApps(): Promise<FleetApp[]> {
   try {
-    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`, { headers: fleetApiHeaders() })
+    const res = await fetch(
+      `${CONTROL_PLANE_URL}/api/fleet/repos?includeInactive=true&monitoringEnabled=true`,
+      { headers: fleetApiHeaders() },
+    )
     if (res.status === 401 || res.status === 403) {
       console.error(
-        `❌ ${CONTROL_PLANE_URL}/api/fleet/apps → HTTP ${res.status}. Set CONTROL_PLANE_API_KEY (nk_... admin key).`,
+        `❌ ${CONTROL_PLANE_URL}/api/fleet/repos → HTTP ${res.status}. Set CONTROL_PLANE_API_KEY (nk_... admin key).`,
       )
       process.exit(1)
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return res.json() as Promise<FleetApp[]>
   } catch {
-    console.error(`❌ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    console.error(`❌ Could not fetch fleet repos from ${CONTROL_PLANE_URL}/api/fleet/repos`)
     process.exit(1)
   }
+}
+
+async function fetchRuntimeFleetApps(): Promise<RuntimeFleetApp[]> {
+  const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps?includeInactive=true&force=true`, {
+    headers: fleetApiHeaders(),
+  })
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(
+      `${CONTROL_PLANE_URL}/api/fleet/apps rejected the request. Set CONTROL_PLANE_API_KEY (nk_... admin key).`,
+    )
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`HTTP ${res.status}${text ? ` ${text}` : ''}`)
+  }
+
+  return (await res.json()) as RuntimeFleetApp[]
 }
 
 async function updateFleetAppNuxtPort(appName: string, nuxtPort: number): Promise<void> {
@@ -140,7 +165,15 @@ async function main() {
   }
 
   const appsAll = await fetchFleetApps()
-  let apps = appsAll
+  const runtimeAppsByName =
+    syncDevPorts || backfillMissingNuxtPorts
+      ? new Map((await fetchRuntimeFleetApps()).map((app) => [app.name, app]))
+      : new Map<string, RuntimeFleetApp>()
+  let apps = appsAll.map((app) => ({
+    ...app,
+    url: app.publicUrl,
+    nuxtPort: runtimeAppsByName.get(app.name)?.nuxtPort ?? null,
+  }))
   if (ensureIndexnow) {
     const filter = parseFilterAppsArg()
     if (filter) {

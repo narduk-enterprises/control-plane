@@ -67,7 +67,7 @@ function requireEnv(name: string): string {
 }
 
 async function fetchFleetApps(baseUrl: string, apiKey: string): Promise<FleetApp[]> {
-  const url = new URL('/api/fleet/apps', baseUrl)
+  const url = new URL('/api/fleet/repos?syncManaged=true&includeInactive=true', baseUrl)
   const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -77,7 +77,7 @@ async function fetchFleetApps(baseUrl: string, apiKey: string): Promise<FleetApp
 
   if (!response.ok) {
     const text = await response.text().catch(() => '')
-    throw new Error(`Fleet app list fetch failed: ${response.status} ${text}`)
+    throw new Error(`Fleet repo list fetch failed: ${response.status} ${text}`)
   }
 
   return (await response.json()) as FleetApp[]

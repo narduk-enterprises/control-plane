@@ -118,7 +118,7 @@ const bodySchema = z.object({
  *
  * Authenticated endpoint to provision a new fleet app.
  *
- *   1. Upsert app in fleet_apps D1 (update if exists, insert if new)
+ *   1. Upsert app in fleet_apps D1 as an inactive placeholder
  *   2. Create bare GitHub repo
  *   3. Dispatch provision-app.yml GitHub workflow
  *
@@ -176,7 +176,7 @@ export default definePublicMutation(
           githubRepo,
           nuxtPort,
           appDescription: agentDescription ?? null,
-          isActive: true,
+          isActive: existing[0]?.isActive ?? false,
           updatedAt: now,
         })
         .where(eq(fleetApps.name, name))
@@ -188,7 +188,7 @@ export default definePublicMutation(
         githubRepo,
         nuxtPort,
         appDescription: agentDescription ?? null,
-        isActive: true,
+        isActive: false,
         createdAt: now,
         updatedAt: now,
       })

@@ -438,27 +438,9 @@ async function runGaSetup() {
     writeSetupSecret('GA_PROPERTY_ID', numericPropertyId)
   }
 
-  // Push GA property ID to control plane fleet registry
   console.log()
-  console.log('Step 4/4: Updating control plane fleet registry...')
-  if (numericPropertyId) {
-    const cpUrl = 'https://control-plane.nard.uk'
-    const cpAppName = getAppName()
-    try {
-      const cpRes = await fetch(`${cpUrl}/api/fleet/apps/${cpAppName}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gaPropertyId: numericPropertyId }),
-      })
-      if (cpRes.ok) {
-        console.log(`  ✅ Updated GA property ID in control plane fleet registry.`)
-      } else {
-        console.warn(`  ⚠️ Could not update GA property ID in control plane (${cpRes.status}).`)
-      }
-    } catch {
-      console.warn('  ⚠️ Could not update GA property ID in control plane.')
-    }
-  }
+  console.log('Step 4/4: Control plane metadata remains managed from the control plane source of truth.')
+  console.log('  ℹ️  GA IDs were written to Doppler only. Update managed repo metadata separately if needed.')
 
   console.log()
   console.log('🎉  Google Analytics 4 setup complete!')

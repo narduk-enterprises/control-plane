@@ -766,42 +766,18 @@ function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => v
   return true
 }
 
-function ensureSetupComplete(
-  appDir: string,
-  dryRun: boolean,
-  log: (message: string) => void,
-): boolean {
-  const sentinelPath = join(appDir, '.setup-complete')
-  if (existsSync(sentinelPath)) return false
-
-  log('  ADD: .setup-complete')
-  if (!dryRun) {
-    writeFileSync(
-      sentinelPath,
-      `initialized=${new Date().toISOString()}\napp=${relative(dirname(appDir), appDir)}\nsource=sync-template\n`,
-      'utf-8',
-    )
+function warnIfBootstrapArtifactsMissing(appDir: string, log: (message: string) => void): void {
+  const missing: string[] = []
+  if (!existsSync(join(appDir, '.setup-complete'))) {
+    missing.push('.setup-complete')
   }
-  return true
-}
-
-function ensureDopplerYaml(
-  appDir: string,
-  dryRun: boolean,
-  log: (message: string) => void,
-): boolean {
-  const dopplerPath = join(appDir, 'doppler.yaml')
-  const repoName = appDir.split('/').pop() || 'unknown'
-  const expectedContent = `setup:\n  project: ${repoName}\n  config: prd\n`
-  const currentContent = existsSync(dopplerPath) ? readFileSync(dopplerPath, 'utf-8') : null
-
-  if (currentContent === expectedContent) return false
-
-  log(`  ${currentContent === null ? 'ADD' : 'UPDATE'}: doppler.yaml`)
-  if (!dryRun) {
-    writeFileSync(dopplerPath, expectedContent, 'utf-8')
+  if (!existsSync(join(appDir, 'doppler.yaml'))) {
+    missing.push('doppler.yaml')
   }
-  return true
+  if (missing.length === 0) return
+
+  log(`  WARN: bootstrap-managed files missing (${missing.join(', ')})`)
+  log('        Sync will not recreate provisioning artifacts; repair them via provisioning or an explicit ops flow.')
 }
 
 function rewriteLayerRepository(
@@ -941,8 +917,7 @@ export async function runAppSync(options: RunAppSyncOptions) {
   if (mode === 'full') {
     patchGitignore(options.appDir, dryRun, log)
     patchNpmrc(options.appDir, dryRun, log)
-    ensureSetupComplete(options.appDir, dryRun, log)
-    ensureDopplerYaml(options.appDir, dryRun, log)
+    warnIfBootstrapArtifactsMissing(options.appDir, log)
     ensureGitHooksPath(options.appDir, dryRun, log)
   }
 

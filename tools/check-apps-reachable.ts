@@ -6,7 +6,7 @@
  *   npx tsx tools/check-apps-reachable.ts --urls=./fleet-urls.json   # use URL list file instead
  *   npx tsx tools/check-apps-reachable.ts --timeout=15
  *
- * By default, fetches the app list from the deployed control plane API.
+ * By default, fetches the monitored repo list from the deployed control plane API.
  * With --urls=path: JSON file with { "app-name": "https://..." } or [ "https://...", ... ].
  */
 
@@ -21,19 +21,28 @@ const CONTROL_PLANE_URL = process.env.CONTROL_PLANE_URL || 'https://control-plan
 
 interface FleetApp {
   name: string
-  url: string
-  dopplerProject: string
+  publicUrl: string
 }
 
 async function fetchFleetApps(): Promise<[string, string][]> {
   try {
-    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`)
+    const apiKey = process.env.CONTROL_PLANE_API_KEY || process.env.FLEET_API_KEY || ''
+    const res = await fetch(
+      `${CONTROL_PLANE_URL}/api/fleet/repos?includeInactive=true&monitoringEnabled=true`,
+      {
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      },
+    )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const apps = (await res.json()) as FleetApp[]
-    return apps.map((a) => [a.name, a.url])
+    return apps
+      .filter((app) => Boolean(app.publicUrl))
+      .map((app) => [app.name, app.publicUrl])
   } catch {
-    console.error(`⚠️ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
-    console.error('   Ensure the control plane is deployed and accessible.')
+    console.error(`⚠️ Could not fetch fleet repos from ${CONTROL_PLANE_URL}/api/fleet/repos`)
+    console.error(
+      '   Ensure the control plane is deployed and accessible, and set CONTROL_PLANE_API_KEY if required.',
+    )
     process.exit(1)
   }
 }

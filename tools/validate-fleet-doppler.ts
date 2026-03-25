@@ -5,7 +5,7 @@
  * Usage:
  *   pnpm run check:fleet-doppler
  *
- * Fetches the app list from the deployed control plane API.
+ * Fetches the monitored repo list from the deployed control plane API.
  * For fleet-wide read access, set FLEET_DOPPLER_TOKEN in the template's Doppler
  * project (prd) to a service token with read access to all fleet projects; the
  * script uses it when present for doppler secrets calls.
@@ -29,13 +29,16 @@ interface FleetApp {
 async function fetchFleetApps(): Promise<FleetApp[]> {
   const apiKey = process.env.CONTROL_PLANE_API_KEY || process.env.FLEET_API_KEY
   try {
-    const res = await fetch(`${CONTROL_PLANE_URL}/api/fleet/apps`, {
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-    })
+    const res = await fetch(
+      `${CONTROL_PLANE_URL}/api/fleet/repos?includeInactive=true&monitoringEnabled=true`,
+      {
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      },
+    )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return res.json() as Promise<FleetApp[]>
   } catch (err) {
-    console.error(`⚠️ Could not fetch fleet apps from ${CONTROL_PLANE_URL}/api/fleet/apps`)
+    console.error(`⚠️ Could not fetch fleet repos from ${CONTROL_PLANE_URL}/api/fleet/repos`)
     console.error(
       '   Ensure the control plane is deployed and accessible, or set CONTROL_PLANE_URL.',
     )

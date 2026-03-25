@@ -42,9 +42,11 @@ async function main() {
 
   const auth = { Authorization: `Bearer ${token}` }
 
-  const listRes = await fetch(`${base}/api/fleet/apps`, { headers: auth })
+  const listRes = await fetch(`${base}/api/fleet/repos?includeInactive=true&monitoringEnabled=true`, {
+    headers: auth,
+  })
   if (!listRes.ok) {
-    console.error(`GET /api/fleet/apps → HTTP ${listRes.status}`)
+    console.error(`GET /api/fleet/repos → HTTP ${listRes.status}`)
     process.exit(1)
   }
 

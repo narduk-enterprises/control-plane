@@ -2,7 +2,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { REFERENCE_BASELINE_FILES } from './sync-manifest'
 
 interface CheckResult {
@@ -20,6 +20,10 @@ interface PackageJson {
   overrides?: Record<string, string>
 }
 
+interface FleetSyncManifest {
+  repos?: unknown
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootArg = process.argv
   .slice(2)
@@ -32,10 +36,30 @@ const APP_NUXT_CONFIG_PATH = join(ROOT_DIR, 'apps', 'web', 'nuxt.config.ts')
 const PUBLIC_DIR = join(ROOT_DIR, 'apps', 'web', 'public')
 const LOCKFILE_PATH = join(ROOT_DIR, 'pnpm-lock.yaml')
 const PNPM_VIRTUAL_STORE_DIR = join(ROOT_DIR, 'node_modules', '.pnpm')
+const TEMPLATE_REPO_DIR_HINTS = [
+  process.env.TEMPLATE_REPO_DIR,
+  ROOT_DIR,
+  join(ROOT_DIR, '..', '..', 'narduk-nuxt-template'),
+  join(ROOT_DIR, '..', 'narduk-nuxt-template'),
+]
+const CONTROL_PLANE_REPO_DIR_HINTS = [
+  process.env.CONTROL_PLANE_REPO_DIR,
+  ROOT_DIR,
+  join(ROOT_DIR, '..', 'template-apps', 'control-plane'),
+  join(ROOT_DIR, '..', '..', 'template-apps', 'control-plane'),
+]
 
 function readJson<T>(path: string): T | null {
   if (!existsSync(path)) return null
   return JSON.parse(readFileSync(path, 'utf8')) as T
+}
+
+function firstExistingPath(candidates: Array<string | undefined>): string | null {
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    if (existsSync(candidate)) return candidate
+  }
+  return null
 }
 
 function parseVersionParts(input: string | null | undefined): [number, number, number] | null {
@@ -280,7 +304,83 @@ function checkLockfileState(rootPkg: PackageJson): CheckResult {
   }
 }
 
-function main() {
+async function checkFleetManifestParity(): Promise<CheckResult> {
+  const manifestPath = firstExistingPath(
+    TEMPLATE_REPO_DIR_HINTS.map((dir) =>
+      dir ? join(dir, 'config', 'fleet-sync-repos.json') : undefined,
+    ),
+  )
+  if (!manifestPath) {
+    return {
+      status: 'pass',
+      summary: 'fleet manifest parity not applicable in this checkout',
+    }
+  }
+
+  const managedReposPath = firstExistingPath(
+    CONTROL_PLANE_REPO_DIR_HINTS.map((dir) =>
+      dir ? join(dir, 'apps', 'web', 'server', 'data', 'managed-repos.ts') : undefined,
+    ),
+  )
+  if (!managedReposPath) {
+    return {
+      status: 'warn',
+      summary: 'fleet manifest present but no local control-plane clone found',
+      detail:
+        'Set CONTROL_PLANE_REPO_DIR to validate config/fleet-sync-repos.json against managed-repos.ts.',
+    }
+  }
+
+  const manifest = readJson<FleetSyncManifest>(manifestPath)
+  if (!manifest || !Array.isArray(manifest.repos) || manifest.repos.some((repo) => typeof repo !== 'string')) {
+    return {
+      status: 'fail',
+      summary: 'fleet sync manifest is invalid',
+      detail: manifestPath,
+    }
+  }
+
+  const managedReposModule = (await import(pathToFileURL(managedReposPath).href)) as {
+    getSyncManagedRepos?: () => Array<{ name: string }>
+  }
+  if (typeof managedReposModule.getSyncManagedRepos !== 'function') {
+    return {
+      status: 'fail',
+      summary: 'managed-repos module does not export getSyncManagedRepos()',
+      detail: managedReposPath,
+    }
+  }
+
+  const expectedRepos = managedReposModule
+    .getSyncManagedRepos()
+    .map((repo) => repo.name)
+    .sort((left, right) => left.localeCompare(right))
+  const actualRepos = [...new Set(manifest.repos)].sort((left, right) => left.localeCompare(right))
+  const missing = expectedRepos.filter((repo) => !actualRepos.includes(repo))
+  const extra = actualRepos.filter((repo) => !expectedRepos.includes(repo))
+
+  if (missing.length === 0 && extra.length === 0) {
+    return {
+      status: 'pass',
+      summary: `fleet sync manifest matches ${expectedRepos.length} sync-managed repo(s)`,
+    }
+  }
+
+  return {
+    status: 'fail',
+    summary: `fleet sync manifest drift detected (${missing.length} missing, ${extra.length} extra)`,
+    detail: [
+      missing.length > 0 ? `missing: ${missing.join(', ')}` : null,
+      extra.length > 0 ? `extra: ${extra.join(', ')}` : null,
+      `manifest: ${manifestPath}`,
+      `source: ${managedReposPath}`,
+    ]
+      .filter(Boolean)
+      .join('\n'),
+  }
+}
+
+async function main() {
   const rootPkg = readJson<PackageJson>(ROOT_PACKAGE_PATH)
   if (!rootPkg) {
     console.error('Missing package.json')
@@ -295,6 +395,7 @@ function main() {
     ['og-image config', checkOgImageConfig()],
     ['public junk', checkPublicJunk()],
     ['reference baselines', checkReferenceBaselines()],
+    ['fleet manifest parity', await checkFleetManifestParity()],
   ]
 
   console.log('\nSync Health Check')
@@ -322,4 +423,4 @@ function main() {
   process.exit(1)
 }
 
-main()
+void main()

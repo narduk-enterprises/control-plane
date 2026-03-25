@@ -97,8 +97,10 @@ export default definePublicMutation(
         githubRepo?: string
         gaPropertyId?: string | null
         gaMeasurementId?: string | null
+        isActive?: boolean
       } = {
         updatedAt: now,
+        isActive: true,
       }
 
       if (body.deployedUrl) {
