@@ -36,6 +36,15 @@ const breadcrumbItems = computed(() => [
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <UButton
+          :to="`/fleet/${appName}/d1`"
+          icon="i-lucide-database"
+          color="neutral"
+          variant="outline"
+          class="cursor-pointer"
+        >
+          D1 console
+        </UButton>
+        <UButton
           :to="`/analytics/${appName}`"
           icon="i-lucide-chart-column-big"
           class="cursor-pointer"

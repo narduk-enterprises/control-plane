@@ -20,6 +20,9 @@ These are **Node.js automation scripts** that run locally or in CI. They are
 | `gsc-toolbox.ts`                      | Google Search Console API utilities                                                                                              | Used by `setup-analytics.ts`                                             |
 | `set-fleet-doppler-urls.ts`           | Bulk-set `SITE_URL` (default) or analytics keys (`--sync-analytics`) across all fleet Doppler projects                           | `npx tsx tools/set-fleet-doppler-urls.ts [--sync-analytics] [--dry-run]` |
 | `validate-fleet-doppler.ts`           | Verify all fleet apps have required Doppler secrets: `SITE_URL`, `POSTHOG_PUBLIC_KEY`, `POSTHOG_HOST`, `GA_MEASUREMENT_ID`       | `pnpm run check:fleet-doppler`                                           |
+| `fleet-d1.ts`                         | Run remote SQL on a fleet app’s D1 (`{app}-db`) via Cloudflare API; mirrors `POST /api/fleet/apps/:name/d1/query`               | `pnpm run fleet:d1 -- --app=<name> --command "SELECT 1"` (with `CLOUDFLARE_*`) |
+| `fleet-d1-twin-compare.ts`            | Compare `{app}` vs `{app}-db`; `--dry-run` prints migration plan (no writes); `--apps=a,b`; `--print-runbook`                    | `pnpm run fleet:d1:compare -- --apps=a,b --dry-run` (with `CLOUDFLARE_*`)      |
+| `fleet-d1-backup.ts`                  | Wrangler `d1 export --remote` for `--app` / `--apps` (bare + `-db`) or `--db-name`; writes `backups/d1/<run-id>/*.sql`           | `pnpm run fleet:d1:backup -- --apps=austin-texas-net,old-austin-grouch`         |
 
 ## vs. `scripts/`
 

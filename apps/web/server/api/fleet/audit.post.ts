@@ -6,6 +6,7 @@ import {
   reconcileAuditMeasurementIds,
 } from '#server/utils/fleet-analytics'
 import { getDopplerSecrets } from '#server/utils/provision-doppler'
+import { buildFleetD1NamingChecks } from '#server/utils/fleet-d1-audit'
 import {
   buildAnalyticsProviderChecks,
   buildAuditChecks,
@@ -15,6 +16,7 @@ import {
   type AuditReconcileCandidate,
   type AuditResult,
 } from '#server/utils/fleet-audit'
+import { listAllD1Databases } from '#server/utils/provision-cloudflare'
 
 const bodySchema = z
   .object({
@@ -57,6 +59,20 @@ export default defineAdminMutation(
       return null
     })
     const snapshotMap = analyticsSummary?.apps ?? {}
+
+    const runtime = useRuntimeConfig(event)
+    const cfAccountId = String(runtime.cloudflareAccountId || '').trim()
+    const cfToken = String(runtime.cloudflareApiToken || '').trim()
+    let d1Databases: Awaited<ReturnType<typeof listAllD1Databases>> | null = null
+    let d1ListError: string | null = null
+    if (cfAccountId && cfToken) {
+      try {
+        d1Databases = await listAllD1Databases(cfAccountId, cfToken)
+      } catch (error: unknown) {
+        d1ListError = error instanceof Error ? error.message : String(error)
+        console.error('Fleet audit D1 list failed:', error)
+      }
+    }
 
     const results = await Promise.all(
       // eslint-disable-next-line narduk/no-map-async-in-server -- intentional parallel audit across the fleet
@@ -103,6 +119,23 @@ export default defineAdminMutation(
       }),
     )
 
+    const d1SkippedCheck = {
+      name: 'D1 database naming (Cloudflare)',
+      status: 'skipped' as const,
+      expected: null,
+      actual: null,
+      message: d1ListError
+        ? `Skipped: could not list D1 databases (${d1ListError})`
+        : 'Skipped: CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN not configured on control plane',
+    }
+
+    const mergedResults = results.map((row): AuditResult => {
+      const d1Checks = d1Databases
+        ? buildFleetD1NamingChecks(row.app, d1Databases)
+        : [d1SkippedCheck]
+      return { ...row, checks: [...row.checks, ...d1Checks] }
+    })
+
     let verifiedUpdates = reconcileCandidates.map((candidate) => ({
       app: candidate.app,
       gaMeasurementId: candidate.liveMeasurementId,
@@ -137,7 +170,7 @@ export default defineAdminMutation(
     const updatedCount = persist ? await reconcileAuditMeasurementIds(event, verifiedUpdates) : 0
 
     return {
-      results: results.sort((left, right) => left.app.localeCompare(right.app)),
+      results: mergedResults.sort((left, right) => left.app.localeCompare(right.app)),
       reconcile: {
         mode: persist ? 'write' : 'dry-run',
         updatedCount,

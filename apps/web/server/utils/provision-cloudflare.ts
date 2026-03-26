@@ -3,7 +3,7 @@
  * All operations are idempotent — safe to call multiple times.
  */
 
-interface D1Database {
+export interface D1Database {
   uuid: string
   name: string
   created_at?: string
@@ -52,6 +52,49 @@ export async function getD1DatabaseByName(
 }
 
 /**
+ * List every D1 database in the account (paginated).
+ */
+export async function listAllD1Databases(
+  accountId: string,
+  apiToken: string,
+): Promise<D1Database[]> {
+  const all: D1Database[] = []
+  let page = 1
+  const perPage = 100
+  const maxPages = 500
+
+  while (page <= maxPages) {
+    const res = await fetch(
+      `${CF_API_BASE}/accounts/${accountId}/d1/database?page=${page}&per_page=${perPage}`,
+      { headers: cfHeaders(apiToken) },
+    )
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`Cloudflare D1 list failed: ${res.status} ${text}`)
+    }
+
+    const data = (await res.json()) as CloudflareApiResponse<D1Database[]> & {
+      result_info?: { total_count?: number }
+    }
+    if (!data.success) {
+      throw new Error(`Cloudflare D1 list error: ${data.errors.map((e) => e.message).join(', ')}`)
+    }
+
+    const batch = data.result ?? []
+    all.push(...batch)
+
+    const total = data.result_info?.total_count
+    if (batch.length === 0) break
+    if (total !== undefined && all.length >= total) break
+    if (batch.length < perPage) break
+    page += 1
+  }
+
+  return all
+}
+
+/**
  * Create a D1 database. Idempotent: returns existing DB if name already exists.
  */
 export async function createD1Database(
@@ -88,4 +131,68 @@ export async function createD1Database(
   }
 
   return data.result
+}
+
+/** One statement result from POST /d1/database/:id/query (batch item). */
+export interface D1RemoteQueryStatementResult {
+  success?: boolean
+  /** Object rows and/or Cloudflare `{ columns, rows }` shape. */
+  results?:
+    | Record<string, unknown>[]
+    | { columns?: string[]; rows?: unknown[][] }
+  meta?: Record<string, unknown>
+}
+
+/**
+ * Run SQL against a D1 database via the Cloudflare API (remote).
+ * Supports multiple statements separated by semicolons (executed as a batch).
+ */
+export async function queryD1Database(
+  accountId: string,
+  apiToken: string,
+  databaseId: string,
+  sql: string,
+  params?: string[],
+): Promise<D1RemoteQueryStatementResult[]> {
+  const payload: { sql: string; params?: string[] } = { sql }
+  if (params && params.length > 0) {
+    payload.params = params
+  }
+
+  const res = await fetch(
+    `${CF_API_BASE}/accounts/${accountId}/d1/database/${databaseId}/query`,
+    {
+      method: 'POST',
+      headers: cfHeaders(apiToken),
+      body: JSON.stringify(payload),
+    },
+  )
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Cloudflare D1 query failed: ${res.status} ${text}`)
+  }
+
+  const data = (await res.json()) as {
+    success: boolean
+    errors?: Array<{ message: string }>
+    result?: D1RemoteQueryStatementResult[]
+  }
+
+  if (!data.success) {
+    throw new Error(
+      `Cloudflare D1 query error: ${data.errors?.map((e) => e.message).join(', ') || 'unknown'}`,
+    )
+  }
+
+  const raw = data.result
+  if (raw === undefined || raw === null) return []
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'object') {
+    const o = raw as Record<string, unknown>
+    if ('results' in o || 'success' in o || 'meta' in o) {
+      return [raw as D1RemoteQueryStatementResult]
+    }
+  }
+  return []
 }

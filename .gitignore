@@ -26,6 +26,9 @@ logs
 # Cloudflare
 .wrangler/
 
+# Local D1 dumps (fleet-d1-backup)
+/backups/
+
 # Drizzle local SQLite (created by drizzle-kit push)
 **/drizzle/*.sqlite
 

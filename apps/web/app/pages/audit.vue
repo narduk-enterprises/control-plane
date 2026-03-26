@@ -3,12 +3,13 @@ import type { AuditResponse, AuditResult } from '~/types/audit'
 
 useSeo({
   title: 'Fleet Audit',
-  description: 'Audit fleet app runtime config, GA4 provider health, and Search Console access.',
+  description:
+    'Audit fleet app runtime config, Cloudflare D1 naming, GA4 provider health, and Search Console access.',
 })
 useWebPageSchema({
   name: 'Narduk Control Plane — Fleet Audit',
   description:
-    'Verify live runtime config plus GA4 and Search Console provider health across the fleet.',
+    'Verify live runtime config, D1 database naming in Cloudflare, plus GA4 and Search Console provider health across the fleet.',
 })
 
 const auditResponse = ref<AuditResponse | null>(null)
@@ -72,8 +73,8 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">Fleet Audit</h1>
         <p class="mt-1 text-sm text-muted">
-          Verify live runtime config plus GA4 and Search Console provider health across all fleet
-          apps
+          Verify live runtime config, Cloudflare D1 naming (warns when both bare name and -db exist),
+          plus GA4 and Search Console provider health across all fleet apps
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
