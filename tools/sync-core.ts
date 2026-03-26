@@ -69,6 +69,18 @@ function getOutput(command: string, args: string[], cwd: string): string {
   }
 }
 
+/** NPM `repository.url` must be a remote, not a local path (file:, absolute paths, etc.). */
+function isSafeRepositoryRemoteUrl(url: string): boolean {
+  const t = url.trim()
+  if (!t) return false
+  const lower = t.toLowerCase()
+  if (lower.startsWith('file:')) return false
+  if (t.startsWith('/')) return false
+  if (/^[a-z]:[/\\]/i.test(t)) return false
+  if (t.startsWith('git@')) return true
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(t)
+}
+
 function getTrackedTemplatePaths(templateDir: string): Set<string> | null {
   try {
     const output = runCommand('git', ['ls-files', '-z'], {
@@ -913,7 +925,14 @@ function rewriteLayerRepository(
   if (!existsSync(layerPackagePath)) return false
 
   const originUrl = getOutput('git', ['remote', 'get-url', 'origin'], appDir)
-  if (!originUrl) return false
+  if (!originUrl || !isSafeRepositoryRemoteUrl(originUrl)) {
+    if (originUrl && !isSafeRepositoryRemoteUrl(originUrl)) {
+      log(
+        '  WARN: git origin is not a remote URL; skipping layers/narduk-nuxt-layer package.json repository rewrite',
+      )
+    }
+    return false
+  }
 
   let touched = false
   patchJsonFile<Record<string, any>>(

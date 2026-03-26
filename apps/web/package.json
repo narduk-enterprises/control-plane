@@ -36,6 +36,7 @@
     "libsodium-wrappers": "^0.8.2",
     "nuxt": "^4.3.1",
     "pinia": "^3.0.4",
+    "postgres": "^3.4.7",
     "vue-chartjs": "^5.3.3",
     "zod": "^4.3.6",
     "@narduk-enterprises/eslint-config": "^1.0.17"

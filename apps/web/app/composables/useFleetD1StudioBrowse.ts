@@ -1,4 +1,4 @@
-import type { FleetD1TableGridResponse, FleetD1TablesResponse } from '~/types/fleet'
+import type { FleetDatabaseTableGridResponse, FleetDatabaseTablesResponse } from '~/types/fleet'
 import type { FleetD1BindingRefs } from './useFleetD1Console'
 
 function toQuery(
@@ -10,22 +10,24 @@ function toQuery(
   if (dn) q.databaseName = dn
   const did = binding.databaseId.value.trim()
   if (did) q.databaseId = did
+  const schemaName = binding.schemaName.value.trim()
+  if (schemaName) q.schemaName = schemaName
   return q
 }
 
 /**
- * Drizzle-Studio-style table list + paginated grid for remote fleet D1.
+ * Drizzle-Studio-style table list + paginated grid for live fleet databases.
  */
 export function useFleetD1StudioBrowse(appName: ComputedRef<string>, binding: FleetD1BindingRefs) {
   const pageSize = ref(50)
   const page = ref(1)
   const selectedTable = ref<string | null>(null)
 
-  const tablesData = ref<FleetD1TablesResponse | null>(null)
+  const tablesData = ref<FleetDatabaseTablesResponse | null>(null)
   const tablesPending = ref(false)
   const tablesError = ref('')
 
-  const gridData = ref<FleetD1TableGridResponse | null>(null)
+  const gridData = ref<FleetDatabaseTableGridResponse | null>(null)
   const gridPending = ref(false)
   const gridError = ref('')
 
@@ -35,8 +37,8 @@ export function useFleetD1StudioBrowse(appName: ComputedRef<string>, binding: Fl
     tablesPending.value = true
     tablesError.value = ''
     try {
-      tablesData.value = await $fetch<FleetD1TablesResponse>(
-        `/api/fleet/apps/${encodeURIComponent(name)}/d1/tables`,
+      tablesData.value = await $fetch<FleetDatabaseTablesResponse>(
+        `/api/fleet/apps/${encodeURIComponent(name)}/database/tables`,
         { query: toQuery(binding) },
       )
     } catch (err) {
@@ -59,8 +61,8 @@ export function useFleetD1StudioBrowse(appName: ComputedRef<string>, binding: Fl
     gridError.value = ''
     const offset = (page.value - 1) * pageSize.value
     try {
-      gridData.value = await $fetch<FleetD1TableGridResponse>(
-        `/api/fleet/apps/${encodeURIComponent(name)}/d1/tables/${encodeURIComponent(table)}`,
+      gridData.value = await $fetch<FleetDatabaseTableGridResponse>(
+        `/api/fleet/apps/${encodeURIComponent(name)}/database/tables/${encodeURIComponent(table)}`,
         {
           query: toQuery(binding, {
             limit: pageSize.value,
@@ -84,7 +86,7 @@ export function useFleetD1StudioBrowse(appName: ComputedRef<string>, binding: Fl
   })
 
   watch(
-    [appName, binding.databaseName, binding.databaseId],
+    [appName, binding.databaseName, binding.databaseId, binding.schemaName],
     () => {
       selectedTable.value = null
       gridData.value = null

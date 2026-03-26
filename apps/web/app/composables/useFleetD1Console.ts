@@ -1,30 +1,33 @@
-import type { FleetD1QueryResponse } from '~/types/fleet'
+import type { FleetDatabaseQueryResponse } from '~/types/fleet'
 
 export interface FleetD1BindingRefs {
   databaseName: Ref<string>
   databaseId: Ref<string>
+  schemaName: Ref<string>
   showAdvanced: Ref<boolean>
 }
 
 /**
- * Admin SQL console against a fleet app’s remote D1 (via control-plane API).
- * Pass `binding` to share database name/UUID with the studio browser.
+ * Admin SQL console against a fleet app's live database.
+ * Pass `binding` to share connection overrides with the studio browser.
  */
 export function useFleetD1Console(appName: ComputedRef<string>, binding?: FleetD1BindingRefs) {
   const fallbackName = ref('')
   const fallbackId = ref('')
+  const fallbackSchema = ref('public')
   const fallbackShowAdvanced = ref(false)
 
   const sql = ref(
-    '-- Read/write production D1. Default binding: {app}-db\n-- Semicolons separate batch statements.\n\nSELECT 1;',
+    '-- Read/write production database.\n-- Semicolons split statements for console execution.\n\nSELECT 1;',
   )
   const databaseName = binding?.databaseName ?? fallbackName
   const databaseId = binding?.databaseId ?? fallbackId
+  const schemaName = binding?.schemaName ?? fallbackSchema
   const showAdvanced = binding?.showAdvanced ?? fallbackShowAdvanced
   const loading = ref(false)
   const mutationPending = ref(false)
   const errorMessage = ref('')
-  const lastResponse = ref<FleetD1QueryResponse | null>(null)
+  const lastResponse = ref<FleetDatabaseQueryResponse | null>(null)
 
   const canRun = computed(() => sql.value.trim().length > 0 && appName.value.length > 0)
 
@@ -53,8 +56,8 @@ export function useFleetD1Console(appName: ComputedRef<string>, binding?: FleetD
     if (did) body.databaseId = did
 
     try {
-      lastResponse.value = await $fetch<FleetD1QueryResponse>(
-        `/api/fleet/apps/${encodeURIComponent(name)}/d1/query`,
+      lastResponse.value = await $fetch<FleetDatabaseQueryResponse>(
+        `/api/fleet/apps/${encodeURIComponent(name)}/database/query`,
         {
           method: 'POST',
           body,
@@ -70,7 +73,10 @@ export function useFleetD1Console(appName: ComputedRef<string>, binding?: FleetD
   }
 
   /** Parameterized writes for the studio grid (same endpoint as the SQL console). */
-  async function runParameterizedMutation(op: { sql: string; params: string[] }) {
+  async function runParameterizedMutation(op: {
+    sql: string
+    params: Array<string | number | boolean | null>
+  }) {
     const name = appName.value
     if (!name) throw new Error('Missing app name')
 
@@ -83,11 +89,14 @@ export function useFleetD1Console(appName: ComputedRef<string>, binding?: FleetD
       const did = databaseId.value.trim()
       if (did) body.databaseId = did
 
-      await $fetch<FleetD1QueryResponse>(`/api/fleet/apps/${encodeURIComponent(name)}/d1/query`, {
-        method: 'POST',
-        body,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      })
+      await $fetch<FleetDatabaseQueryResponse>(
+        `/api/fleet/apps/${encodeURIComponent(name)}/database/query`,
+        {
+          method: 'POST',
+          body,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        },
+      )
     } finally {
       mutationPending.value = false
     }
@@ -97,6 +106,7 @@ export function useFleetD1Console(appName: ComputedRef<string>, binding?: FleetD
     sql,
     databaseName,
     databaseId,
+    schemaName,
     showAdvanced,
     loading,
     mutationPending,

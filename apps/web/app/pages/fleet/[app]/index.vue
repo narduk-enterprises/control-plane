@@ -42,7 +42,7 @@ const breadcrumbItems = computed(() => [
           variant="outline"
           class="cursor-pointer"
         >
-          D1 console
+          Database viewer
         </UButton>
         <UButton
           :to="`/analytics/${appName}`"

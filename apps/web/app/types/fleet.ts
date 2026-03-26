@@ -30,24 +30,28 @@ export interface FleetAppStatusRecord {
   indexnowLastSubmittedCount: number | null
 }
 
-/** One batch item from Cloudflare D1 HTTP API (remote query). */
-export interface FleetD1StatementResult {
+export type FleetDatabaseBackend = 'd1' | 'postgres'
+
+/** One statement result from the fleet database viewer. */
+export interface FleetDatabaseStatementResult {
   success?: boolean
   results?: Record<string, unknown>[]
   meta?: Record<string, unknown>
 }
 
-/** Successful POST /api/fleet/apps/:name/d1/query response body. */
-export interface FleetD1QueryResponse {
+/** Successful POST /api/fleet/apps/:name/database/query response body. */
+export interface FleetDatabaseQueryResponse {
   ok: true
   app: string
-  databaseId: string
+  backend: FleetDatabaseBackend
+  databaseId: string | null
   databaseName: string
-  result: FleetD1StatementResult[]
+  schemaName: string | null
+  result: FleetDatabaseStatementResult[]
 }
 
-/** PRAGMA table_info row (studio). */
-export interface FleetD1ColumnInfo {
+/** Normalized column metadata for the fleet database viewer. */
+export interface FleetDatabaseColumnInfo {
   cid: number
   name: string
   type: string
@@ -56,11 +60,13 @@ export interface FleetD1ColumnInfo {
   pk: number
 }
 
-export interface FleetD1TablesResponse {
+export interface FleetDatabaseTablesResponse {
   ok: true
   app: string
-  databaseId: string
+  backend: FleetDatabaseBackend
+  databaseId: string | null
   databaseName: string
+  schemaName: string | null
   tables: string[]
   /** Rows in sqlite_master (table/view) before hiding system/CF-internal names. */
   catalogTableCount: number
@@ -70,15 +76,23 @@ export interface FleetD1TablesResponse {
   hint?: string
 }
 
-export interface FleetD1TableGridResponse {
+export interface FleetDatabaseTableGridResponse {
   ok: true
   app: string
-  databaseId: string
+  backend: FleetDatabaseBackend
+  databaseId: string | null
   databaseName: string
+  schemaName: string | null
   table: string
-  columns: FleetD1ColumnInfo[]
+  columns: FleetDatabaseColumnInfo[]
   rows: Record<string, unknown>[]
   total: number
   limit: number
   offset: number
 }
+
+export type FleetD1StatementResult = FleetDatabaseStatementResult
+export type FleetD1QueryResponse = FleetDatabaseQueryResponse
+export type FleetD1ColumnInfo = FleetDatabaseColumnInfo
+export type FleetD1TablesResponse = FleetDatabaseTablesResponse
+export type FleetD1TableGridResponse = FleetDatabaseTableGridResponse

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FleetDatabaseBackend } from '~/types/fleet'
 import type { FleetD1BindingRefs } from '~/composables/useFleetD1Console'
 
 const route = useRoute()
@@ -10,8 +11,9 @@ const appRecord = computed(() => rawApps.value.find((app) => app.name === appNam
 
 const databaseName = ref('')
 const databaseId = ref('')
+const schemaName = ref('public')
 const showAdvanced = ref(false)
-const binding: FleetD1BindingRefs = { databaseName, databaseId, showAdvanced }
+const binding: FleetD1BindingRefs = { databaseName, databaseId, schemaName, showAdvanced }
 
 const studio = useFleetD1StudioBrowse(appName, binding)
 
@@ -28,23 +30,46 @@ const {
 } = useFleetD1Console(appName, binding)
 
 const defaultDbHint = computed(() => `${appName.value}-db`)
+const databaseBackend = computed<FleetDatabaseBackend>(
+  () => studio.tablesData?.backend || lastResponse.value?.backend || 'd1',
+)
+const backendLabel = computed(() => (databaseBackend.value === 'postgres' ? 'Postgres' : 'D1'))
+const showD1Overrides = computed(() => databaseBackend.value === 'd1')
+const advancedLabel = computed(() =>
+  showD1Overrides.value ? 'database name / UUID' : 'schema',
+)
+const browseDescription = computed(() =>
+  databaseBackend.value === 'postgres'
+    ? 'Page through rows, insert new ones, and edit or delete by primary key. The control plane connects directly to the app’s Postgres database using the production connection string stored in Doppler.'
+    : 'Page through rows, insert new ones, and edit or delete by primary key. Tables without a PK can still be inserted into; use the SQL tab for bulk or complex changes. Drizzle Studio cannot target remote D1; this uses Cloudflare’s HTTP API instead.',
+)
+const sqlDescription = computed(() =>
+  databaseBackend.value === 'postgres'
+    ? 'SQL runs against the live Postgres database. Statements execute sequentially in the control plane. There is no undo.'
+    : 'SQL runs against live D1. DDL, DML, and DELETE are allowed. There is no undo.',
+)
+const sqlHelp = computed(() =>
+  databaseBackend.value === 'postgres'
+    ? 'Semicolons split sequential statements. Parameterized writes from the grid run one statement at a time.'
+    : 'Runs as one batch; use semicolons between statements.',
+)
 const mainTab = ref<'browse' | 'sql'>('browse')
 
 useSeo({
   robots: 'noindex',
-  title: `${appName.value} — D1`,
-  description: `Browse and query ${appName.value} production D1.`,
+  title: `${appName.value} — Database`,
+  description: `Browse and query ${appName.value} production database.`,
 })
 useWebPageSchema({
-  name: 'Fleet app D1',
-  description: 'Remote D1 studio and SQL console.',
+  name: 'Fleet app database viewer',
+  description: 'Remote database studio and SQL console.',
 })
 
 const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
   { label: 'Fleet', to: '/fleet' },
   { label: appName.value, to: `/fleet/${appName.value}` },
-  { label: 'D1' },
+  { label: 'Database' },
 ])
 
 async function handleRun() {
@@ -52,7 +77,7 @@ async function handleRun() {
   if (lastResponse.value) {
     toast.add({
       title: 'Query finished',
-      description: `Target: ${lastResponse.value.databaseName}`,
+      description: `${backendLabel.value}: ${lastResponse.value.databaseName}`,
       color: 'success',
     })
   } else if (errorMessage.value) {
@@ -64,9 +89,12 @@ async function handleRun() {
   }
 }
 
-async function runGridWrite(op: { sql: string; params: string[] }) {
+async function runGridWrite(op: {
+  sql: string
+  params: Array<string | number | boolean | null>
+}) {
   await runParameterizedMutation(op)
-  toast.add({ title: 'D1 updated', color: 'success' })
+  toast.add({ title: 'Database updated', color: 'success' })
 }
 
 async function onStudioDataMutated() {
@@ -81,12 +109,23 @@ async function onStudioDataMutated() {
 
     <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
       <div>
-        <h1 class="font-display text-2xl font-semibold text-default">D1</h1>
+        <h1 class="font-display text-2xl font-semibold text-default">Database</h1>
         <p class="mt-1 text-sm text-muted">
-          {{ appName }} — remote production database (default
-          <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-xs">{{ defaultDbHint }}</code
-          >). Drizzle Studio only talks to local DB files; this UI uses Cloudflare’s HTTP API
-          instead.
+          {{ appName }} — live {{ backendLabel }} viewer and SQL console.
+          <template v-if="showD1Overrides">
+            Default target
+            <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-xs">
+              {{ defaultDbHint }}
+            </code>
+            via Cloudflare’s D1 HTTP API.
+          </template>
+          <template v-else>
+            Browsing schema
+            <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-xs">
+              {{ schemaName || 'public' }}
+            </code>
+            via the app’s production Postgres connection string.
+          </template>
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -133,29 +172,43 @@ async function onStudioDataMutated() {
           :icon="showAdvanced ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
           @click="showAdvanced = !showAdvanced"
         >
-          {{ showAdvanced ? 'Hide' : 'Show' }} advanced (database name / UUID)
+          {{ showAdvanced ? 'Hide' : 'Show' }} advanced ({{ advancedLabel }})
         </UButton>
         <div v-if="showAdvanced" class="grid gap-4 sm:grid-cols-2">
-          <UFormField
-            label="Database name (optional)"
-            :help="`Leave empty to use ${defaultDbHint}`"
-          >
-            <UInput
-              v-model="databaseName"
-              class="w-full font-mono text-sm"
-              placeholder="my-app-db"
-            />
-          </UFormField>
-          <UFormField
-            label="Database UUID (optional)"
-            help="Skips name lookup when set. Must match the app’s D1."
-          >
-            <UInput
-              v-model="databaseId"
-              class="w-full font-mono text-sm"
-              placeholder="00000000-0000-0000-0000-000000000000"
-            />
-          </UFormField>
+          <template v-if="showD1Overrides">
+            <UFormField
+              label="Database name (optional)"
+              :help="`Leave empty to use ${defaultDbHint}`"
+            >
+              <UInput
+                v-model="databaseName"
+                class="w-full font-mono text-sm"
+                placeholder="my-app-db"
+              />
+            </UFormField>
+            <UFormField
+              label="Database UUID (optional)"
+              help="Skips name lookup when set. Must match the app’s D1."
+            >
+              <UInput
+                v-model="databaseId"
+                class="w-full font-mono text-sm"
+                placeholder="00000000-0000-0000-0000-000000000000"
+              />
+            </UFormField>
+          </template>
+          <template v-else>
+            <UFormField
+              label="Schema name"
+              help="Defaults to public. Table browsing is scoped to this schema."
+            >
+              <UInput
+                v-model="schemaName"
+                class="w-full font-mono text-sm"
+                placeholder="public"
+              />
+            </UFormField>
+          </template>
         </div>
       </div>
     </UCard>
@@ -189,11 +242,13 @@ async function onStudioDataMutated() {
         variant="subtle"
         icon="i-lucide-info"
         title="Studio-style grid"
-        description="Page through rows, insert new ones, and edit or delete by primary key. Tables without a PK can still be inserted into; use the SQL tab for bulk or complex changes. Drizzle Studio cannot target remote D1; this uses Cloudflare’s HTTP API."
+        :description="browseDescription"
         class="mb-2"
       />
       <FleetD1StudioPanel
+        :backend="databaseBackend"
         :app-name="appName"
+        :schema-name="studio.tablesData?.schemaName || schemaName"
         :tables="studio.tablesData?.tables ?? []"
         :tables-hint="studio.tablesData?.hint"
         :catalog-table-count="studio.tablesData?.catalogTableCount"
@@ -222,8 +277,8 @@ async function onStudioDataMutated() {
         color="warning"
         variant="subtle"
         icon="i-lucide-database-zap"
-        title="Production read/write"
-        description="SQL runs against live D1. DDL, DML, and DELETE are allowed. There is no undo."
+        :title="`${backendLabel} read/write`"
+        :description="sqlDescription"
       />
 
       <UCard>
@@ -244,10 +299,7 @@ async function onStudioDataMutated() {
         </template>
 
         <div class="space-y-4">
-          <UFormField
-            label="Statements"
-            :help="`Runs as one batch; use semicolons between statements.`"
-          >
+          <UFormField label="Statements" :help="sqlHelp">
             <UTextarea v-model="sql" :rows="16" autoresize class="w-full font-mono text-sm" />
           </UFormField>
 
@@ -260,7 +312,7 @@ async function onStudioDataMutated() {
               :disabled="!canRun || !appRecord"
               @click="handleRun"
             >
-              Run on remote D1
+              Run on live {{ backendLabel }}
             </UButton>
           </div>
 
@@ -277,11 +329,15 @@ async function onStudioDataMutated() {
       <template v-if="lastResponse">
         <div class="flex flex-wrap items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-server" class="size-4" />
-          <span
-            >Resolved
-            <span class="font-mono text-default">{{ lastResponse.databaseName }}</span>
-            ({{ lastResponse.databaseId }})</span
-          >
+          <span>Resolved</span>
+          <span class="font-medium text-default">{{ backendLabel }}</span>
+          <span class="font-mono text-default">{{ lastResponse.databaseName }}</span>
+          <span v-if="lastResponse.schemaName" class="font-mono text-default">
+            {{ lastResponse.schemaName }}
+          </span>
+          <span v-if="lastResponse.databaseId" class="font-mono text-default">
+            {{ lastResponse.databaseId }}
+          </span>
         </div>
 
         <div class="space-y-4">

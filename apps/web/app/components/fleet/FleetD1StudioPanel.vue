@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import type { FleetD1ColumnInfo, FleetD1TableGridResponse } from '~/types/fleet'
+import type {
+  FleetDatabaseBackend,
+  FleetDatabaseColumnInfo,
+  FleetDatabaseTableGridResponse,
+} from '~/types/fleet'
 import { UButton } from '#components'
-import { quoteD1Ident } from '~/utils/fleet-d1-ident'
+import { quoteSqlIdent, quoteTableRef, sqlPlaceholder } from '~/utils/fleet-database-sql'
 
 const props = defineProps<{
+  backend: FleetDatabaseBackend
   appName: string
+  schemaName?: string | null
   tables: string[]
   /** From GET /d1/tables — explains empty sidebar (e.g. only _cf_* internal tables). */
   tablesHint?: string
@@ -13,14 +19,17 @@ const props = defineProps<{
   tablesPending: boolean
   tablesError: string
   selectedTable: string | null
-  gridData: FleetD1TableGridResponse | null
+  gridData: FleetDatabaseTableGridResponse | null
   gridPending: boolean
   gridError: string
   page: number
   pageSize: number
   totalPages: number
   writePending: boolean
-  runWrite: (op: { sql: string; params: string[] }) => Promise<void>
+  runWrite: (op: {
+    sql: string
+    params: Array<string | number | boolean | null>
+  }) => Promise<void>
 }>()
 
 const emit = defineEmits<{
@@ -42,6 +51,7 @@ const draftRecord = ref<Record<string, string>>({})
 const insertDraft = ref<Record<string, string>>({})
 
 const hasPk = computed(() => (props.gridData?.columns ?? []).some((c) => c.pk))
+const fallbackSchemaName = computed(() => props.gridData?.schemaName || props.schemaName || 'public')
 
 function formatCell(value: unknown): string {
   if (value === null || value === undefined) return '—'
@@ -90,20 +100,20 @@ async function saveEdit() {
   const orig = editingRow.value
   if (!g || !table || !orig) return
 
-  const tableIdent = quoteD1Ident(table)
+  const tableIdent = quoteTableRef(props.backend, table, fallbackSchemaName.value)
   const pkCols = g.columns.filter((c) => c.pk)
   const nonPk = g.columns.filter((c) => !c.pk)
   const sets: string[] = []
-  const params: string[] = []
+  const params: Array<string | number | boolean | null> = []
 
   for (const col of nonPk) {
     const newV = draftRecord.value[col.name] ?? ''
     const oldStr = cellToDraft(orig[col.name])
     if (newV === oldStr) continue
     if (newV === '' && col.notnull === 0) {
-      sets.push(`${quoteD1Ident(col.name)} = NULL`)
+      sets.push(`${quoteSqlIdent(col.name)} = NULL`)
     } else {
-      sets.push(`${quoteD1Ident(col.name)} = ?`)
+      sets.push(`${quoteSqlIdent(col.name)} = ${sqlPlaceholder(props.backend, params.length + 1)}`)
       params.push(newV)
     }
   }
@@ -115,7 +125,7 @@ async function saveEdit() {
 
   const whereParts: string[] = []
   for (const col of pkCols) {
-    whereParts.push(`${quoteD1Ident(col.name)} = ?`)
+    whereParts.push(`${quoteSqlIdent(col.name)} = ${sqlPlaceholder(props.backend, params.length + 1)}`)
     params.push(coerceParam(orig[col.name]))
   }
 
@@ -135,8 +145,9 @@ async function saveEdit() {
   }
 }
 
-function coerceParam(v: unknown): string {
-  if (v === null || v === undefined) return ''
+function coerceParam(v: unknown): string | number | boolean | null {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'number' || typeof v === 'boolean') return v
   if (typeof v === 'object') return JSON.stringify(v)
   return String(v)
 }
@@ -147,12 +158,12 @@ async function confirmDelete() {
   const row = deleteTarget.value
   if (!g || !table || !row) return
 
-  const tableIdent = quoteD1Ident(table)
+  const tableIdent = quoteTableRef(props.backend, table, fallbackSchemaName.value)
   const pkCols = g.columns.filter((c) => c.pk)
   const whereParts: string[] = []
-  const params: string[] = []
+  const params: Array<string | number | boolean | null> = []
   for (const col of pkCols) {
-    whereParts.push(`${quoteD1Ident(col.name)} = ?`)
+    whereParts.push(`${quoteSqlIdent(col.name)} = ${sqlPlaceholder(props.backend, params.length + 1)}`)
     params.push(coerceParam(row[col.name]))
   }
   const sql = `DELETE FROM ${tableIdent} WHERE ${whereParts.join(' AND ')}`
@@ -179,7 +190,9 @@ async function saveInsert() {
 
   for (const col of g.columns) {
     const v = insertDraft.value[col.name] ?? ''
-    if (v === '' && col.notnull !== 0) {
+    const hasDefault =
+      col.dflt_value !== null && col.dflt_value !== undefined && String(col.dflt_value).trim() !== ''
+    if (v === '' && col.notnull !== 0 && !hasDefault && col.pk === 0) {
       toast.add({
         title: 'Missing value',
         description: `Column "${col.name}" is required (NOT NULL).`,
@@ -189,22 +202,29 @@ async function saveInsert() {
     }
   }
 
-  const tableIdent = quoteD1Ident(table)
-  const colIdents = g.columns.map((c) => quoteD1Ident(c.name)).join(', ')
+  const tableIdent = quoteTableRef(props.backend, table, fallbackSchemaName.value)
+  const colIdents: string[] = []
   const valueParts: string[] = []
-  const params: string[] = []
+  const params: Array<string | number | boolean | null> = []
 
   for (const col of g.columns) {
     const v = insertDraft.value[col.name] ?? ''
-    if (v === '' && col.notnull === 0) {
-      valueParts.push('NULL')
-    } else {
-      valueParts.push('?')
-      params.push(v)
+    const hasDefault =
+      col.dflt_value !== null && col.dflt_value !== undefined && String(col.dflt_value).trim() !== ''
+
+    if (v === '' && (col.notnull === 0 || hasDefault || col.pk > 0)) {
+      continue
     }
+
+    colIdents.push(quoteSqlIdent(col.name))
+    valueParts.push(sqlPlaceholder(props.backend, params.length + 1))
+    params.push(v)
   }
 
-  const sql = `INSERT INTO ${tableIdent} (${colIdents}) VALUES (${valueParts.join(', ')})`
+  const sql =
+    colIdents.length > 0
+      ? `INSERT INTO ${tableIdent} (${colIdents.join(', ')}) VALUES (${valueParts.join(', ')})`
+      : `INSERT INTO ${tableIdent} DEFAULT VALUES`
 
   try {
     await props.runWrite({ sql, params })
@@ -260,7 +280,7 @@ const gridColumns = computed<any[]>(() => {
       ]),
   }
 
-  const dataCols = g.columns.map((c: FleetD1ColumnInfo) => ({
+  const dataCols = g.columns.map((c: FleetDatabaseColumnInfo) => ({
     accessorKey: c.name,
     header: c.pk ? `★ ${c.name}` : c.name,
     meta: {
@@ -320,7 +340,7 @@ function onPageSizeChange(value: unknown) {
 
       <p v-if="!tablesPending && (catalogTableCount ?? 0) > 0" class="mb-2 text-xs text-muted">
         Catalog: {{ catalogTableCount }} object(s)
-        <template v-if="(internalTableCount ?? 0) > 0">
+        <template v-if="backend === 'd1' && (internalTableCount ?? 0) > 0">
           · {{ internalTableCount }} internal/system hidden (sqlite_*, _cf_*)
         </template>
       </p>
@@ -334,8 +354,8 @@ function onPageSizeChange(value: unknown) {
       >
         <p>No tables returned.</p>
         <p class="text-xs">
-          If you expect data here, confirm this app’s remote D1 has migrations applied and
-          Cloudflare credentials on the control plane can query it.
+          If you expect data here, confirm this app’s live database is reachable from the control
+          plane and has migrations applied.
         </p>
       </div>
       <ul v-else class="max-h-[min(28rem,50vh)] space-y-0.5 overflow-y-auto pr-1">
@@ -364,6 +384,10 @@ function onPageSizeChange(value: unknown) {
             <span>{{ gridData.total.toLocaleString() }} row(s)</span>
             <span class="hidden sm:inline">·</span>
             <span class="font-mono">{{ gridData.databaseName }}</span>
+            <template v-if="backend === 'postgres' && gridData.schemaName">
+              <span class="hidden sm:inline">·</span>
+              <span class="font-mono">{{ gridData.schemaName }}</span>
+            </template>
           </div>
         </div>
       </template>
@@ -377,7 +401,7 @@ function onPageSizeChange(value: unknown) {
         icon="i-lucide-key-round"
         class="mb-4"
         title="No primary key on this table"
-        description="Row edit/delete needs a PK. You can still insert rows and use the SQL tab for arbitrary updates."
+        description="Row edit/delete needs a primary key. You can still insert rows and use the SQL tab for arbitrary updates."
       />
 
       <div
@@ -499,7 +523,9 @@ function onPageSizeChange(value: unknown) {
         <h3 class="font-semibold text-default">Delete row</h3>
       </template>
       <template #body>
-        <p class="text-sm text-default">This permanently removes the row from production D1.</p>
+        <p class="text-sm text-default">
+          This permanently removes the row from the live database.
+        </p>
         <pre
           v-if="deleteTarget && gridData"
           class="card-base mt-3 max-h-40 overflow-auto rounded-lg p-3 text-xs font-mono text-muted"
@@ -538,7 +564,13 @@ function onPageSizeChange(value: unknown) {
             v-for="col in gridData.columns"
             :key="col.name"
             :label="col.name + (col.notnull ? ' *' : '') + (col.type ? ` — ${col.type}` : '')"
-            :hint="col.notnull ? 'Required' : 'Leave empty for NULL'"
+            :hint="
+              col.dflt_value !== null && col.dflt_value !== undefined
+                ? 'Leave empty to use the database default'
+                : col.notnull
+                  ? 'Required'
+                  : 'Leave empty for NULL/default'
+            "
           >
             <UInput v-model="insertDraft[col.name]" class="w-full font-mono text-sm" />
           </UFormField>
