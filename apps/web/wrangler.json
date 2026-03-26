@@ -6,7 +6,9 @@
     "directory": ".output/public"
   },
   "compatibility_date": "2026-03-11",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true
   },
@@ -18,7 +20,9 @@
     }
   ],
   "triggers": {
-    "crons": ["0 * * * *"]
+    "crons": [
+      "0 * * * *"
+    ]
   },
   "routes": [
     {
@@ -29,8 +33,8 @@
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "00000000000000000000000000000000",
-      "preview_id": "00000000000000000000000000000000"
+      "id": "0c118b5181dd45e88e7dcc4d17cee9dc",
+      "preview_id": "0586cd454f3745fab560cd389b7bd46d"
     }
   ]
 }
