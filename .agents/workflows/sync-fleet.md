@@ -29,15 +29,11 @@ For a single app (e.g. `tide-check`), run both phases manually:
 
 ### Phase 1 — Sync template config files
 
-// turbo
-
 ```bash
 cd ~/new-code/narduk-nuxt-template && npx tsx tools/sync-template.ts ~/new-code/template-apps/<app-name>
 ```
 
 ### Phase 2 — Update layer code
-
-// turbo
 
 ```bash
 cd ~/new-code/template-apps/<app-name> && npx tsx tools/update-layer.ts --from ~/new-code/narduk-nuxt-template --skip-quality
@@ -45,15 +41,11 @@ cd ~/new-code/template-apps/<app-name> && npx tsx tools/update-layer.ts --from ~
 
 ### Phase 3 — Quality check
 
-// turbo
-
 ```bash
 cd ~/new-code/template-apps/<app-name> && pnpm quality
 ```
 
 ### Phase 4 — Review & commit
-
-// turbo
 
 ```bash
 cd ~/new-code/template-apps/<app-name> && git diff --stat && git add -A && git commit -m "chore: sync with template $(cd ~/new-code/narduk-nuxt-template && git rev-parse --short HEAD)"
@@ -66,27 +58,32 @@ cd ~/new-code/template-apps/<app-name> && git diff --stat && git add -A && git c
 
 ## 2b. Full Fleet Sync (all apps, parallel)
 
-// turbo
-
 ```bash
 cd ~/new-code/narduk-nuxt-template && pnpm run sync:fleet -- --auto-commit
 ```
 
 ### Available flags
 
-| Flag                | Description                                                |
-| ------------------- | ---------------------------------------------------------- |
-| `--no-fresh-clone`  | Reuse existing local clone directory instead of re-cloning |
-| `--dry-run`         | Preview changes without writing                            |
-| `--skip-quality`    | Skip `pnpm quality` per app                                |
-| `--auto-commit`     | Auto-commit each app after sync                            |
-| `--repos=app1,app2` | Sync only specific apps (comma-separated)                  |
-| `--jobs=N`          | Number of parallel workers (default: 4)                    |
-| `--allow-dirty-app` | Sync on top of local app changes                           |
+| Flag                | Description                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `--no-fresh-clone`  | Reuse existing local clone directory instead of re-cloning                                                  |
+| `--dry-run`         | Preview changes without writing                                                                             |
+| `--skip-quality`    | Skip `pnpm quality` per app                                                                                 |
+| `--auto-commit`     | Auto-commit each app after sync                                                                             |
+| `--repos=app1,app2` | Sync only specific apps (comma-separated)                                                                   |
+| `--jobs=N`          | Number of parallel workers (default: 4)                                                                     |
+| `--allow-dirty-app` | Try `git pull` from the synced temp clone into a dirty local app (can still fail if the same files changed) |
 
-`sync-fleet` now uses fresh clones by default, so local dirty state in
-`~/new-code/template-apps` is not used as a precondition. Pass
-`--no-fresh-clone` to run against the current local checkout instead.
+`sync-fleet` builds each app in `/tmp`, then **fast-forwards your local**
+`~/new-code/template-apps/<app>` to that result. An **unclean local worktree**
+(commit or stash first, or pass `--allow-dirty-app`) blocks that final step so
+you do not lose uncommitted work. Preflight fails immediately when the local
+clone is dirty, so you avoid a full clone + quality run that would fail at
+promotion anyway.
+
+> [!NOTE] `--no-fresh-clone` in older notes maps to the current CLI surface in
+> `tools/sync-fleet.ts` (`--clone-fleet-repos` clones missing locals). Prefer
+> `pnpm exec tsx tools/sync-fleet.ts --help` for the exact flag list.
 
 ### Examples
 
@@ -101,13 +98,20 @@ pnpm run sync:fleet -- --repos=tide-check,flashcard-pro --auto-commit
 pnpm run sync:fleet -- --skip-quality --auto-commit --jobs=8
 ```
 
+### Dirty local checkout (promotion blocked)
+
+Symptom: `Dirty worktree` / `Local checkout has uncommitted changes` for
+`~/new-code/template-apps/<app>`.
+
+Fix: in that app repo, `git stash push -u` (or commit), re-run `sync:fleet`,
+then `git stash pop` if needed. Use `--allow-dirty-app` only when you understand
+that `git pull --ff-only` may refuse or conflict on overlapping files.
+
 ---
 
 ## 3. (Optional) Sync Doppler canonical secrets
 
 If secrets in `0_global-canonical-tokens` changed:
-
-// turbo
 
 ```bash
 cd ~/new-code/narduk-nuxt-template && npx tsx tools/sync-canonical-to-fleet.ts --apply
@@ -116,8 +120,6 @@ cd ~/new-code/narduk-nuxt-template && npx tsx tools/sync-canonical-to-fleet.ts -
 ---
 
 ## 4. Post-sync health check (single app)
-
-// turbo
 
 ```bash
 cd ~/new-code/template-apps/<app-name> && npx tsx tools/check-sync-health.ts

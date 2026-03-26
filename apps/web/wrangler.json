@@ -6,7 +6,9 @@
     "directory": ".output/public"
   },
   "compatibility_date": "2026-03-11",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true
   },
@@ -18,12 +20,21 @@
     }
   ],
   "triggers": {
-    "crons": ["0 * * * *"]
+    "crons": [
+      "0 * * * *"
+    ]
   },
   "routes": [
     {
       "pattern": "control-plane.nard.uk",
       "custom_domain": true
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "00000000000000000000000000000000",
+      "preview_id": "00000000000000000000000000000000"
     }
   ]
 }

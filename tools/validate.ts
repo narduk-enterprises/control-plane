@@ -19,6 +19,9 @@ const ROOT_DIR = path.resolve(__dirname, '..')
 // Construct the template name from parts so string replacement can never corrupt it.
 const TEMPLATE_NAME = ['narduk', 'nuxt', 'template'].join('-')
 
+/** Wrangler KV placeholder shipped in template `apps/web/wrangler.json` (not valid for deploy). */
+const PLACEHOLDER_KV_NAMESPACE_ID = '00000000000000000000000000000000'
+
 // --- Helper Functions ---
 function checkCommand(
   command: string,
@@ -125,6 +128,28 @@ async function main() {
           } else {
             console.error(`  ❌ apps/${appDir}/wrangler.json — database_id missing or placeholder.`)
             allGood = false
+          }
+        }
+
+        const isTemplateCheckout = APP_NAME.includes(TEMPLATE_NAME)
+        const kvList = parsedWrangler.kv_namespaces
+        if (!isTemplateCheckout && Array.isArray(kvList)) {
+          const kvBinding = kvList.find(
+            (n: { binding?: string }) => n && typeof n === 'object' && n.binding === 'KV',
+          ) as { id?: string; preview_id?: string } | undefined
+          if (kvBinding) {
+            const badKvId = (v: unknown) =>
+              typeof v !== 'string' ||
+              v.length === 0 ||
+              v === PLACEHOLDER_KV_NAMESPACE_ID
+            if (badKvId(kvBinding.id) || badKvId(kvBinding.preview_id)) {
+              console.error(
+                `  ❌ apps/${appDir}/wrangler.json — KV binding "KV" id/preview_id missing or template placeholder (control plane must hydrate).`,
+              )
+              allGood = false
+            } else {
+              console.log(`  ✅ apps/${appDir}/wrangler.json — KV id and preview_id set`)
+            }
           }
         }
         // Apps without d1_databases are valid (e.g. marketing, og-image) — skip silently
@@ -345,7 +370,9 @@ async function main() {
       if (webPkg.dependencies?.[dep]) {
         console.log(`  ✅ ${dep} in dependencies`)
       } else {
-        console.error(`  ❌ ${dep} missing from dependencies (typecheck or Nuxt Icon SSR will fail)`)
+        console.error(
+          `  ❌ ${dep} missing from dependencies (typecheck or Nuxt Icon SSR will fail)`,
+        )
         allGood = false
       }
     }

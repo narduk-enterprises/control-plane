@@ -98,7 +98,8 @@
     "./server/database/pg-schema": {
       "import": "./server/database/pg-schema.ts"
     },
-    "./drizzle/*": "./drizzle/*"
+    "./drizzle/*": "./drizzle/*",
+    "./eslint-nuxt-flat-fragments": "./eslint-nuxt-flat-fragments.mjs"
   },
   "files": [
     "app/",
@@ -109,7 +110,10 @@
     "drizzle/",
     "nuxt.config.ts",
     "tsconfig.json",
-    "drizzle.config.ts"
+    "drizzle.config.ts",
+    "eslint.config.mjs",
+    "eslint-nuxt-flat-fragments.mjs",
+    "eslint-plugin-redundant-nuxt-auto-import.mjs"
   ],
   "volta": {
     "node": "22.22.0"

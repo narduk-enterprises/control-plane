@@ -177,6 +177,7 @@ export default defineNuxtConfig({
   },
 
   ogImage: {
+    enabled: true,
     runtimeCacheStorage: {
       driver: 'memory',
     },

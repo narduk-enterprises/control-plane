@@ -5,3 +5,4 @@ pnpm-lock.yaml
 # Skills directories — external/vendored code, not ours to format
 .agents/skills/
 .agent/skills/
+.github/skills/

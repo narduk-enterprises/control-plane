@@ -332,7 +332,11 @@ async function checkFleetManifestParity(): Promise<CheckResult> {
   }
 
   const manifest = readJson<FleetSyncManifest>(manifestPath)
-  if (!manifest || !Array.isArray(manifest.repos) || manifest.repos.some((repo) => typeof repo !== 'string')) {
+  if (
+    !manifest ||
+    !Array.isArray(manifest.repos) ||
+    manifest.repos.some((repo) => typeof repo !== 'string')
+  ) {
     return {
       status: 'fail',
       summary: 'fleet sync manifest is invalid',

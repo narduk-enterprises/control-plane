@@ -188,9 +188,7 @@ async function shipApp(appTarget: string) {
   console.log(`\n📦 Checking git status...`)
   const untrackedFiles = getUntrackedFiles(appDir)
   if (untrackedFiles.length > 0) {
-    console.log(
-      `Ignoring untracked files during ship auto-commit: ${untrackedFiles.join(', ')}`,
-    )
+    console.log(`Ignoring untracked files during ship auto-commit: ${untrackedFiles.join(', ')}`)
   }
 
   run('git', ['add', '-u'], appDir)
@@ -240,7 +238,9 @@ async function shipApp(appTarget: string) {
     process.exit(1)
   }
 
-  console.log(`\n📡 Control-plane fleet metadata is managed centrally; skipping ship-time registry mutation.`)
+  console.log(
+    `\n📡 Control-plane fleet metadata is managed centrally; skipping ship-time registry mutation.`,
+  )
 
   console.log(`\n🎉 Successfully shipped ${appTarget}!`)
 }

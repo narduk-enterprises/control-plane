@@ -565,6 +565,48 @@ function patchRootPackage(
   return touched
 }
 
+/**
+ * `apps/web/wrangler.json` is not copied verbatim (would wipe D1 ids, routes,
+ * domains). When the layer expects Workers KV, merge a missing `KV` binding
+ * from the template so `nitro-cloudflare-dev` matches new layer routes.
+ */
+function mergeWebWranglerKvBinding(
+  appDir: string,
+  templateDir: string,
+  dryRun: boolean,
+  mode: 'full' | 'layer',
+  log: (message: string) => void,
+): void {
+  if (mode !== 'full') return
+
+  const templatePath = join(templateDir, 'apps/web/wrangler.json')
+  const appPath = join(appDir, 'apps/web/wrangler.json')
+  if (!existsSync(templatePath) || !existsSync(appPath)) return
+
+  const templateWrangler = JSON.parse(readFileSync(templatePath, 'utf-8')) as {
+    kv_namespaces?: Array<{ binding?: string; id?: string; preview_id?: string }>
+  }
+  const templateKv = templateWrangler.kv_namespaces?.find((n) => n?.binding === 'KV')
+  if (!templateKv) return
+
+  const changed = patchJsonFile<Record<string, unknown>>(
+    appPath,
+    (w) => {
+      const list = (w.kv_namespaces as Array<{ binding?: string }> | undefined) ?? []
+      if (list.some((n) => n?.binding === 'KV')) {
+        return false
+      }
+      w.kv_namespaces = [...list, JSON.parse(JSON.stringify(templateKv)) as Record<string, unknown>]
+      return true
+    },
+    dryRun,
+  )
+
+  if (changed) {
+    log('  UPDATE: apps/web/wrangler.json (merged KV binding from template)')
+  }
+}
+
 function patchWebPackage(
   appDir: string,
   templateDir: string,
@@ -612,6 +654,7 @@ function patchWebPackage(
           const layerDrizzleDir =
             'node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle'
           const expectedMigrate = `bash ../../tools/db-migrate.sh ${databaseName} --local --dir ${layerDrizzleDir} --dir drizzle`
+          const expectedSeed = `wrangler d1 execute ${databaseName} --local --file=node_modules/@narduk-enterprises/narduk-nuxt-template-layer/drizzle/seed.sql`
           const expectedReset = `bash ../../tools/db-migrate.sh ${databaseName} --local --dir ${layerDrizzleDir} --dir drizzle --reset && pnpm run db:seed`
           const expectedReady = 'pnpm run db:migrate && pnpm run db:seed'
           const expectedVerify =
@@ -621,6 +664,11 @@ function patchWebPackage(
 
           if (pkg.scripts['db:migrate'] !== expectedMigrate) {
             pkg.scripts['db:migrate'] = expectedMigrate
+            changed = true
+          }
+
+          if (pkg.scripts['db:seed'] !== expectedSeed) {
+            pkg.scripts['db:seed'] = expectedSeed
             changed = true
           }
 
@@ -654,8 +702,16 @@ function patchWebPackage(
       if (mode === 'full') {
         pkg.dependencies = pkg.dependencies || {}
         pkg.devDependencies = pkg.devDependencies || {}
+        const eslintPkgPath = join(templateDir, 'packages/eslint-config/package.json')
         const templateEslintVersion =
-          templateWebPackage.dependencies?.['@narduk-enterprises/eslint-config']
+          templateWebPackage.dependencies?.['@narduk-enterprises/eslint-config'] ??
+          (existsSync(eslintPkgPath)
+            ? (
+                JSON.parse(readFileSync(eslintPkgPath, 'utf-8')) as {
+                  dependencies?: Record<string, string>
+                }
+              ).dependencies?.['@narduk-enterprises/eslint-config']
+            : undefined)
         const templateDevEslintVersion = templateWebPackage.devDependencies?.eslint
         if (pkg.dependencies['@narduk/eslint-config']) {
           delete pkg.dependencies['@narduk/eslint-config']
@@ -944,6 +1000,7 @@ export async function runAppSync(options: RunAppSyncOptions) {
 
   const packageTouched = patchRootPackage(options.appDir, options.templateDir, dryRun, mode, log)
   patchWebPackage(options.appDir, options.templateDir, dryRun, mode, log)
+  mergeWebWranglerKvBinding(options.appDir, options.templateDir, dryRun, mode, log)
   if (mode === 'full') {
     patchGitignore(options.appDir, dryRun, log)
     patchNpmrc(options.appDir, dryRun, log)
