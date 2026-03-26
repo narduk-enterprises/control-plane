@@ -27,6 +27,7 @@ export function resolveControlPlaneProxyPath(
 
   const controlPlaneOrigin = normalizeControlPlaneOrigin(controlPlaneUrl)
   if (!controlPlaneOrigin) return null
+  if (controlPlaneOrigin === currentOrigin) return null
 
   let targetUrl: URL
 
