@@ -139,7 +139,9 @@ async function main() {
           ) as { id?: string; preview_id?: string } | undefined
           if (kvBinding) {
             const badKvId = (v: unknown) =>
-              typeof v !== 'string' || v.length === 0 || v === PLACEHOLDER_KV_NAMESPACE_ID
+              typeof v !== 'string' ||
+              v.length === 0 ||
+              v === PLACEHOLDER_KV_NAMESPACE_ID
             if (badKvId(kvBinding.id) || badKvId(kvBinding.preview_id)) {
               console.error(
                 `  ❌ apps/${appDir}/wrangler.json — KV binding "KV" id/preview_id missing or template placeholder (control plane must hydrate).`,
