@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { executeSqlOnFleetAppD1 } from '#server/utils/fleet-d1-remote'
+import { fetchFleetDatabaseAppProxy } from '#server/utils/fleet-database-app-proxy'
 import {
   queryFleetPostgresRows,
   queryFleetPostgresScalar,
@@ -44,6 +45,45 @@ export default defineEventHandler(async (event) => {
 
   try {
     if (target.backend === 'postgres') {
+      const proxy = await fetchFleetDatabaseAppProxy<{
+        ok: true
+        backend: 'postgres'
+        databaseId: null
+        databaseName: string
+        schemaName: string
+        table: string
+        columns: Array<{
+          cid: number
+          name: string
+          type: string
+          notnull: number
+          dflt_value: unknown
+          pk: number
+        }>
+        rows: Record<string, unknown>[]
+        total: number
+        limit: number
+        offset: number
+      }>(target, {
+        method: 'GET',
+        path: `/tables/${encodeURIComponent(decodedTable)}`,
+        query: {
+          schemaName: target.schemaName,
+          limit: query.limit,
+          offset: query.offset,
+        },
+      })
+
+      if (proxy.ok) {
+        return {
+          ...proxy.data,
+          app: appName,
+        }
+      }
+      if (!proxy.canFallback) {
+        throw createError({ statusCode: 502, message: proxy.message })
+      }
+
       const parsed = parseFleetTableRef('postgres', decodedTable, target.schemaName)
       const tableRef = quoteQualifiedTableRef('postgres', decodedTable, target.schemaName)
 

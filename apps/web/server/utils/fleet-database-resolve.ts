@@ -7,6 +7,7 @@ export type FleetDatabaseBackend = 'd1' | 'postgres'
 
 export interface FleetDatabaseAppRecord {
   name: string
+  url: string
   dopplerProject: string
 }
 
@@ -22,6 +23,7 @@ export interface FleetPostgresTarget {
   app: FleetDatabaseAppRecord
   connectionString: string
   connectionStringSource: string
+  controlPlaneApiKey: string | null
   schemaName: string
 }
 
@@ -71,6 +73,15 @@ function isPostgresConnectionString(value: string): boolean {
   return /^postgres(?:ql)?:\/\//i.test(value)
 }
 
+function resolveControlPlaneApiKey(secrets: Record<string, string>): string | null {
+  for (const key of ['CONTROL_PLANE_API_KEY', 'FLEET_API_KEY']) {
+    const value = readStringSecret(secrets, key)
+    if (value) return value
+  }
+
+  return null
+}
+
 function resolvePostgresConnection(
   secrets: Record<string, string>,
 ): { connectionString: string; source: string } | null {
@@ -95,6 +106,7 @@ async function getFleetAppRecord(event: H3Event, appName: string): Promise<Fleet
   const existing = await db
     .select({
       name: fleetApps.name,
+      url: fleetApps.url,
       dopplerProject: fleetApps.dopplerProject,
     })
     .from(fleetApps)
@@ -152,6 +164,7 @@ export async function resolveFleetDatabaseTarget(
       app,
       connectionString: resolved.connectionString,
       connectionStringSource: resolved.source,
+      controlPlaneApiKey: resolveControlPlaneApiKey(dopplerSecrets),
       schemaName,
     }
   }

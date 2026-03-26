@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { defineAdminMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { executeSqlOnFleetAppD1 } from '#server/utils/fleet-d1-remote'
+import { fetchFleetDatabaseAppProxy } from '#server/utils/fleet-database-app-proxy'
 import { executeSqlOnFleetAppPostgres } from '#server/utils/fleet-database-pg'
 import { resolveFleetDatabaseTarget } from '#server/utils/fleet-database-resolve'
 
@@ -26,6 +27,35 @@ export default defineAdminMutation(
 
     try {
       if (target.backend === 'postgres') {
+        const proxy = await fetchFleetDatabaseAppProxy<{
+          ok: true
+          backend: 'postgres'
+          databaseId: null
+          databaseName: string
+          schemaName: string
+          result: unknown[]
+        }>(target, {
+          method: 'POST',
+          path: '/query',
+          body: {
+            sql: body.sql,
+            params: body.params,
+          },
+        })
+
+        if (proxy.ok) {
+          return {
+            ...proxy.data,
+            app: appName,
+          }
+        }
+        if (!proxy.canFallback) {
+          throw createError({
+            statusCode: proxy.statusCode ?? 502,
+            message: proxy.message,
+          })
+        }
+
         const out = await executeSqlOnFleetAppPostgres({
           connectionString: target.connectionString,
           sql: body.sql,

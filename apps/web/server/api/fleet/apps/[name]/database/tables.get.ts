@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
 import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { executeSqlOnFleetAppD1 } from '#server/utils/fleet-d1-remote'
+import { fetchFleetDatabaseAppProxy } from '#server/utils/fleet-database-app-proxy'
 import { queryFleetPostgresRows } from '#server/utils/fleet-database-pg'
 import { resolveFleetDatabaseTarget } from '#server/utils/fleet-database-resolve'
 import {
@@ -35,6 +36,34 @@ export default defineEventHandler(async (event) => {
 
   try {
     if (target.backend === 'postgres') {
+      const proxy = await fetchFleetDatabaseAppProxy<{
+        ok: true
+        backend: 'postgres'
+        databaseId: null
+        databaseName: string
+        schemaName: string
+        tables: string[]
+        catalogTableCount: number
+        internalTableCount: number
+        hint?: string
+      }>(target, {
+        method: 'GET',
+        path: '/tables',
+        query: {
+          schemaName: target.schemaName,
+        },
+      })
+
+      if (proxy.ok) {
+        return {
+          ...proxy.data,
+          app: appName,
+        }
+      }
+      if (!proxy.canFallback) {
+        throw createError({ statusCode: 502, message: proxy.message })
+      }
+
       const rows = await queryFleetPostgresRows({
         connectionString: target.connectionString,
         sql: `
@@ -71,7 +100,7 @@ export default defineEventHandler(async (event) => {
         tables,
         catalogTableCount: tables.length,
         internalTableCount: 0,
-        hint,
+        hint: hint ?? proxy.message,
       }
     }
 

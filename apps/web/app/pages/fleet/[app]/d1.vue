@@ -40,12 +40,12 @@ const advancedLabel = computed(() =>
 )
 const browseDescription = computed(() =>
   databaseBackend.value === 'postgres'
-    ? 'Page through rows, insert new ones, and edit or delete by primary key. The control plane connects directly to the app’s Postgres database using the production connection string stored in Doppler.'
+    ? 'Page through rows, insert new ones, and edit or delete by primary key. Postgres requests are routed through the fleet app so they use its live Hyperdrive-backed database access.'
     : 'Page through rows, insert new ones, and edit or delete by primary key. Tables without a PK can still be inserted into; use the SQL tab for bulk or complex changes. Drizzle Studio cannot target remote D1; this uses Cloudflare’s HTTP API instead.',
 )
 const sqlDescription = computed(() =>
   databaseBackend.value === 'postgres'
-    ? 'SQL runs against the live Postgres database. Statements execute sequentially in the control plane. There is no undo.'
+    ? 'SQL runs against the live Postgres database through the fleet app. Statements execute sequentially. There is no undo.'
     : 'SQL runs against live D1. DDL, DML, and DELETE are allowed. There is no undo.',
 )
 const sqlHelp = computed(() =>
@@ -124,7 +124,7 @@ async function onStudioDataMutated() {
             <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-xs">
               {{ schemaName || 'public' }}
             </code>
-            via the app’s production Postgres connection string.
+            through the app’s production Postgres path.
           </template>
         </p>
       </div>
