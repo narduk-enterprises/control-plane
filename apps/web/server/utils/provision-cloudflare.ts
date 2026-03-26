@@ -207,25 +207,26 @@ interface KvNamespaceListResponse {
   success: boolean
   result: KvNamespace[]
   errors: Array<{ code: number; message: string }>
-  result_info?: { cursor?: string; cursors?: { after?: string } }
+  result_info?: { total_count?: number; page?: number; per_page?: number; count?: number }
 }
 
 /**
  * List all KV namespaces in the account (paginated).
+ * Uses `page` / `per_page` like the Cloudflare REST API (not cursor-based).
  */
 export async function listAllKvNamespaces(
   accountId: string,
   apiToken: string,
 ): Promise<KvNamespace[]> {
   const all: KvNamespace[] = []
-  let cursor: string | undefined
+  let page = 1
+  const perPage = 100
+  const maxPages = 500
 
-  for (let page = 0; page < 500; page++) {
+  while (page <= maxPages) {
     const url = new URL(`${CF_API_BASE}/accounts/${accountId}/storage/kv/namespaces`)
-    url.searchParams.set('per_page', '100')
-    if (cursor) {
-      url.searchParams.set('cursor', cursor)
-    }
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('per_page', String(perPage))
 
     const res = await fetch(url.toString(), { headers: cfHeaders(apiToken) })
 
@@ -244,12 +245,11 @@ export async function listAllKvNamespaces(
     const batch = data.result ?? []
     all.push(...batch)
 
-    const next =
-      data.result_info?.cursors?.after?.trim() || data.result_info?.cursor?.trim()
-    if (!next || batch.length === 0) {
-      break
-    }
-    cursor = next
+    const total = data.result_info?.total_count
+    if (batch.length === 0) break
+    if (total !== undefined && all.length >= total) break
+    if (batch.length < perPage) break
+    page += 1
   }
 
   return all
