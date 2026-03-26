@@ -13,10 +13,10 @@ export function runCommand(command: string, args: string[], options: CommandOpti
     stdio: options.stdio ?? ['pipe', 'pipe', 'pipe'],
     cwd: options.cwd,
     env: options.env,
-  })
+  }) as string | Buffer | null
 
   if (stdout === null) return ''
-  return typeof stdout === 'string' ? stdout : stdout.toString(options.encoding ?? 'utf-8')
+  return Buffer.isBuffer(stdout) ? stdout.toString(options.encoding ?? 'utf-8') : stdout
 }
 
 export function tryRunCommand(

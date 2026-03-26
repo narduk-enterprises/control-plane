@@ -166,7 +166,7 @@ export async function authenticateApiKey(event: H3Event): Promise<User | null> {
     .set({ lastUsedAt: new Date().toISOString() })
     .where(eq(apiKeys.id, row.keyId))
     .run()
-    .catch((err) =>
+    .catch((err: unknown) =>
       useLogger(event)
         .child('Auth')
         .warn('Failed to update API key last_used_at', { error: String(err) }),

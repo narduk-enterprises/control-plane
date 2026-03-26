@@ -13,7 +13,6 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { basename, dirname, join, relative } from 'node:path'
-import { ensureSkillsLinks } from './ensure-skills-links'
 import { runCommand } from './command'
 import {
   BOOTSTRAP_SYNC_FILES,
@@ -70,6 +69,25 @@ function getOutput(command: string, args: string[], cwd: string): string {
   }
 }
 
+function getTrackedTemplatePaths(templateDir: string): Set<string> | null {
+  try {
+    const output = runCommand('git', ['ls-files', '-z'], {
+      cwd: templateDir,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+
+    return new Set(
+      output
+        .split('\0')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    )
+  } catch {
+    return null
+  }
+}
+
 function ensureDir(filePath: string) {
   mkdirSync(dirname(filePath), { recursive: true })
 }
@@ -116,6 +134,7 @@ function syncFile(
   counters: SyncCounters,
   dryRun: boolean,
   log: (message: string) => void,
+  label = relative(templateDir, sourcePath),
 ) {
   if (!existsSync(sourcePath)) return
 
@@ -130,7 +149,7 @@ function syncFile(
     }
 
     const action = occupied ? 'UPDATE' : 'ADD'
-    log(`  ${action}: ${relative(templateDir, sourcePath)}`)
+    log(`  ${action}: ${label}`)
 
     if (!dryRun) {
       ensureDir(targetPath)
@@ -154,7 +173,7 @@ function syncFile(
   }
 
   const action = existsSync(targetPath) ? 'UPDATE' : 'ADD'
-  log(`  ${action}: ${relative(templateDir, sourcePath)}`)
+  log(`  ${action}: ${label}`)
 
   if (!dryRun) {
     ensureDir(targetPath)
@@ -163,6 +182,34 @@ function syncFile(
   }
 
   counters.copied += 1
+}
+
+function collectTrackedPathsForDirectory(relativeDir: string, trackedPaths: Set<string>): string[] {
+  const prefix = `${relativeDir}/`
+
+  return [...trackedPaths].filter((path) => path.startsWith(prefix)).sort()
+}
+
+function syncTrackedDirectory(
+  relativeDir: string,
+  templateDir: string,
+  appDir: string,
+  trackedPaths: Set<string>,
+  counters: SyncCounters,
+  dryRun: boolean,
+  log: (message: string) => void,
+) {
+  for (const relativePath of collectTrackedPathsForDirectory(relativeDir, trackedPaths)) {
+    syncFile(
+      join(templateDir, relativePath),
+      join(appDir, relativePath),
+      templateDir,
+      counters,
+      dryRun,
+      log,
+      relativePath,
+    )
+  }
 }
 
 function syncDirectoryRecursive(
@@ -299,15 +346,20 @@ function syncManagedFiles(
   mode: 'full' | 'layer',
   log: (message: string) => void,
 ) {
+  const trackedPaths = getTrackedTemplatePaths(templateDir)
+
   if (mode === 'full') {
     log('Phase 1: Syncing managed template files...')
     for (const file of VERBATIM_SYNC_FILES) {
+      if (trackedPaths && !trackedPaths.has(file)) continue
       syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
     }
     for (const file of REFERENCE_BASELINE_FILES) {
+      if (trackedPaths && !trackedPaths.has(file)) continue
       syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
     }
     for (const file of BOOTSTRAP_SYNC_FILES) {
+      if (trackedPaths && !trackedPaths.has(file)) continue
       const targetPath = join(appDir, file)
       if (existsSync(targetPath)) continue
       syncFile(join(templateDir, file), targetPath, templateDir, counters, dryRun, log)
@@ -319,6 +371,11 @@ function syncManagedFiles(
   const directories =
     mode === 'full' ? RECURSIVE_SYNC_DIRECTORIES : (['layers/narduk-nuxt-layer'] as const)
   for (const directory of directories) {
+    if (trackedPaths) {
+      syncTrackedDirectory(directory, templateDir, appDir, trackedPaths, counters, dryRun, log)
+      continue
+    }
+
     syncDirectoryRecursive(
       join(templateDir, directory),
       join(appDir, directory),
@@ -655,35 +712,6 @@ function patchGitignore(appDir: string, dryRun: boolean, log: (message: string) 
     }
   }
 
-  for (const legacy of [
-    '# User-global skills: per-agent symlinks to ~/.skills (pnpm run skills:link / sync-template)',
-    '.cursor/skills',
-    '.codex/skills',
-    '.agent/skills',
-    '.github/skills',
-    '.claude/skills',
-    '.cursor/skills/home',
-    '.codex/skills/home',
-    '.agent/skills/home',
-    '.github/skills/home',
-    '.claude/skills/home',
-  ]) {
-    content = content.replace(
-      new RegExp(`^${legacy.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n`, 'gm'),
-      '',
-    )
-  }
-
-  const skillsMarker = '# Legacy local skills scratch dir'
-  if (!content.includes('\n.skills\n') && !content.endsWith('\n.skills')) {
-    if (!content.endsWith('\n')) {
-      content += '\n'
-    }
-    content += `\n${skillsMarker}\n.skills\n`
-  } else if (!content.includes(skillsMarker)) {
-    content = content.replace(/\n\.skills\n/g, `\n${skillsMarker}\n.skills\n`)
-  }
-
   if (content === original) return false
 
   log('  UPDATE: .gitignore')
@@ -777,7 +805,9 @@ function warnIfBootstrapArtifactsMissing(appDir: string, log: (message: string) 
   if (missing.length === 0) return
 
   log(`  WARN: bootstrap-managed files missing (${missing.join(', ')})`)
-  log('        Sync will not recreate provisioning artifacts; repair them via provisioning or an explicit ops flow.')
+  log(
+    '        Sync will not recreate provisioning artifacts; repair them via provisioning or an explicit ops flow.',
+  )
 }
 
 function rewriteLayerRepository(
@@ -920,10 +950,6 @@ export async function runAppSync(options: RunAppSyncOptions) {
     warnIfBootstrapArtifactsMissing(options.appDir, log)
     ensureGitHooksPath(options.appDir, dryRun, log)
   }
-
-  log('')
-  log('  Skills: repairing .agent/.cursor/.codex/.claude/.github symlinks → .agents/skills...')
-  ensureSkillsLinks(options.appDir, { dryRun, log })
 
   // Record template HEAD for drift checks and fleet audit — must run for layer-only
   // sync too, otherwise check-drift-ci keeps comparing against a stale SHA.

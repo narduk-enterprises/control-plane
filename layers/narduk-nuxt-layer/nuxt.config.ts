@@ -45,9 +45,6 @@ const buildVersion =
   appVersion
 const buildTime = process.env.BUILD_TIME || new Date().toISOString()
 const colorModePreference = process.env.NUXT_COLOR_MODE_PREFERENCE || 'system'
-const localNuxtPort = Number(process.env.NUXT_PORT || 3000)
-const localSiteUrl = `http://127.0.0.1:${Number.isFinite(localNuxtPort) ? localNuxtPort : 3000}`
-
 export default defineNuxtConfig({
   alias: {
     '#layer': fileURLToPath(new URL('./', import.meta.url)),
@@ -87,6 +84,13 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    /**
+     * `d1` — default; `useDatabase()` uses the D1 `DB` binding.
+     * `postgres` — opt into Postgres via Hyperdrive + a Postgres Drizzle schema (see `useHyperdriveConnectionString`).
+     */
+    databaseBackend: process.env.NUXT_DATABASE_BACKEND === 'postgres' ? 'postgres' : 'd1',
+    /** Must match `hyperdrive[].binding` in wrangler (default `HYPERDRIVE`). */
+    hyperdriveBinding: process.env.NUXT_HYPERDRIVE_BINDING || 'HYPERDRIVE',
     /** Optional: secret for cron routes (e.g. cache warming). Set CRON_SECRET in Doppler; provisioning sets it. */
     cronSecret: process.env.CRON_SECRET || '',
     ownerTagSecret: process.env.OWNER_TAG_SECRET || '',
@@ -121,7 +125,6 @@ export default defineNuxtConfig({
   },
 
   site: {
-    url: process.env.SITE_URL || localSiteUrl,
     name: process.env.APP_NAME || 'Nuxt 4 App',
     description: 'A Nuxt 4 application deployed on Cloudflare Workers.',
   },
@@ -201,7 +204,7 @@ export default defineNuxtConfig({
       },
     },
     externals: {
-      inline: ['drizzle-orm'],
+      inline: ['drizzle-orm', '@neondatabase/serverless'],
     },
   },
 

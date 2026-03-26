@@ -24,16 +24,6 @@ describe('controlPlaneProxy helpers', () => {
     ).toBe('/api/control-plane/fleet/posthog/bluebonnet-status-online?startDate=2026-02-21')
   })
 
-  it('does not rewrite fleet API requests when already running on the control-plane origin', () => {
-    expect(
-      resolveControlPlaneProxyPath(
-        '/api/fleet/provision-ui/jobs',
-        'https://control-plane.nard.uk',
-        'https://control-plane.nard.uk',
-      ),
-    ).toBeNull()
-  })
-
   it('ignores non-fleet and non-control-plane URLs', () => {
     expect(
       resolveControlPlaneProxyPath(

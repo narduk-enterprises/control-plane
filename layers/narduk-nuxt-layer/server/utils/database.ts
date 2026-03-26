@@ -1,22 +1,89 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { H3Event } from 'h3'
-import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
-import * as schema from '../database/schema'
+import { drizzle as drizzleD1, type DrizzleD1Database } from 'drizzle-orm/d1'
+import { drizzle as drizzleNeonHttp } from 'drizzle-orm/neon-http'
+import { neon } from '@neondatabase/serverless'
+import * as d1Schema from '../database/schema'
 import { useLogger } from './logger'
+
+// ─── Types ──────────────────────────────────────────────────
+
+/**
+ * A database instance returned by useDatabase(). The concrete type depends on
+ * the `databaseBackend` runtime config (`d1` or `postgres`).
+ *
+ * Drizzle's query API surface is identical across dialects for the operations
+ * the layer uses (select, insert, update, delete, where, join, etc.), so
+ * callers don't need to care which backend is active.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- The PG drizzle instance type is structurally different from D1; a union with `any` keeps callers backend-agnostic.
+export type LayerDatabase = DrizzleD1Database<typeof d1Schema> | any
+
+// ─── Helpers ────────────────────────────────────────────────
+
+function makeLogger(event: H3Event, label: string) {
+  return import.meta.dev
+    ? {
+        logQuery(query: string, params: unknown) {
+          useLogger(event).child(label).debug('sql', { query, params })
+        },
+      }
+    : undefined
+}
+
+/**
+ * Resolve the Hyperdrive connection string from the Cloudflare env.
+ * The binding name is configurable via `runtimeConfig.hyperdriveBinding`
+ * (default: `HYPERDRIVE`).
+ */
+function getHyperdriveConnectionString(event: H3Event): string {
+  const config = useRuntimeConfig(event)
+  const bindingName = (config as Record<string, unknown>).hyperdriveBinding || 'HYPERDRIVE'
+  const env = event.context.cloudflare?.env as
+    | Record<string, { connectionString?: string }>
+    | undefined
+  const hd = env?.[bindingName as string]
+  if (!hd?.connectionString) {
+    throw createError({
+      statusCode: 500,
+      message: `Hyperdrive binding "${bindingName}" not available. Ensure it is configured in wrangler.json and NUXT_DATABASE_BACKEND=postgres is set.`,
+    })
+  }
+  return hd.connectionString
+}
+
+// ─── Public API ─────────────────────────────────────────────
 
 /**
  * Return a Drizzle ORM instance for the current request.
  *
- * Creates a lightweight per-request wrapper from the Cloudflare D1 binding.
+ * The backend is selected by `runtimeConfig.databaseBackend`:
+ * - `'d1'` (default) — Cloudflare D1 via the `DB` binding
+ * - `'postgres'` — Neon PostgreSQL via a Hyperdrive binding
+ *
  * Memoized on `event.context` to avoid redundant instantiation within a single
  * request lifecycle. This avoids module-scope singletons which risk stale
  * bindings across isolate reuse on Cloudflare Workers.
  */
-export function useDatabase(event: H3Event): DrizzleD1Database<typeof schema> {
+export function useDatabase(event: H3Event): LayerDatabase {
   if (event.context._db) {
     return event.context._db
   }
 
+  const config = useRuntimeConfig(event)
+  const backend = (config as Record<string, unknown>).databaseBackend || 'd1'
+
+  if (backend === 'postgres') {
+    const connectionString = getHyperdriveConnectionString(event)
+    const sql = neon(connectionString)
+    const db = drizzleNeonHttp(sql, {
+      logger: makeLogger(event, 'PG'),
+    })
+    event.context._db = db
+    return db
+  }
+
+  // Default: D1
   const d1 = (event.context.cloudflare?.env as { DB?: D1Database })?.DB
   if (!d1) {
     throw createError({
@@ -25,15 +92,9 @@ export function useDatabase(event: H3Event): DrizzleD1Database<typeof schema> {
     })
   }
 
-  const db = drizzle(d1, {
-    schema,
-    logger: import.meta.dev
-      ? {
-          logQuery(query, params) {
-            useLogger(event).child('D1').debug('sql', { query, params })
-          },
-        }
-      : undefined,
+  const db = drizzleD1(d1, {
+    schema: d1Schema,
+    logger: makeLogger(event, 'D1'),
   })
   event.context._db = db
   return db
@@ -70,15 +131,9 @@ export function createAppDatabase<T extends Record<string, unknown>>(appSchema: 
       })
     }
 
-    const db = drizzle(d1, {
+    const db = drizzleD1(d1, {
       schema: appSchema,
-      logger: import.meta.dev
-        ? {
-            logQuery(query, params) {
-              useLogger(event).child('D1').debug('sql', { query, params })
-            },
-          }
-        : undefined,
+      logger: makeLogger(event, 'D1'),
     })
     event.context._appDb = db
     return db

@@ -338,14 +338,14 @@ async function main() {
     const webPkgContent = await fs.readFile(webPkgPath, 'utf-8')
     const webPkg = JSON.parse(webPkgContent)
 
-    const requiredDeps = ['drizzle-orm', 'zod']
-    const requiredDevDeps = ['@cloudflare/workers-types', '@iconify-json/lucide']
+    const requiredDeps = ['drizzle-orm', 'zod', '@iconify-json/lucide']
+    const requiredDevDeps = ['@cloudflare/workers-types']
 
     for (const dep of requiredDeps) {
       if (webPkg.dependencies?.[dep]) {
         console.log(`  ✅ ${dep} in dependencies`)
       } else {
-        console.error(`  ❌ ${dep} missing from dependencies (typecheck will fail)`)
+        console.error(`  ❌ ${dep} missing from dependencies (typecheck or Nuxt Icon SSR will fail)`)
         allGood = false
       }
     }

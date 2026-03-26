@@ -36,10 +36,6 @@ export function resolveControlPlaneProxyPath(
     return null
   }
 
-  if (currentOrigin === controlPlaneOrigin) {
-    return null
-  }
-
   if (targetUrl.origin !== controlPlaneOrigin || !isFleetApiPath(targetUrl.pathname)) {
     return null
   }

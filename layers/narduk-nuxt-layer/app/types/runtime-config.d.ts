@@ -6,6 +6,10 @@
  */
 declare module 'nuxt/schema' {
   interface RuntimeConfig {
+    /** Primary SQL backend for app code that branches on storage (default `d1`). */
+    databaseBackend: 'd1' | 'postgres'
+    /** Wrangler Hyperdrive binding name; used by `useHyperdriveConnectionString`. */
+    hyperdriveBinding: string
     googleServiceAccountKey: string
     posthogApiKey: string
     gaPropertyId: string
