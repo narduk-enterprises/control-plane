@@ -5,6 +5,7 @@ import type {
   FleetDatabaseTableGridResponse,
 } from '~/types/fleet'
 import { UButton } from '#components'
+import { coerceColumnDraftValue } from '~/utils/fleet-database-input'
 import { quoteSqlIdent, quoteTableRef, sqlPlaceholder } from '~/utils/fleet-database-sql'
 
 const props = defineProps<{
@@ -114,7 +115,7 @@ async function saveEdit() {
       sets.push(`${quoteSqlIdent(col.name)} = NULL`)
     } else {
       sets.push(`${quoteSqlIdent(col.name)} = ${sqlPlaceholder(props.backend, params.length + 1)}`)
-      params.push(newV)
+      params.push(coerceColumnDraftValue(col, newV))
     }
   }
 
@@ -218,7 +219,7 @@ async function saveInsert() {
 
     colIdents.push(quoteSqlIdent(col.name))
     valueParts.push(sqlPlaceholder(props.backend, params.length + 1))
-    params.push(v)
+    params.push(coerceColumnDraftValue(col, v))
   }
 
   const sql =
