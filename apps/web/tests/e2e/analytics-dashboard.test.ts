@@ -52,7 +52,7 @@ test.describe('Analytics Dashboard', () => {
     expect(foundApp).toBe(true)
   })
 
-  test('PostHog provider surface shows provider detail cards after cache population', async ({
+  test('PostHog provider surface shows sortable fleet table after cache population', async ({
     page,
   }) => {
     await page.goto(`${BASE}/analytics`)
@@ -60,19 +60,13 @@ test.describe('Analytics Dashboard', () => {
 
     await page.waitForTimeout(5000)
 
-    const hasEvents = page.locator('text=Events').first()
-    const hasUsers = page.locator('text=Users').first()
-    const hasPageviews = page.locator('text=Pageviews').first()
-    const hasProjectHint = page.locator('text=Project').first()
+    await expect(page.locator('table').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('th', { hasText: 'Events' }).first()).toBeVisible()
+    await expect(page.locator('th', { hasText: 'Users' }).first()).toBeVisible()
+    await expect(page.locator('th', { hasText: 'Pageviews' }).first()).toBeVisible()
 
-    const visibleLabels = await Promise.all([
-      hasEvents.isVisible({ timeout: 2000 }).catch(() => false),
-      hasUsers.isVisible({ timeout: 2000 }).catch(() => false),
-      hasPageviews.isVisible({ timeout: 2000 }).catch(() => false),
-      hasProjectHint.isVisible({ timeout: 2000 }).catch(() => false),
-    ])
-
-    expect(visibleLabels.some(Boolean)).toBe(true)
+    const appLink = page.locator('a[href*="/analytics/"]').first()
+    await expect(appLink).toBeVisible()
   })
 
   test('refresh button is clickable and triggers data load', async ({ page }) => {
