@@ -439,8 +439,12 @@ async function runGaSetup() {
   }
 
   console.log()
-  console.log('Step 4/4: Control plane metadata remains managed from the control plane source of truth.')
-  console.log('  ℹ️  GA IDs were written to Doppler only. Update managed repo metadata separately if needed.')
+  console.log(
+    'Step 4/4: Control plane metadata remains managed from the control plane source of truth.',
+  )
+  console.log(
+    '  ℹ️  GA IDs were written to Doppler only. Update managed repo metadata separately if needed.',
+  )
 
   console.log()
   console.log('🎉  Google Analytics 4 setup complete!')

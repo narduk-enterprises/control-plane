@@ -10,10 +10,7 @@ export interface FleetD1BindingRefs {
  * Admin SQL console against a fleet app’s remote D1 (via control-plane API).
  * Pass `binding` to share database name/UUID with the studio browser.
  */
-export function useFleetD1Console(
-  appName: ComputedRef<string>,
-  binding?: FleetD1BindingRefs,
-) {
+export function useFleetD1Console(appName: ComputedRef<string>, binding?: FleetD1BindingRefs) {
   const fallbackName = ref('')
   const fallbackId = ref('')
   const fallbackShowAdvanced = ref(false)
@@ -66,8 +63,7 @@ export function useFleetD1Console(
       )
     } catch (err) {
       const e = err as { data?: { message?: string }; message?: string; statusMessage?: string }
-      errorMessage.value =
-        e.data?.message || e.message || e.statusMessage || 'Query failed'
+      errorMessage.value = e.data?.message || e.message || e.statusMessage || 'Query failed'
     } finally {
       loading.value = false
     }

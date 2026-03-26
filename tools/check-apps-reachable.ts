@@ -35,9 +35,7 @@ async function fetchFleetApps(): Promise<[string, string][]> {
     )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const apps = (await res.json()) as FleetApp[]
-    return apps
-      .filter((app) => Boolean(app.publicUrl))
-      .map((app) => [app.name, app.publicUrl])
+    return apps.filter((app) => Boolean(app.publicUrl)).map((app) => [app.name, app.publicUrl])
   } catch {
     console.error(`⚠️ Could not fetch fleet repos from ${CONTROL_PLANE_URL}/api/fleet/repos`)
     console.error(

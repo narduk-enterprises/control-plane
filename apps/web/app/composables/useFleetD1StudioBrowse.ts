@@ -1,4 +1,3 @@
-import { reactive } from 'vue'
 import type { FleetD1TableGridResponse, FleetD1TablesResponse } from '~/types/fleet'
 import type { FleetD1BindingRefs } from './useFleetD1Console'
 
@@ -17,10 +16,7 @@ function toQuery(
 /**
  * Drizzle-Studio-style table list + paginated grid for remote fleet D1.
  */
-export function useFleetD1StudioBrowse(
-  appName: ComputedRef<string>,
-  binding: FleetD1BindingRefs,
-) {
+export function useFleetD1StudioBrowse(appName: ComputedRef<string>, binding: FleetD1BindingRefs) {
   const pageSize = ref(50)
   const page = ref(1)
   const selectedTable = ref<string | null>(null)

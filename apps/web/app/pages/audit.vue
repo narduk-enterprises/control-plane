@@ -73,8 +73,8 @@ const breadcrumbItems = computed(() => [{ label: 'Dashboard', to: '/' }, { label
       <div>
         <h1 class="font-display text-2xl font-semibold text-default">Fleet Audit</h1>
         <p class="mt-1 text-sm text-muted">
-          Verify live runtime config, Cloudflare D1 naming (warns when both bare name and -db exist),
-          plus GA4 and Search Console provider health across all fleet apps
+          Verify live runtime config, Cloudflare D1 naming (warns when both bare name and -db
+          exist), plus GA4 and Search Console provider health across all fleet apps
         </p>
       </div>
       <div class="flex flex-wrap gap-2">

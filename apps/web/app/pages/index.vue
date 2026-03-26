@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { h } from 'vue'
 import { FleetAppStatus, NuxtLink, UButton } from '#components'
 import type { TableColumn } from '~/types/table'
 import type { FleetRegistryApp } from '~/types/fleet'

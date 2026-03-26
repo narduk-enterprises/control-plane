@@ -1,7 +1,7 @@
 import { desc } from 'drizzle-orm'
 import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
-import { indexnowPingLog } from '#server/database/schema'
+import { indexnowPingLog, type IndexnowPingLog } from '#server/database/schema'
 
 /**
  * GET /api/fleet/indexnow/history
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   )
 
   const db = useDatabase(event)
-  const rows = await db
+  const rows: IndexnowPingLog[] = await db
     .select()
     .from(indexnowPingLog)
     .orderBy(desc(indexnowPingLog.pingedAt))

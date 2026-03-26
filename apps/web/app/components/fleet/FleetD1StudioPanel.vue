@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { h } from 'vue'
 import type { FleetD1ColumnInfo, FleetD1TableGridResponse } from '~/types/fleet'
 import { UButton } from '#components'
 import { quoteD1Ident } from '~/utils/fleet-d1-ident'
@@ -270,7 +269,8 @@ const gridColumns = computed<any[]>(() => {
         td: 'max-w-[220px] whitespace-normal break-words align-top font-mono text-[11px]',
       },
     },
-    cell: ({ row }: { row: { original: Record<string, unknown> } }) => formatCell(row.original[c.name]),
+    cell: ({ row }: { row: { original: Record<string, unknown> } }) =>
+      formatCell(row.original[c.name]),
   }))
 
   return [actionsCol, ...dataCols]
@@ -306,13 +306,7 @@ function onPageSizeChange(value: unknown) {
         </div>
       </template>
 
-      <UAlert
-        v-if="tablesError"
-        color="error"
-        variant="subtle"
-        class="mb-3"
-        :title="tablesError"
-      />
+      <UAlert v-if="tablesError" color="error" variant="subtle" class="mb-3" :title="tablesError" />
 
       <UAlert
         v-else-if="tablesHint"
@@ -324,10 +318,7 @@ function onPageSizeChange(value: unknown) {
         :description="tablesHint"
       />
 
-      <p
-        v-if="!tablesPending && (catalogTableCount ?? 0) > 0"
-        class="mb-2 text-xs text-muted"
-      >
+      <p v-if="!tablesPending && (catalogTableCount ?? 0) > 0" class="mb-2 text-xs text-muted">
         Catalog: {{ catalogTableCount }} object(s)
         <template v-if="(internalTableCount ?? 0) > 0">
           · {{ internalTableCount }} internal/system hidden (sqlite_*, _cf_*)
@@ -337,11 +328,14 @@ function onPageSizeChange(value: unknown) {
       <div v-if="tablesPending && !tables.length" class="py-6 text-center text-sm text-muted">
         Loading…
       </div>
-      <div v-else-if="!tables.length && !tablesHint" class="py-6 space-y-2 text-center text-sm text-muted">
+      <div
+        v-else-if="!tables.length && !tablesHint"
+        class="py-6 space-y-2 text-center text-sm text-muted"
+      >
         <p>No tables returned.</p>
         <p class="text-xs">
-          If you expect data here, confirm this app’s remote D1 has migrations applied and Cloudflare
-          credentials on the control plane can query it.
+          If you expect data here, confirm this app’s remote D1 has migrations applied and
+          Cloudflare credentials on the control plane can query it.
         </p>
       </div>
       <ul v-else class="max-h-[min(28rem,50vh)] space-y-0.5 overflow-y-auto pr-1">
@@ -374,13 +368,7 @@ function onPageSizeChange(value: unknown) {
         </div>
       </template>
 
-      <UAlert
-        v-if="gridError"
-        color="error"
-        variant="subtle"
-        class="mb-4"
-        :title="gridError"
-      />
+      <UAlert v-if="gridError" color="error" variant="subtle" class="mb-4" :title="gridError" />
 
       <UAlert
         v-if="gridData && !hasPk"
@@ -396,14 +384,16 @@ function onPageSizeChange(value: unknown) {
         v-if="!selectedTable"
         class="rounded-lg border border-dashed border-default/25 py-16 text-center text-sm text-muted"
       >
-        Choose a table on the left. Edit or delete rows from the grid (when a primary key exists), or
-        insert a row with the button above the table.
+        Choose a table on the left. Edit or delete rows from the grid (when a primary key exists),
+        or insert a row with the button above the table.
       </div>
 
       <template v-else>
         <div v-if="gridPending" class="py-12 text-center text-sm text-muted">Loading rows…</div>
         <template v-else-if="gridData">
-          <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div
+            class="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+          >
             <div class="flex flex-wrap items-center gap-2">
               <UButton
                 size="sm"
@@ -489,15 +479,15 @@ function onPageSizeChange(value: unknown) {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton variant="outline" color="neutral" class="cursor-pointer" @click="editOpen = false">
+          <UButton
+            variant="outline"
+            color="neutral"
+            class="cursor-pointer"
+            @click="editOpen = false"
+          >
             Cancel
           </UButton>
-          <UButton
-            color="primary"
-            class="cursor-pointer"
-            :loading="writePending"
-            @click="saveEdit"
-          >
+          <UButton color="primary" class="cursor-pointer" :loading="writePending" @click="saveEdit">
             Save
           </UButton>
         </div>
@@ -526,7 +516,12 @@ function onPageSizeChange(value: unknown) {
           >
             Cancel
           </UButton>
-          <UButton color="error" class="cursor-pointer" :loading="writePending" @click="confirmDelete">
+          <UButton
+            color="error"
+            class="cursor-pointer"
+            :loading="writePending"
+            @click="confirmDelete"
+          >
             Delete
           </UButton>
         </div>

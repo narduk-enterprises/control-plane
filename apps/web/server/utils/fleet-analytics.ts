@@ -1523,7 +1523,7 @@ export async function fetchPosthogSummaryEnvelope(
 
 async function getStatusMap(event: H3Event): Promise<Map<string, AppStatus>> {
   const db = useDatabase(event)
-  const rows = await db.select().from(appStatus).all()
+  const rows: AppStatus[] = await db.select().from(appStatus).all()
   return new Map(rows.map((row) => [row.app, row]))
 }
 

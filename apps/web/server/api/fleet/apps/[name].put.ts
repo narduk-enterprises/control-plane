@@ -45,7 +45,7 @@ export default defineAdminMutation(
     if (body.url !== undefined) updates.url = body.url
     if (body.dopplerProject !== undefined) updates.dopplerProject = body.dopplerProject
     if (body.nuxtPort !== undefined) {
-      const conflicts = await db
+      const conflicts: Array<{ name: string; nuxtPort: number | null }> = await db
         .select({ name: fleetApps.name, nuxtPort: fleetApps.nuxtPort })
         .from(fleetApps)
         .all()

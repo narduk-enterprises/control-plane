@@ -94,9 +94,10 @@ the control plane:
 
    This creates the GitHub repo, registers it in the fleet, and triggers the
    control plane’s `provision-app.yml` workflow (`tools/provision/*`, hydrate,
-   analytics, first deploy). The hydrate step must set **`apps/web/wrangler.json`**
-   **`kv_namespaces`** for binding **`KV`** (`id` + **`preview_id`**, not template
-   placeholders); see `docs/agents/operations.md` (control plane KV section).
+   analytics, first deploy). The hydrate step must set
+   **`apps/web/wrangler.json`** **`kv_namespaces`** for binding **`KV`** (`id` +
+   **`preview_id`**, not template placeholders); see `docs/agents/operations.md`
+   (control plane KV section).
 
 2. Poll for completion:
 

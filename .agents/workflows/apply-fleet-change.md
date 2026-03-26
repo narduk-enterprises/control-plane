@@ -18,8 +18,8 @@ etc.) to every template-derived app in `~/new-code/template-apps/`.
 Ask the user:
 
 1. **What change?** — Get a precise description of the change to apply (e.g.
-   "add `noExternal: ['foo']` to `nuxt.config.ts`", "bump `@nuxt/ui` to
-   4.1.0", "add a new file `server/utils/audit.ts`").
+   "add `noExternal: ['foo']` to `nuxt.config.ts`", "bump `@nuxt/ui` to 4.1.0",
+   "add a new file `server/utils/audit.ts`").
 2. **Which apps?** — All apps, or a specific subset? (default: all)
 3. **Skip list?** — Any apps to exclude? `control-plane` is always excluded by
    default since it has its own structure.
@@ -134,8 +134,8 @@ cd ~/new-code/template-apps/<app> && doppler run --project "<app>" --config prd 
 
 ## 3. Batch mode — full loop script
 
-For simple, mechanical changes, run everything as a single script.
-**Customize the `APPLY_CHANGE` block before running.**
+For simple, mechanical changes, run everything as a single script. **Customize
+the `APPLY_CHANGE` block before running.**
 
 ```bash
 #!/bin/bash
@@ -149,7 +149,7 @@ DEPLOY=false  # set to true to deploy
 
 for APP_DIR in "$FLEET_DIR"/*/; do
   APP=$(basename "$APP_DIR")
-  
+
   # Skip excluded apps
   if echo "$SKIP_APPS" | grep -qw "$APP"; then
     echo "⏭  Skipping $APP"

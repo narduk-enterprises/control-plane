@@ -60,9 +60,12 @@ export function assertFirstStatementOk(
   const b = batches[0]
   if (b?.success === false) {
     const meta = b.meta as { error?: string } | undefined
-    const msg = meta?.error || (typeof b.meta === 'object' && b.meta && 'message' in b.meta
-      ? String((b.meta as { message?: string }).message)
-      : '') || 'Statement failed'
+    const msg =
+      meta?.error ||
+      (typeof b.meta === 'object' && b.meta && 'message' in b.meta
+        ? String((b.meta as { message?: string }).message)
+        : '') ||
+      'Statement failed'
     throw new Error(`${context}: ${msg}`)
   }
 }

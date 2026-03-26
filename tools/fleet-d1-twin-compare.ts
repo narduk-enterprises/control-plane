@@ -36,10 +36,7 @@
  * If BOTH databases have app data, do not blind-import — merge manually or pick a winner.
  */
 
-import {
-  getD1DatabaseByName,
-  queryD1Database,
-} from '../apps/web/server/utils/provision-cloudflare'
+import { getD1DatabaseByName, queryD1Database } from '../apps/web/server/utils/provision-cloudflare'
 import {
   assertFirstStatementOk,
   firstStatementScalar,
@@ -74,9 +71,7 @@ async function listUserTableNames(
   )
   assertFirstStatementOk(batches, 'sqlite_master')
   const rows = normalizeD1StatementRows(batches[0])
-  const names = rows
-    .map(pickSqliteMasterTableName)
-    .filter((n): n is string => n !== null)
+  const names = rows.map(pickSqliteMasterTableName).filter((n): n is string => n !== null)
   return names.filter(shouldListFleetTable)
 }
 
@@ -172,8 +167,7 @@ function printMigrationDryRun(
   const hasMigrationsBare =
     (bare.tables.d1_migrations ?? 0) > 0 || (bare.tables._applied_migrations ?? 0) > 0
   const hasMigrationsDest =
-    (canonical.tables.d1_migrations ?? 0) > 0 ||
-    (canonical.tables._applied_migrations ?? 0) > 0
+    (canonical.tables.d1_migrations ?? 0) > 0 || (canonical.tables._applied_migrations ?? 0) > 0
 
   console.log(`\nAssumption: Worker + CI target "${destName}" (narduk template).`)
   console.log(`Recommended data SOURCE: "${bareName}" (has the app data).`)
@@ -205,10 +199,7 @@ function printMigrationDryRun(
     `\nD) Import into "${destName}":\n` +
       `   pnpm exec wrangler d1 execute ${destName} --remote --file=${exportFile}`,
   )
-  console.log(
-    `\nE) Verify:\n` +
-      `   pnpm exec tsx tools/fleet-d1-twin-compare.ts --app=${app}`,
-  )
+  console.log(`\nE) Verify:\n` + `   pnpm exec tsx tools/fleet-d1-twin-compare.ts --app=${app}`)
   console.log(
     `\nF) After production smoke test, delete stray DB:\n` +
       `   pnpm exec wrangler d1 delete ${bareName}`,

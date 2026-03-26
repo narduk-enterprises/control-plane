@@ -57,7 +57,10 @@ export default defineAdminMutation(
       throw createError({ statusCode: 409, message: `App '${name}' already exists.` })
     }
 
-    const otherApps = await db.select({ nuxtPort: fleetApps.nuxtPort }).from(fleetApps).all()
+    const otherApps: Array<{ nuxtPort: number | null }> = await db
+      .select({ nuxtPort: fleetApps.nuxtPort })
+      .from(fleetApps)
+      .all()
     const resolvedNuxtPort =
       nuxtPort !== undefined
         ? nuxtPort

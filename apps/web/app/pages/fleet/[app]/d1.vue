@@ -85,7 +85,8 @@ async function onStudioDataMutated() {
         <p class="mt-1 text-sm text-muted">
           {{ appName }} — remote production database (default
           <code class="rounded bg-muted/40 px-1 py-0.5 font-mono text-xs">{{ defaultDbHint }}</code
-          >). Drizzle Studio only talks to local DB files; this UI uses Cloudflare’s HTTP API instead.
+          >). Drizzle Studio only talks to local DB files; this UI uses Cloudflare’s HTTP API
+          instead.
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -139,7 +140,11 @@ async function onStudioDataMutated() {
             label="Database name (optional)"
             :help="`Leave empty to use ${defaultDbHint}`"
           >
-            <UInput v-model="databaseName" class="w-full font-mono text-sm" placeholder="my-app-db" />
+            <UInput
+              v-model="databaseName"
+              class="w-full font-mono text-sm"
+              placeholder="my-app-db"
+            />
           </UFormField>
           <UFormField
             label="Database UUID (optional)"

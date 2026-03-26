@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '~/types/table'
 import type { GithubRepo } from '~/composables/useGithubRepos'
 

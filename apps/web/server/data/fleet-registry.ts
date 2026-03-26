@@ -21,7 +21,7 @@ const FLEET_APP_CACHE_KEYS = ['fleet-apps-list', 'fleet-apps-list-all'] as const
  */
 export async function getFleetApps(event: H3Event): Promise<FleetApp[]> {
   const db = useDatabase(event)
-  const rows = await db.select().from(fleetApps).where(eq(fleetApps.isActive, true)).all()
+  const rows: FleetApp[] = await db.select().from(fleetApps).where(eq(fleetApps.isActive, true)).all()
   return rows.sort((a, b) => a.name.localeCompare(b.name))
 }
 
@@ -30,7 +30,7 @@ export async function getFleetApps(event: H3Event): Promise<FleetApp[]> {
  */
 export async function getAllFleetApps(event: H3Event): Promise<FleetApp[]> {
   const db = useDatabase(event)
-  const rows = await db.select().from(fleetApps).all()
+  const rows: FleetApp[] = await db.select().from(fleetApps).all()
   return rows.sort((a, b) => a.name.localeCompare(b.name))
 }
 
@@ -40,7 +40,7 @@ export async function getAllFleetApps(event: H3Event): Promise<FleetApp[]> {
  */
 export async function getFleetAppIsActiveByName(event: H3Event): Promise<Map<string, boolean>> {
   const db = useDatabase(event)
-  const rows = await db
+  const rows: Array<{ name: string; isActive: boolean }> = await db
     .select({ name: fleetApps.name, isActive: fleetApps.isActive })
     .from(fleetApps)
     .all()

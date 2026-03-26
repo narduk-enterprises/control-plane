@@ -52,8 +52,7 @@ export default defineEventHandler(async (event) => {
       hint =
         'sqlite_master has no tables or views yet. Run remote D1 migrations (deploy CI or wrangler d1 execute --remote) for this database.'
     } else if (tables.length === 0 && internalTableCount > 0) {
-      hint =
-        `This D1 file only has internal/system tables (${internalTableCount} hidden, e.g. _cf_*). Your app schema is not on this remote database yet — apply migrations to ${out.databaseName}.`
+      hint = `This D1 file only has internal/system tables (${internalTableCount} hidden, e.g. _cf_*). Your app schema is not on this remote database yet — apply migrations to ${out.databaseName}.`
     }
 
     return {

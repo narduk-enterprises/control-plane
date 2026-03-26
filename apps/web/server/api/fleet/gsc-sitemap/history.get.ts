@@ -1,7 +1,7 @@
 import { desc } from 'drizzle-orm'
 import { z } from 'zod'
 import { requireAdmin } from '#layer/server/utils/auth'
-import { gscSitemapSubmitLog } from '#server/database/schema'
+import { gscSitemapSubmitLog, type GscSitemapSubmitLog } from '#server/database/schema'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   )
 
   const db = useDatabase(event)
-  const rows = await db
+  const rows: GscSitemapSubmitLog[] = await db
     .select()
     .from(gscSitemapSubmitLog)
     .orderBy(desc(gscSitemapSubmitLog.submittedAt))

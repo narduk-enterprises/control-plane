@@ -137,9 +137,7 @@ export async function createD1Database(
 export interface D1RemoteQueryStatementResult {
   success?: boolean
   /** Object rows and/or Cloudflare `{ columns, rows }` shape. */
-  results?:
-    | Record<string, unknown>[]
-    | { columns?: string[]; rows?: unknown[][] }
+  results?: Record<string, unknown>[] | { columns?: string[]; rows?: unknown[][] }
   meta?: Record<string, unknown>
 }
 
@@ -159,14 +157,11 @@ export async function queryD1Database(
     payload.params = params
   }
 
-  const res = await fetch(
-    `${CF_API_BASE}/accounts/${accountId}/d1/database/${databaseId}/query`,
-    {
-      method: 'POST',
-      headers: cfHeaders(apiToken),
-      body: JSON.stringify(payload),
-    },
-  )
+  const res = await fetch(`${CF_API_BASE}/accounts/${accountId}/d1/database/${databaseId}/query`, {
+    method: 'POST',
+    headers: cfHeaders(apiToken),
+    body: JSON.stringify(payload),
+  })
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -237,9 +232,7 @@ export async function listAllKvNamespaces(
 
     const data = (await res.json()) as KvNamespaceListResponse
     if (!data.success) {
-      throw new Error(
-        `Cloudflare KV list error: ${data.errors.map((e) => e.message).join(', ')}`,
-      )
+      throw new Error(`Cloudflare KV list error: ${data.errors.map((e) => e.message).join(', ')}`)
     }
 
     const batch = data.result ?? []

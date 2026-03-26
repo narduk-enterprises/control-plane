@@ -1,6 +1,11 @@
 import { desc, inArray } from 'drizzle-orm'
 import { requireAdmin } from '#layer/server/utils/auth'
-import { provisionJobs, provisionJobLogs } from '#server/database/schema'
+import {
+  provisionJobs,
+  provisionJobLogs,
+  type ProvisionJob,
+  type ProvisionJobLog,
+} from '#server/database/schema'
 import { reconcileProvisionJobWithGitHub } from '#server/utils/provision-job-reconciliation'
 
 const LOGS_PER_JOB = 200
@@ -14,7 +19,7 @@ export default defineEventHandler(async (event) => {
   await requireAdmin(event)
 
   const db = useDatabase(event)
-  const jobs = await db
+  const jobs: ProvisionJob[] = await db
     .select()
     .from(provisionJobs)
     .orderBy(desc(provisionJobs.createdAt))
@@ -28,7 +33,7 @@ export default defineEventHandler(async (event) => {
   )
 
   const jobIds = reconciledJobs.map((job) => job.id)
-  const logRows =
+  const logRows: ProvisionJobLog[] =
     jobIds.length > 0
       ? await db
           .select()
@@ -38,7 +43,7 @@ export default defineEventHandler(async (event) => {
           .all()
       : []
 
-  const logsByJob = new Map<string, typeof logRows>()
+  const logsByJob = new Map<string, ProvisionJobLog[]>()
   for (const logRow of logRows) {
     const jobLogs = logsByJob.get(logRow.provisionId) ?? []
     if (jobLogs.length < LOGS_PER_JOB) {

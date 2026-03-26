@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { createError, getRouterParam } from 'h3'
-import { fleetApps, provisionJobs, provisionJobLogs } from '#server/database/schema'
+import { fleetApps, provisionJobs, provisionJobLogs, type FleetApp } from '#server/database/schema'
 import { defineAdminMutation } from '#layer/server/utils/mutation'
 import { triggerWorkflow } from '#server/utils/provision-github'
 import { allocateFleetNuxtPort } from '#server/utils/nuxt-port'
@@ -55,7 +55,7 @@ export default defineAdminMutation(
           .from(fleetApps)
           .where(eq(fleetApps.name, job.appName))
           .get()
-        const otherApps = await db
+        const otherApps: Array<Pick<FleetApp, 'name' | 'nuxtPort'>> = await db
           .select({ name: fleetApps.name, nuxtPort: fleetApps.nuxtPort })
           .from(fleetApps)
           .all()

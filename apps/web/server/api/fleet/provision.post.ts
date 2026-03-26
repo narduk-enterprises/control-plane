@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { createError } from 'h3'
 import { eq } from 'drizzle-orm'
-import { fleetApps, provisionJobs } from '#server/database/schema'
+import { fleetApps, provisionJobs, type FleetApp } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 import { definePublicMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { assertProvisionApiKey } from '#server/utils/provision-api-auth'
@@ -154,17 +154,17 @@ export default definePublicMutation(
     }
 
     // ── 1. Register in fleet_apps (idempotent: upsert) ──
-    const existing = await db
+    const existing: FleetApp[] = await db
       .select()
       .from(fleetApps)
       .where(eq(fleetApps.name, name))
       .limit(1)
       .all()
-    const usedPorts = (
-      await db.select({ name: fleetApps.name, nuxtPort: fleetApps.nuxtPort }).from(fleetApps).all()
-    )
-      .filter((app) => app.name !== name)
-      .map((app) => app.nuxtPort)
+    const appRows: Array<Pick<FleetApp, 'name' | 'nuxtPort'>> = await db
+      .select({ name: fleetApps.name, nuxtPort: fleetApps.nuxtPort })
+      .from(fleetApps)
+      .all()
+    const usedPorts = appRows.filter((app) => app.name !== name).map((app) => app.nuxtPort)
     const nuxtPort = allocateFleetNuxtPort(usedPorts, existing[0]?.nuxtPort)
     const localDevUrl = buildLocalNuxtUrl(nuxtPort)
 

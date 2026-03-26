@@ -40,7 +40,17 @@ function exportOne(
   outFile: string,
   extra: string[],
 ): { ok: boolean; stderr: string; stdout: string } {
-  const args = ['exec', 'wrangler', 'd1', 'export', dbName, '--remote', '--output', outFile, ...extra]
+  const args = [
+    'exec',
+    'wrangler',
+    'd1',
+    'export',
+    dbName,
+    '--remote',
+    '--output',
+    outFile,
+    ...extra,
+  ]
   const r = spawnSync('pnpm', args, {
     cwd: process.cwd(),
     env: process.env,
