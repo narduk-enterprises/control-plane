@@ -28,6 +28,8 @@ describe('provision-workflow-dispatch', () => {
     expect(i['nuxt-port']).toBe('3010')
     expect(i['app-description']).toBe('A test app')
     expect(i['d1-database-id']).toBe('')
+    expect(i['kv-namespace-id']).toBe('')
+    expect(i['kv-preview-namespace-id']).toBe('')
     for (const k of PROVISION_WORKFLOW_INPUT_KEYS) {
       expect(i).toHaveProperty(k)
     }
@@ -43,10 +45,14 @@ describe('provision-workflow-dispatch', () => {
       nuxtPort: '3000',
       overrides: {
         'd1-database-id': 'uuid-1',
+        'kv-namespace-id': 'kv-prod-1',
+        'kv-preview-namespace-id': 'kv-prev-1',
         'indexnow-key': 'abc123',
       },
     })
     expect(i['d1-database-id']).toBe('uuid-1')
+    expect(i['kv-namespace-id']).toBe('kv-prod-1')
+    expect(i['kv-preview-namespace-id']).toBe('kv-prev-1')
     expect(i['indexnow-key']).toBe('abc123')
   })
 

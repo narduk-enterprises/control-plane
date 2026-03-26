@@ -318,10 +318,11 @@ async function writeProvisionMetadata(
   try {
     const raw = await fs.readFile(provisionPath, 'utf-8')
     const parsed = JSON.parse(raw) as Record<string, unknown>
+    const stringFields = Object.fromEntries(
+      Object.entries(parsed).filter(([, value]) => typeof value === 'string'),
+    ) as Record<string, string>
     payload = {
-      ...Object.fromEntries(
-        Object.entries(parsed).filter(([, value]) => typeof value === 'string'),
-      ),
+      ...stringFields,
       ...payload,
     }
   } catch {
@@ -430,6 +431,23 @@ async function linkWrangler(targetDir: string, appName: string, siteUrl: string)
             parsedWrangler.d1_databases[0].database_id = process.env.D1_DATABASE_ID
           }
           delete parsedWrangler.d1_databases[0].preview_database_id
+        }
+
+        const kvProd = process.env.KV_NAMESPACE_ID?.trim()
+        const kvPreview = process.env.KV_PREVIEW_NAMESPACE_ID?.trim()
+        if (
+          kvProd &&
+          kvPreview &&
+          Array.isArray(parsedWrangler.kv_namespaces) &&
+          parsedWrangler.kv_namespaces.length > 0
+        ) {
+          const kvEntry = parsedWrangler.kv_namespaces.find(
+            (n: { binding?: string }) => n && typeof n === 'object' && n.binding === 'KV',
+          ) as { binding?: string; id?: string; preview_id?: string } | undefined
+          if (kvEntry) {
+            kvEntry.id = kvProd
+            kvEntry.preview_id = kvPreview
+          }
         }
 
         if (appDir === 'web') {

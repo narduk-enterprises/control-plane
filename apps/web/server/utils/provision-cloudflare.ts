@@ -196,3 +196,106 @@ export async function queryD1Database(
   }
   return []
 }
+
+/** Workers KV namespace (REST: `/accounts/.../storage/kv/namespaces`). */
+export interface KvNamespace {
+  id: string
+  title: string
+}
+
+interface KvNamespaceListResponse {
+  success: boolean
+  result: KvNamespace[]
+  errors: Array<{ code: number; message: string }>
+  result_info?: { cursor?: string; cursors?: { after?: string } }
+}
+
+/**
+ * List all KV namespaces in the account (paginated).
+ */
+export async function listAllKvNamespaces(
+  accountId: string,
+  apiToken: string,
+): Promise<KvNamespace[]> {
+  const all: KvNamespace[] = []
+  let cursor: string | undefined
+
+  for (let page = 0; page < 500; page++) {
+    const url = new URL(`${CF_API_BASE}/accounts/${accountId}/storage/kv/namespaces`)
+    url.searchParams.set('per_page', '100')
+    if (cursor) {
+      url.searchParams.set('cursor', cursor)
+    }
+
+    const res = await fetch(url.toString(), { headers: cfHeaders(apiToken) })
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`Cloudflare KV list failed: ${res.status} ${text}`)
+    }
+
+    const data = (await res.json()) as KvNamespaceListResponse
+    if (!data.success) {
+      throw new Error(
+        `Cloudflare KV list error: ${data.errors.map((e) => e.message).join(', ')}`,
+      )
+    }
+
+    const batch = data.result ?? []
+    all.push(...batch)
+
+    const next =
+      data.result_info?.cursors?.after?.trim() || data.result_info?.cursor?.trim()
+    if (!next || batch.length === 0) {
+      break
+    }
+    cursor = next
+  }
+
+  return all
+}
+
+export async function getKvNamespaceByTitle(
+  accountId: string,
+  apiToken: string,
+  title: string,
+): Promise<KvNamespace | null> {
+  const namespaces = await listAllKvNamespaces(accountId, apiToken)
+  return namespaces.find((n) => n.title === title) ?? null
+}
+
+/**
+ * Create a KV namespace by title. Idempotent: returns existing if title matches.
+ */
+export async function createKvNamespace(
+  accountId: string,
+  apiToken: string,
+  title: string,
+): Promise<KvNamespace> {
+  const existing = await getKvNamespaceByTitle(accountId, apiToken, title)
+  if (existing) {
+    return existing
+  }
+
+  const res = await fetch(`${CF_API_BASE}/accounts/${accountId}/storage/kv/namespaces`, {
+    method: 'POST',
+    headers: cfHeaders(apiToken),
+    body: JSON.stringify({ title }),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    if (res.status === 409 || text.toLowerCase().includes('already')) {
+      const found = await getKvNamespaceByTitle(accountId, apiToken, title)
+      if (found) return found
+    }
+    throw new Error(`Cloudflare KV create failed: ${res.status} ${text}`)
+  }
+
+  const data = (await res.json()) as CloudflareApiResponse<KvNamespace>
+  if (!data.success) {
+    throw new Error(`Cloudflare KV create error: ${data.errors.map((e) => e.message).join(', ')}`)
+  }
+
+  return data.result
+}

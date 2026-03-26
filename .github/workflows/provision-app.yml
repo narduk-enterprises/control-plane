@@ -43,6 +43,16 @@ on:
         required: false
         type: string
         default: ""
+      kv-namespace-id:
+        description: "Pre-provisioned Workers KV production namespace id (wrangler kv_namespaces[].id for binding KV)"
+        required: false
+        type: string
+        default: ""
+      kv-preview-namespace-id:
+        description: "Pre-provisioned Workers KV preview namespace id (wrangler preview_id for local dev)"
+        required: false
+        type: string
+        default: ""
       ga-property-id:
         description: "Pre-provisioned GA4 property ID (skip analytics creation when set)"
         required: false
@@ -288,7 +298,16 @@ jobs:
             --app-name="${{ inputs.app-name }}" \
             --provision-id="${{ inputs.provision-id }}"
 
-      - name: 1b. Persist D1 inputs for workflow retries
+      - name: 1a. Create Workers KV namespaces
+        env:
+          KV_NAMESPACE_ID: ${{ inputs.kv-namespace-id }}
+          KV_PREVIEW_NAMESPACE_ID: ${{ inputs.kv-preview-namespace-id }}
+        run: |
+          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s kv --arg m 'Creating Workers KV namespaces' '{level:"info",step:$s,message:$m}')"
+          pnpm exec tsx tools/provision/1-create-kv.ts \
+            --app-name="${{ inputs.app-name }}"
+
+      - name: 1b. Persist D1 + KV inputs for workflow retries
         run: |
           pnpm exec tsx tools/provision/7-persist-dispatch-context.ts \
             --provision-id="${{ inputs.provision-id }}"
