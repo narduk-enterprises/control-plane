@@ -35,6 +35,19 @@ export async function getAllFleetApps(event: H3Event): Promise<FleetApp[]> {
 }
 
 /**
+ * `fleet_apps.is_active` keyed by app name. Used to align managed-repo catalog
+ * rows with control-plane registry state (e.g. fleet sync skipping inactive apps).
+ */
+export async function getFleetAppIsActiveByName(event: H3Event): Promise<Map<string, boolean>> {
+  const db = useDatabase(event)
+  const rows = await db
+    .select({ name: fleetApps.name, isActive: fleetApps.isActive })
+    .from(fleetApps)
+    .all()
+  return new Map(rows.map((r) => [r.name, r.isActive]))
+}
+
+/**
  * Find a single fleet app by name (active only).
  */
 export async function getFleetAppByName(
