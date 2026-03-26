@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { AnalyticsProviderStatus, FleetAnalyticsSnapshot } from '~/types/analytics'
 import type { FleetRegistryApp } from '~/types/fleet'
-import type { TableColumn } from '~/types/table'
 import {
   analyticsSurfaceHref,
   providerStatusColor,
@@ -26,10 +25,17 @@ interface PosthogFleetRow {
   pageviews: number
 }
 
+type SortState = false | 'asc' | 'desc'
+type SortableHeaderColumn = {
+  getIsSorted: () => SortState
+  toggleSorting: (desc?: boolean) => void
+}
+
 function formatNumber(value: number | null | undefined) {
   return typeof value === 'number' ? value.toLocaleString() : '0'
 }
 
+const UButton = resolveComponent('UButton')
 const sorting = ref([{ id: 'events', desc: true }])
 
 const rows = computed<PosthogFleetRow[]>(() =>
@@ -58,10 +64,31 @@ const rows = computed<PosthogFleetRow[]>(() =>
 
 const healthyCount = computed(() => rows.value.filter((row) => row.status === 'healthy').length)
 
-const columns: TableColumn<PosthogFleetRow>[] = [
+function sortableHeader(label: string) {
+  return ({ column }: { column: SortableHeaderColumn }) => {
+    const sortState = column.getIsSorted()
+
+    return h(UButton, {
+      color: 'neutral',
+      variant: 'ghost',
+      size: 'sm',
+      class: 'font-semibold',
+      label,
+      icon:
+        sortState === 'asc'
+          ? 'i-lucide-arrow-up'
+          : sortState === 'desc'
+            ? 'i-lucide-arrow-down'
+            : 'i-lucide-arrow-up-down',
+      onClick: () => column.toggleSorting(sortState === 'asc'),
+    })
+  }
+}
+
+const columns = [
   {
     accessorKey: 'appName',
-    header: 'App',
+    header: sortableHeader('App'),
     meta: { class: { th: 'min-w-[15rem]', td: 'min-w-[15rem]' } },
   },
   {
@@ -72,17 +99,17 @@ const columns: TableColumn<PosthogFleetRow>[] = [
   },
   {
     accessorKey: 'events',
-    header: 'Events',
+    header: sortableHeader('Events'),
     meta: { class: { th: 'w-[7rem] text-right', td: 'w-[7rem] text-right tabular-nums' } },
   },
   {
     accessorKey: 'users',
-    header: 'Users',
+    header: sortableHeader('Users'),
     meta: { class: { th: 'w-[7rem] text-right', td: 'w-[7rem] text-right tabular-nums' } },
   },
   {
     accessorKey: 'pageviews',
-    header: 'Pageviews',
+    header: sortableHeader('Pageviews'),
     meta: { class: { th: 'w-[8rem] text-right', td: 'w-[8rem] text-right tabular-nums' } },
   },
   {
