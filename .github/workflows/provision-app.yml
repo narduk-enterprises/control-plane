@@ -197,6 +197,13 @@ jobs:
         working-directory: template-source
         run: pnpm run export:starter -- ../app-source --force
 
+      - name: Sync exported pnpm patch files
+        working-directory: template-source
+        run: |
+          pnpm exec tsx ../tools/provision/sync-exported-pnpm-patches.ts \
+            --source-dir=. \
+            --target-dir=../app-source
+
       - name: Validate exported starter surface
         run: |
           required=(
