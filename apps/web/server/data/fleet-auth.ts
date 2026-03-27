@@ -19,6 +19,13 @@ export interface FleetAuthRedirects {
   resetUrl: string
 }
 
+function toAllowListPattern(url: URL) {
+  // Supabase matches redirect_to against the configured allow-list. The app auth
+  // bridge appends query params like ?next=... to these routes, so the shared
+  // registry must emit path-scoped wildcard patterns instead of exact URLs.
+  return `${url.origin}${url.pathname}**`
+}
+
 const DEFAULT_FLEET_AUTH_CONFIG: Omit<FleetAuthConfig, 'redirectBaseUrl'> = {
   authEnabled: true,
   loginPath: '/login',
@@ -123,9 +130,9 @@ export function buildFleetAuthRedirects(config: FleetAuthConfig): FleetAuthRedir
   }
 
   return {
-    callbackUrl: new URL(config.callbackPath, config.redirectBaseUrl).toString(),
-    confirmUrl: new URL(config.confirmPath, config.redirectBaseUrl).toString(),
-    resetUrl: new URL(config.resetPath, config.redirectBaseUrl).toString(),
+    callbackUrl: toAllowListPattern(new URL(config.callbackPath, config.redirectBaseUrl)),
+    confirmUrl: toAllowListPattern(new URL(config.confirmPath, config.redirectBaseUrl)),
+    resetUrl: toAllowListPattern(new URL(config.resetPath, config.redirectBaseUrl)),
   }
 }
 

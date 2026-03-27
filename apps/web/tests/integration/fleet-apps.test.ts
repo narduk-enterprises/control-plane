@@ -76,9 +76,9 @@ describe('Fleet Apps CRUD — /api/fleet/apps', () => {
     expect(res.status).toBe(200)
 
     const data = await res.json()
-    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/auth/callback`)
-    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/auth/confirm`)
-    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/reset-password`)
+    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/auth/callback**`)
+    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/auth/confirm**`)
+    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/reset-password**`)
     expect(Array.isArray(data.issues)).toBe(true)
   })
 
