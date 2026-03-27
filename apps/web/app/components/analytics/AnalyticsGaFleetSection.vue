@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import type { FleetAnalyticsSnapshot } from '~/types/analytics'
+import type {
+  AnalyticsProviderFleetMetricColumn,
+  AnalyticsProviderFleetTableRow,
+} from '~/types/analyticsFleetTable'
 import type { FleetRegistryApp } from '~/types/fleet'
 import { analyticsSurfaceHref } from '~/utils/analyticsPresentation'
 
@@ -17,7 +21,13 @@ function formatPercent(value: number | null | undefined) {
   return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '0.0%'
 }
 
-const rows = computed(() =>
+const metricColumns = [
+  { key: 'users', label: 'Users' },
+  { key: 'pageviews', label: 'Pageviews' },
+  { key: 'engagement', label: 'Engagement' },
+] satisfies AnalyticsProviderFleetMetricColumn[]
+
+const rows = computed<AnalyticsProviderFleetTableRow[]>(() =>
   [...props.apps]
     .map((app) => {
       const snapshot = props.snapshotMap[app.name]
@@ -30,18 +40,23 @@ const rows = computed(() =>
           : 'No GA4 property configured',
         status: snapshot?.ga.status ?? 'error',
         message: snapshot?.ga.message ?? 'GA4 snapshot not loaded yet.',
-        metrics: [
-          { label: 'Users', value: formatNumber(summary?.activeUsers) },
-          { label: 'Pageviews', value: formatNumber(summary?.screenPageViews) },
-          { label: 'Engagement', value: formatPercent(summary?.engagementRate) },
-        ],
-        sortValue: summary?.activeUsers ?? -1,
+        metrics: {
+          users: {
+            display: formatNumber(summary?.activeUsers),
+            sortValue: Number(summary?.activeUsers ?? 0),
+          },
+          pageviews: {
+            display: formatNumber(summary?.screenPageViews),
+            sortValue: Number(summary?.screenPageViews ?? 0),
+          },
+          engagement: {
+            display: formatPercent(summary?.engagementRate),
+            sortValue: Number(summary?.engagementRate ?? 0),
+          },
+        },
       }
     })
-    .sort(
-      (left, right) =>
-        right.sortValue - left.sortValue || left.appName.localeCompare(right.appName),
-    ),
+    .sort((left, right) => left.appName.localeCompare(right.appName)),
 )
 
 const healthyCount = computed(() => rows.value.filter((row) => row.status === 'healthy').length)
@@ -54,27 +69,14 @@ const healthyCount = computed(() => rows.value.filter((row) => row.status === 'h
         {{ healthyCount }}/{{ rows.length }} healthy
       </UBadge>
       <span>GA4 metrics stay in the canonical summary cache and sort by current users.</span>
+      <span class="text-xs text-muted">Click table headers to sort the fleet snapshot.</span>
     </div>
 
-    <div
-      v-if="loading && !rows.length"
-      class="rounded-2xl border border-dashed border-default bg-elevated/20 px-5 py-8 text-center text-sm text-muted"
-    >
-      Loading GA4 fleet state…
-    </div>
-
-    <div v-else class="grid gap-4 lg:grid-cols-2">
-      <AnalyticsProviderStateCard
-        v-for="row in rows"
-        :key="row.appName"
-        :app-name="row.appName"
-        :href="row.href"
-        :status="row.status"
-        :message="row.message"
-        :hint="row.hint"
-        :metrics="row.metrics"
-        action-label="Open GA4 detail"
-      />
-    </div>
+    <AnalyticsProviderFleetTable
+      :rows="rows"
+      :metric-columns="metricColumns"
+      :loading="loading"
+      :empty-message="loading ? 'Loading GA4 fleet state…' : 'No GA4 snapshots found.'"
+    />
   </div>
 </template>
