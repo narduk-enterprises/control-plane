@@ -427,13 +427,20 @@ jobs:
 
           remote_main_sha="$(git ls-remote --heads origin main | awk '{print $1}')"
           if [[ -n "$remote_main_sha" ]]; then
-            git fetch origin main --depth=1
+            git fetch origin main --depth=50
             remote_author="$(git log -1 --pretty='%an' FETCH_HEAD)"
             remote_subject="$(git log -1 --pretty='%s' FETCH_HEAD)"
+            remote_commit_count="$(git rev-list --count FETCH_HEAD)"
+            allow_bootstrap_override=false
+            if [[ "$remote_author" == "narduk-bot" ]] && [[ "$remote_subject" =~ ^chore:\ initialize\ .+\ from\ narduk-nuxt-template$ ]] && [[ "$remote_commit_count" -eq 1 ]]; then
+              allow_bootstrap_override=true
+            fi
             echo "::group::Remote main diagnostics"
             echo "sha=$remote_main_sha"
             echo "author=$remote_author"
             echo "subject=$remote_subject"
+            echo "commit_count=$remote_commit_count"
+            echo "allow_bootstrap_override=$allow_bootstrap_override"
             echo "::endgroup::"
 
             local_tree="$(git write-tree)"
@@ -446,6 +453,15 @@ jobs:
             if [[ "$local_tree" == "$remote_tree" ]]; then
               echo "Remote main already matches local generated tree. Skipping commit/push and continuing to deploy."
               bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Remote main already matches generated tree; skipping commit/push and continuing to deploy' '{level:"info",step:$s,message:$m}')"
+              exit 0
+            fi
+
+            if [[ "$allow_bootstrap_override" == "true" ]]; then
+              echo "Remote main only contains the bootstrap commit. Overwriting it with the regenerated tree."
+              bash ../scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s git --arg m 'Remote main only contains the bootstrap commit; force-pushing regenerated tree for retry recovery' '{level:"info",step:$s,message:$m}')"
+              git commit -m "chore: initialize ${{ inputs.app-name }} from narduk-nuxt-template"
+              git branch -M main
+              git push --force-with-lease origin main
               exit 0
             fi
 
