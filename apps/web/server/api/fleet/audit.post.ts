@@ -47,13 +47,16 @@ export default defineAdminMutation(
     const auditEnd = new Date()
     const auditStart = new Date(auditEnd)
     auditStart.setDate(auditStart.getDate() - 7)
+    const analyticsRange = {
+      startDate: auditStart.toISOString().slice(0, 10),
+      endDate: auditEnd.toISOString().slice(0, 10),
+    }
     const analyticsSummary = await buildFleetAnalyticsSummary(
       event,
-      {
-        startDate: auditStart.toISOString().slice(0, 10),
-        endDate: auditEnd.toISOString().slice(0, 10),
-      },
-      false,
+      analyticsRange,
+      // Audit runs are explicit operator checks, so provider health should be refreshed
+      // instead of relying on the rolling summary cache.
+      true,
     ).catch((error) => {
       console.error('Fleet audit analytics summary failed:', error)
       return null
