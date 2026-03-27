@@ -4,6 +4,22 @@ import { spawnSync } from 'node:child_process'
 
 const MAX_SHORT_DESCRIPTION_LENGTH = 280
 
+function escapeForSingleQuotedCodeLiteral(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/'/g, "\\'")
+}
+
+function escapeForHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
 function resolveAgentDescription(
   displayName: string,
   appDescription?: string,
@@ -270,23 +286,26 @@ async function applyStarterPlaceholders(targetDir: string, req: Record<string, s
     'apps/web/wrangler.json',
     'apps/web/public/site.webmanifest',
   ]
-  const STARTER_REPLACEMENTS = [
-    { from: /__APP_NAME__/g, to: req.APP_NAME },
-    { from: /__DISPLAY_NAME__/g, to: req.DISPLAY_NAME },
-    { from: /__SITE_URL__/g, to: req.SITE_URL },
-    {
-      from: /__APP_DESCRIPTION__/g,
-      to: req.APP_SHORT_DESCRIPTION,
-    },
-  ]
-
   let changedFiles = 0
   for (const relativePath of STARTER_PLACEHOLDER_FILES) {
     const absolutePath = path.join(targetDir, relativePath)
     try {
       const original = await fs.readFile(absolutePath, 'utf-8')
       let content = original
-      for (const replacement of STARTER_REPLACEMENTS) {
+      const encodePlaceholder =
+        relativePath === 'apps/web/nuxt.config.ts'
+          ? escapeForSingleQuotedCodeLiteral
+          : (value: string) => value
+      const starterReplacements = [
+        { from: /__APP_NAME__/g, to: encodePlaceholder(req.APP_NAME) },
+        { from: /__DISPLAY_NAME__/g, to: encodePlaceholder(req.DISPLAY_NAME) },
+        { from: /__SITE_URL__/g, to: encodePlaceholder(req.SITE_URL) },
+        {
+          from: /__APP_DESCRIPTION__/g,
+          to: encodePlaceholder(req.APP_SHORT_DESCRIPTION),
+        },
+      ]
+      for (const replacement of starterReplacements) {
         content = content.replace(replacement.from, () => replacement.to)
       }
       if (content !== original) {
@@ -512,6 +531,11 @@ async function scaffoldIndexVue(targetDir: string, displayName: string) {
       return
     }
 
+    const displayNameLiteral = JSON.stringify(displayName)
+    const defaultDescriptionLiteral = JSON.stringify(
+      `${displayName} — built with Nuxt 4 and Cloudflare Workers.`,
+    )
+    const escapedDisplayNameAttribute = escapeForHtmlAttribute(displayName)
     const lines = [
       '<script setup lang="ts">',
       '// ───────────────────────────────────────────────────────────────────────────',
@@ -522,25 +546,25 @@ async function scaffoldIndexVue(targetDir: string, displayName: string) {
       '// ───────────────────────────────────────────────────────────────────────────',
       '',
       'useSeo({',
-      `  title: '${displayName}',`,
-      `  description: '${displayName} — built with Nuxt 4 and Cloudflare Workers.',`,
+      `  title: ${displayNameLiteral},`,
+      `  description: ${defaultDescriptionLiteral},`,
       '  ogImage: {',
-      `    title: '${displayName}',`,
-      `    description: '${displayName}',`,
+      `    title: ${displayNameLiteral},`,
+      `    description: ${displayNameLiteral},`,
       "    icon: '\uD83D\uDE80',",
       '  },',
       '})',
       '',
       'useWebPageSchema({',
-      `  name: '${displayName}',`,
-      `  description: '${displayName}',`,
+      `  name: ${displayNameLiteral},`,
+      `  description: ${displayNameLiteral},`,
       '})',
       '</script>',
       '',
       '<template>',
       '  <UPage>',
       '    <UPageHero',
-      `      title="${displayName}"`,
+      `      title="${escapedDisplayNameAttribute}"`,
       '      description="Your app is ready. Edit apps/web/app/pages/index.vue to build your home page."',
       '    >',
       '      <template #links>',
