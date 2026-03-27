@@ -10,7 +10,18 @@ export interface FleetRegistryApp {
   gaMeasurementId?: string | null
   posthogAppName?: string | null
   githubRepo?: string | null
+  appDescription?: string | null
   isActive?: boolean
+  authEnabled?: boolean
+  redirectBaseUrl?: string | null
+  loginPath?: string
+  callbackPath?: string
+  logoutPath?: string
+  confirmPath?: string
+  resetPath?: string
+  publicSignup?: boolean
+  providers?: Array<'apple' | 'email'>
+  requireMfa?: boolean
   createdAt?: string
   updatedAt?: string
 }

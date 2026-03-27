@@ -2,6 +2,11 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { defineAdminMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { fleetApps } from '#server/database/schema'
+import {
+  resolveFleetAuthConfig,
+  serializeFleetAuthProviders,
+  validateFleetAuthConfig,
+} from '#server/data/fleet-auth'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 import { allocateFleetNuxtPort } from '#server/utils/nuxt-port'
 
@@ -18,6 +23,16 @@ const bodySchema = z.object({
   gaMeasurementId: z.string().nullish(),
   posthogAppName: z.string().nullish(),
   githubRepo: z.string().nullish(),
+  authEnabled: z.boolean().optional(),
+  redirectBaseUrl: z.string().url().nullish(),
+  loginPath: z.string().min(1).optional(),
+  callbackPath: z.string().min(1).optional(),
+  logoutPath: z.string().min(1).optional(),
+  confirmPath: z.string().min(1).optional(),
+  resetPath: z.string().min(1).optional(),
+  publicSignup: z.boolean().optional(),
+  providers: z.array(z.enum(['apple', 'email'])).optional(),
+  requireMfa: z.boolean().optional(),
   isActive: z.boolean().optional().default(true),
 })
 
@@ -43,6 +58,22 @@ export default defineAdminMutation(
     } = body
     const dopplerProject = body.dopplerProject ?? name
     const now = new Date().toISOString()
+    const auth = resolveFleetAuthConfig({
+      authEnabled: body.authEnabled,
+      redirectBaseUrl: body.redirectBaseUrl ?? body.url,
+      loginPath: body.loginPath,
+      callbackPath: body.callbackPath,
+      logoutPath: body.logoutPath,
+      confirmPath: body.confirmPath,
+      resetPath: body.resetPath,
+      publicSignup: body.publicSignup,
+      providers: body.providers,
+      requireMfa: body.requireMfa,
+    })
+    const authIssues = validateFleetAuthConfig(name, auth)
+    if (authIssues.length > 0) {
+      throw createError({ statusCode: 400, message: authIssues.join('; ') })
+    }
 
     const db = useDatabase(event)
 
@@ -85,6 +116,16 @@ export default defineAdminMutation(
       gaMeasurementId: gaMeasurementId ?? null,
       posthogAppName: posthogAppName ?? null,
       githubRepo: githubRepo ?? null,
+      authEnabled: auth.authEnabled,
+      redirectBaseUrl: auth.redirectBaseUrl,
+      loginPath: auth.loginPath,
+      callbackPath: auth.callbackPath,
+      logoutPath: auth.logoutPath,
+      confirmPath: auth.confirmPath,
+      resetPath: auth.resetPath,
+      publicSignup: auth.publicSignup,
+      providers: serializeFleetAuthProviders(auth.providers),
+      requireMfa: auth.requireMfa,
       isActive,
       createdAt: now,
       updatedAt: now,

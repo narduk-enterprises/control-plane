@@ -1,3 +1,8 @@
+import {
+  resolveFleetAuthConfig,
+  type FleetAuthConfig,
+} from '#server/data/fleet-auth'
+
 export interface ManagedRepo {
   name: string
   githubRepo: string
@@ -9,6 +14,7 @@ export interface ManagedRepo {
   syncManaged: boolean
   monitoringEnabled: boolean
   isActive: boolean
+  auth?: Partial<FleetAuthConfig>
 }
 
 export const MANAGED_REPOS = [
@@ -383,6 +389,16 @@ export interface PublicFleetApp {
   posthogAppName: string | null
   githubRepo: string
   isActive: boolean
+  authEnabled: boolean
+  redirectBaseUrl: string | null
+  loginPath: string
+  callbackPath: string
+  logoutPath: string
+  confirmPath: string
+  resetPath: string
+  publicSignup: boolean
+  providers: Array<'apple' | 'email'>
+  requireMfa: boolean
 }
 
 export function getManagedRepos(): ManagedRepo[] {
@@ -400,6 +416,10 @@ export function getPublicFleetApps(): PublicFleetApp[] {
         repo.isActive && repo.monitoringEnabled && Boolean(repo.publicUrl),
     )
     .map((repo) => ({
+      ...resolveFleetAuthConfig({
+        ...repo.auth,
+        url: repo.publicUrl,
+      }),
       name: repo.name,
       url: repo.publicUrl,
       dopplerProject: repo.dopplerProject,

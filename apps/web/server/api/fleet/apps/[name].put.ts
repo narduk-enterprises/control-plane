@@ -2,6 +2,12 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { defineAdminMutation, readValidatedMutationBody } from '#layer/server/utils/mutation'
 import { fleetApps } from '#server/database/schema'
+import {
+  parseFleetAuthProviders,
+  resolveFleetAuthConfig,
+  serializeFleetAuthProviders,
+  validateFleetAuthConfig,
+} from '#server/data/fleet-auth'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 
 const bodySchema = z.object({
@@ -12,6 +18,16 @@ const bodySchema = z.object({
   gaMeasurementId: z.string().nullish(),
   posthogAppName: z.string().nullish(),
   githubRepo: z.string().nullish(),
+  authEnabled: z.boolean().optional(),
+  redirectBaseUrl: z.string().url().nullish(),
+  loginPath: z.string().min(1).optional(),
+  callbackPath: z.string().min(1).optional(),
+  logoutPath: z.string().min(1).optional(),
+  confirmPath: z.string().min(1).optional(),
+  resetPath: z.string().min(1).optional(),
+  publicSignup: z.boolean().optional(),
+  providers: z.array(z.enum(['apple', 'email'])).optional(),
+  requireMfa: z.boolean().optional(),
   isActive: z.boolean().optional(),
 })
 
@@ -41,6 +57,24 @@ export default defineAdminMutation(
       throw createError({ statusCode: 404, message: `App '${appName}' not found.` })
     }
 
+    const current = existing[0]
+    const auth = resolveFleetAuthConfig({
+      authEnabled: body.authEnabled ?? current.authEnabled,
+      redirectBaseUrl: body.redirectBaseUrl ?? current.redirectBaseUrl ?? body.url ?? current.url,
+      loginPath: body.loginPath ?? current.loginPath,
+      callbackPath: body.callbackPath ?? current.callbackPath,
+      logoutPath: body.logoutPath ?? current.logoutPath,
+      confirmPath: body.confirmPath ?? current.confirmPath,
+      resetPath: body.resetPath ?? current.resetPath,
+      publicSignup: body.publicSignup ?? current.publicSignup,
+      providers: body.providers ?? parseFleetAuthProviders(current.providers),
+      requireMfa: body.requireMfa ?? current.requireMfa,
+    })
+    const authIssues = validateFleetAuthConfig(appName, auth)
+    if (authIssues.length > 0) {
+      throw createError({ statusCode: 400, message: authIssues.join('; ') })
+    }
+
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() }
     if (body.url !== undefined) updates.url = body.url
     if (body.dopplerProject !== undefined) updates.dopplerProject = body.dopplerProject
@@ -64,6 +98,29 @@ export default defineAdminMutation(
     if (body.gaMeasurementId !== undefined) updates.gaMeasurementId = body.gaMeasurementId ?? null
     if (body.posthogAppName !== undefined) updates.posthogAppName = body.posthogAppName ?? null
     if (body.githubRepo !== undefined) updates.githubRepo = body.githubRepo ?? null
+    if (body.authEnabled !== undefined) updates.authEnabled = auth.authEnabled
+    if (
+      body.redirectBaseUrl !== undefined ||
+      body.url !== undefined ||
+      body.loginPath !== undefined ||
+      body.callbackPath !== undefined ||
+      body.logoutPath !== undefined ||
+      body.confirmPath !== undefined ||
+      body.resetPath !== undefined ||
+      body.publicSignup !== undefined ||
+      body.providers !== undefined ||
+      body.requireMfa !== undefined
+    ) {
+      updates.redirectBaseUrl = auth.redirectBaseUrl
+      updates.loginPath = auth.loginPath
+      updates.callbackPath = auth.callbackPath
+      updates.logoutPath = auth.logoutPath
+      updates.confirmPath = auth.confirmPath
+      updates.resetPath = auth.resetPath
+      updates.publicSignup = auth.publicSignup
+      updates.providers = serializeFleetAuthProviders(auth.providers)
+      updates.requireMfa = auth.requireMfa
+    }
     if (body.isActive !== undefined) updates.isActive = body.isActive
 
     await db.update(fleetApps).set(updates).where(eq(fleetApps.name, appName))

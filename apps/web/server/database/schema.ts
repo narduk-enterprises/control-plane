@@ -18,6 +18,16 @@ export const fleetApps = sqliteTable('fleet_apps', {
   posthogAppName: text('posthog_app_name'),
   githubRepo: text('github_repo'),
   appDescription: text('app_description'),
+  authEnabled: integer('auth_enabled', { mode: 'boolean' }).notNull().default(true),
+  redirectBaseUrl: text('redirect_base_url'),
+  loginPath: text('login_path').notNull().default('/login'),
+  callbackPath: text('callback_path').notNull().default('/auth/callback'),
+  logoutPath: text('logout_path').notNull().default('/logout'),
+  confirmPath: text('confirm_path').notNull().default('/auth/confirm'),
+  resetPath: text('reset_path').notNull().default('/reset-password'),
+  publicSignup: integer('public_signup', { mode: 'boolean' }).notNull().default(true),
+  providers: text('providers').notNull().default('apple,email'),
+  requireMfa: integer('require_mfa', { mode: 'boolean' }).notNull().default(false),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at')
     .notNull()

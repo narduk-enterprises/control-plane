@@ -8,11 +8,40 @@
  */
 import { eq } from 'drizzle-orm'
 import { fleetApps } from '#server/database/schema'
+import { parseFleetAuthProviders } from '#server/data/fleet-auth'
 import { getD1CacheDB } from '#layer/server/utils/d1Cache'
 import type { FleetApp } from '#server/database/schema'
 import type { H3Event } from 'h3'
+import type { FleetRegistryApp } from '~/types/fleet'
 
 export type { FleetApp }
+
+export function toFleetRegistryApp(row: FleetApp): FleetRegistryApp {
+  return {
+    name: row.name,
+    url: row.url,
+    dopplerProject: row.dopplerProject,
+    nuxtPort: row.nuxtPort,
+    gaPropertyId: row.gaPropertyId,
+    gaMeasurementId: row.gaMeasurementId,
+    posthogAppName: row.posthogAppName,
+    githubRepo: row.githubRepo,
+    appDescription: row.appDescription,
+    isActive: row.isActive,
+    authEnabled: row.authEnabled,
+    redirectBaseUrl: row.redirectBaseUrl,
+    loginPath: row.loginPath,
+    callbackPath: row.callbackPath,
+    logoutPath: row.logoutPath,
+    confirmPath: row.confirmPath,
+    resetPath: row.resetPath,
+    publicSignup: row.publicSignup,
+    providers: parseFleetAuthProviders(row.providers),
+    requireMfa: row.requireMfa,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
 
 const FLEET_APP_CACHE_KEYS = ['fleet-apps-list', 'fleet-apps-list-all'] as const
 

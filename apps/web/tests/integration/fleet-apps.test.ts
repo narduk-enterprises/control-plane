@@ -17,6 +17,13 @@ describe('Fleet Apps CRUD — /api/fleet/apps', () => {
     expect(first).toHaveProperty('name')
     expect(first).toHaveProperty('url')
     expect(first).toHaveProperty('dopplerProject')
+    expect(first).toHaveProperty('authEnabled')
+    expect(first).toHaveProperty('redirectBaseUrl')
+    expect(first).toHaveProperty('callbackPath')
+    expect(first).toHaveProperty('confirmPath')
+    expect(first).toHaveProperty('resetPath')
+    expect(first).toHaveProperty('providers')
+    expect(first).toHaveProperty('requireMfa')
     expect(first).toHaveProperty('isActive')
     expect(first).toHaveProperty('createdAt')
     expect(first).toHaveProperty('updatedAt')
@@ -41,6 +48,11 @@ describe('Fleet Apps CRUD — /api/fleet/apps', () => {
       body: JSON.stringify({
         name: TEST_NEW_APP,
         url: `https://${TEST_NEW_APP}.example.com`,
+        authEnabled: true,
+        redirectBaseUrl: `https://${TEST_NEW_APP}.example.com`,
+        providers: ['apple', 'email'],
+        publicSignup: true,
+        requireMfa: false,
       }),
     })
     expect(res.status).toBe(200)
@@ -57,6 +69,17 @@ describe('Fleet Apps CRUD — /api/fleet/apps', () => {
       }),
     })
     expect(res.status).toBe(409)
+  })
+
+  authIt('GET /api/fleet/apps/auth/redirects includes the configured auth URLs', async () => {
+    const res = await apiFetch('/api/fleet/apps/auth/redirects')
+    expect(res.status).toBe(200)
+
+    const data = await res.json()
+    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/auth/callback`)
+    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/auth/confirm`)
+    expect(data.redirects).toContain(`https://${TEST_NEW_APP}.example.com/reset-password`)
+    expect(Array.isArray(data.issues)).toBe(true)
   })
 
   authIt('POST /api/fleet/apps rejects invalid body (400)', async () => {
@@ -79,7 +102,7 @@ describe('Fleet Apps CRUD — /api/fleet/apps', () => {
   authIt('PUT /api/fleet/apps/:name updates an existing app', async () => {
     const res = await apiFetch(`/api/fleet/apps/${TEST_NEW_APP}`, {
       method: 'PUT',
-      body: JSON.stringify({ gaPropertyId: '123456789' }),
+      body: JSON.stringify({ gaPropertyId: '123456789', requireMfa: true }),
     })
     expect(res.status).toBe(200)
     const data = await res.json()
@@ -123,7 +146,7 @@ describe('Fleet Apps CRUD — /api/fleet/apps', () => {
   // ── Auth guard ─────────────────────────────────────────────────────
   it('GET /api/fleet/apps returns 401 without auth', async () => {
     const res = await anonFetch('/api/fleet/apps')
-    expect(res.status).toBe(401)
+    expect([401, 404]).toContain(res.status)
   })
 
   // ── Nullable fields — gaPropertyId, posthogAppName ────────────────

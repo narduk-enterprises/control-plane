@@ -1,5 +1,5 @@
 import { requireAdmin } from '#layer/server/utils/auth'
-import { getFleetApps } from '#server/data/fleet-registry'
+import { getFleetApps, toFleetRegistryApp } from '#server/data/fleet-registry'
 import { z } from 'zod'
 import { withD1Cache } from '#layer/server/utils/d1Cache'
 
@@ -26,9 +26,9 @@ export default defineEventHandler(async (event) => {
     async () => {
       if (queryParams.includeInactive === 'true') {
         const { getAllFleetApps } = await import('#server/data/fleet-registry')
-        return getAllFleetApps(event)
+        return (await getAllFleetApps(event)).map(toFleetRegistryApp)
       }
-      return getFleetApps(event)
+      return (await getFleetApps(event)).map(toFleetRegistryApp)
     },
     queryParams.force === 'true',
     { staleWindowSeconds: staleWindow },

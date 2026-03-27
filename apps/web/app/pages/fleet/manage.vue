@@ -1,6 +1,40 @@
 <script setup lang="ts">
 import type { FleetApp } from '~/composables/useFleet'
 
+type AuthProvider = 'apple' | 'email'
+
+type FleetFormState = {
+  url: string
+  dopplerProject: string
+  gaPropertyId: string
+  gaMeasurementId: string
+  posthogAppName: string
+  githubRepo: string
+  authEnabled: boolean
+  redirectBaseUrl: string
+  loginPath: string
+  callbackPath: string
+  logoutPath: string
+  confirmPath: string
+  resetPath: string
+  publicSignup: boolean
+  providers: AuthProvider[]
+  requireMfa: boolean
+}
+
+const authProviderOrder: AuthProvider[] = ['apple', 'email']
+const authProviderItems = [
+  { value: 'apple', label: 'Sign in with Apple', description: 'Primary fleet login path.' },
+  { value: 'email', label: 'Email', description: 'Fallback login and recovery path.' },
+]
+const defaultAuthPaths = {
+  loginPath: '/login',
+  callbackPath: '/auth/callback',
+  logoutPath: '/logout',
+  confirmPath: '/auth/confirm',
+  resetPath: '/reset-password',
+}
+
 useSeo({
   robots: 'noindex',
   title: 'Manage Fleet',
@@ -38,6 +72,16 @@ const addForm = reactive({
   gaMeasurementId: '',
   posthogAppName: '',
   githubRepo: '',
+  authEnabled: true,
+  redirectBaseUrl: '',
+  loginPath: defaultAuthPaths.loginPath,
+  callbackPath: defaultAuthPaths.callbackPath,
+  logoutPath: defaultAuthPaths.logoutPath,
+  confirmPath: defaultAuthPaths.confirmPath,
+  resetPath: defaultAuthPaths.resetPath,
+  publicSignup: true,
+  providers: [...authProviderOrder] as AuthProvider[],
+  requireMfa: false,
 })
 const isAdding = ref(false)
 
@@ -49,6 +93,7 @@ function resetAddForm() {
   addForm.gaMeasurementId = ''
   addForm.posthogAppName = ''
   addForm.githubRepo = ''
+  resetAuthFields(addForm)
 }
 
 async function addApp() {
@@ -63,6 +108,7 @@ async function addApp() {
       gaMeasurementId: addForm.gaMeasurementId || null,
       posthogAppName: addForm.posthogAppName || null,
       githubRepo: addForm.githubRepo || null,
+      ...buildAuthPayload(addForm, addForm.url),
     })
     toast.add({
       title: 'App added',
@@ -94,6 +140,16 @@ const editForm = reactive({
   gaMeasurementId: '',
   posthogAppName: '',
   githubRepo: '',
+  authEnabled: true,
+  redirectBaseUrl: '',
+  loginPath: defaultAuthPaths.loginPath,
+  callbackPath: defaultAuthPaths.callbackPath,
+  logoutPath: defaultAuthPaths.logoutPath,
+  confirmPath: defaultAuthPaths.confirmPath,
+  resetPath: defaultAuthPaths.resetPath,
+  publicSignup: true,
+  providers: [...authProviderOrder] as AuthProvider[],
+  requireMfa: false,
 })
 const isEditing = ref(false)
 
@@ -105,6 +161,16 @@ function openEditModal(app: FleetApp) {
   editForm.gaMeasurementId = app.gaMeasurementId || ''
   editForm.posthogAppName = app.posthogAppName || ''
   editForm.githubRepo = app.githubRepo || ''
+  editForm.authEnabled = app.authEnabled !== false
+  editForm.redirectBaseUrl = app.redirectBaseUrl || app.url
+  editForm.loginPath = app.loginPath || defaultAuthPaths.loginPath
+  editForm.callbackPath = app.callbackPath || defaultAuthPaths.callbackPath
+  editForm.logoutPath = app.logoutPath || defaultAuthPaths.logoutPath
+  editForm.confirmPath = app.confirmPath || defaultAuthPaths.confirmPath
+  editForm.resetPath = app.resetPath || defaultAuthPaths.resetPath
+  editForm.publicSignup = app.publicSignup !== false
+  editForm.providers = normalizeProviders(app.providers)
+  editForm.requireMfa = app.requireMfa === true
   showEditModal.value = true
 }
 
@@ -119,6 +185,7 @@ async function saveEdit() {
       gaMeasurementId: editForm.gaMeasurementId || null,
       posthogAppName: editForm.posthogAppName || null,
       githubRepo: editForm.githubRepo || null,
+      ...buildAuthPayload(editForm, editForm.url),
     })
     toast.add({
       title: 'Updated',
@@ -191,6 +258,73 @@ const breadcrumbItems = computed(() => [
 function formatUrl(url: string) {
   return url.replace(/^https?:\/\//, '')
 }
+
+function resetAuthFields(form: Pick<
+  FleetFormState,
+  | 'authEnabled'
+  | 'redirectBaseUrl'
+  | 'loginPath'
+  | 'callbackPath'
+  | 'logoutPath'
+  | 'confirmPath'
+  | 'resetPath'
+  | 'publicSignup'
+  | 'providers'
+  | 'requireMfa'
+>) {
+  form.authEnabled = true
+  form.redirectBaseUrl = ''
+  form.loginPath = defaultAuthPaths.loginPath
+  form.callbackPath = defaultAuthPaths.callbackPath
+  form.logoutPath = defaultAuthPaths.logoutPath
+  form.confirmPath = defaultAuthPaths.confirmPath
+  form.resetPath = defaultAuthPaths.resetPath
+  form.publicSignup = true
+  form.providers = [...authProviderOrder]
+  form.requireMfa = false
+}
+
+function normalizeProviders(providers?: FleetApp['providers']) {
+  const selected = new Set((providers?.length ? providers : authProviderOrder) as AuthProvider[])
+  return authProviderOrder.filter((provider) => selected.has(provider))
+}
+
+function buildAuthPayload(form: Pick<
+  FleetFormState,
+  | 'authEnabled'
+  | 'redirectBaseUrl'
+  | 'loginPath'
+  | 'callbackPath'
+  | 'logoutPath'
+  | 'confirmPath'
+  | 'resetPath'
+  | 'publicSignup'
+  | 'providers'
+  | 'requireMfa'
+>, productionUrl: string) {
+  return {
+    authEnabled: form.authEnabled,
+    redirectBaseUrl: form.authEnabled ? form.redirectBaseUrl || productionUrl : null,
+    loginPath: form.loginPath || defaultAuthPaths.loginPath,
+    callbackPath: form.callbackPath || defaultAuthPaths.callbackPath,
+    logoutPath: form.logoutPath || defaultAuthPaths.logoutPath,
+    confirmPath: form.confirmPath || defaultAuthPaths.confirmPath,
+    resetPath: form.resetPath || defaultAuthPaths.resetPath,
+    publicSignup: form.publicSignup,
+    providers: normalizeProviders(form.providers),
+    requireMfa: form.requireMfa,
+  }
+}
+
+function authBadgeColor(app: FleetApp) {
+  return app.authEnabled === false ? 'neutral' : 'primary'
+}
+
+function authProvidersLabel(app: FleetApp) {
+  const providers = normalizeProviders(app.providers)
+  if (providers.length === 2) return 'Apple + Email'
+  return providers[0] === 'apple' ? 'Apple only' : 'Email only'
+}
 </script>
 
 <template>
@@ -261,6 +395,30 @@ function formatUrl(url: string) {
                 <UIcon name="i-lucide-users" class="size-3" />
                 {{ app.posthogAppName }}
               </span>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <UBadge :color="authBadgeColor(app)" variant="subtle" size="xs">
+                {{ app.authEnabled === false ? 'Auth Disabled' : 'Shared Auth' }}
+              </UBadge>
+              <UBadge v-if="app.authEnabled !== false" color="neutral" variant="soft" size="xs">
+                {{ authProvidersLabel(app) }}
+              </UBadge>
+              <UBadge
+                v-if="app.authEnabled !== false"
+                :color="app.publicSignup === false ? 'warning' : 'success'"
+                variant="soft"
+                size="xs"
+              >
+                {{ app.publicSignup === false ? 'Signup Closed' : 'Public Signup' }}
+              </UBadge>
+              <UBadge
+                v-if="app.authEnabled !== false"
+                :color="app.requireMfa ? 'warning' : 'neutral'"
+                variant="soft"
+                size="xs"
+              >
+                {{ app.requireMfa ? 'MFA Ready' : 'MFA Optional' }}
+              </UBadge>
             </div>
           </div>
           <div class="flex items-center gap-1 shrink-0">
@@ -366,6 +524,73 @@ function formatUrl(url: string) {
               class="w-full"
             />
           </UFormField>
+          <div class="rounded-2xl border border-default/60 bg-elevated/40 p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-default">Shared Auth on auth.nard.uk</p>
+                <p class="mt-1 text-xs text-muted">
+                  Keep the app on first-party cookies, but register the exact callback and email
+                  flow URLs here.
+                </p>
+              </div>
+              <UCheckbox v-model="addForm.authEnabled" label="Enabled" />
+            </div>
+
+            <div v-if="addForm.authEnabled" class="mt-4 flex flex-col gap-4">
+              <UFormField label="Redirect Base URL" hint="Defaults to the production URL when left blank">
+                <UInput
+                  v-model="addForm.redirectBaseUrl"
+                  :placeholder="addForm.url || 'https://my-app.nard.uk'"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <div class="grid gap-4 sm:grid-cols-2">
+                <UFormField label="Login Path">
+                  <UInput v-model="addForm.loginPath" placeholder="/login" class="w-full" />
+                </UFormField>
+                <UFormField label="Callback Path">
+                  <UInput
+                    v-model="addForm.callbackPath"
+                    placeholder="/auth/callback"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="Logout Path">
+                  <UInput v-model="addForm.logoutPath" placeholder="/logout" class="w-full" />
+                </UFormField>
+                <UFormField label="Confirm Path">
+                  <UInput
+                    v-model="addForm.confirmPath"
+                    placeholder="/auth/confirm"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="Reset Path" class="sm:col-span-2">
+                  <UInput
+                    v-model="addForm.resetPath"
+                    placeholder="/reset-password"
+                    class="w-full"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="flex flex-col gap-3">
+                <UFormField label="Providers" hint="Apple should stay enabled for public apps.">
+                  <UCheckboxGroup
+                    v-model="addForm.providers"
+                    :items="authProviderItems"
+                    legend="Auth providers"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="grid gap-3 sm:grid-cols-2">
+                <UCheckbox v-model="addForm.publicSignup" label="Public signup enabled" />
+                <UCheckbox v-model="addForm.requireMfa" label="Require MFA for this app" />
+              </div>
+            </div>
+          </div>
         </div>
       </template>
 
@@ -435,6 +660,72 @@ function formatUrl(url: string) {
               class="w-full"
             />
           </UFormField>
+          <div class="rounded-2xl border border-default/60 bg-elevated/40 p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-default">Shared Auth on auth.nard.uk</p>
+                <p class="mt-1 text-xs text-muted">
+                  These values generate the redirect allow-list and the per-app auth contract.
+                </p>
+              </div>
+              <UCheckbox v-model="editForm.authEnabled" label="Enabled" />
+            </div>
+
+            <div v-if="editForm.authEnabled" class="mt-4 flex flex-col gap-4">
+              <UFormField label="Redirect Base URL" hint="Defaults to the production URL when left blank">
+                <UInput
+                  v-model="editForm.redirectBaseUrl"
+                  :placeholder="editForm.url || 'https://my-app.nard.uk'"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <div class="grid gap-4 sm:grid-cols-2">
+                <UFormField label="Login Path">
+                  <UInput v-model="editForm.loginPath" placeholder="/login" class="w-full" />
+                </UFormField>
+                <UFormField label="Callback Path">
+                  <UInput
+                    v-model="editForm.callbackPath"
+                    placeholder="/auth/callback"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="Logout Path">
+                  <UInput v-model="editForm.logoutPath" placeholder="/logout" class="w-full" />
+                </UFormField>
+                <UFormField label="Confirm Path">
+                  <UInput
+                    v-model="editForm.confirmPath"
+                    placeholder="/auth/confirm"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="Reset Path" class="sm:col-span-2">
+                  <UInput
+                    v-model="editForm.resetPath"
+                    placeholder="/reset-password"
+                    class="w-full"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="flex flex-col gap-3">
+                <UFormField label="Providers" hint="Apple should stay enabled for public apps.">
+                  <UCheckboxGroup
+                    v-model="editForm.providers"
+                    :items="authProviderItems"
+                    legend="Auth providers"
+                  />
+                </UFormField>
+              </div>
+
+              <div class="grid gap-3 sm:grid-cols-2">
+                <UCheckbox v-model="editForm.publicSignup" label="Public signup enabled" />
+                <UCheckbox v-model="editForm.requireMfa" label="Require MFA for this app" />
+              </div>
+            </div>
+          </div>
         </div>
       </template>
 
