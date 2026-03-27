@@ -3,6 +3,9 @@
   "type": "module",
   "private": true,
   "version": "1.32.6",
+  "imports": {
+    "#server/*": "./server/*.ts"
+  },
   "scripts": {
     "build": "nuxt build",
     "predev": "pnpm run db:ready",
