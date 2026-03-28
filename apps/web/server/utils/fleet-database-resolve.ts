@@ -1,15 +1,18 @@
 import { eq } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import { fleetApps } from '#server/database/schema'
+import {
+  normalizeFleetDatabaseBackend,
+  resolveFleetDatabaseBackendFromSources,
+  type FleetDatabaseBackend,
+} from '#server/utils/fleet-database-backend'
 import { getDopplerSecrets } from '#server/utils/provision-doppler'
-
-export type FleetDatabaseBackend = 'd1' | 'postgres'
 
 export interface FleetDatabaseAppRecord {
   name: string
   url: string
   dopplerProject: string
-  databaseBackend: FleetDatabaseBackend
+  databaseBackend: FleetDatabaseBackend | null
   d1DatabaseName: string | null
 }
 
@@ -72,13 +75,6 @@ function isPostgresConnectionString(value: string): boolean {
   return /^postgres(?:ql)?:\/\//i.test(value)
 }
 
-function normalizeDatabaseBackend(value?: string | null): FleetDatabaseBackend | null {
-  const normalized = value?.trim().toLowerCase()
-  if (normalized === 'postgres') return 'postgres'
-  if (normalized === 'd1') return 'd1'
-  return null
-}
-
 function resolveControlPlaneApiKey(secrets: Record<string, string>): string | null {
   for (const key of ['CONTROL_PLANE_API_KEY', 'FLEET_API_KEY']) {
     const value = readStringSecret(secrets, key)
@@ -128,8 +124,11 @@ async function getFleetAppRecord(event: H3Event, appName: string): Promise<Fleet
   }
 
   return {
-    ...app,
-    databaseBackend: normalizeDatabaseBackend(app.databaseBackend) ?? 'd1',
+    name: app.name,
+    url: app.url,
+    dopplerProject: app.dopplerProject,
+    databaseBackend: normalizeFleetDatabaseBackend(app.databaseBackend),
+    d1DatabaseName: app.d1DatabaseName,
   }
 }
 
@@ -158,10 +157,7 @@ export async function resolveFleetDatabaseTarget(
     }
   }
 
-  const backend =
-    normalizeDatabaseBackend(app.databaseBackend) ||
-    normalizeDatabaseBackend(readStringSecret(dopplerSecrets, 'NUXT_DATABASE_BACKEND')) ||
-    'd1'
+  const backend = resolveFleetDatabaseBackendFromSources(app.databaseBackend, dopplerSecrets)
 
   if (backend === 'postgres') {
     const schemaName = assertSchemaName(options.schemaName?.trim() || 'public')

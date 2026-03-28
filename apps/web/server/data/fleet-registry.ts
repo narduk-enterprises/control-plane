@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm'
 import { fleetApps } from '#server/database/schema'
 import { parseFleetAuthProviders } from '#server/data/fleet-auth'
 import { getD1CacheDB } from '#layer/server/utils/d1Cache'
+import { normalizeFleetDatabaseBackend } from '#server/utils/fleet-database-backend'
 import type { FleetApp } from '#server/database/schema'
 import type { H3Event } from 'h3'
 import type { FleetRegistryApp } from '~/types/fleet'
@@ -21,7 +22,7 @@ export function toFleetRegistryApp(row: FleetApp): FleetRegistryApp {
     name: row.name,
     url: row.url,
     dopplerProject: row.dopplerProject,
-    databaseBackend: row.databaseBackend === 'postgres' ? 'postgres' : 'd1',
+    databaseBackend: normalizeFleetDatabaseBackend(row.databaseBackend) ?? undefined,
     d1DatabaseName: row.d1DatabaseName,
     nuxtPort: row.nuxtPort,
     gaPropertyId: row.gaPropertyId,

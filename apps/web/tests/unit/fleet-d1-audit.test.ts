@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildFleetD1NamingChecks } from '../../server/utils/fleet-d1-audit'
 
 describe('buildFleetD1NamingChecks', () => {
-  const app = 'old-austin-grouch'
+  const app = { name: 'old-austin-grouch', databaseBackend: 'd1' as const }
 
   it('warns when both bare and -db exist', () => {
     const checks = buildFleetD1NamingChecks(app, [
