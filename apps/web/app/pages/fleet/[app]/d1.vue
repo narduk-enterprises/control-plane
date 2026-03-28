@@ -29,15 +29,19 @@ const {
   clearResults,
 } = useFleetD1Console(appName, binding)
 
-const defaultDbHint = computed(() => `${appName.value}-db`)
 const databaseBackend = computed<FleetDatabaseBackend>(
-  () => studio.tablesData?.backend || lastResponse.value?.backend || 'd1',
+  () =>
+    studio.tablesData?.backend ||
+    lastResponse.value?.backend ||
+    appRecord.value?.databaseBackend ||
+    'd1',
+)
+const defaultDbHint = computed(
+  () => appRecord.value?.d1DatabaseName?.trim() || `${appName.value}-db`,
 )
 const backendLabel = computed(() => (databaseBackend.value === 'postgres' ? 'Postgres' : 'D1'))
 const showD1Overrides = computed(() => databaseBackend.value === 'd1')
-const advancedLabel = computed(() =>
-  showD1Overrides.value ? 'database name / UUID' : 'schema',
-)
+const advancedLabel = computed(() => (showD1Overrides.value ? 'database name / UUID' : 'schema'))
 const browseDescription = computed(() =>
   databaseBackend.value === 'postgres'
     ? 'Page through rows, insert new ones, and edit or delete by primary key. Postgres requests are routed through the fleet app so they use its live Hyperdrive-backed database access.'
@@ -89,10 +93,7 @@ async function handleRun() {
   }
 }
 
-async function runGridWrite(op: {
-  sql: string
-  params: Array<string | number | boolean | null>
-}) {
+async function runGridWrite(op: { sql: string; params: Array<string | number | boolean | null> }) {
   await runParameterizedMutation(op)
   toast.add({ title: 'Database updated', color: 'success' })
 }
@@ -202,11 +203,7 @@ async function onStudioDataMutated() {
               label="Schema name"
               help="Defaults to public. Table browsing is scoped to this schema."
             >
-              <UInput
-                v-model="schemaName"
-                class="w-full font-mono text-sm"
-                placeholder="public"
-              />
+              <UInput v-model="schemaName" class="w-full font-mono text-sm" placeholder="public" />
             </UFormField>
           </template>
         </div>

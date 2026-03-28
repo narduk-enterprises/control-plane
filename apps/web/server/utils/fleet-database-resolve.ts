@@ -9,6 +9,8 @@ export interface FleetDatabaseAppRecord {
   name: string
   url: string
   dopplerProject: string
+  databaseBackend: FleetDatabaseBackend
+  d1DatabaseName: string | null
 }
 
 export interface FleetD1Target {
@@ -39,10 +41,7 @@ const POSTGRES_CONNECTION_SECRET_KEYS = [
   'PGDATABASE_URL',
 ] as const
 
-function readStringSecret(
-  secrets: Record<string, string>,
-  key: string,
-): string | undefined {
+function readStringSecret(secrets: Record<string, string>, key: string): string | undefined {
   const raw = secrets[key]
   if (typeof raw !== 'string') return undefined
   const trimmed = raw.trim()
@@ -71,6 +70,13 @@ function assertSchemaName(name: string): string {
 
 function isPostgresConnectionString(value: string): boolean {
   return /^postgres(?:ql)?:\/\//i.test(value)
+}
+
+function normalizeDatabaseBackend(value?: string | null): FleetDatabaseBackend | null {
+  const normalized = value?.trim().toLowerCase()
+  if (normalized === 'postgres') return 'postgres'
+  if (normalized === 'd1') return 'd1'
+  return null
 }
 
 function resolveControlPlaneApiKey(secrets: Record<string, string>): string | null {
@@ -108,6 +114,8 @@ async function getFleetAppRecord(event: H3Event, appName: string): Promise<Fleet
       name: fleetApps.name,
       url: fleetApps.url,
       dopplerProject: fleetApps.dopplerProject,
+      databaseBackend: fleetApps.databaseBackend,
+      d1DatabaseName: fleetApps.d1DatabaseName,
     })
     .from(fleetApps)
     .where(eq(fleetApps.name, appName))
@@ -119,7 +127,10 @@ async function getFleetAppRecord(event: H3Event, appName: string): Promise<Fleet
     throw createError({ statusCode: 404, message: `App '${appName}' not found in fleet registry.` })
   }
 
-  return app
+  return {
+    ...app,
+    databaseBackend: normalizeDatabaseBackend(app.databaseBackend) ?? 'd1',
+  }
 }
 
 export async function resolveFleetDatabaseTarget(
@@ -147,8 +158,12 @@ export async function resolveFleetDatabaseTarget(
     }
   }
 
-  const backendSecret = readStringSecret(dopplerSecrets, 'NUXT_DATABASE_BACKEND')?.toLowerCase()
-  if (backendSecret === 'postgres') {
+  const backend =
+    normalizeDatabaseBackend(app.databaseBackend) ||
+    normalizeDatabaseBackend(readStringSecret(dopplerSecrets, 'NUXT_DATABASE_BACKEND')) ||
+    'd1'
+
+  if (backend === 'postgres') {
     const schemaName = assertSchemaName(options.schemaName?.trim() || 'public')
     const resolved = resolvePostgresConnection(dopplerSecrets)
 

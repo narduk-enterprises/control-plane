@@ -1,3 +1,5 @@
+export type FleetDatabaseBackend = 'd1' | 'postgres'
+
 /**
  * Fleet registry row as stored in the `fleet_apps` D1 table.
  */
@@ -5,6 +7,8 @@ export interface FleetRegistryApp {
   name: string
   url: string
   dopplerProject: string
+  databaseBackend?: FleetDatabaseBackend
+  d1DatabaseName?: string | null
   nuxtPort?: number | null
   gaPropertyId?: string | null
   gaMeasurementId?: string | null
@@ -40,8 +44,6 @@ export interface FleetAppStatusRecord {
   indexnowTotalSubmissions: number
   indexnowLastSubmittedCount: number | null
 }
-
-export type FleetDatabaseBackend = 'd1' | 'postgres'
 
 /** One statement result from the fleet database viewer. */
 export interface FleetDatabaseStatementResult {

@@ -21,6 +21,8 @@ export function toFleetRegistryApp(row: FleetApp): FleetRegistryApp {
     name: row.name,
     url: row.url,
     dopplerProject: row.dopplerProject,
+    databaseBackend: row.databaseBackend === 'postgres' ? 'postgres' : 'd1',
+    d1DatabaseName: row.d1DatabaseName,
     nuxtPort: row.nuxtPort,
     gaPropertyId: row.gaPropertyId,
     gaMeasurementId: row.gaMeasurementId,
@@ -50,7 +52,11 @@ const FLEET_APP_CACHE_KEYS = ['fleet-apps-list', 'fleet-apps-list-all'] as const
  */
 export async function getFleetApps(event: H3Event): Promise<FleetApp[]> {
   const db = useDatabase(event)
-  const rows: FleetApp[] = await db.select().from(fleetApps).where(eq(fleetApps.isActive, true)).all()
+  const rows: FleetApp[] = await db
+    .select()
+    .from(fleetApps)
+    .where(eq(fleetApps.isActive, true))
+    .all()
   return rows.sort((a, b) => a.name.localeCompare(b.name))
 }
 

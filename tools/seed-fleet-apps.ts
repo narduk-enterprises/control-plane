@@ -8,18 +8,64 @@
  *   npx wrangler d1 execute control-plane-db --remote --file=tools/seed-fleet-apps.sql
  */
 
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { getPublicFleetApps } from '../apps/web/server/data/managed-repos'
 import { serializeFleetAuthProviders } from '../apps/web/server/data/fleet-auth'
 import { deriveSeedNuxtPort } from '../apps/web/server/utils/nuxt-port'
+
+type FleetSeedDatabaseMetadata = {
+  databaseBackend: 'd1' | 'postgres'
+  d1DatabaseName: string | null
+}
 
 function sqlString(value: string | null): string {
   return value === null ? 'NULL' : `'${value.replace(/'/g, "''")}'`
 }
 
 const nowExpr = "STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')"
+const toolsDir = dirname(fileURLToPath(import.meta.url))
+const templateAppsRoot = resolve(toolsDir, '..', '..')
+
+function readLocalDatabaseMetadata(appName: string): FleetSeedDatabaseMetadata | null {
+  const appDir = resolve(templateAppsRoot, appName)
+  const drizzleConfigPath = resolve(appDir, 'apps/web/drizzle.config.ts')
+  const wranglerPath = resolve(appDir, 'apps/web/wrangler.json')
+
+  let databaseBackend: 'd1' | 'postgres' = 'd1'
+  if (existsSync(drizzleConfigPath)) {
+    const drizzleConfig = readFileSync(drizzleConfigPath, 'utf-8')
+    if (/\bdialect:\s*['"]postgres(?:ql)?['"]/.test(drizzleConfig)) {
+      databaseBackend = 'postgres'
+    }
+  }
+
+  let d1DatabaseName: string | null = null
+  if (databaseBackend === 'd1' && existsSync(wranglerPath)) {
+    try {
+      const wrangler = JSON.parse(readFileSync(wranglerPath, 'utf-8')) as {
+        d1_databases?: Array<{ database_name?: string }>
+      }
+      d1DatabaseName = wrangler.d1_databases?.[0]?.database_name?.trim() || null
+    } catch {
+      d1DatabaseName = null
+    }
+  }
+
+  return { databaseBackend, d1DatabaseName }
+}
+
 const lines = getPublicFleetApps().map((app, index) => {
   const nuxtPort = deriveSeedNuxtPort(index)
-  return `INSERT INTO fleet_apps (name, url, doppler_project, nuxt_port, ga_property_id, ga_measurement_id, posthog_app_name, github_repo, auth_enabled, redirect_base_url, login_path, callback_path, logout_path, confirm_path, reset_path, public_signup, providers, require_mfa, is_active, created_at, updated_at) VALUES (${sqlString(app.name)}, ${sqlString(app.url)}, ${sqlString(app.dopplerProject)}, ${nuxtPort}, ${sqlString(app.gaPropertyId)}, ${sqlString(app.gaMeasurementId)}, ${sqlString(app.posthogAppName)}, ${sqlString(app.githubRepo)}, ${app.authEnabled ? 1 : 0}, ${sqlString(app.redirectBaseUrl)}, ${sqlString(app.loginPath)}, ${sqlString(app.callbackPath)}, ${sqlString(app.logoutPath)}, ${sqlString(app.confirmPath)}, ${sqlString(app.resetPath)}, ${app.publicSignup ? 1 : 0}, ${sqlString(serializeFleetAuthProviders(app.providers))}, ${app.requireMfa ? 1 : 0}, ${app.isActive ? 1 : 0}, ${nowExpr}, ${nowExpr}) ON CONFLICT(name) DO UPDATE SET url = excluded.url, doppler_project = excluded.doppler_project, nuxt_port = COALESCE(fleet_apps.nuxt_port, excluded.nuxt_port), ga_property_id = excluded.ga_property_id, ga_measurement_id = excluded.ga_measurement_id, posthog_app_name = excluded.posthog_app_name, github_repo = excluded.github_repo, auth_enabled = excluded.auth_enabled, redirect_base_url = excluded.redirect_base_url, login_path = excluded.login_path, callback_path = excluded.callback_path, logout_path = excluded.logout_path, confirm_path = excluded.confirm_path, reset_path = excluded.reset_path, public_signup = excluded.public_signup, providers = excluded.providers, require_mfa = excluded.require_mfa, is_active = excluded.is_active, updated_at = excluded.updated_at;`
+  const localMetadata = readLocalDatabaseMetadata(app.name)
+  const databaseBackend = app.databaseBackend ?? localMetadata?.databaseBackend ?? 'd1'
+  const d1DatabaseName =
+    databaseBackend === 'postgres'
+      ? null
+      : app.d1DatabaseName || localMetadata?.d1DatabaseName || `${app.name}-db`
+
+  return `INSERT INTO fleet_apps (name, url, doppler_project, database_backend, d1_database_name, nuxt_port, ga_property_id, ga_measurement_id, posthog_app_name, github_repo, auth_enabled, redirect_base_url, login_path, callback_path, logout_path, confirm_path, reset_path, public_signup, providers, require_mfa, is_active, created_at, updated_at) VALUES (${sqlString(app.name)}, ${sqlString(app.url)}, ${sqlString(app.dopplerProject)}, ${sqlString(databaseBackend)}, ${sqlString(d1DatabaseName)}, ${nuxtPort}, ${sqlString(app.gaPropertyId)}, ${sqlString(app.gaMeasurementId)}, ${sqlString(app.posthogAppName)}, ${sqlString(app.githubRepo)}, ${app.authEnabled ? 1 : 0}, ${sqlString(app.redirectBaseUrl)}, ${sqlString(app.loginPath)}, ${sqlString(app.callbackPath)}, ${sqlString(app.logoutPath)}, ${sqlString(app.confirmPath)}, ${sqlString(app.resetPath)}, ${app.publicSignup ? 1 : 0}, ${sqlString(serializeFleetAuthProviders(app.providers))}, ${app.requireMfa ? 1 : 0}, ${app.isActive ? 1 : 0}, ${nowExpr}, ${nowExpr}) ON CONFLICT(name) DO UPDATE SET url = excluded.url, doppler_project = excluded.doppler_project, database_backend = excluded.database_backend, d1_database_name = excluded.d1_database_name, nuxt_port = COALESCE(fleet_apps.nuxt_port, excluded.nuxt_port), ga_property_id = excluded.ga_property_id, ga_measurement_id = excluded.ga_measurement_id, posthog_app_name = excluded.posthog_app_name, github_repo = excluded.github_repo, auth_enabled = excluded.auth_enabled, redirect_base_url = excluded.redirect_base_url, login_path = excluded.login_path, callback_path = excluded.callback_path, logout_path = excluded.logout_path, confirm_path = excluded.confirm_path, reset_path = excluded.reset_path, public_signup = excluded.public_signup, providers = excluded.providers, require_mfa = excluded.require_mfa, is_active = excluded.is_active, updated_at = excluded.updated_at;`
 })
 
 console.log('-- Fleet Apps Seed Data')

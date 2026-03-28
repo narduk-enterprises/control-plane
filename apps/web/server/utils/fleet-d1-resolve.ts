@@ -9,10 +9,15 @@ import type { H3Event } from 'h3'
 export async function resolveFleetD1Targets(
   event: H3Event,
   appName: string,
-): Promise<{ accountId: string; apiToken: string; appName: string }> {
+): Promise<{
+  accountId: string
+  apiToken: string
+  appName: string
+  d1DatabaseName: string | null
+}> {
   const db = useDatabase(event)
   const existing = await db
-    .select({ name: fleetApps.name })
+    .select({ name: fleetApps.name, d1DatabaseName: fleetApps.d1DatabaseName })
     .from(fleetApps)
     .where(eq(fleetApps.name, appName))
     .limit(1)
@@ -32,5 +37,5 @@ export async function resolveFleetD1Targets(
     })
   }
 
-  return { accountId, apiToken, appName }
+  return { accountId, apiToken, appName, d1DatabaseName: existing[0]?.d1DatabaseName ?? null }
 }

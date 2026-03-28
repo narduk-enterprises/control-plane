@@ -9,7 +9,10 @@ const MAX_SQL_CHARS = 500_000
 
 const bodySchema = z.object({
   sql: z.string().min(1).max(MAX_SQL_CHARS),
-  params: z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).max(100).optional(),
+  params: z
+    .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
+    .max(100)
+    .optional(),
   databaseName: z.string().min(1).max(128).optional(),
   databaseId: z.string().uuid().optional(),
 })
@@ -78,7 +81,7 @@ export default defineAdminMutation(
         appName,
         sql: body.sql,
         params: body.params?.map((value) => (value === null ? '' : String(value))),
-        databaseName: body.databaseName,
+        databaseName: body.databaseName ?? target.app.d1DatabaseName ?? undefined,
         databaseId: body.databaseId,
       })
 

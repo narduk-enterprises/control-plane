@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
   assertFleetD1TableName(decodedTable)
 
   const q = await getValidatedQuery(event, querySchema.parse)
-  const { accountId, apiToken } = await resolveFleetD1Targets(event, appName)
+  const { accountId, apiToken, d1DatabaseName } = await resolveFleetD1Targets(event, appName)
 
   const ident = quoteSqliteIdent(decodedTable)
   const pragmaSql = `PRAGMA table_info(${ident})`
@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     accountId,
     apiToken,
     appName,
-    databaseName: q.databaseName,
+    databaseName: q.databaseName ?? d1DatabaseName ?? undefined,
     databaseId: q.databaseId,
   }
 

@@ -18,6 +18,8 @@ const bodySchema = z.object({
     .regex(/^[a-z0-9-]+$/, 'Must be lowercase alphanumeric with hyphens'),
   url: z.string().url(),
   dopplerProject: z.string().min(1).optional(),
+  databaseBackend: z.enum(['d1', 'postgres']).optional(),
+  d1DatabaseName: z.string().min(1).max(128).nullish(),
   nuxtPort: z.coerce.number().int().min(1024).max(65535).optional(),
   gaPropertyId: z.string().nullish(),
   gaMeasurementId: z.string().nullish(),
@@ -111,6 +113,9 @@ export default defineAdminMutation(
       name,
       url,
       dopplerProject,
+      databaseBackend: body.databaseBackend ?? 'd1',
+      d1DatabaseName:
+        body.databaseBackend === 'postgres' ? null : body.d1DatabaseName?.trim() || `${name}-db`,
       nuxtPort: resolvedNuxtPort,
       gaPropertyId: gaPropertyId ?? null,
       gaMeasurementId: gaMeasurementId ?? null,

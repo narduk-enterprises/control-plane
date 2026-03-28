@@ -73,6 +73,8 @@ CREATE TABLE IF NOT EXISTS `fleet_apps` (
   `name`             TEXT PRIMARY KEY NOT NULL,
   `url`              TEXT NOT NULL,
   `doppler_project`  TEXT NOT NULL,
+  `database_backend` TEXT,
+  `d1_database_name` TEXT,
   `nuxt_port`        INTEGER,
   `ga_property_id`   TEXT,
   `ga_measurement_id` TEXT,

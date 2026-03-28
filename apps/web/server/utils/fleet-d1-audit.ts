@@ -1,16 +1,31 @@
 import type { AuditCheck } from '#server/utils/fleet-audit'
 
 /**
- * Narduk template apps use D1 name `{fleetAppName}-db`. Warn when both the bare
- * name and `-db` exist (duplicate DBs) or when only the bare name exists.
+ * Validate the expected D1 name for a fleet app when the registry says it uses D1.
  */
 export function buildFleetD1NamingChecks(
-  fleetAppName: string,
+  app: {
+    name: string
+    databaseBackend?: 'd1' | 'postgres' | string | null
+    d1DatabaseName?: string | null
+  },
   databases: Array<{ name: string }>,
 ): AuditCheck[] {
+  if (app.databaseBackend === 'postgres') {
+    return [
+      {
+        name: 'D1 database naming (Cloudflare)',
+        status: 'skipped',
+        expected: null,
+        actual: null,
+        message: 'Skipped: fleet registry marks this app as Postgres-backed.',
+      },
+    ]
+  }
+
   const names = new Set(databases.map((d) => d.name))
-  const bare = fleetAppName
-  const suffixed = `${fleetAppName}-db`
+  const bare = app.name
+  const suffixed = app.d1DatabaseName?.trim() || `${app.name}-db`
   const hasBare = names.has(bare)
   const hasSuffixed = names.has(suffixed)
 
@@ -19,9 +34,9 @@ export function buildFleetD1NamingChecks(
       {
         name: 'D1 database naming (Cloudflare)',
         status: 'warning',
-        expected: `${suffixed} only (narduk template convention)`,
+        expected: `${suffixed} only (fleet registry target)`,
         actual: `${bare}, ${suffixed}`,
-        message: `Both "${bare}" and "${suffixed}" exist. The worker usually binds "${suffixed}". Confirm which database holds live data, run migrations against the bound DB, then remove or rename the unused one.`,
+        message: `Both "${bare}" and "${suffixed}" exist. Confirm which database holds live data, run migrations against the bound DB, then remove or rename the unused one.`,
       },
     ]
   }
@@ -33,7 +48,7 @@ export function buildFleetD1NamingChecks(
         status: 'pass',
         expected: suffixed,
         actual: suffixed,
-        message: `Single D1 "${suffixed}" matches the narduk template convention.`,
+        message: `Single D1 "${suffixed}" matches the fleet registry target.`,
       },
     ]
   }
@@ -45,7 +60,7 @@ export function buildFleetD1NamingChecks(
         status: 'warning',
         expected: suffixed,
         actual: bare,
-        message: `Only "${bare}" exists; wrangler and CI migrations typically use "${suffixed}". Align database name with wrangler.json or rename so the bound DB matches migrate targets.`,
+        message: `Only "${bare}" exists; the fleet registry expects "${suffixed}". Align the registry metadata or rename so the bound DB matches migrate targets.`,
       },
     ]
   }

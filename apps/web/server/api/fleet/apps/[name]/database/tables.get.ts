@@ -5,9 +5,7 @@ import { executeSqlOnFleetAppD1 } from '#server/utils/fleet-d1-remote'
 import { fetchFleetDatabaseAppProxy } from '#server/utils/fleet-database-app-proxy'
 import { queryFleetPostgresRows } from '#server/utils/fleet-database-pg'
 import { resolveFleetDatabaseTarget } from '#server/utils/fleet-database-resolve'
-import {
-  formatPostgresTableName,
-} from '#server/utils/fleet-database-studio'
+import { formatPostgresTableName } from '#server/utils/fleet-database-studio'
 import {
   assertFirstStatementOk,
   firstStatementRows,
@@ -109,7 +107,7 @@ export default defineEventHandler(async (event) => {
       apiToken: target.apiToken,
       appName,
       sql: LIST_USER_TABLES_SQL,
-      databaseName: query.databaseName,
+      databaseName: query.databaseName ?? target.app.d1DatabaseName ?? undefined,
       databaseId: query.databaseId,
     })
     assertFirstStatementOk(out.result, 'list tables')

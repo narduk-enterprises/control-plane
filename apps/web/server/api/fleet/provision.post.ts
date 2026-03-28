@@ -174,6 +174,8 @@ export default definePublicMutation(
         .set({
           url,
           githubRepo,
+          databaseBackend: existing[0]?.databaseBackend ?? 'd1',
+          d1DatabaseName: existing[0]?.d1DatabaseName ?? `${name}-db`,
           nuxtPort,
           appDescription: agentDescription ?? null,
           isActive: existing[0]?.isActive ?? false,
@@ -185,6 +187,8 @@ export default definePublicMutation(
         name,
         url,
         dopplerProject: name,
+        databaseBackend: 'd1',
+        d1DatabaseName: `${name}-db`,
         githubRepo,
         nuxtPort,
         appDescription: agentDescription ?? null,

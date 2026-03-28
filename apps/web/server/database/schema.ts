@@ -12,6 +12,8 @@ export const fleetApps = sqliteTable('fleet_apps', {
   name: text('name').primaryKey(),
   url: text('url').notNull(),
   dopplerProject: text('doppler_project').notNull(),
+  databaseBackend: text('database_backend'),
+  d1DatabaseName: text('d1_database_name'),
   nuxtPort: integer('nuxt_port'),
   gaPropertyId: text('ga_property_id'),
   gaMeasurementId: text('ga_measurement_id'),

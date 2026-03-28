@@ -1,12 +1,13 @@
-import {
-  resolveFleetAuthConfig,
-  type FleetAuthConfig,
-} from '#server/data/fleet-auth'
+import { resolveFleetAuthConfig, type FleetAuthConfig } from '#server/data/fleet-auth'
+
+export type ManagedRepoDatabaseBackend = 'd1' | 'postgres'
 
 export interface ManagedRepo {
   name: string
   githubRepo: string
   dopplerProject: string
+  databaseBackend?: ManagedRepoDatabaseBackend
+  d1DatabaseName?: string | null
   publicUrl: string | null
   gaPropertyId: string | null
   gaMeasurementId: string | null
@@ -408,6 +409,8 @@ export interface PublicFleetApp {
   name: string
   url: string
   dopplerProject: string
+  databaseBackend: ManagedRepoDatabaseBackend
+  d1DatabaseName: string | null
   gaPropertyId: string | null
   gaMeasurementId: string | null
   posthogAppName: string | null
@@ -447,6 +450,8 @@ export function getPublicFleetApps(): PublicFleetApp[] {
       name: repo.name,
       url: repo.publicUrl,
       dopplerProject: repo.dopplerProject,
+      databaseBackend: repo.databaseBackend ?? 'd1',
+      d1DatabaseName: repo.d1DatabaseName ?? null,
       gaPropertyId: repo.gaPropertyId,
       gaMeasurementId: repo.gaMeasurementId,
       posthogAppName: repo.posthogAppName,

@@ -133,8 +133,16 @@ export default defineAdminMutation(
     }
 
     const mergedResults = results.map((row): AuditResult => {
+      const app = apps.find((candidate) => candidate.name === row.app)
       const d1Checks = d1Databases
-        ? buildFleetD1NamingChecks(row.app, d1Databases)
+        ? buildFleetD1NamingChecks(
+            app ?? {
+              name: row.app,
+              databaseBackend: 'd1',
+              d1DatabaseName: null,
+            },
+            d1Databases,
+          )
         : [d1SkippedCheck]
       return { ...row, checks: [...row.checks, ...d1Checks] }
     })

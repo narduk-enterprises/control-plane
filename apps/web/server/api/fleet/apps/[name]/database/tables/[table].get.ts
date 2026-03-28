@@ -3,10 +3,7 @@ import { requireAdmin } from '#layer/server/utils/auth'
 import { enforceRateLimit } from '#layer/server/utils/rateLimit'
 import { executeSqlOnFleetAppD1 } from '#server/utils/fleet-d1-remote'
 import { fetchFleetDatabaseAppProxy } from '#server/utils/fleet-database-app-proxy'
-import {
-  queryFleetPostgresRows,
-  queryFleetPostgresScalar,
-} from '#server/utils/fleet-database-pg'
+import { queryFleetPostgresRows, queryFleetPostgresScalar } from '#server/utils/fleet-database-pg'
 import { resolveFleetDatabaseTarget } from '#server/utils/fleet-database-resolve'
 import {
   mapPostgresColumnRow,
@@ -166,7 +163,7 @@ export default defineEventHandler(async (event) => {
       accountId: target.accountId,
       apiToken: target.apiToken,
       appName,
-      databaseName: query.databaseName,
+      databaseName: query.databaseName ?? target.app.d1DatabaseName ?? undefined,
       databaseId: query.databaseId,
     }
 

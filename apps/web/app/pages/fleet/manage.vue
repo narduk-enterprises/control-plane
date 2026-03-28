@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import type { FleetDatabaseBackend } from '~/types/fleet'
 import type { FleetApp } from '~/composables/useFleet'
 
 type AuthProvider = 'apple' | 'email'
+type DatabaseBackend = FleetDatabaseBackend
 
 type FleetFormState = {
   url: string
   dopplerProject: string
+  databaseBackend: DatabaseBackend
+  d1DatabaseName: string
   gaPropertyId: string
   gaMeasurementId: string
   posthogAppName: string
@@ -23,6 +27,10 @@ type FleetFormState = {
 }
 
 const authProviderOrder: AuthProvider[] = ['apple', 'email']
+const databaseBackendItems = [
+  { value: 'd1', label: 'Cloudflare D1' },
+  { value: 'postgres', label: 'Postgres / Neon' },
+] satisfies Array<{ value: DatabaseBackend; label: string }>
 const authProviderItems = [
   { value: 'apple', label: 'Sign in with Apple', description: 'Primary fleet login path.' },
   { value: 'email', label: 'Email', description: 'Fallback login and recovery path.' },
@@ -68,6 +76,8 @@ const addForm = reactive({
   name: '',
   url: '',
   dopplerProject: '',
+  databaseBackend: 'd1' as DatabaseBackend,
+  d1DatabaseName: '',
   gaPropertyId: '',
   gaMeasurementId: '',
   posthogAppName: '',
@@ -89,6 +99,8 @@ function resetAddForm() {
   addForm.name = ''
   addForm.url = ''
   addForm.dopplerProject = ''
+  addForm.databaseBackend = 'd1'
+  addForm.d1DatabaseName = ''
   addForm.gaPropertyId = ''
   addForm.gaMeasurementId = ''
   addForm.posthogAppName = ''
@@ -104,6 +116,9 @@ async function addApp() {
       name: addForm.name,
       url: addForm.url,
       dopplerProject: addForm.dopplerProject || addForm.name,
+      databaseBackend: addForm.databaseBackend,
+      d1DatabaseName:
+        addForm.databaseBackend === 'd1' ? addForm.d1DatabaseName || `${addForm.name}-db` : null,
       gaPropertyId: addForm.gaPropertyId || null,
       gaMeasurementId: addForm.gaMeasurementId || null,
       posthogAppName: addForm.posthogAppName || null,
@@ -136,6 +151,8 @@ const editingApp = ref<FleetApp | null>(null)
 const editForm = reactive({
   url: '',
   dopplerProject: '',
+  databaseBackend: 'd1' as DatabaseBackend,
+  d1DatabaseName: '',
   gaPropertyId: '',
   gaMeasurementId: '',
   posthogAppName: '',
@@ -157,6 +174,8 @@ function openEditModal(app: FleetApp) {
   editingApp.value = app
   editForm.url = app.url
   editForm.dopplerProject = app.dopplerProject || ''
+  editForm.databaseBackend = app.databaseBackend || 'd1'
+  editForm.d1DatabaseName = app.d1DatabaseName || ''
   editForm.gaPropertyId = app.gaPropertyId || ''
   editForm.gaMeasurementId = app.gaMeasurementId || ''
   editForm.posthogAppName = app.posthogAppName || ''
@@ -181,6 +200,11 @@ async function saveEdit() {
     await adminEditApp(editingApp.value.name, {
       url: editForm.url,
       dopplerProject: editForm.dopplerProject || editingApp.value.name,
+      databaseBackend: editForm.databaseBackend,
+      d1DatabaseName:
+        editForm.databaseBackend === 'd1'
+          ? editForm.d1DatabaseName || `${editingApp.value.name}-db`
+          : null,
       gaPropertyId: editForm.gaPropertyId || null,
       gaMeasurementId: editForm.gaMeasurementId || null,
       posthogAppName: editForm.posthogAppName || null,
@@ -259,19 +283,21 @@ function formatUrl(url: string) {
   return url.replace(/^https?:\/\//, '')
 }
 
-function resetAuthFields(form: Pick<
-  FleetFormState,
-  | 'authEnabled'
-  | 'redirectBaseUrl'
-  | 'loginPath'
-  | 'callbackPath'
-  | 'logoutPath'
-  | 'confirmPath'
-  | 'resetPath'
-  | 'publicSignup'
-  | 'providers'
-  | 'requireMfa'
->) {
+function resetAuthFields(
+  form: Pick<
+    FleetFormState,
+    | 'authEnabled'
+    | 'redirectBaseUrl'
+    | 'loginPath'
+    | 'callbackPath'
+    | 'logoutPath'
+    | 'confirmPath'
+    | 'resetPath'
+    | 'publicSignup'
+    | 'providers'
+    | 'requireMfa'
+  >,
+) {
   form.authEnabled = true
   form.redirectBaseUrl = ''
   form.loginPath = defaultAuthPaths.loginPath
@@ -289,19 +315,22 @@ function normalizeProviders(providers?: FleetApp['providers']) {
   return authProviderOrder.filter((provider) => selected.has(provider))
 }
 
-function buildAuthPayload(form: Pick<
-  FleetFormState,
-  | 'authEnabled'
-  | 'redirectBaseUrl'
-  | 'loginPath'
-  | 'callbackPath'
-  | 'logoutPath'
-  | 'confirmPath'
-  | 'resetPath'
-  | 'publicSignup'
-  | 'providers'
-  | 'requireMfa'
->, productionUrl: string) {
+function buildAuthPayload(
+  form: Pick<
+    FleetFormState,
+    | 'authEnabled'
+    | 'redirectBaseUrl'
+    | 'loginPath'
+    | 'callbackPath'
+    | 'logoutPath'
+    | 'confirmPath'
+    | 'resetPath'
+    | 'publicSignup'
+    | 'providers'
+    | 'requireMfa'
+  >,
+  productionUrl: string,
+) {
   return {
     authEnabled: form.authEnabled,
     redirectBaseUrl: form.authEnabled ? form.redirectBaseUrl || productionUrl : null,
@@ -324,6 +353,10 @@ function authProvidersLabel(app: FleetApp) {
   const providers = normalizeProviders(app.providers)
   if (providers.length === 2) return 'Apple + Email'
   return providers[0] === 'apple' ? 'Apple only' : 'Email only'
+}
+
+function databaseBackendLabel(app: FleetApp) {
+  return (app.databaseBackend || 'd1') === 'postgres' ? 'Postgres' : 'D1'
 }
 </script>
 
@@ -397,6 +430,21 @@ function authProvidersLabel(app: FleetApp) {
               </span>
             </div>
             <div class="mt-3 flex flex-wrap items-center gap-2">
+              <UBadge
+                :color="app.databaseBackend === 'postgres' ? 'success' : 'neutral'"
+                variant="soft"
+                size="xs"
+              >
+                {{ databaseBackendLabel(app) }}
+              </UBadge>
+              <UBadge
+                v-if="(app.databaseBackend || 'd1') === 'd1' && app.d1DatabaseName"
+                color="neutral"
+                variant="soft"
+                size="xs"
+              >
+                {{ app.d1DatabaseName }}
+              </UBadge>
               <UBadge :color="authBadgeColor(app)" variant="subtle" size="xs">
                 {{ app.authEnabled === false ? 'Auth Disabled' : 'Shared Auth' }}
               </UBadge>
@@ -508,6 +556,27 @@ function authProvidersLabel(app: FleetApp) {
               class="w-full"
             />
           </UFormField>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Database Backend">
+              <USelect
+                v-model="addForm.databaseBackend"
+                :items="databaseBackendItems"
+                value-attribute="value"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField
+              v-if="addForm.databaseBackend === 'd1'"
+              label="Default D1 Database Name"
+              :hint="`Leave blank to use ${addForm.name || 'my-app-name'}-db`"
+            >
+              <UInput
+                v-model="addForm.d1DatabaseName"
+                :placeholder="addForm.name ? `${addForm.name}-db` : 'my-app-db'"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
           <UFormField label="GA4 Property ID" hint="Numeric ID for Reporting API">
             <UInput v-model="addForm.gaPropertyId" placeholder="526067189" class="w-full" />
           </UFormField>
@@ -537,7 +606,10 @@ function authProvidersLabel(app: FleetApp) {
             </div>
 
             <div v-if="addForm.authEnabled" class="mt-4 flex flex-col gap-4">
-              <UFormField label="Redirect Base URL" hint="Defaults to the production URL when left blank">
+              <UFormField
+                label="Redirect Base URL"
+                hint="Defaults to the production URL when left blank"
+              >
                 <UInput
                   v-model="addForm.redirectBaseUrl"
                   :placeholder="addForm.url || 'https://my-app.nard.uk'"
@@ -644,6 +716,27 @@ function authProvidersLabel(app: FleetApp) {
               class="w-full"
             />
           </UFormField>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Database Backend">
+              <USelect
+                v-model="editForm.databaseBackend"
+                :items="databaseBackendItems"
+                value-attribute="value"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField
+              v-if="editForm.databaseBackend === 'd1'"
+              label="Default D1 Database Name"
+              :hint="`Leave blank to use ${editingApp?.name || 'my-app-name'}-db`"
+            >
+              <UInput
+                v-model="editForm.d1DatabaseName"
+                :placeholder="editingApp?.name ? `${editingApp.name}-db` : 'my-app-db'"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
           <UFormField label="GA4 Property ID" hint="Numeric ID for Reporting API">
             <UInput v-model="editForm.gaPropertyId" placeholder="526067189" class="w-full" />
           </UFormField>
@@ -672,7 +765,10 @@ function authProvidersLabel(app: FleetApp) {
             </div>
 
             <div v-if="editForm.authEnabled" class="mt-4 flex flex-col gap-4">
-              <UFormField label="Redirect Base URL" hint="Defaults to the production URL when left blank">
+              <UFormField
+                label="Redirect Base URL"
+                hint="Defaults to the production URL when left blank"
+              >
                 <UInput
                   v-model="editForm.redirectBaseUrl"
                   :placeholder="editForm.url || 'https://my-app.nard.uk'"

@@ -8,7 +8,7 @@ const MAX_SQL_CHARS = 500_000
 const bodySchema = z.object({
   sql: z.string().min(1).max(MAX_SQL_CHARS),
   params: z.array(z.string()).max(100).optional(),
-  /** Default: `{appName}-db` */
+  /** Default: fleet registry `d1DatabaseName`, otherwise `{appName}-db` */
   databaseName: z.string().min(1).max(128).optional(),
   databaseId: z.string().uuid().optional(),
 })
@@ -28,7 +28,7 @@ export default defineAdminMutation(
     const appName = getRouterParam(event, 'name')
     if (!appName) throw createError({ statusCode: 400, message: 'Missing app name' })
 
-    const { accountId, apiToken } = await resolveFleetD1Targets(event, appName)
+    const { accountId, apiToken, d1DatabaseName } = await resolveFleetD1Targets(event, appName)
 
     try {
       const out = await executeSqlOnFleetAppD1({
@@ -37,7 +37,7 @@ export default defineAdminMutation(
         appName,
         sql: body.sql,
         params: body.params,
-        databaseName: body.databaseName,
+        databaseName: body.databaseName ?? d1DatabaseName ?? undefined,
         databaseId: body.databaseId,
       })
       return {

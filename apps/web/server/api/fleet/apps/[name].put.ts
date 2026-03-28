@@ -13,6 +13,8 @@ import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 const bodySchema = z.object({
   url: z.string().url().optional(),
   dopplerProject: z.string().min(1).optional(),
+  databaseBackend: z.enum(['d1', 'postgres']).optional(),
+  d1DatabaseName: z.string().min(1).max(128).nullish(),
   nuxtPort: z.union([z.coerce.number().int().min(1024).max(65535), z.null()]).optional(),
   gaPropertyId: z.string().nullish(),
   gaMeasurementId: z.string().nullish(),
@@ -78,6 +80,20 @@ export default defineAdminMutation(
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() }
     if (body.url !== undefined) updates.url = body.url
     if (body.dopplerProject !== undefined) updates.dopplerProject = body.dopplerProject
+    if (body.databaseBackend !== undefined) {
+      updates.databaseBackend = body.databaseBackend
+      if (body.databaseBackend === 'postgres') {
+        updates.d1DatabaseName = null
+      } else if (body.d1DatabaseName !== undefined) {
+        updates.d1DatabaseName = body.d1DatabaseName?.trim() || `${appName}-db`
+      } else if (!current.d1DatabaseName) {
+        updates.d1DatabaseName = `${appName}-db`
+      }
+    } else if (body.d1DatabaseName !== undefined) {
+      const effectiveBackend = current.databaseBackend === 'postgres' ? 'postgres' : 'd1'
+      updates.d1DatabaseName =
+        effectiveBackend === 'postgres' ? null : body.d1DatabaseName?.trim() || `${appName}-db`
+    }
     if (body.nuxtPort !== undefined) {
       const conflicts: Array<{ name: string; nuxtPort: number | null }> = await db
         .select({ name: fleetApps.name, nuxtPort: fleetApps.nuxtPort })

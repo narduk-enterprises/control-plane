@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   if (!appName) throw createError({ statusCode: 400, message: 'Missing app name' })
 
   const q = await getValidatedQuery(event, querySchema.parse)
-  const { accountId, apiToken } = await resolveFleetD1Targets(event, appName)
+  const { accountId, apiToken, d1DatabaseName } = await resolveFleetD1Targets(event, appName)
 
   try {
     const out = await executeSqlOnFleetAppD1({
@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
       apiToken,
       appName,
       sql: LIST_USER_TABLES_SQL,
-      databaseName: q.databaseName,
+      databaseName: q.databaseName ?? d1DatabaseName ?? undefined,
       databaseId: q.databaseId,
     })
     assertFirstStatementOk(out.result, 'list tables')
