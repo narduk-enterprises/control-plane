@@ -6,6 +6,8 @@ interface PosthogEventWhereClauseOptions {
   extraClauses?: string[]
 }
 
+export const POSTHOG_REQUIRED_INTERNAL_USERS_COHORT_IDS = ['235246'] as const
+
 export const POSTHOG_FALLBACK_INTERNAL_TRAFFIC_CLAUSES = [
   'coalesce(properties.is_internal_user, false) = false',
   'coalesce(properties.is_owner, false) = false',
@@ -15,24 +17,36 @@ function escapeHogqlString(value: string): string {
   return value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")
 }
 
-function normalizePosthogCohortId(value: string | null | undefined): string | null {
-  const trimmed = value?.trim() ?? ''
-  return /^\d+$/.test(trimmed) ? trimmed : null
+function normalizePosthogCohortIds(values: Array<string | null | undefined>): string[] {
+  const normalizedIds: string[] = []
+  const seen = new Set<string>()
+
+  for (const value of values) {
+    for (const candidate of (value ?? '').split(',')) {
+      const trimmed = candidate.trim()
+      if (!/^\d+$/.test(trimmed) || seen.has(trimmed)) continue
+      seen.add(trimmed)
+      normalizedIds.push(trimmed)
+    }
+  }
+
+  return normalizedIds
 }
 
 export function buildPosthogInternalUsersExclusionClauses(
   internalUsersCohortId?: string | null,
 ): string[] {
-  const normalizedCohortId = normalizePosthogCohortId(internalUsersCohortId)
-  const clauses: string[] = [...POSTHOG_FALLBACK_INTERNAL_TRAFFIC_CLAUSES]
+  const normalizedCohortIds = normalizePosthogCohortIds([
+    internalUsersCohortId,
+    ...POSTHOG_REQUIRED_INTERNAL_USERS_COHORT_IDS,
+  ])
 
-  if (normalizedCohortId) {
-    // Keep anonymous traffic, but exclude identified people who belong to the
-    // internal-users cohort.
-    clauses.unshift(`(person_id IS NULL OR person_id NOT IN COHORT ${normalizedCohortId})`)
-  }
-
-  return clauses
+  return [
+    ...normalizedCohortIds.map(
+      (cohortId) => `(person_id IS NULL OR person_id NOT IN COHORT ${cohortId})`,
+    ),
+    ...POSTHOG_FALLBACK_INTERNAL_TRAFFIC_CLAUSES,
+  ]
 }
 
 export function buildPosthogEventWhereClause({
