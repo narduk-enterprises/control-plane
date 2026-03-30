@@ -29,6 +29,8 @@ export function toFleetRegistryApp(row: FleetApp): FleetRegistryApp {
     gaMeasurementId: row.gaMeasurementId,
     posthogAppName: row.posthogAppName,
     githubRepo: row.githubRepo,
+    forgejoRepo: row.forgejoRepo,
+    repoPrimary: (row.repoPrimary as 'github' | 'forgejo') || 'github',
     appDescription: row.appDescription,
     isActive: row.isActive,
     authEnabled: row.authEnabled,

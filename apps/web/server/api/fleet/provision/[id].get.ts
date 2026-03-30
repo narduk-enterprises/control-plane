@@ -38,6 +38,8 @@ export default defineEventHandler(async (event) => {
     displayName: job.displayName,
     appUrl: job.appUrl,
     githubRepo: job.githubRepo,
+    forgejoRepo: job.forgejoRepo,
+    repoPrimary: job.repoPrimary,
     nuxtPort: job.nuxtPort,
     status: job.status,
     githubRunId: job.githubRunId,

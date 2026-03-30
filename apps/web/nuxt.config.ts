@@ -58,6 +58,9 @@ export default defineNuxtConfig({
     gaAccountId: process.env.GA_ACCOUNT_ID || '',
     provisionApiKey: process.env.PROVISION_API_KEY || '',
     controlPlaneGhServiceToken: process.env.CONTROL_PLANE_GH_SERVICE_TOKEN || '',
+    controlPlaneForgejoToken: process.env.FORGEJO_TOKEN || '',
+    controlPlaneForgejoBaseUrl: process.env.FLEET_FORGEJO_BASE_URL || 'https://code.nard.uk',
+    controlPlaneForgejoOwner: process.env.FLEET_FORGEJO_OWNER || 'narduk-enterprises',
     cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN || '',
     cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
     dopplerApiToken: process.env.DOPPLER_API_TOKEN || '',
@@ -71,6 +74,7 @@ export default defineNuxtConfig({
       gaPropertyId: process.env.GA_PROPERTY_ID || '',
       posthogProjectId: process.env.POSTHOG_PROJECT_ID || '',
       indexNowKey: process.env.INDEXNOW_KEY || '',
+      forgejoBaseUrl: process.env.FLEET_FORGEJO_BASE_URL || 'https://code.nard.uk',
     },
   },
 

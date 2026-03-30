@@ -20,14 +20,16 @@ The API **only**:
 2. Allocates `NUXT_PORT`
 3. Inserts `provision_jobs` (`pending` → `creating_repo` → `dispatching` or
    `failed`)
-4. Creates the **empty** GitHub repo under the target org
+4. Persists the GitHub and Forgejo repo slugs plus `repoPrimary='github'`
+5. Creates the **empty** GitHub repo under the target org
    (`POST /orgs/{org}/repos`)
-5. Dispatches `provision-app.yml` with `workflow_dispatch` inputs (including
+6. Dispatches `provision-app.yml` with `workflow_dispatch` inputs (including
    `provision-id`, `app-short-description`, and `app-description`)
 
 **Not** done on the edge: Cloudflare D1 for the **new app**, Doppler spoke
-project, GitHub repo secrets on the **new** repo, GA4/GSC/IndexNow, hydration,
-or deploy. Those run in Phase B.
+project, GitHub repo secrets on the **new** repo, Forgejo repo creation, GitHub
+→ Forgejo mirroring, GA4/GSC/IndexNow, hydration, or deploy. Those run in Phase
+B.
 
 ### Repository already exists (HTTP 422)
 
@@ -51,6 +53,7 @@ sequenceDiagram
     participant CP as Control Plane API
     participant D1 as Fleet Registry D1
     participant GH as GitHub API
+    participant FJ as Forgejo API
     participant GHA as GitHub Actions
     participant CF as Cloudflare API
     participant Dopp as Doppler API
@@ -80,6 +83,8 @@ sequenceDiagram
     GHA->>Dopp: 2-create-doppler.ts, prd/dev/prd_copilot, tokens
     GHA->>GH: 3-set-github-secrets.ts (new repo)
     GHA->>GH: sync:copilot-secrets (env copilot)
+    GHA->>FJ: ensure repo exists, create if missing
+    GHA->>FJ: mirror GitHub refs into Forgejo
     GHA->>GHA: 4-create-analytics, hydrate provision.json + SPEC.md, push, build, wrangler deploy
     GHA->>CP: POST .../complete (strict — fails step if CP unreachable)
 
@@ -130,13 +135,13 @@ flowchart LR
 graph TB
     HUB["Hub Project\nnarduk-nuxt-template / prd\nCLOUDFLARE_API_TOKEN\nCLOUDFLARE_ACCOUNT_ID\nCONTROL_PLANE_API_KEY\nPOSTHOG / GA / GSC / APPLE / CSP"]
 
-    PRD["Spoke Project\napp-name / prd\ncross-project refs to hub\nAPP_NAME, SITE_URL\nCRON_SECRET, NUXT_SESSION_PASSWORD\nGA_PROPERTY_ID, GA_MEASUREMENT_ID\nINDEXNOW_KEY"]
-    COP["Spoke Project\napp-name / prd_copilot\nminimal agent-only secrets\nGITHUB_TOKEN_PACKAGES_READ\nNODE_AUTH_TOKEN\noptional CLOUDFLARE_*"]
+    PRD["Spoke Project\napp-name / prd\ncross-project refs to hub\nAPP_NAME, SITE_URL\nCRON_SECRET, NUXT_SESSION_PASSWORD\nPACKAGE_REGISTRY_PROVIDER\nFLEET_FORGEJO_BASE_URL\nFLEET_FORGEJO_OWNER\nFORGEJO_TOKEN\nGA_PROPERTY_ID, GA_MEASUREMENT_ID\nINDEXNOW_KEY"]
+    COP["Spoke Project\napp-name / prd_copilot\nminimal agent-only secrets\nPACKAGE_REGISTRY_PROVIDER\nFLEET_FORGEJO_BASE_URL\nFLEET_FORGEJO_OWNER\nGITHUB_TOKEN_PACKAGES_READ\nFORGEJO_TOKEN\nNODE_AUTH_TOKEN\noptional CLOUDFLARE_*"]
 
-    DEV["Spoke Project\napp-name / dev\ncross-project refs to hub\nSITE_URL = localhost:PORT\nNUXT_PORT = random allocated\nCRON_SECRET, NUXT_SESSION_PASSWORD"]
+    DEV["Spoke Project\napp-name / dev\ncross-project refs to hub\nSITE_URL = localhost:PORT\nNUXT_PORT = random allocated\nCRON_SECRET, NUXT_SESSION_PASSWORD\nPACKAGE_REGISTRY_PROVIDER\nFLEET_FORGEJO_BASE_URL\nFLEET_FORGEJO_OWNER\nFORGEJO_TOKEN"]
 
-    GHSEC["GitHub Repo Secrets\norg/app-name\nDOPPLER_TOKEN (ci-deploy token)\nGH_PACKAGES_TOKEN\nCONTROL_PLANE_URL"]
-    GHENV["GitHub Actions env\norg/app-name / copilot\nGH_TOKEN_PACKAGES_READ\nNODE_AUTH_TOKEN\noptional CLOUDFLARE_*"]
+    GHSEC["GitHub Repo Secrets\norg/app-name\nDOPPLER_TOKEN (ci-deploy token)\nGH_PACKAGES_TOKEN\nFORGEJO_TOKEN\nCONTROL_PLANE_URL"]
+    GHENV["GitHub Actions env\norg/app-name / copilot\nPACKAGE_REGISTRY_PROVIDER\nFLEET_FORGEJO_BASE_URL\nFLEET_FORGEJO_OWNER\nGH_TOKEN_PACKAGES_READ\nFORGEJO_TOKEN\nNODE_AUTH_TOKEN\noptional CLOUDFLARE_*"]
 
     HUB -->|syncHubSecrets| PRD
     HUB -->|syncDevConfig| DEV

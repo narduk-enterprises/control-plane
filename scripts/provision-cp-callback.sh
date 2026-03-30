@@ -62,6 +62,8 @@ case "$cmd" in
         --arg status complete \
         --arg deployedUrl "$INPUT_APP_URL" \
         --arg githubRepo "$INPUT_GITHUB_REPO" \
+        --arg forgejoRepo "${INPUT_FORGEJO_REPO:-}" \
+        --arg repoPrimary github \
         --arg gaPropertyId "${GA_PROPERTY_ID:-}" \
         --arg gaMeasurementId "${GA_MEASUREMENT_ID:-}" \
         '{
@@ -69,6 +71,8 @@ case "$cmd" in
           deployedUrl: $deployedUrl,
           githubRepo: $githubRepo
         }
+        + (if $forgejoRepo != "" then {forgejoRepo: $forgejoRepo} else {} end)
+        + {repoPrimary: $repoPrimary}
         + (if $gaPropertyId != "" then {gaPropertyId: $gaPropertyId} else {} end)
         + (if $gaMeasurementId != "" then {gaMeasurementId: $gaMeasurementId} else {} end)'
     )

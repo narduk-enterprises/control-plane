@@ -9,6 +9,7 @@ export const PROVISION_WORKFLOW_INPUT_KEYS = [
   'app-short-description',
   'nuxt-port',
   'github-repo',
+  'forgejo-repo',
   'provision-id',
   'd1-database-id',
   'd1-database-name',
@@ -31,6 +32,7 @@ export function buildProvisionWorkflowDispatchInputs(params: {
   displayName: string
   appUrl: string
   githubRepo: string
+  forgejoRepo: string
   provisionId: string
   nuxtPort: string
   appShortDescription?: string
@@ -43,6 +45,7 @@ export function buildProvisionWorkflowDispatchInputs(params: {
     'app-url': params.appUrl,
     'app-short-description': params.appShortDescription ?? '',
     'github-repo': params.githubRepo,
+    'forgejo-repo': params.forgejoRepo,
     'provision-id': params.provisionId,
     'nuxt-port': params.nuxtPort,
     'd1-database-id': '',
@@ -107,6 +110,7 @@ export function dispatchInputsForRetry(job: {
   displayName: string
   appUrl: string
   githubRepo: string
+  forgejoRepo: string | null
   nuxtPort: number | null
   gaPropertyId: string | null
   dispatchInputsJson: string | null
@@ -117,6 +121,7 @@ export function dispatchInputsForRetry(job: {
     displayName: job.displayName,
     appUrl: job.appUrl,
     githubRepo: job.githubRepo,
+    forgejoRepo: job.forgejoRepo || job.githubRepo,
     provisionId: job.id,
     nuxtPort: job.nuxtPort != null ? String(job.nuxtPort) : '',
   })

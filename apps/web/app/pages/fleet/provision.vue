@@ -15,6 +15,7 @@ const { jobs, activeJobs, refreshJobs, isProvisioning, provisionApp, retryJob } 
   useFleetProvision()
 
 const toast = useToast()
+const forgejoBaseUrl = useRuntimeConfig().public.forgejoBaseUrl || 'https://code.nard.uk'
 
 const expandedJobs = ref(new Set<string>())
 const SHORT_DESCRIPTION_MAX_LENGTH = 350
@@ -146,7 +147,8 @@ function copyBuildCommand(job: ProvisionJob) {
     ``,
     `**App:** ${job.displayName} (${job.appName})`,
     `**URL:** ${job.appUrl}`,
-    `**Repo:** ${job.githubRepo}`,
+    `**GitHub Repo:** ${job.githubRepo}`,
+    ...(job.forgejoRepo ? [`**Forgejo Repo:** ${job.forgejoRepo}`] : []),
     `**Local Dev:** http://localhost:${job.nuxtPort ?? 3000}`,
     ``,
     `Run the /build-provisioned-app workflow to get started.`,
@@ -380,6 +382,14 @@ const breadcrumbItems = computed(() => [
                   <UIcon name="i-lucide-github" class="size-3" />
                   {{ job.githubRepo }}
                 </span>
+                <span v-if="job.forgejoRepo" class="flex items-center gap-1">
+                  <UIcon name="i-lucide-git-branch" class="size-3" />
+                  {{ job.forgejoRepo }}
+                </span>
+                <span v-if="job.repoPrimary" class="flex items-center gap-1">
+                  <UIcon name="i-lucide-arrow-right-left" class="size-3" />
+                  {{ job.repoPrimary }}
+                </span>
                 <ClientOnly>
                   <span>{{ formatTime(job.createdAt) }}</span>
                   <template #fallback><span class="opacity-0">loading</span></template>
@@ -445,6 +455,17 @@ const breadcrumbItems = computed(() => [
                     :to="job.githubRunUrl || `https://github.com/${job.githubRepo}/actions`"
                     target="_blank"
                     icon="i-lucide-external-link"
+                    size="xs"
+                    variant="ghost"
+                    color="neutral"
+                    class="cursor-pointer"
+                  />
+                </UTooltip>
+                <UTooltip v-if="job.forgejoRepo" text="Open Forgejo repo">
+                  <UButton
+                    :to="`${forgejoBaseUrl}/${job.forgejoRepo}`"
+                    target="_blank"
+                    icon="i-lucide-git-branch"
                     size="xs"
                     variant="ghost"
                     color="neutral"

@@ -136,8 +136,10 @@ export default definePublicMutation(
   async ({ event, body }) => {
     const { name, displayName, url, shortDescription, description, githubOrg } = body
     const githubRepo = `${githubOrg}/${name}`
-    const now = new Date().toISOString()
     const config = useRuntimeConfig(event)
+    const forgejoOwner = config.controlPlaneForgejoOwner || githubOrg
+    const forgejoRepo = `${forgejoOwner}/${name}`
+    const now = new Date().toISOString()
     const db = useDatabase(event)
     const agentDescription = description?.trim() || shortDescription?.trim() || undefined
 
@@ -174,6 +176,8 @@ export default definePublicMutation(
         .set({
           url,
           githubRepo,
+          forgejoRepo,
+          repoPrimary: 'github',
           databaseBackend: existing[0]?.databaseBackend ?? 'd1',
           d1DatabaseName: existing[0]?.d1DatabaseName ?? `${name}-db`,
           nuxtPort,
@@ -190,6 +194,8 @@ export default definePublicMutation(
         databaseBackend: 'd1',
         d1DatabaseName: `${name}-db`,
         githubRepo,
+        forgejoRepo,
+        repoPrimary: 'github',
         nuxtPort,
         appDescription: agentDescription ?? null,
         isActive: false,
@@ -207,6 +213,7 @@ export default definePublicMutation(
       displayName,
       appUrl: url,
       githubRepo,
+      forgejoRepo,
       provisionId,
       nuxtPort: String(nuxtPort),
       appShortDescription: shortDescription,
@@ -219,7 +226,9 @@ export default definePublicMutation(
       displayName,
       appUrl: url,
       githubRepo,
+      forgejoRepo,
       nuxtPort,
+      repoPrimary: 'github',
       status: 'pending',
       dispatchInputsJson: JSON.stringify(dispatchInputs),
       createdAt: now,

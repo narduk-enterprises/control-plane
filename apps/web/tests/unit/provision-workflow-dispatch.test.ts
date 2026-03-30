@@ -14,6 +14,7 @@ describe('provision-workflow-dispatch', () => {
       displayName: 'My App',
       appUrl: 'https://my-app.example',
       githubRepo: 'org/my-app',
+      forgejoRepo: 'narduk-enterprises/my-app',
       provisionId: 'prov_1',
       nuxtPort: '3010',
       appShortDescription: 'Short app summary',
@@ -24,6 +25,7 @@ describe('provision-workflow-dispatch', () => {
     expect(i['app-url']).toBe('https://my-app.example')
     expect(i['app-short-description']).toBe('Short app summary')
     expect(i['github-repo']).toBe('org/my-app')
+    expect(i['forgejo-repo']).toBe('narduk-enterprises/my-app')
     expect(i['provision-id']).toBe('prov_1')
     expect(i['nuxt-port']).toBe('3010')
     expect(i['app-description']).toBe('A test app')
@@ -41,6 +43,7 @@ describe('provision-workflow-dispatch', () => {
       displayName: 'X',
       appUrl: 'https://x',
       githubRepo: 'o/x',
+      forgejoRepo: 'n/x',
       provisionId: 'p',
       nuxtPort: '3000',
       overrides: {
@@ -78,6 +81,7 @@ describe('provision-workflow-dispatch', () => {
       displayName: 'A',
       appUrl: 'https://a',
       githubRepo: 'o/a',
+      forgejoRepo: 'n/a',
       provisionId: 'p1',
       nuxtPort: '3001',
     })
@@ -97,6 +101,7 @@ describe('provision-workflow-dispatch', () => {
       displayName: 'App',
       appUrl: 'https://app',
       githubRepo: 'o/app',
+      forgejoRepo: 'n/app',
       nuxtPort: 3020,
       gaPropertyId: '12345',
       dispatchInputsJson: JSON.stringify({

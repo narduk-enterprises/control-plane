@@ -25,6 +25,8 @@ const bodySchema = z.object({
   gaMeasurementId: z.string().nullish(),
   posthogAppName: z.string().nullish(),
   githubRepo: z.string().nullish(),
+  forgejoRepo: z.string().nullish(),
+  repoPrimary: z.enum(['github', 'forgejo']).optional().default('github'),
   authEnabled: z.boolean().optional(),
   redirectBaseUrl: z.string().url().nullish(),
   loginPath: z.string().min(1).optional(),
@@ -56,6 +58,8 @@ export default defineAdminMutation(
       gaMeasurementId,
       posthogAppName,
       githubRepo,
+      forgejoRepo,
+      repoPrimary,
       isActive,
     } = body
     const dopplerProject = body.dopplerProject ?? name
@@ -121,6 +125,8 @@ export default defineAdminMutation(
       gaMeasurementId: gaMeasurementId ?? null,
       posthogAppName: posthogAppName ?? null,
       githubRepo: githubRepo ?? null,
+      forgejoRepo: forgejoRepo ?? githubRepo ?? null,
+      repoPrimary,
       authEnabled: auth.authEnabled,
       redirectBaseUrl: auth.redirectBaseUrl,
       loginPath: auth.loginPath,

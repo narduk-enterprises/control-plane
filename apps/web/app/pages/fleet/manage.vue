@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { FleetDatabaseBackend } from '~/types/fleet'
+import type { FleetDatabaseBackend, FleetRepoPrimary } from '~/types/fleet'
 import type { FleetApp } from '~/composables/useFleet'
 
 type AuthProvider = 'apple' | 'email'
 type DatabaseBackend = FleetDatabaseBackend
+type RepoPrimary = FleetRepoPrimary
 
 type FleetFormState = {
   url: string
@@ -14,6 +15,8 @@ type FleetFormState = {
   gaMeasurementId: string
   posthogAppName: string
   githubRepo: string
+  forgejoRepo: string
+  repoPrimary: RepoPrimary
   authEnabled: boolean
   redirectBaseUrl: string
   loginPath: string
@@ -31,6 +34,10 @@ const databaseBackendItems = [
   { value: 'd1', label: 'Cloudflare D1' },
   { value: 'postgres', label: 'Postgres / Neon' },
 ] satisfies Array<{ value: DatabaseBackend; label: string }>
+const repoPrimaryItems = [
+  { value: 'github', label: 'GitHub' },
+  { value: 'forgejo', label: 'Forgejo' },
+] satisfies Array<{ value: RepoPrimary; label: string }>
 const authProviderItems = [
   { value: 'apple', label: 'Sign in with Apple', description: 'Primary fleet login path.' },
   { value: 'email', label: 'Email', description: 'Fallback login and recovery path.' },
@@ -42,6 +49,7 @@ const defaultAuthPaths = {
   confirmPath: '/auth/confirm',
   resetPath: '/reset-password',
 }
+const forgejoBaseUrl = useRuntimeConfig().public.forgejoBaseUrl || 'https://code.nard.uk'
 
 useSeo({
   robots: 'noindex',
@@ -82,6 +90,8 @@ const addForm = reactive({
   gaMeasurementId: '',
   posthogAppName: '',
   githubRepo: '',
+  forgejoRepo: '',
+  repoPrimary: 'github' as RepoPrimary,
   authEnabled: true,
   redirectBaseUrl: '',
   loginPath: defaultAuthPaths.loginPath,
@@ -105,6 +115,8 @@ function resetAddForm() {
   addForm.gaMeasurementId = ''
   addForm.posthogAppName = ''
   addForm.githubRepo = ''
+  addForm.forgejoRepo = ''
+  addForm.repoPrimary = 'github'
   resetAuthFields(addForm)
 }
 
@@ -123,6 +135,8 @@ async function addApp() {
       gaMeasurementId: addForm.gaMeasurementId || null,
       posthogAppName: addForm.posthogAppName || null,
       githubRepo: addForm.githubRepo || null,
+      forgejoRepo: addForm.forgejoRepo || null,
+      repoPrimary: addForm.repoPrimary,
       ...buildAuthPayload(addForm, addForm.url),
     })
     toast.add({
@@ -157,6 +171,8 @@ const editForm = reactive({
   gaMeasurementId: '',
   posthogAppName: '',
   githubRepo: '',
+  forgejoRepo: '',
+  repoPrimary: 'github' as RepoPrimary,
   authEnabled: true,
   redirectBaseUrl: '',
   loginPath: defaultAuthPaths.loginPath,
@@ -180,6 +196,8 @@ function openEditModal(app: FleetApp) {
   editForm.gaMeasurementId = app.gaMeasurementId || ''
   editForm.posthogAppName = app.posthogAppName || ''
   editForm.githubRepo = app.githubRepo || ''
+  editForm.forgejoRepo = app.forgejoRepo || ''
+  editForm.repoPrimary = app.repoPrimary || 'github'
   editForm.authEnabled = app.authEnabled !== false
   editForm.redirectBaseUrl = app.redirectBaseUrl || app.url
   editForm.loginPath = app.loginPath || defaultAuthPaths.loginPath
@@ -209,6 +227,8 @@ async function saveEdit() {
       gaMeasurementId: editForm.gaMeasurementId || null,
       posthogAppName: editForm.posthogAppName || null,
       githubRepo: editForm.githubRepo || null,
+      forgejoRepo: editForm.forgejoRepo || null,
+      repoPrimary: editForm.repoPrimary,
       ...buildAuthPayload(editForm, editForm.url),
     })
     toast.add({
@@ -420,10 +440,26 @@ function databaseBackendLabel(app: FleetApp) {
                 <UIcon name="i-lucide-bar-chart-2" class="size-3" />
                 GA: {{ app.gaPropertyId }}
               </span>
-              <span v-if="app.githubRepo" class="flex items-center gap-1">
+              <ULink
+                v-if="app.githubRepo"
+                :to="`https://github.com/${app.githubRepo}`"
+                target="_blank"
+                class="hover:text-primary transition-colors hover:underline flex items-center gap-1"
+              >
                 <UIcon name="i-lucide-github" class="size-3" />
                 {{ app.githubRepo }}
-              </span>
+                <UIcon name="i-lucide-external-link" class="size-3 opacity-50" />
+              </ULink>
+              <ULink
+                v-if="app.forgejoRepo"
+                :to="`${forgejoBaseUrl}/${app.forgejoRepo}`"
+                target="_blank"
+                class="hover:text-primary transition-colors hover:underline flex items-center gap-1"
+              >
+                <UIcon name="i-lucide-git-branch" class="size-3" />
+                {{ app.forgejoRepo }}
+                <UIcon name="i-lucide-external-link" class="size-3 opacity-50" />
+              </ULink>
               <span v-if="app.posthogAppName" class="flex items-center gap-1">
                 <UIcon name="i-lucide-users" class="size-3" />
                 {{ app.posthogAppName }}
@@ -444,6 +480,9 @@ function databaseBackendLabel(app: FleetApp) {
                 size="xs"
               >
                 {{ app.d1DatabaseName }}
+              </UBadge>
+              <UBadge color="info" variant="soft" size="xs">
+                Primary: {{ app.repoPrimary === 'forgejo' ? 'Forgejo' : 'GitHub' }}
               </UBadge>
               <UBadge :color="authBadgeColor(app)" variant="subtle" size="xs">
                 {{ app.authEnabled === false ? 'Auth Disabled' : 'Shared Auth' }}
@@ -586,10 +625,27 @@ function databaseBackendLabel(app: FleetApp) {
           <UFormField label="PostHog App Name" hint="Only if different from app name">
             <UInput v-model="addForm.posthogAppName" placeholder="My App Name" class="w-full" />
           </UFormField>
-          <UFormField label="GitHub Repo">
-            <UInput
-              v-model="addForm.githubRepo"
-              placeholder="narduk-enterprises/my-app-name"
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="GitHub Repo">
+              <UInput
+                v-model="addForm.githubRepo"
+                placeholder="narduk-enterprises/my-app-name"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Forgejo Repo">
+              <UInput
+                v-model="addForm.forgejoRepo"
+                placeholder="narduk-enterprises/my-app-name"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <UFormField label="Primary Repo">
+            <USelect
+              v-model="addForm.repoPrimary"
+              :items="repoPrimaryItems"
+              value-attribute="value"
               class="w-full"
             />
           </UFormField>
@@ -746,10 +802,27 @@ function databaseBackendLabel(app: FleetApp) {
           <UFormField label="PostHog App Name" hint="Only if different from app name">
             <UInput v-model="editForm.posthogAppName" placeholder="My App Name" class="w-full" />
           </UFormField>
-          <UFormField label="GitHub Repo">
-            <UInput
-              v-model="editForm.githubRepo"
-              placeholder="narduk-enterprises/my-app-name"
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="GitHub Repo">
+              <UInput
+                v-model="editForm.githubRepo"
+                placeholder="narduk-enterprises/my-app-name"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Forgejo Repo">
+              <UInput
+                v-model="editForm.forgejoRepo"
+                placeholder="narduk-enterprises/my-app-name"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <UFormField label="Primary Repo">
+            <USelect
+              v-model="editForm.repoPrimary"
+              :items="repoPrimaryItems"
+              value-attribute="value"
               class="w-full"
             />
           </UFormField>

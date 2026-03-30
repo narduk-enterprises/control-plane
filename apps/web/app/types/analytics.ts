@@ -33,6 +33,8 @@ export interface FleetAnalyticsAppInfo {
   gaMeasurementId?: string | null
   posthogAppName?: string | null
   githubRepo?: string | null
+  forgejoRepo?: string | null
+  repoPrimary?: 'github' | 'forgejo'
   isActive?: boolean
 }
 

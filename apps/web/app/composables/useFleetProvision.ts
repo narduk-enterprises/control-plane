@@ -18,6 +18,8 @@ export interface ProvisionJob {
   displayName: string
   appUrl: string
   githubRepo: string
+  forgejoRepo?: string | null
+  repoPrimary?: 'github' | 'forgejo'
   nuxtPort?: number | null
   appDescription?: string | null
   status: string

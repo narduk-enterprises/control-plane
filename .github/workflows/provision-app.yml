@@ -29,6 +29,11 @@ on:
         description: "Full GitHub repo path (e.g. narduk-enterprises/my-cool-app)"
         required: true
         type: string
+      forgejo-repo:
+        description: "Full Forgejo repo path (defaults to <forgejo-owner>/<app-name>)"
+        required: false
+        type: string
+        default: ""
       provision-id:
         description: "Control plane provision job ID for status callbacks"
         required: true
@@ -111,7 +116,8 @@ jobs:
           fi
           echo "📦 Provisioning: ${{ inputs.display-name }} (${{ inputs.app-name }})"
           echo "   URL: ${{ inputs.app-url }}"
-          echo "   Repo: ${{ inputs.github-repo }}"
+          echo "   GitHub Repo: ${{ inputs.github-repo }}"
+          echo "   Forgejo Repo: ${{ inputs.forgejo-repo }}"
           echo "   Provision ID: ${{ inputs.provision-id }}"
 
       - uses: actions/checkout@v4
@@ -133,9 +139,33 @@ jobs:
             exit 1
           fi
           echo "GH_SERVICE_TOKEN=$gh_service_token" >> "$GITHUB_ENV"
+          echo "GH_TOKEN=$gh_service_token" >> "$GITHUB_ENV"
+
+          package_registry_provider="${PACKAGE_REGISTRY_PROVIDER:-github}"
+          if [[ "$package_registry_provider" != "github" && "$package_registry_provider" != "forgejo" ]]; then
+            package_registry_provider="github"
+          fi
+          echo "PACKAGE_REGISTRY_PROVIDER=$package_registry_provider" >> "$GITHUB_ENV"
+
+          forgejo_base_url="${FLEET_FORGEJO_BASE_URL:-https://code.nard.uk}"
+          forgejo_owner="${FLEET_FORGEJO_OWNER:-narduk-enterprises}"
+          forgejo_repo="${{ inputs.forgejo-repo }}"
+          if [[ -z "$forgejo_repo" ]]; then
+            forgejo_repo="${forgejo_owner}/${{ inputs.app-name }}"
+          fi
+          echo "FLEET_FORGEJO_BASE_URL=$forgejo_base_url" >> "$GITHUB_ENV"
+          echo "FLEET_FORGEJO_OWNER=$forgejo_owner" >> "$GITHUB_ENV"
+          echo "FORGEJO_REPO=$forgejo_repo" >> "$GITHUB_ENV"
+
+          forgejo_token="${FORGEJO_TOKEN:-}"
+          if [[ -z "$forgejo_token" ]]; then
+            echo "::error::Missing FORGEJO_TOKEN in control-plane Doppler."
+            exit 1
+          fi
+          echo "FORGEJO_TOKEN=$forgejo_token" >> "$GITHUB_ENV"
 
           gh_packages_token="${GH_PACKAGES_TOKEN:-${GITHUB_PACKAGES_TOKEN:-${GITHUB_TOKEN_PACKAGES_READ:-}}}"
-          if [[ -z "$gh_packages_token" ]]; then
+          if [[ "$package_registry_provider" == "github" && -z "$gh_packages_token" ]]; then
             echo "::error::Missing GitHub Packages token. Set GH_PACKAGES_TOKEN, GITHUB_PACKAGES_TOKEN, or GITHUB_TOKEN_PACKAGES_READ in control-plane Doppler."
             exit 1
           fi
@@ -183,11 +213,34 @@ jobs:
           curl -Ls https://cli.doppler.com/install.sh | sudo sh
           doppler --version
 
-      - name: Configure GitHub Packages auth
+      - name: Configure package registry auth
+        shell: bash
         run: |
-          cat <<EOF >> "$HOME/.npmrc"
-          //npm.pkg.github.com/:_authToken=${GH_PACKAGES_TOKEN}
-          EOF
+          set -euo pipefail
+
+          scope="@narduk-enterprises"
+          provider="${PACKAGE_REGISTRY_PROVIDER:-github}"
+
+          if [[ "$provider" == "forgejo" ]]; then
+            registry_url="${FLEET_FORGEJO_BASE_URL%/}/api/packages/${FLEET_FORGEJO_OWNER}/npm/"
+            token="${FORGEJO_TOKEN:-}"
+          else
+            registry_url="https://npm.pkg.github.com"
+            token="${GH_PACKAGES_TOKEN:-${GITHUB_PACKAGES_TOKEN:-${GITHUB_TOKEN_PACKAGES_READ:-}}}"
+          fi
+
+          if [[ -z "$token" ]]; then
+            echo "::error::Missing package registry token for ${provider} mode."
+            exit 1
+          fi
+
+          auth_host_path="${registry_url#https://}"
+          auth_host_path="${auth_host_path#http://}"
+
+          {
+            echo "${scope}:registry=${registry_url}"
+            echo "//${auth_host_path}:_authToken=${token}"
+          } >> "$HOME/.npmrc"
 
       - name: Install authoring workspace dependencies
         working-directory: template-source
@@ -338,6 +391,11 @@ jobs:
             --app-name="${{ inputs.app-name }}" \
             --github-repo="${{ inputs.github-repo }}" \
             --provision-id="${{ inputs.provision-id }}"
+
+      - name: 3b. Sync Copilot environment secrets
+        run: |
+          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s copilot --arg m 'Syncing prd_copilot secrets into the GitHub Actions copilot environment' '{level:"info",step:$s,message:$m}')"
+          pnpm run sync:copilot-secrets -- "${{ inputs.app-name }}" --doppler-config=prd_copilot --github-repo="${{ inputs.github-repo }}"
 
       - name: 4. Create Analytics
         env:
@@ -493,6 +551,13 @@ jobs:
           git branch -M main
           git push -u origin main
 
+      - name: Mirror GitHub repo to Forgejo
+        run: |
+          bash scripts/provision-cp-callback.sh post best-effort log "$(jq -nc --arg s forgejo --arg m 'Ensuring Forgejo repo exists and mirroring GitHub refs' '{level:"info",step:$s,message:$m}')"
+          pnpm exec tsx tools/mirror-fleet-to-forgejo.ts \
+            --github-repo="${{ inputs.github-repo }}" \
+            --forgejo-repo="${FORGEJO_REPO}"
+
       - name: Update provision status → deploying
         run: |
           bash scripts/provision-cp-callback.sh post best-effort status '{"status":"deploying"}'
@@ -530,7 +595,9 @@ jobs:
         env:
           INPUT_APP_URL: ${{ inputs.app-url }}
           INPUT_GITHUB_REPO: ${{ inputs.github-repo }}
-        run: bash scripts/provision-cp-callback.sh complete-success
+        run: |
+          export INPUT_FORGEJO_REPO="${FORGEJO_REPO:-}"
+          bash scripts/provision-cp-callback.sh complete-success
 
       - name: Report failure
         if: failure()

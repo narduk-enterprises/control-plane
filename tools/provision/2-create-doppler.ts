@@ -44,11 +44,26 @@ async function main() {
 
   const cronSecret = crypto.randomBytes(16).toString('hex')
   const sessionPassword = crypto.randomBytes(32).toString('hex')
+  const packageRegistryProvider =
+    process.env.PACKAGE_REGISTRY_PROVIDER === 'forgejo' ? 'forgejo' : 'github'
+  const forgejoBaseUrl = process.env.FLEET_FORGEJO_BASE_URL || 'https://code.nard.uk'
+  const forgejoOwner = process.env.FLEET_FORGEJO_OWNER || 'narduk-enterprises'
+  const forgejoToken = process.env.FORGEJO_TOKEN || ''
   const ghPackagesToken =
     process.env.GH_PACKAGES_TOKEN ||
     process.env.GITHUB_PACKAGES_TOKEN ||
     process.env.GITHUB_TOKEN_PACKAGES_READ
-  const nodeAuthToken = process.env.NODE_AUTH_TOKEN || ghPackagesToken
+  const nodeAuthToken =
+    process.env.NODE_AUTH_TOKEN ||
+    (packageRegistryProvider === 'forgejo' ? forgejoToken : ghPackagesToken) ||
+    forgejoToken ||
+    ghPackagesToken
+  const sharedRegistryConfig = {
+    PACKAGE_REGISTRY_PROVIDER: packageRegistryProvider,
+    FLEET_FORGEJO_BASE_URL: forgejoBaseUrl,
+    FLEET_FORGEJO_OWNER: forgejoOwner,
+  }
+  const optionalForgejoSecrets = forgejoToken ? { FORGEJO_TOKEN: forgejoToken } : {}
 
   console.log(`Syncing secrets...`)
 
@@ -58,6 +73,8 @@ async function main() {
     SITE_URL: APP_URL,
     CRON_SECRET: cronSecret,
     NUXT_SESSION_PASSWORD: sessionPassword,
+    ...sharedRegistryConfig,
+    ...optionalForgejoSecrets,
   })
 
   // Sync dev config
@@ -71,6 +88,8 @@ async function main() {
       CRON_SECRET: cronSecret,
       NUXT_SESSION_PASSWORD: sessionPassword,
       NUXT_PORT: String(resolvedNuxtPort),
+      ...sharedRegistryConfig,
+      ...optionalForgejoSecrets,
     },
     { siteUrl: buildLocalNuxtUrl(resolvedNuxtPort) },
   )
@@ -78,16 +97,27 @@ async function main() {
   const copilotSecrets = {
     CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || '',
     CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || '',
+    PACKAGE_REGISTRY_PROVIDER: packageRegistryProvider,
+    FLEET_FORGEJO_BASE_URL: forgejoBaseUrl,
+    FLEET_FORGEJO_OWNER: forgejoOwner,
     GITHUB_TOKEN_PACKAGES_READ: ghPackagesToken || '',
+    FORGEJO_TOKEN: forgejoToken,
     NODE_AUTH_TOKEN: nodeAuthToken || '',
   }
   const nonEmptyCopilotSecrets = Object.fromEntries(
     Object.entries(copilotSecrets).filter(([, value]) => Boolean(value.trim())),
   )
+  const hasRequiredAgentSecret = Boolean(
+    (copilotSecrets.CLOUDFLARE_ACCOUNT_ID || '').trim() ||
+    (copilotSecrets.CLOUDFLARE_API_TOKEN || '').trim() ||
+    (copilotSecrets.GITHUB_TOKEN_PACKAGES_READ || '').trim() ||
+    (copilotSecrets.FORGEJO_TOKEN || '').trim() ||
+    (copilotSecrets.NODE_AUTH_TOKEN || '').trim(),
+  )
 
-  if (Object.keys(nonEmptyCopilotSecrets).length === 0) {
+  if (!hasRequiredAgentSecret) {
     throw new Error(
-      'Cannot seed prd_copilot. Expected at least one of CLOUDFLARE_*, GITHUB_TOKEN_PACKAGES_READ, or NODE_AUTH_TOKEN in the runner environment.',
+      'Cannot seed prd_copilot. Expected at least one package token or Cloudflare credential in the runner environment.',
     )
   }
 

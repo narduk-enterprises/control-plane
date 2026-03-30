@@ -23,6 +23,7 @@ async function main() {
   set('d1-database-name', process.env.D1_DATABASE_NAME)
   set('kv-namespace-id', process.env.KV_NAMESPACE_ID)
   set('kv-preview-namespace-id', process.env.KV_PREVIEW_NAMESPACE_ID)
+  set('forgejo-repo', process.env.FORGEJO_REPO)
   set('ga-property-id', process.env.GA_PROPERTY_ID)
   set('ga-measurement-id', process.env.GA_MEASUREMENT_ID)
   set('gsc-verification-file', process.env.GSC_VERIFICATION_FILE)

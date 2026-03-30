@@ -15,6 +15,7 @@ const { rawApps, getAppStatus, refreshAppStatus } = useFleet({ includeInactive: 
 
 const appRecord = computed(() => rawApps.value.find((app) => app.name === appName.value) ?? null)
 const statusRecord = computed(() => getAppStatus(appName.value))
+const forgejoBaseUrl = useRuntimeConfig().public.forgejoBaseUrl || 'https://code.nard.uk'
 
 const breadcrumbItems = computed(() => [
   { label: 'Dashboard', to: '/' },
@@ -90,7 +91,31 @@ const breadcrumbItems = computed(() => [
         <template #header>
           <h2 class="text-sm font-medium text-default">GitHub Repo</h2>
         </template>
-        <p class="font-medium text-default">{{ appRecord.githubRepo }}</p>
+        <ULink
+          :to="`https://github.com/${appRecord.githubRepo}`"
+          target="_blank"
+          class="font-medium text-primary hover:underline"
+        >
+          {{ appRecord.githubRepo }}
+        </ULink>
+      </UCard>
+      <UCard v-if="appRecord?.forgejoRepo">
+        <template #header>
+          <h2 class="text-sm font-medium text-default">Forgejo Repo</h2>
+        </template>
+        <ULink
+          :to="`${forgejoBaseUrl}/${appRecord.forgejoRepo}`"
+          target="_blank"
+          class="font-medium text-primary hover:underline"
+        >
+          {{ appRecord.forgejoRepo }}
+        </ULink>
+      </UCard>
+      <UCard v-if="appRecord?.repoPrimary">
+        <template #header>
+          <h2 class="text-sm font-medium text-default">Primary Repo</h2>
+        </template>
+        <p class="font-medium text-default">{{ appRecord.repoPrimary }}</p>
       </UCard>
     </div>
 

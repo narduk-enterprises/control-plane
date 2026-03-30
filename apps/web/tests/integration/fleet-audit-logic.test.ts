@@ -16,6 +16,8 @@ function makeApp(overrides: Partial<FleetApp> = {}): FleetApp {
     gaMeasurementId: null,
     posthogAppName: null,
     githubRepo: 'narduk-enterprises/example-app',
+    forgejoRepo: 'narduk-enterprises/example-app',
+    repoPrimary: 'github',
     isActive: true,
     createdAt: '2026-03-22T00:00:00.000Z',
     updatedAt: '2026-03-22T00:00:00.000Z',

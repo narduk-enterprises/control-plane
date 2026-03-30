@@ -1,6 +1,8 @@
 async function main() {
   const missing: string[] = []
   const warnings: string[] = []
+  const packageRegistryProvider =
+    process.env.PACKAGE_REGISTRY_PROVIDER === 'forgejo' ? 'forgejo' : 'github'
 
   const requiredEnvVars = [
     { label: 'CONTROL_PLANE_URL', keys: ['CONTROL_PLANE_URL'] },
@@ -9,14 +11,18 @@ async function main() {
       label: 'GH_SERVICE_TOKEN',
       keys: ['GH_SERVICE_TOKEN', 'CONTROL_PLANE_GH_SERVICE_TOKEN'],
     },
-    {
-      label: 'GH_PACKAGES_TOKEN',
-      keys: ['GH_PACKAGES_TOKEN', 'GITHUB_PACKAGES_TOKEN', 'GITHUB_TOKEN_PACKAGES_READ'],
-    },
+    { label: 'FORGEJO_TOKEN', keys: ['FORGEJO_TOKEN'] },
     { label: 'CLOUDFLARE_API_TOKEN', keys: ['CLOUDFLARE_API_TOKEN'] },
     { label: 'CLOUDFLARE_ACCOUNT_ID', keys: ['CLOUDFLARE_ACCOUNT_ID'] },
     { label: 'DOPPLER_API_TOKEN', keys: ['DOPPLER_API_TOKEN', 'DOPPLER_TOKEN'] },
   ]
+
+  if (packageRegistryProvider === 'github') {
+    requiredEnvVars.splice(3, 0, {
+      label: 'GH_PACKAGES_TOKEN',
+      keys: ['GH_PACKAGES_TOKEN', 'GITHUB_PACKAGES_TOKEN', 'GITHUB_TOKEN_PACKAGES_READ'],
+    })
+  }
 
   const optionalEnvVars = ['GSC_SERVICE_ACCOUNT_JSON', 'GA_ACCOUNT_ID']
 
@@ -50,7 +56,9 @@ async function main() {
     warnings.forEach((v) => console.warn(`   - ${v}`))
   }
 
-  console.log('✅ Preflight check passed. All required tokens and variables are present.')
+  console.log(
+    `✅ Preflight check passed. All required tokens and variables are present for ${packageRegistryProvider} package mode.`,
+  )
 }
 
 main().catch((err) => {

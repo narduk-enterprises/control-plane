@@ -20,6 +20,8 @@ const bodySchema = z.object({
   gaMeasurementId: z.string().nullish(),
   posthogAppName: z.string().nullish(),
   githubRepo: z.string().nullish(),
+  forgejoRepo: z.string().nullish(),
+  repoPrimary: z.enum(['github', 'forgejo']).optional(),
   authEnabled: z.boolean().optional(),
   redirectBaseUrl: z.string().url().nullish(),
   loginPath: z.string().min(1).optional(),
@@ -114,6 +116,8 @@ export default defineAdminMutation(
     if (body.gaMeasurementId !== undefined) updates.gaMeasurementId = body.gaMeasurementId ?? null
     if (body.posthogAppName !== undefined) updates.posthogAppName = body.posthogAppName ?? null
     if (body.githubRepo !== undefined) updates.githubRepo = body.githubRepo ?? null
+    if (body.forgejoRepo !== undefined) updates.forgejoRepo = body.forgejoRepo ?? null
+    if (body.repoPrimary !== undefined) updates.repoPrimary = body.repoPrimary
     if (body.authEnabled !== undefined) updates.authEnabled = auth.authEnabled
     if (
       body.redirectBaseUrl !== undefined ||

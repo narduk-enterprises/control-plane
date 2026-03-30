@@ -19,6 +19,8 @@ export const fleetApps = sqliteTable('fleet_apps', {
   gaMeasurementId: text('ga_measurement_id'),
   posthogAppName: text('posthog_app_name'),
   githubRepo: text('github_repo'),
+  forgejoRepo: text('forgejo_repo'),
+  repoPrimary: text('repo_primary').notNull().default('github'),
   appDescription: text('app_description'),
   authEnabled: integer('auth_enabled', { mode: 'boolean' }).notNull().default(true),
   redirectBaseUrl: text('redirect_base_url'),
@@ -95,6 +97,8 @@ export const provisionJobs = sqliteTable('provision_jobs', {
   displayName: text('display_name').notNull(),
   appUrl: text('app_url').notNull(),
   githubRepo: text('github_repo').notNull(),
+  forgejoRepo: text('forgejo_repo'),
+  repoPrimary: text('repo_primary').notNull().default('github'),
   nuxtPort: integer('nuxt_port'),
   status: text('status').notNull().default('pending'), // pending → creating_repo → dispatching → cloning → initializing → deploying → complete | failed
   githubRunId: text('github_run_id'),

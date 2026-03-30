@@ -62,6 +62,7 @@ export default definePublicMutation(
       displayName: job.displayName,
       appUrl: job.appUrl,
       githubRepo: job.githubRepo,
+      forgejoRepo: job.forgejoRepo || job.githubRepo,
       provisionId: job.id,
       nuxtPort: job.nuxtPort != null ? String(job.nuxtPort) : '',
     })

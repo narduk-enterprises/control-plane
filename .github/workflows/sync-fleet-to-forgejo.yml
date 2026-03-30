@@ -1,0 +1,151 @@
+name: Sync Fleet To Forgejo
+
+on:
+  workflow_dispatch:
+    inputs:
+      app-name:
+        description: "Optional fleet app slug to mirror. Leave blank to mirror all managed apps."
+        required: false
+        type: string
+        default: ""
+      github-repo:
+        description: "Optional full GitHub repo slug override for targeted runs."
+        required: false
+        type: string
+        default: ""
+      forgejo-repo:
+        description: "Optional full Forgejo repo slug override for targeted runs."
+        required: false
+        type: string
+        default: ""
+      dry-run:
+        description: "Preview repo creation and mirroring work without changing Forgejo."
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "19 6 * * *"
+
+concurrency:
+  group: sync-fleet-to-forgejo
+  cancel-in-progress: false
+
+env:
+  NUXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch control-plane secrets from Doppler
+        uses: dopplerhq/secrets-fetch-action@v2.0.0
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+          inject-env-vars: true
+
+      - name: Normalize mirror runner env
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh_service_token="${GH_SERVICE_TOKEN:-${CONTROL_PLANE_GH_SERVICE_TOKEN:-}}"
+          if [[ -z "$gh_service_token" ]]; then
+            echo "::error::Missing GH service token. Set GH_SERVICE_TOKEN or CONTROL_PLANE_GH_SERVICE_TOKEN in control-plane Doppler."
+            exit 1
+          fi
+          echo "GH_SERVICE_TOKEN=$gh_service_token" >> "$GITHUB_ENV"
+          echo "GH_TOKEN=$gh_service_token" >> "$GITHUB_ENV"
+
+          package_registry_provider="${PACKAGE_REGISTRY_PROVIDER:-github}"
+          if [[ "$package_registry_provider" != "github" && "$package_registry_provider" != "forgejo" ]]; then
+            package_registry_provider="github"
+          fi
+          echo "PACKAGE_REGISTRY_PROVIDER=$package_registry_provider" >> "$GITHUB_ENV"
+
+          forgejo_token="${FORGEJO_TOKEN:-}"
+          if [[ -z "$forgejo_token" && "${{ inputs.dry-run }}" != 'true' ]]; then
+            echo "::error::Missing FORGEJO_TOKEN in control-plane Doppler."
+            exit 1
+          fi
+          echo "FORGEJO_TOKEN=$forgejo_token" >> "$GITHUB_ENV"
+
+          gh_packages_token="${GH_PACKAGES_TOKEN:-${GITHUB_PACKAGES_TOKEN:-${GITHUB_TOKEN_PACKAGES_READ:-}}}"
+          if [[ "$package_registry_provider" == "github" && -z "$gh_packages_token" ]]; then
+            echo "::error::Missing GitHub Packages token. Set GH_PACKAGES_TOKEN, GITHUB_PACKAGES_TOKEN, or GITHUB_TOKEN_PACKAGES_READ in control-plane Doppler."
+            exit 1
+          fi
+          echo "GH_PACKAGES_TOKEN=$gh_packages_token" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configure package registry auth
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          scope="@narduk-enterprises"
+          provider="${PACKAGE_REGISTRY_PROVIDER:-github}"
+
+          if [[ "$provider" == "forgejo" ]]; then
+            registry_url="${FLEET_FORGEJO_BASE_URL:-https://code.nard.uk}"
+            registry_url="${registry_url%/}/api/packages/${FLEET_FORGEJO_OWNER:-narduk-enterprises}/npm/"
+            token="${FORGEJO_TOKEN:-}"
+          else
+            registry_url="https://npm.pkg.github.com"
+            token="${GH_PACKAGES_TOKEN:-${GITHUB_PACKAGES_TOKEN:-${GITHUB_TOKEN_PACKAGES_READ:-}}}"
+          fi
+
+          if [[ -n "$token" ]]; then
+            auth_host_path="${registry_url#https://}"
+            auth_host_path="${auth_host_path#http://}"
+            {
+              echo "${scope}:registry=${registry_url}"
+              echo "//${auth_host_path}:_authToken=${token}"
+            } >> "$HOME/.npmrc"
+          fi
+
+      - name: Install control-plane dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Mirror targeted repo
+        if: github.event_name == 'workflow_dispatch' && (inputs.app-name != '' || inputs.github-repo != '' || inputs.forgejo-repo != '')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmd=(pnpm exec tsx tools/mirror-fleet-to-forgejo.ts)
+          if [[ -n "${{ inputs.app-name }}" ]]; then
+            cmd+=("--repo=${{ inputs.app-name }}")
+          fi
+          if [[ -n "${{ inputs.github-repo }}" ]]; then
+            cmd+=("--github-repo=${{ inputs.github-repo }}")
+          fi
+          if [[ -n "${{ inputs.forgejo-repo }}" ]]; then
+            cmd+=("--forgejo-repo=${{ inputs.forgejo-repo }}")
+          fi
+          if [[ "${{ inputs.dry-run }}" == 'true' ]]; then
+            cmd+=("--dry-run")
+          fi
+          "${cmd[@]}"
+
+      - name: Mirror all managed repos
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.app-name == '' && inputs.github-repo == '' && inputs.forgejo-repo == '')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmd=(pnpm exec tsx tools/mirror-fleet-to-forgejo.ts)
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' && "${{ inputs.dry-run }}" == 'true' ]]; then
+            cmd+=("--dry-run")
+          fi
+          "${cmd[@]}"

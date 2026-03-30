@@ -1,4 +1,5 @@
 export type FleetDatabaseBackend = 'd1' | 'postgres'
+export type FleetRepoPrimary = 'github' | 'forgejo'
 
 /**
  * Fleet registry row as stored in the `fleet_apps` D1 table.
@@ -14,6 +15,8 @@ export interface FleetRegistryApp {
   gaMeasurementId?: string | null
   posthogAppName?: string | null
   githubRepo?: string | null
+  forgejoRepo?: string | null
+  repoPrimary?: FleetRepoPrimary
   appDescription?: string | null
   isActive?: boolean
   authEnabled?: boolean

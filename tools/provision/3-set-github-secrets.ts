@@ -13,6 +13,7 @@ async function main() {
   }
 
   const dopplerToken = process.env.APP_DOPPLER_TOKEN || process.env.DOPPLER_TOKEN
+  const forgejoToken = process.env.FORGEJO_TOKEN || ''
   const ghPackagesToken =
     process.env.GH_PACKAGES_TOKEN ||
     process.env.GITHUB_PACKAGES_TOKEN ||
@@ -31,11 +32,16 @@ async function main() {
     console.log(`Setting GH_PACKAGES_TOKEN secret...`)
     await setRepoSecret(ghToken, GITHUB_REPO, 'GH_PACKAGES_TOKEN', ghPackagesToken)
   }
+  if (forgejoToken) {
+    console.log(`Setting FORGEJO_TOKEN secret...`)
+    await setRepoSecret(ghToken, GITHUB_REPO, 'FORGEJO_TOKEN', forgejoToken)
+  }
 
   const copilotRepoSecrets = {
     CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID || '',
     CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN || '',
     GH_TOKEN_PACKAGES_READ: ghPackagesToken || '',
+    FORGEJO_TOKEN: forgejoToken,
     NODE_AUTH_TOKEN: nodeAuthToken || '',
   }
 

@@ -1,10 +1,13 @@
 import { resolveFleetAuthConfig, type FleetAuthConfig } from '#server/data/fleet-auth'
 
 export type ManagedRepoDatabaseBackend = 'd1' | 'postgres'
+export type ManagedRepoPrimary = 'github' | 'forgejo'
 
 export interface ManagedRepo {
   name: string
   githubRepo: string
+  forgejoRepo?: string | null
+  repoPrimary?: ManagedRepoPrimary
   dopplerProject: string
   databaseBackend?: ManagedRepoDatabaseBackend
   d1DatabaseName?: string | null
@@ -16,6 +19,11 @@ export interface ManagedRepo {
   monitoringEnabled: boolean
   isActive: boolean
   auth?: Partial<FleetAuthConfig>
+}
+
+export interface ResolvedManagedRepo extends Omit<ManagedRepo, 'forgejoRepo' | 'repoPrimary'> {
+  forgejoRepo: string
+  repoPrimary: ManagedRepoPrimary
 }
 
 export const MANAGED_REPOS = [
@@ -415,6 +423,8 @@ export interface PublicFleetApp {
   gaMeasurementId: string | null
   posthogAppName: string | null
   githubRepo: string
+  forgejoRepo: string
+  repoPrimary: ManagedRepoPrimary
   isActive: boolean
   authEnabled: boolean
   redirectBaseUrl: string | null
@@ -428,18 +438,26 @@ export interface PublicFleetApp {
   requireMfa: boolean
 }
 
-export function getManagedRepos(): ManagedRepo[] {
-  return [...MANAGED_REPOS].sort((a, b) => a.name.localeCompare(b.name))
+function resolveManagedRepo(repo: ManagedRepo): ResolvedManagedRepo {
+  return {
+    ...repo,
+    forgejoRepo: repo.forgejoRepo?.trim() || repo.githubRepo,
+    repoPrimary: repo.repoPrimary ?? 'github',
+  }
 }
 
-export function getSyncManagedRepos(): ManagedRepo[] {
+export function getManagedRepos(): ResolvedManagedRepo[] {
+  return [...MANAGED_REPOS].map(resolveManagedRepo).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function getSyncManagedRepos(): ResolvedManagedRepo[] {
   return getManagedRepos().filter((repo) => repo.isActive && repo.syncManaged)
 }
 
 export function getPublicFleetApps(): PublicFleetApp[] {
   return getManagedRepos()
     .filter(
-      (repo): repo is ManagedRepo & { publicUrl: string } =>
+      (repo): repo is ResolvedManagedRepo & { publicUrl: string } =>
         repo.isActive && repo.monitoringEnabled && Boolean(repo.publicUrl),
     )
     .map((repo) => ({
@@ -456,6 +474,8 @@ export function getPublicFleetApps(): PublicFleetApp[] {
       gaMeasurementId: repo.gaMeasurementId,
       posthogAppName: repo.posthogAppName,
       githubRepo: repo.githubRepo,
+      forgejoRepo: repo.forgejoRepo,
+      repoPrimary: repo.repoPrimary,
       isActive: repo.isActive,
     }))
 }

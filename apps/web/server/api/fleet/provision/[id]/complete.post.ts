@@ -20,6 +20,8 @@ const bodySchema = z.object({
   status: z.enum(['complete', 'failed']),
   deployedUrl: optionalUrlString,
   githubRepo: optionalNonEmptyString,
+  forgejoRepo: optionalNonEmptyString,
+  repoPrimary: z.enum(['github', 'forgejo']).optional(),
   gaPropertyId: optionalNonEmptyString,
   gaMeasurementId: optionalNonEmptyString,
   errorMessage: optionalNonEmptyString,
@@ -66,6 +68,9 @@ export default definePublicMutation(
       updatedAt: string
       githubRunStatus: string
       githubRunConclusion: string
+      githubRepo?: string
+      forgejoRepo?: string
+      repoPrimary?: 'github' | 'forgejo'
       deployedUrl?: string | null
       gaPropertyId?: string | null
       errorMessage?: string | null
@@ -78,6 +83,15 @@ export default definePublicMutation(
 
     if (body.deployedUrl !== undefined) {
       jobUpdates.deployedUrl = body.deployedUrl
+    }
+    if (body.githubRepo !== undefined) {
+      jobUpdates.githubRepo = body.githubRepo
+    }
+    if (body.forgejoRepo !== undefined) {
+      jobUpdates.forgejoRepo = body.forgejoRepo
+    }
+    if (body.repoPrimary !== undefined) {
+      jobUpdates.repoPrimary = body.repoPrimary
     }
     if (body.gaPropertyId !== undefined) {
       jobUpdates.gaPropertyId = body.gaPropertyId
@@ -95,6 +109,8 @@ export default definePublicMutation(
         updatedAt: string
         url?: string
         githubRepo?: string
+        forgejoRepo?: string
+        repoPrimary?: 'github' | 'forgejo'
         gaPropertyId?: string | null
         gaMeasurementId?: string | null
         isActive?: boolean
@@ -108,6 +124,12 @@ export default definePublicMutation(
       }
       if (body.githubRepo) {
         fleetUpdates.githubRepo = body.githubRepo
+      }
+      if (body.forgejoRepo) {
+        fleetUpdates.forgejoRepo = body.forgejoRepo
+      }
+      if (body.repoPrimary) {
+        fleetUpdates.repoPrimary = body.repoPrimary
       }
       if (body.gaPropertyId !== undefined) {
         fleetUpdates.gaPropertyId = body.gaPropertyId

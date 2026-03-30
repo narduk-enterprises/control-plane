@@ -5,6 +5,7 @@ import { fleetApps, provisionJobs } from '#server/database/schema'
 import { invalidateFleetAppListCache } from '#server/data/fleet-registry'
 import { definePublicMutation } from '#layer/server/utils/mutation'
 import { assertProvisionApiKey } from '#server/utils/provision-api-auth'
+import { deleteForgejoRepo } from '#server/utils/provision-forgejo'
 
 const querySchema = z.object({
   deleteRepo: z.enum(['true', 'false']).optional().default('false'),
@@ -14,7 +15,7 @@ const querySchema = z.object({
  * DELETE /api/fleet/provision/[id]
  *
  * Cleanup a provisioned app: removes the provision job, fleet_apps entry,
- * and optionally deletes the GitHub repo. Auth'd via PROVISION_API_KEY.
+ * and optionally deletes the GitHub and Forgejo repos. Auth'd via PROVISION_API_KEY.
  *
  * Query params:
  *   ?deleteRepo=true  — also delete the GitHub repo (default: false)
@@ -76,6 +77,22 @@ export default definePublicMutation(
         }
       } else {
         cleaned.push('GitHub repo deletion skipped (no GH token)')
+      }
+    }
+
+    if (deleteRepo && job.forgejoRepo) {
+      const forgejoToken = config.controlPlaneForgejoToken
+      if (forgejoToken) {
+        try {
+          await deleteForgejoRepo(forgejoToken, job.forgejoRepo, {
+            baseUrl: config.controlPlaneForgejoBaseUrl,
+          })
+          cleaned.push(`Forgejo repo ${job.forgejoRepo} deleted`)
+        } catch {
+          cleaned.push('Forgejo repo deletion failed')
+        }
+      } else {
+        cleaned.push('Forgejo repo deletion skipped (no Forgejo token)')
       }
     }
 
