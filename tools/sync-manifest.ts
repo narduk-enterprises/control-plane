@@ -1,7 +1,13 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import {
+  INHERITED_AGENTIC_WORKFLOW_DIRECTORIES,
+  INHERITED_AGENTIC_WORKFLOW_FILES,
+} from './agentic-workflow-manifest'
 
 export const VERBATIM_SYNC_FILES = [
+  '.forgejo/workflows/deploy-main.yml',
+  '.dockerignore',
   'doppler.template.yaml',
   'config/fleet-sync-repos.json',
   'config/fleet-app-dir-overrides.json',
@@ -11,18 +17,28 @@ export const VERBATIM_SYNC_FILES = [
   'tools/install-git-hooks.cjs',
   'tools/command.ts',
   'tools/gsc-verify.ts',
+  'tools/provision-metadata.ts',
   'tools/update-layer.ts',
   'tools/validate.ts',
 
   'tools/check-guardrails.ts',
   'tools/sync-template.ts',
   'tools/sync-core.ts',
+  'tools/fleet-git.ts',
+  'tools/package-registry.ts',
+  'tools/mirror-fleet-to-forgejo.ts',
+  'tools/agentic-workflow-manifest.ts',
   'tools/sync-manifest.ts',
   'tools/check-drift-ci.ts',
   'tools/check-sync-health.ts',
   'tools/generate-favicons.ts',
+  'tools/run-remote-d1-migrate.mjs',
+  'tools/sync-github-skills.ts',
+  'tools/web-deploy.cjs',
   'tools/tail.ts',
   'tools/ship.ts',
+  'tools/validate-production-env.mjs',
+  'tools/verify-forgejo-package-source.mjs',
   'tools/db-migrate.sh',
   'tools/check-setup.cjs',
   'scripts/dev-kill.sh',
@@ -32,6 +48,7 @@ export const VERBATIM_SYNC_FILES = [
   'renovate.json',
   '.github/copilot-instructions.md',
   '.github/prompts/ui-ux-pro-max/PROMPT.md',
+  ...INHERITED_AGENTIC_WORKFLOW_FILES,
   '.cursor/rules/user-global-skills.mdc',
   'apps/web/.nuxtrc',
   'apps/web/.npmrc',
@@ -39,6 +56,43 @@ export const VERBATIM_SYNC_FILES = [
   'prettier.config.mjs',
   '.prettierignore',
   '.editorconfig',
+] as const
+
+export const AUTH_BRIDGE_SYNC_FILES = [
+  'apps/web/app/components/AuthExchangePanel.vue',
+  'apps/web/app/components/AuthLoginCard.vue',
+  'apps/web/app/components/AuthRegisterCard.vue',
+  'apps/web/app/composables/useAuth.ts',
+  'apps/web/app/composables/useAuthApi.ts',
+  'apps/web/app/composables/useManagedSupabase.ts',
+  'apps/web/app/middleware/auth.ts',
+  'apps/web/app/middleware/guest.ts',
+  'apps/web/app/layouts/auth.vue',
+  'apps/web/app/layouts/blank.vue',
+  'apps/web/app/pages/auth/callback.vue',
+  'apps/web/app/pages/auth/confirm.vue',
+  'apps/web/app/pages/logout.vue',
+  'apps/web/app/pages/reset-password.vue',
+  'apps/web/app/types/auth.d.ts',
+  'apps/web/app/types/runtime-config.d.ts',
+  'apps/web/server/api/auth/change-password.post.ts',
+  'apps/web/server/api/auth/login.post.ts',
+  'apps/web/server/api/auth/logout.post.ts',
+  'apps/web/server/api/auth/me.get.ts',
+  'apps/web/server/api/auth/me.patch.ts',
+  'apps/web/server/api/auth/mfa/enroll.post.ts',
+  'apps/web/server/api/auth/mfa/verify.post.ts',
+  'apps/web/server/api/auth/oauth/start.post.ts',
+  'apps/web/server/api/auth/password/reset.post.ts',
+  'apps/web/server/api/auth/register.post.ts',
+  'apps/web/server/api/auth/session/exchange.post.ts',
+  'apps/web/server/database/auth-bridge-pg-schema.ts',
+  'apps/web/server/database/auth-bridge-schema.ts',
+  'apps/web/server/database/pg-app-schema.ts',
+  'apps/web/server/database/pg-schema.ts',
+  'apps/web/server/utils/app-auth.ts',
+  'apps/web/server/utils/supabase.ts',
+  'apps/web/drizzle/0001_auth_bridge.sql',
 ] as const
 
 export const BOOTSTRAP_SYNC_FILES = ['guardrail-exceptions.json'] as const
@@ -56,6 +110,9 @@ export const REFERENCE_BASELINE_FILES = [
 ] as const
 
 export const RECURSIVE_SYNC_DIRECTORIES = [
+  ...INHERITED_AGENTIC_WORKFLOW_DIRECTORIES,
+  '.github/skills',
+  'deploy/preview',
   'packages/eslint-config',
   'tools/guardrails',
   '.agents/workflows',
@@ -63,6 +120,7 @@ export const RECURSIVE_SYNC_DIRECTORIES = [
 ] as const
 
 export const STALE_SYNC_PATHS = [
+  '.agents/skills',
   '.agents/.DS_Store',
   '.github/workflows/publish-layer.yml',
   '.github/workflows/deploy-showcase.yml',
@@ -70,6 +128,7 @@ export const STALE_SYNC_PATHS = [
   '.github/workflows/version-bump.yml',
   '.github/workflows/template-sync-bot.yml',
   '.github/workflows/sync-fleet.yml',
+  '.forgejo/workflows/web-canary.yml',
   'tools/migrate-to-monorepo.ts',
   'tools/check-setup.js',
   '.cursor/.DS_Store',
@@ -99,6 +158,7 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   preship:
     'node tools/check-setup.cjs && pnpm install --frozen-lockfile && pnpm audit --audit-level=critical && pnpm exec tsx tools/check-drift-ci.ts && pnpm exec tsx tools/check-sync-health.ts && pnpm run quality:check',
   ship: 'pnpm exec tsx tools/ship.ts',
+  'sync:github-skills': 'pnpm exec tsx tools/sync-github-skills.ts',
   validate: 'pnpm exec tsx tools/validate.ts',
   'sync-template': 'pnpm exec tsx tools/sync-template.ts .',
   'update-layer': 'pnpm exec tsx tools/update-layer.ts',
@@ -125,6 +185,7 @@ export const FLEET_ROOT_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
 export const FLEET_WEB_SCRIPT_PATCHES: Readonly<Record<string, string>> = {
   predev: 'pnpm run db:ready',
   dev: '(doppler run -- nuxt dev || nuxt dev)',
+  deploy: 'node ../../tools/web-deploy.cjs',
   lint: 'eslint . --max-warnings 0',
   quality: "echo 'Turbo dependsOn handles lint + typecheck + format:check'",
 }
@@ -147,7 +208,7 @@ concurrency:
   cancel-in-progress: true
 
 # CI is disabled (workflow_dispatch only) to conserve GitHub Actions minutes.
-# Deploy is done locally via \`pnpm run deploy\` (wrangler deploy).
+# Deploy is done locally via \`pnpm ship\`.
 # See .agents/workflows/deploy.md for the local deploy workflow.
 
 jobs:
@@ -156,6 +217,7 @@ jobs:
     secrets:
       DOPPLER_TOKEN: \${{ secrets.DOPPLER_TOKEN }}
       GH_PACKAGES_TOKEN: \${{ secrets.GH_PACKAGES_TOKEN }}
+      FORGEJO_TOKEN: \${{ secrets.FORGEJO_TOKEN }}
 `
 }
 
@@ -193,6 +255,12 @@ export function collectManagedTemplateFiles(templateRoot: string): string[] {
   const tracked = new Set<string>()
 
   for (const file of VERBATIM_SYNC_FILES) {
+    if (existsSync(join(templateRoot, file))) {
+      tracked.add(file)
+    }
+  }
+
+  for (const file of AUTH_BRIDGE_SYNC_FILES) {
     if (existsSync(join(templateRoot, file))) {
       tracked.add(file)
     }

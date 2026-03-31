@@ -8,10 +8,46 @@ const localSiteUrl = `http://127.0.0.1:${Number.isFinite(localNuxtPort) ? localN
 /** `import.meta.dev` is not reliable in nuxt.config (Nuxt evaluates config outside the app graph). */
 const isNuxtDev = process.env.NODE_ENV === 'development'
 
+const appBackendPreset =
+  process.env.APP_BACKEND_PRESET === 'managed-supabase' ? 'managed-supabase' : 'default'
+const configuredAuthBackend = process.env.AUTH_BACKEND
+const supabaseUrl = process.env.AUTH_AUTHORITY_URL || process.env.SUPABASE_URL || ''
+const supabasePublishableKey =
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_AUTH_ANON_KEY ||
+  ''
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || ''
+const authBackend =
+  configuredAuthBackend === 'supabase' || configuredAuthBackend === 'local'
+    ? configuredAuthBackend
+    : supabaseUrl && supabasePublishableKey
+      ? 'supabase'
+      : 'local'
+const authAuthorityUrl = supabaseUrl
+const appOrmTablesEntry =
+  process.env.NUXT_DATABASE_BACKEND === 'postgres'
+    ? './server/database/pg-app-schema.ts'
+    : './server/database/app-schema.ts'
+
+function parseAuthProviders(value: string | undefined) {
+  return (value || 'apple,email')
+    .split(',')
+    .map((provider) => provider.trim().toLowerCase())
+    .filter((provider, index, providers) => provider && providers.indexOf(provider) === index)
+}
+
+const authProviders =
+  authBackend === 'supabase' ? parseAuthProviders(process.env.AUTH_PROVIDERS) : ['email']
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   // Extend the published Narduk Nuxt Layer
   extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],
+
+  alias: {
+    '#server/app-orm-tables': fileURLToPath(new URL(appOrmTablesEntry, import.meta.url)),
+  },
 
   // Disable SSR — this is an auth-gated admin dashboard with zero public pages.
   // SSR was the primary cause of "Worker exceeded resource limits" (Error 1102)
@@ -41,6 +77,16 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    appBackendPreset,
+    authBackend,
+    authAuthorityUrl,
+    authAnonKey: supabasePublishableKey,
+    authServiceRoleKey: supabaseServiceRoleKey,
+    authStorageKey: process.env.AUTH_STORAGE_KEY || 'web-auth',
+    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',
+    supabaseUrl,
+    supabasePublishableKey,
+    supabaseServiceRoleKey,
     session: {
       password:
         process.env.NUXT_SESSION_PASSWORD ||

@@ -17,7 +17,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
-    "deploy": "nuxt build && wrangler deploy",
+    "deploy": "node ../../tools/web-deploy.cjs",
     "tail:prod": "wrangler tail control-plane --format pretty",
     "prelint": "test -f .nuxt/eslint.config.mjs || nuxt prepare",
     "lint": "eslint . --max-warnings 0",
@@ -42,7 +42,9 @@
     "postgres": "^3.4.7",
     "vue-chartjs": "^5.3.3",
     "zod": "^4.3.6",
-    "@narduk-enterprises/eslint-config": "^1.0.17"
+    "@narduk-enterprises/eslint-config": "^1.0.17",
+    "@supabase/auth-js": "^2.100.1",
+    "@supabase/supabase-js": "^2.100.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260226.0",

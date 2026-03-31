@@ -53,7 +53,8 @@
     "sync:copilot-secrets": "pnpm exec tsx tools/sync-copilot-secrets.ts",
     "cleanup:node-leaks": "sh scripts/cleanup-node-leaks.sh",
     "test:e2e:web": "pnpm --filter web test:e2e",
-    "cpctl:install": "cd cpctl && go install ."
+    "cpctl:install": "cd cpctl && go install .",
+    "sync:github-skills": "pnpm exec tsx tools/sync-github-skills.ts"
   },
   "pnpm": {
     "overrides": {

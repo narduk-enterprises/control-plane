@@ -15,6 +15,12 @@ import {
 import { basename, dirname, join, relative } from 'node:path'
 import { runCommand } from './command'
 import {
+  buildPackageRegistryLine,
+  getPackageRegistryConfig,
+  patchPackageRegistryNpmrcContent,
+} from './package-registry'
+import {
+  AUTH_BRIDGE_SYNC_FILES,
   BOOTSTRAP_SYNC_FILES,
   FLEET_ROOT_SCRIPT_PATCHES,
   FLEET_WEB_SCRIPT_PATCHES,
@@ -202,6 +208,16 @@ function collectTrackedPathsForDirectory(relativeDir: string, trackedPaths: Set<
   return [...trackedPaths].filter((path) => path.startsWith(prefix)).sort()
 }
 
+function hasTrackedDescendant(relativePath: string, trackedPaths: Set<string>): boolean {
+  const prefix = `${relativePath}/`
+  for (const trackedPath of trackedPaths) {
+    if (trackedPath.startsWith(prefix)) {
+      return true
+    }
+  }
+  return false
+}
+
 function syncTrackedDirectory(
   relativeDir: string,
   templateDir: string,
@@ -221,6 +237,51 @@ function syncTrackedDirectory(
       log,
       relativePath,
     )
+  }
+}
+
+function removeUntrackedDirectoryEntries(
+  relativeDir: string,
+  appDir: string,
+  trackedPaths: Set<string>,
+  counters: SyncCounters,
+  dryRun: boolean,
+  log: (message: string) => void,
+) {
+  const absoluteDir = join(appDir, relativeDir)
+  if (!existsSync(absoluteDir)) return
+
+  const visit = (fullPath: string, relativePath: string) => {
+    if (isIgnoredManagedPath(fullPath)) return
+
+    const entry = lstatSync(fullPath)
+    if (entry.isDirectory()) {
+      if (!hasTrackedDescendant(relativePath, trackedPaths)) {
+        log(`  DELETE: ${relativePath}`)
+        if (!dryRun) {
+          rmSync(fullPath, { recursive: true, force: true })
+        }
+        counters.removed += 1
+        return
+      }
+
+      for (const child of readdirSync(fullPath)) {
+        visit(join(fullPath, child), join(relativePath, child))
+      }
+      return
+    }
+
+    if (trackedPaths.has(relativePath)) return
+
+    log(`  DELETE: ${relativePath}`)
+    if (!dryRun) {
+      rmSync(fullPath, { recursive: true, force: true })
+    }
+    counters.removed += 1
+  }
+
+  for (const entry of readdirSync(absoluteDir)) {
+    visit(join(absoluteDir, entry), join(relativeDir, entry))
   }
 }
 
@@ -363,15 +424,19 @@ function syncManagedFiles(
   if (mode === 'full') {
     log('Phase 1: Syncing managed template files...')
     for (const file of VERBATIM_SYNC_FILES) {
-      if (trackedPaths && !trackedPaths.has(file)) continue
+      if (trackedPaths && !trackedPaths.has(file) && !existsSync(join(templateDir, file))) continue
+      syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
+    }
+    for (const file of AUTH_BRIDGE_SYNC_FILES) {
+      if (trackedPaths && !trackedPaths.has(file) && !existsSync(join(templateDir, file))) continue
       syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
     }
     for (const file of REFERENCE_BASELINE_FILES) {
-      if (trackedPaths && !trackedPaths.has(file)) continue
+      if (trackedPaths && !trackedPaths.has(file) && !existsSync(join(templateDir, file))) continue
       syncFile(join(templateDir, file), join(appDir, file), templateDir, counters, dryRun, log)
     }
     for (const file of BOOTSTRAP_SYNC_FILES) {
-      if (trackedPaths && !trackedPaths.has(file)) continue
+      if (trackedPaths && !trackedPaths.has(file) && !existsSync(join(templateDir, file))) continue
       const targetPath = join(appDir, file)
       if (existsSync(targetPath)) continue
       syncFile(join(templateDir, file), targetPath, templateDir, counters, dryRun, log)
@@ -385,6 +450,7 @@ function syncManagedFiles(
   for (const directory of directories) {
     if (trackedPaths) {
       syncTrackedDirectory(directory, templateDir, appDir, trackedPaths, counters, dryRun, log)
+      removeUntrackedDirectoryEntries(directory, appDir, trackedPaths, counters, dryRun, log)
       continue
     }
 
@@ -647,6 +713,267 @@ function mergeWebWranglerKvBinding(
   }
 }
 
+function patchWebNuxtConfig(
+  appDir: string,
+  dryRun: boolean,
+  mode: 'full' | 'layer',
+  log: (message: string) => void,
+): boolean {
+  if (mode !== 'full') return false
+
+  const nuxtConfigPath = join(appDir, 'apps/web/nuxt.config.ts')
+  if (!existsSync(nuxtConfigPath)) return false
+
+  let content = readFileSync(nuxtConfigPath, 'utf-8')
+  const original = content
+
+  if (!content.includes('function parseAuthProviders(value: string | undefined)')) {
+    const anchor = '// https://nuxt.com/docs/api/configuration/nuxt-config'
+    const exportDefaultAnchor = 'export default defineNuxtConfig({'
+    const authSetupBlock = [
+      'const appBackendPreset =',
+      "  process.env.APP_BACKEND_PRESET === 'managed-supabase' ? 'managed-supabase' : 'default'",
+      'const configuredAuthBackend = process.env.AUTH_BACKEND',
+      "const supabaseUrl = process.env.AUTH_AUTHORITY_URL || process.env.SUPABASE_URL || ''",
+      'const supabasePublishableKey =',
+      '  process.env.SUPABASE_PUBLISHABLE_KEY ||',
+      '  process.env.SUPABASE_ANON_KEY ||',
+      '  process.env.SUPABASE_AUTH_ANON_KEY ||',
+      "  ''",
+      'const supabaseServiceRoleKey =',
+      "  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_AUTH_SERVICE_ROLE_KEY || ''",
+      'const authBackend =',
+      "  configuredAuthBackend === 'supabase' || configuredAuthBackend === 'local'",
+      '    ? configuredAuthBackend',
+      '    : supabaseUrl && supabasePublishableKey',
+      "      ? 'supabase'",
+      "      : 'local'",
+      'const authAuthorityUrl = supabaseUrl',
+      'const appOrmTablesEntry =',
+      "  process.env.NUXT_DATABASE_BACKEND === 'postgres'",
+      "    ? './server/database/pg-app-schema.ts'",
+      "    : './server/database/app-schema.ts'",
+      '',
+      'function parseAuthProviders(value: string | undefined) {',
+      "  return (value || 'apple,email')",
+      "    .split(',')",
+      '    .map((provider) => provider.trim().toLowerCase())',
+      '    .filter((provider, index, providers) => provider && providers.indexOf(provider) === index)',
+      '}',
+      '',
+      'const authProviders =',
+      "  authBackend === 'supabase' ? parseAuthProviders(process.env.AUTH_PROVIDERS) : ['email']",
+      '',
+    ].join('\n')
+
+    if (content.includes(anchor)) {
+      content = content.replace(anchor, `${authSetupBlock}${anchor}`)
+    } else if (content.includes(exportDefaultAnchor)) {
+      content = content.replace(exportDefaultAnchor, `${authSetupBlock}${exportDefaultAnchor}`)
+    }
+  }
+
+  if (!content.includes("'#server/app-orm-tables'")) {
+    content = content.replace(
+      "  extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],\n",
+      [
+        "  extends: ['@narduk-enterprises/narduk-nuxt-template-layer'],",
+        '',
+        '  alias: {',
+        "    '#server/app-orm-tables': fileURLToPath(new URL(appOrmTablesEntry, import.meta.url)),",
+        '  },',
+      ].join('\n') + '\n',
+    )
+  }
+
+  if (!content.includes('supabaseUrl,')) {
+    content = content.replace(
+      '  runtimeConfig: {\n',
+      [
+        '  runtimeConfig: {',
+        '    appBackendPreset,',
+        '    authBackend,',
+        '    authAuthorityUrl,',
+        '    authAnonKey: supabasePublishableKey,',
+        '    authServiceRoleKey: supabaseServiceRoleKey,',
+        "    authStorageKey: process.env.AUTH_STORAGE_KEY || 'web-auth',",
+        "    turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || '',",
+        '    supabaseUrl,',
+        '    supabasePublishableKey,',
+        '    supabaseServiceRoleKey,',
+      ].join('\n') + '\n',
+    )
+  }
+
+  if (!content.includes('supabasePublishableKey,')) {
+    content = content.replace(
+      '    public: {\n',
+      [
+        '    public: {',
+        '      appBackendPreset,',
+        '      authBackend,',
+        '      authAuthorityUrl,',
+        "      authLoginPath: '/login',",
+        "      authRegisterPath: '/register',",
+        "      authCallbackPath: '/auth/callback',",
+        "      authConfirmPath: '/auth/confirm',",
+        "      authResetPath: '/reset-password',",
+        "      authLogoutPath: '/logout',",
+        "      authRedirectPath: '/dashboard/',",
+        '      authProviders,',
+        "      authPublicSignup: process.env.AUTH_PUBLIC_SIGNUP !== 'false',",
+        "      authRequireMfa: process.env.AUTH_REQUIRE_MFA === 'true',",
+        "      authTurnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',",
+        '      supabaseUrl,',
+        '      supabasePublishableKey,',
+      ].join('\n') + '\n',
+    )
+  }
+
+  if (content === original) return false
+
+  log('  UPDATE: apps/web/nuxt.config.ts')
+  if (!dryRun) {
+    writeFileSync(nuxtConfigPath, content, 'utf-8')
+  }
+  return true
+}
+
+function patchWebDatabaseSchema(
+  appDir: string,
+  dryRun: boolean,
+  mode: 'full' | 'layer',
+  log: (message: string) => void,
+): boolean {
+  if (mode !== 'full') return false
+
+  const schemaPath = join(appDir, 'apps/web/server/database/schema.ts')
+  if (!existsSync(schemaPath)) return false
+
+  const content = readFileSync(schemaPath, 'utf-8')
+  if (content.includes("export * from '#server/database/auth-bridge-schema'")) {
+    return false
+  }
+
+  const bridgeExport = "export * from '#server/database/auth-bridge-schema'"
+  let updated = content
+
+  if (content.includes("export * from '#server/database/app-schema'")) {
+    updated = content.replace(
+      "export * from '#server/database/app-schema'",
+      [bridgeExport, "export * from '#server/database/app-schema'"].join('\n'),
+    )
+  } else if (content.includes("export * from '#layer/server/database/schema'")) {
+    updated = content.replace(
+      "export * from '#layer/server/database/schema'",
+      ["export * from '#layer/server/database/schema'", bridgeExport].join('\n'),
+    )
+  } else if (content.includes('export const ')) {
+    updated = `${content.trimEnd()}\n\n${bridgeExport}\n`
+  }
+
+  if (updated === content) return false
+
+  log('  UPDATE: apps/web/server/database/schema.ts')
+  if (!dryRun) {
+    writeFileSync(schemaPath, updated, 'utf-8')
+  }
+  return true
+}
+
+/**
+ * `app-auth.ts` imports `useAppDatabase` from `#server/utils/database`. Sync
+ * must not leave downstream apps without this helper (see template issue #12).
+ */
+function ensureWebDatabaseUtils(
+  appDir: string,
+  counters: SyncCounters,
+  dryRun: boolean,
+  mode: 'full' | 'layer',
+  log: (message: string) => void,
+): void {
+  if (mode !== 'full') return
+
+  const utilPath = join(appDir, 'apps/web/server/utils/database.ts')
+  const authPath = join(appDir, 'apps/web/server/utils/app-auth.ts')
+  if (!existsSync(authPath)) return
+
+  const authContent = readFileSync(authPath, 'utf-8')
+  if (!authContent.includes("from '#server/utils/database'")) return
+
+  const canonical = [
+    "import * as d1Schema from '#server/database/schema'",
+    "import * as pgSchema from '#server/database/pg-schema'",
+    "import { createAppDatabase } from '#layer/server/utils/database'",
+    '',
+    'export const useAppDatabase = createAppDatabase({',
+    '  d1: d1Schema,',
+    '  pg: pgSchema,',
+    '})',
+    '',
+  ].join('\n')
+
+  if (existsSync(utilPath)) {
+    const existing = readFileSync(utilPath, 'utf-8')
+    if (
+      existing.includes('useAppDatabase') &&
+      existing.includes('createAppDatabase') &&
+      existing.includes("import * as pgSchema from '#server/database/pg-schema'")
+    ) {
+      return
+    }
+
+    if (
+      existing.includes('useAppDatabase') &&
+      existing.includes('createAppDatabase') &&
+      existing.includes("import * as schema from '#server/database/schema'")
+    ) {
+      log('  UPDATE: apps/web/server/utils/database.ts (backend-aware auth bridge helper)')
+      if (!dryRun) {
+        writeFileSync(utilPath, canonical, 'utf-8')
+      }
+      return
+    }
+
+    log(
+      '  WARN: apps/web/server/utils/database.ts exists but is not the managed auth bridge helper; fix manually so useAppDatabase wraps createAppDatabase({ d1, pg }).',
+    )
+    return
+  }
+
+  log('  ADD: apps/web/server/utils/database.ts (auth bridge companion)')
+  if (!dryRun) {
+    ensureDir(utilPath)
+    writeFileSync(utilPath, canonical, 'utf-8')
+  }
+  counters.copied += 1
+}
+
+export interface AuthBridgeCompanionPatchResult {
+  schemaPatched: boolean
+  databaseHelperCreated: boolean
+}
+
+export function applyAuthBridgeCompanionPatches(
+  appDir: string,
+  options: {
+    dryRun?: boolean
+    log?: (message: string) => void
+  } = {},
+): AuthBridgeCompanionPatchResult {
+  const counters = createCounters()
+  const dryRun = options.dryRun ?? false
+  const log = options.log ?? console.log
+  const schemaPatched = patchWebDatabaseSchema(appDir, dryRun, 'full', log)
+  const copiedBefore = counters.copied
+  ensureWebDatabaseUtils(appDir, counters, dryRun, 'full', log)
+
+  return {
+    schemaPatched,
+    databaseHelperCreated: counters.copied > copiedBefore,
+  }
+}
+
 function patchWebPackage(
   appDir: string,
   templateDir: string,
@@ -778,6 +1105,14 @@ function patchWebPackage(
           pkg.devDependencies.eslint = templateDevEslintVersion
           changed = true
         }
+
+        for (const dependency of ['@supabase/auth-js', '@supabase/supabase-js']) {
+          const version = templateWebPackage.dependencies?.[dependency]
+          if (version && pkg.dependencies[dependency] !== version) {
+            pkg.dependencies[dependency] = version
+            changed = true
+          }
+        }
       }
 
       touched ||= changed
@@ -850,7 +1185,8 @@ function ensureGitHooksPath(
 
 function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => void): boolean {
   const npmrcPath = join(appDir, '.npmrc')
-  const defaultContent = ['@narduk-enterprises:registry=https://npm.pkg.github.com', ''].join('\n')
+  const registryConfig = getPackageRegistryConfig()
+  const defaultContent = [buildPackageRegistryLine(registryConfig), ''].join('\n')
 
   if (!existsSync(npmrcPath)) {
     log('  ADD: .npmrc')
@@ -860,36 +1196,8 @@ function patchNpmrc(appDir: string, dryRun: boolean, log: (message: string) => v
     return true
   }
 
-  let content = readFileSync(npmrcPath, 'utf-8')
-  const original = content
-
-  if (!content.includes('@narduk-enterprises:registry=https://npm.pkg.github.com')) {
-    content = `@narduk-enterprises:registry=https://npm.pkg.github.com\n${content.trimStart()}`
-    if (!content.endsWith('\n')) {
-      content += '\n'
-    }
-  }
-
-  if (content.includes('@loganrenz:registry')) {
-    content = content.replace(/@loganrenz:registry/g, '@narduk-enterprises:registry')
-  }
-
-  const sanitizedLines = content
-    .split('\n')
-    .filter((line) => !line.includes('//npm.pkg.github.com/:_authToken='))
-    .filter((line) => !line.includes('Auth token injected via CI env'))
-  content = sanitizedLines.join('\n')
-
-  content = `${content
-    .split('\n')
-    .reduce<string[]>((lines, line) => {
-      const previous = lines[lines.length - 1]
-      if (line === '' && previous === '') return lines
-      lines.push(line)
-      return lines
-    }, [])
-    .join('\n')
-    .trimEnd()}\n`
+  const original = readFileSync(npmrcPath, 'utf-8')
+  const content = patchPackageRegistryNpmrcContent(original)
 
   if (content === original) return false
 
@@ -1057,6 +1365,13 @@ export async function runAppSync(options: RunAppSyncOptions) {
 
   const packageTouched = patchRootPackage(options.appDir, options.templateDir, dryRun, mode, log)
   patchWebPackage(options.appDir, options.templateDir, dryRun, mode, log)
+  patchWebNuxtConfig(options.appDir, dryRun, mode, log)
+  if (mode === 'full') {
+    const authBridgePatches = applyAuthBridgeCompanionPatches(options.appDir, { dryRun, log })
+    if (authBridgePatches.databaseHelperCreated) {
+      counters.copied += 1
+    }
+  }
   patchDopplerTemplate(options.appDir, dryRun, mode, log)
   mergeWebWranglerKvBinding(options.appDir, options.templateDir, dryRun, mode, log)
   if (mode === 'full') {

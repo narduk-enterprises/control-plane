@@ -5,6 +5,7 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
 
 export * from '#layer/server/database/schema'
+export * from '#server/database/auth-bridge-schema'
 // ─── Fleet Apps Registry ────────────────────────────────────
 // Public app registry used by status/audit/analytics APIs. Seeded from the
 // managed-repo catalog in server/data/managed-repos.ts.
